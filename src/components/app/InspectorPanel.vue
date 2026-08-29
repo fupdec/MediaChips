@@ -342,6 +342,7 @@
               >
                 <v-rating
                   v-if="itemsStore.type === 'media' || meta?.rating"
+                  :key="`inspector-rating-${focusedItem.id}`"
                   :model-value="Number(focusedItem.rating) || 0"
                   density="compact"
                   half-increments

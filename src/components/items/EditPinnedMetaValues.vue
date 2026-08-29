@@ -769,9 +769,12 @@ const assignedItems = ref<PinnedMetaAssignment[]>([])
 // Keep the card and inspector summary in sync with unsaved identity edits.
 // The full form is still persisted together by save(), but rating/favorite
 // should be visible everywhere immediately while the form is dirty.
+// Do NOT depend on currentItemId: on selection change vals still hold the
+// previous card, and writing them onto the new id leaks rating/favorite.
 watch(
-  () => [currentItemId.value, vals.value.rating, vals.value.favorite] as const,
-  ([itemId, rating, favorite]) => {
+  () => [vals.value.rating, vals.value.favorite] as const,
+  ([rating, favorite]) => {
+    const itemId = currentItemId.value
     if (itemId == null) return
     if (rating !== undefined) {
       itemsStore.updateItemField({id: Number(itemId), field: 'rating', value: rating})
@@ -785,9 +788,14 @@ watch(
 
 // Also accept changes made directly on the card while this editor is open.
 // Do not reload the whole form: other unsaved fields must remain untouched.
+// Skip when the bound item changes — loadEditingState owns that reset, and
+// copying the new card into vals before save(previousId) would corrupt it.
 watch(
-  () => [props.media?.rating, props.media?.favorite, props.tag?.rating, props.tag?.favorite] as const,
-  ([mediaRating, mediaFavorite, tagRating, tagFavorite]) => {
+  () => [currentItemId.value, props.media?.rating, props.media?.favorite, props.tag?.rating, props.tag?.favorite] as const,
+  ([itemId, mediaRating, mediaFavorite, tagRating, tagFavorite], previous) => {
+    const prevItemId = previous?.[0]
+    if (itemId == null || (prevItemId != null && itemId !== prevItemId)) return
+
     const rating = isMedia.value ? mediaRating : tagRating
     const favorite = isMedia.value ? mediaFavorite : tagFavorite
     if (rating !== undefined && rating !== vals.value.rating) {

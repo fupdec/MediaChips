@@ -28,10 +28,11 @@ const itemsStore = useItemsStore()
 
 const rating = ref(props.item.rating as number | undefined)
 
-// Keep stars in sync when the item is refreshed after dialog save / refetch.
+// Keep stars in sync when the item is refreshed after dialog save / refetch,
+// and when the same component instance is reused for another card.
 watch(
-  () => props.item.rating,
-  (val) => {
+  () => [props.item.id, props.item.rating] as const,
+  ([, val]) => {
     if (rating.value !== val) {
       rating.value = val as number | undefined
     }
@@ -39,19 +40,25 @@ watch(
 )
 
 watch(rating, async (val) => {
+  const itemId = props.item.id
   if (val === props.item.rating) return
 
   try {
-    await typedApi.updateEntity(props.type, props.item.id, { rating: val })
+    await typedApi.updateEntity(props.type, itemId, { rating: val })
+
+    // Drop the update if the card was rebound while the request was in flight.
+    if (props.item.id !== itemId) return
 
     itemsStore.updateItemField({
-      id: props.item.id,
+      id: itemId,
       field: 'rating',
       value: val,
     })
   } catch (error) {
     console.error('Error updating rating:', error)
-    rating.value = props.item.rating as number | undefined
+    if (props.item.id === itemId) {
+      rating.value = props.item.rating as number | undefined
+    }
   }
 })
 </script>
