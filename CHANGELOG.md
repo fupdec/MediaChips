@@ -5,6 +5,31 @@ All notable changes to MediaChips are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-08-29
+
+### Added
+
+- **Folders browser** — browse library and pending disk files together with back/forward history, filesystem operations, folder selection, and path synchronization after moves or renames
+- **Tag hierarchy and organization** — nested tag categories, tag reparenting, globally unique active tag names, safe Trash restore, color swatch filtering, and improved tag suggestions/path matching including CJK
+- **Library Reset** — clear media or tags from Database settings with progress and confirmation flows
+- **Session Focus tag tray** — work with multiple focused tags and apply them to the current selection
+- **Video editing** — trim videos in-player with copy/encode fallback and run cancellable video conversion jobs
+- **Home Similar improvements** — frame-based match previews, reason badges, score filtering, and more varied source items
+- **Navigation and menus** — mixed-grid keyboard navigation, unified selection controls, synced app menus, and Home widget context menus
+
+### Changed
+
+- **Browser and inspector UI** — unified bottom dock, refreshed folder controls, grid layouts, settings, dialogs, and media previews
+- **Database and server startup** — database discovery, migration/schema repair, watched-folder stability, and LAN startup behavior were hardened
+- **Media processing** — improved thumbnail validation, video previews, FFmpeg conversion, and filesystem safety checks
+
+### Fixed
+
+- **LAN / browser boot spinner** — `/api/config` is available as soon as the server listens and no longer requires a login session
+- **Filesystem safety and consistency** — protect operations from symlink escapes, avoid overwrite conflicts, and keep watched-folder records stable when IDs are missing
+- **Tag and filter behavior** — improve OR filtering, tag restoration, autocomplete, path matching, and category handling
+- **Player and preview behavior** — restore timeline hover previews, keep edits synchronized, and prevent thumbnail flashing
+
 ## [Unreleased]
 
 ### Fixed
