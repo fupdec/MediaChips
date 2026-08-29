@@ -181,12 +181,12 @@ describe('getHomeSimilar', () => {
 
     const gridMatch = result.items.find((item) => Number(item.id) === 2)
     expect(gridMatch?.semanticTileIndex).toBe(7)
-    expect(gridMatch?.similarity?.tileIndex).toBe(7)
-    expect(gridMatch?.similarity?.signals?.clip).toBeGreaterThan(0.9)
+    expect((gridMatch?.similarity as {tileIndex?: number} | undefined)?.tileIndex).toBe(7)
+    expect((gridMatch?.similarity as {signals?: {clip?: number}} | undefined)?.signals?.clip).toBeGreaterThan(0.9)
 
     const thumbOnly = result.items.find((item) => Number(item.id) === 3)
     expect(thumbOnly?.semanticTileIndex).toBeUndefined()
-    expect(thumbOnly?.similarity?.tileIndex).toBeUndefined()
+    expect((thumbOnly?.similarity as {tileIndex?: number} | undefined)?.tileIndex).toBeUndefined()
 
     const parsed = parseHomeSimilarResponse(result)
     expect(parsed.items.find((item) => item.id === 2)?.similarity?.tileIndex).toBe(7)

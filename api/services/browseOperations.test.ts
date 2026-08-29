@@ -72,7 +72,7 @@ describe('browseOperations physical path access', () => {
       ? await copyEntries([{path: source, name: 'folder'}], destination, media)
       : await moveEntries([{path: source, name: 'folder'}], destination, media)
 
-    expect(result.copied ?? result.moved).toEqual([])
+    expect(('copied' in result ? result.copied : result.moved)).toEqual([])
     expect(result.failed[0]?.reason).toMatch(/into itself/)
     expect(fs.existsSync(path.join(source, 'file.txt'))).toBe(true)
   })
@@ -116,7 +116,7 @@ describe('browseOperations destination conflicts', () => {
         {path: sourceFolder, name: 'folder'},
       ], destination, media)
 
-    expect(result.copied ?? result.moved).toEqual([])
+    expect(('copied' in result ? result.copied : result.moved)).toEqual([])
     expect(result.failed).toMatchObject([
       {path: sourceFile, status: 409, reason: expect.stringMatching(/already exists/)},
       {path: sourceFolder, status: 409, reason: expect.stringMatching(/already exists/)},
@@ -142,7 +142,7 @@ describe('browseOperations destination conflicts', () => {
       ? await copyEntries([{path: source, name: 'linked.txt'}], destination, media)
       : await moveEntries([{path: source, name: 'linked.txt'}], destination, media)
 
-    expect(result.copied ?? result.moved).toEqual([])
+    expect(('copied' in result ? result.copied : result.moved)).toEqual([])
     expect(result.failed).toMatchObject([{path: source, status: 409}])
     expect(fs.lstatSync(path.join(destination, 'linked.txt')).isSymbolicLink()).toBe(true)
     expect(fs.existsSync(source)).toBe(true)
@@ -169,7 +169,7 @@ describe('browseOperations destination conflicts', () => {
         {path: allowed, name: 'allowed.txt'},
       ], destination, media)
 
-    expect(result.copied ?? result.moved).toEqual([allowed])
+    expect(('copied' in result ? result.copied : result.moved)).toEqual([allowed])
     expect(result.failed).toMatchObject([{path: conflicting, status: 409}])
     expect(fs.readFileSync(path.join(destination, 'conflicting.txt'), 'utf8')).toBe('existing')
     expect(fs.readFileSync(path.join(destination, 'allowed.txt'), 'utf8')).toBe('source allowed')
