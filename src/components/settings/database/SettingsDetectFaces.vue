@@ -807,7 +807,7 @@ const syncSelectedMetaFromSettings = () => {
     selectedPerformerMeta.value = arrayMetas.value.find((meta) => Number(meta.id) === configured) || null
     return
   }
-  selectedPerformerMeta.value = arrayMetas.value.find((meta) => Boolean(meta.scraper)) || null
+  selectedPerformerMeta.value = arrayMetas.value.find((meta) => Boolean((meta as Meta & {scraper?: unknown}).scraper)) || null
 }
 
 const onPerformerMetaChange = (meta: Meta | null) => {

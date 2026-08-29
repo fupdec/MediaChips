@@ -49,7 +49,7 @@ export const MetaSchema = z.object({
   tagPageDesign: optionalNullableStringSchema,
   hidden: z.boolean().optional(),
   order: optionalNullableCoercedNumberSchema,
-  parentMetaId: optionalNullableCoercedNumberSchema,
+  parentMetaId: z.coerce.number().nullable().optional(),
   type: optionalNullableStringSchema,
 }).passthrough()
 

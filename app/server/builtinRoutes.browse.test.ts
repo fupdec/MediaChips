@@ -38,7 +38,7 @@ async function startServer(authRequired = false): Promise<TestServer> {
     const authService = {
       isAuthRequired: async () => true,
       isRequestAuthenticated: () => false,
-    } as Parameters<typeof createAuthMiddleware>[0]
+    } as unknown as Parameters<typeof createAuthMiddleware>[0]
     app.use(createAuthMiddleware(authService))
   }
 

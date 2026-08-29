@@ -13,7 +13,7 @@ async function startServer(): Promise<TestServer> {
   const authService = {
     isAuthRequired: async () => true,
     isRequestAuthenticated: () => false,
-  } as Parameters<typeof createAuthMiddleware>[0]
+  } as unknown as Parameters<typeof createAuthMiddleware>[0]
   app.use(createAuthMiddleware(authService))
   app.get('/api/config', (_req, res) => res.json({ok: true}))
   app.get('/api/setting', (_req, res) => res.json({ok: true}))

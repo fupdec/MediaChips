@@ -339,7 +339,7 @@ const nestParentsFor = (category: Meta) =>
 const reparentCategory = async (category: Meta, parentMetaId: number | null) => {
   if (!category?.id) return
   try {
-    await typedApi.updateMeta(category.id, {parentMetaId})
+    await typedApi.updateMeta(category.id, parentMetaId == null ? {parentMetaId: undefined} : {parentMetaId})
     await reloadMetaCatalog()
   } catch (error) {
     console.error('Error nesting category:', error)

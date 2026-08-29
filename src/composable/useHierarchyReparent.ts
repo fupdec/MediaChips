@@ -30,7 +30,7 @@ export function useHierarchyReparent() {
     }
 
     try {
-      await typedApi.updateMeta(category.id, {parentMetaId})
+      await typedApi.updateMeta(category.id, parentMetaId == null ? {parentMetaId: undefined} : {parentMetaId})
       await reloadMetaCatalog()
       setNotification({
         type: 'success',

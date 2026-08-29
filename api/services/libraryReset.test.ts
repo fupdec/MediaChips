@@ -58,7 +58,7 @@ describe('libraryReset', () => {
 
   it('soft-deletes media of one type and leaves other types', async () => {
     const events = await collect(iterateLibraryResetMedia(db, {mediaTypeId: 1}))
-    const complete = events.at(-1)
+    const complete = events[events.length - 1]
     expect(complete?.type).toBe('complete')
     expect(complete?.mediaDeleted).toBe(2)
     expect(complete?.stopped).toBe(false)
@@ -78,7 +78,7 @@ describe('libraryReset', () => {
       mediaTypeId: 'all',
       permanent: true,
     }))
-    expect(events.at(-1)?.mediaDeleted).toBe(3)
+    expect(events[events.length - 1]?.mediaDeleted).toBe(3)
     expect(db.sqlite.prepare(`SELECT COUNT(*) AS count FROM media`).get())
       .toEqual({count: 0})
     expect(db.sqlite.prepare(`SELECT COUNT(*) AS count FROM mediaTypes`).get())
@@ -88,13 +88,13 @@ describe('libraryReset', () => {
   it('skips already-trashed media unless permanent', async () => {
     db.sqlite.prepare(`UPDATE media SET deletedAt = ? WHERE id = 10`).run(ts)
     const soft = await collect(iterateLibraryResetMedia(db, {mediaTypeId: 1}))
-    expect(soft.at(-1)?.mediaDeleted).toBe(1)
+    expect(soft[soft.length - 1]?.mediaDeleted).toBe(1)
 
     const permanent = await collect(iterateLibraryResetMedia(db, {
       mediaTypeId: 1,
       permanent: true,
     }))
-    expect(permanent.at(-1)?.mediaDeleted).toBe(2)
+    expect(permanent[permanent.length - 1]?.mediaDeleted).toBe(2)
     expect(db.sqlite.prepare(`SELECT COUNT(*) AS count FROM media WHERE mediaTypeId = 1`).get())
       .toEqual({count: 0})
   })
@@ -105,7 +105,7 @@ describe('libraryReset', () => {
     fs.writeFileSync(path.join(metaDir, '100_main.jpg'), 'x')
 
     const events = await collect(iterateLibraryResetTags(db, {metaId: 1}))
-    const complete = events.at(-1)
+    const complete = events[events.length - 1]
     expect(complete?.tagsDeleted).toBe(2)
     expect(complete?.metaDeleted).toBe(1)
 
@@ -136,8 +136,8 @@ describe('libraryReset', () => {
       metaId: 'all',
       permanent: true,
     }))
-    expect(events.at(-1)?.tagsDeleted).toBe(3)
-    expect(events.at(-1)?.metaDeleted).toBe(2)
+    expect(events[events.length - 1]?.tagsDeleted).toBe(3)
+    expect(events[events.length - 1]?.metaDeleted).toBe(2)
     expect(db.sqlite.prepare(`SELECT COUNT(*) AS count FROM tags`).get())
       .toEqual({count: 0})
     expect(db.sqlite.prepare(`SELECT id, type FROM meta ORDER BY id`).all())
@@ -156,7 +156,7 @@ describe('libraryReset', () => {
       processed += 1
       return processed > 2
     }))
-    const complete = events.at(-1)
+    const complete = events[events.length - 1]
     expect(complete?.stopped).toBe(true)
     expect(complete?.mediaDeleted).toBeLessThan(3)
     const remaining = db.sqlite.prepare(

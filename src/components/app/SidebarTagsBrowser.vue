@@ -595,7 +595,7 @@ function onDropToCategory(category: Meta) {
   const byId = new Map((appStore.tags || []).map((tag) => [Number(tag.id), tag]))
   const tagsToMove = ids
     .map((id) => byId.get(id))
-    .filter((tag): tag is Tag => Boolean(tag) && Number(tag.metaId) !== Number(category.id))
+    .filter((tag): tag is Tag => tag != null && Number(tag.metaId) !== Number(category.id))
   if (!tagsToMove.length) return
   moveTagsToCategory(tagsToMove, Number(category.id), String(category.name ?? ''), {
     clearSelection: false,
