@@ -3838,6 +3838,8 @@ const cn = {
     registration_failed: '注册失败',
     no_activation_key_found: '未找到激活密钥',
     deactivation_failed: '停用失败',
+    deactivation_successful: '许可证密钥已成功停用。',
+    deactivation_already_inactive: '此设备在许可证服务器上未处于活动状态。已清除本地注册。',
     device_id_unavailable: '设备 ID 不可用',
     server_unavailable: '服务器不可用',
     activations_exceeded: '已超过激活次数',

@@ -3838,6 +3838,8 @@ const fr = {
     registration_failed: 'L\'inscription a échoué',
     no_activation_key_found: 'Aucune clé d\'activation trouvée',
     deactivation_failed: 'Échec de la désactivation',
+    deactivation_successful: 'La clé de licence a été désactivée avec succès.',
+    deactivation_already_inactive: 'Cet appareil n\'était pas actif sur le serveur de licences. L\'enregistrement local a été effacé.',
     device_id_unavailable: 'L\'identifiant de l\'appareil n\'est pas disponible',
     server_unavailable: 'Le serveur n\'est pas disponible',
     activations_exceeded: 'Le nombre d\'activations a été dépassé',

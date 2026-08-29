@@ -3838,6 +3838,8 @@ const de = {
     registration_failed: 'Die Registrierung ist fehlgeschlagen',
     no_activation_key_found: 'Kein Aktivierungsschlüssel gefunden',
     deactivation_failed: 'Die Deaktivierung ist fehlgeschlagen',
+    deactivation_successful: 'Der Lizenzschlüssel wurde erfolgreich deaktiviert.',
+    deactivation_already_inactive: 'Dieses Gerät war auf dem Lizenzserver nicht aktiv. Die lokale Registrierung wurde gelöscht.',
     device_id_unavailable: 'Geräte-ID ist nicht verfügbar',
     server_unavailable: 'Server ist nicht verfügbar',
     activations_exceeded: 'Die Anzahl der Aktivierungen wurde überschritten',

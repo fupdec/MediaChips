@@ -3838,6 +3838,8 @@ const ja = {
     registration_failed: '登録に失敗しました',
     no_activation_key_found: 'アクティベーションキーが見つかりません',
     deactivation_failed: '非アクティブ化に失敗しました',
+    deactivation_successful: 'ライセンスキーが正常に無効化されました。',
+    deactivation_already_inactive: 'このデバイスはライセンスサーバー上でアクティブではありませんでした。ローカル登録をクリアしました。',
     device_id_unavailable: 'デバイスIDが利用できません',
     server_unavailable: 'サーバーが利用できません',
     activations_exceeded: 'アクティベーション数を超えました',

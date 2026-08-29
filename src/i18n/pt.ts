@@ -3838,6 +3838,8 @@ const pt = {
     registration_failed: 'Falha no registro',
     no_activation_key_found: 'Nenhuma chave de ativação encontrada',
     deactivation_failed: 'Falha na desativação',
+    deactivation_successful: 'A chave de licença foi desativada com sucesso.',
+    deactivation_already_inactive: 'Este dispositivo não estava ativo no servidor de licenças. O registro local foi limpo.',
     device_id_unavailable: 'O ID do dispositivo não está disponível',
     server_unavailable: 'O servidor não está disponível',
     activations_exceeded: 'O número de ativações foi excedido',

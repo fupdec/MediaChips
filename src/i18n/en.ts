@@ -3937,6 +3937,8 @@ const en = {
     registration_failed: 'Registration failed',
     no_activation_key_found: 'No activation key found',
     deactivation_failed: 'Deactivation failed',
+    deactivation_successful: 'The license key has been deactivated successfully.',
+    deactivation_already_inactive: 'This device was not active on the license server. Local registration was cleared.',
     device_id_unavailable: 'Device id is not available',
     server_unavailable: 'Server is not available',
     activations_exceeded: 'The number of activations has been exceeded',

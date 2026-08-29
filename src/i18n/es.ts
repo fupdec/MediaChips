@@ -3838,6 +3838,8 @@ const es = {
     registration_failed: 'Error de registro',
     no_activation_key_found: 'No se encontró clave de activación',
     deactivation_failed: 'Error al desactivar',
+    deactivation_successful: 'La clave de licencia se ha desactivado correctamente.',
+    deactivation_already_inactive: 'Este dispositivo no estaba activo en el servidor de licencias. Se borró el registro local.',
     device_id_unavailable: 'El ID del dispositivo no está disponible',
     server_unavailable: 'El servidor no está disponible',
     activations_exceeded: 'Se ha excedido el número de activaciones',

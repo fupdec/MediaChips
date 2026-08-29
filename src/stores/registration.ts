@@ -58,6 +58,16 @@ function calculateActivations(data: LicenseInfo) {
   return collectLicenseFingerprints(data).length
 }
 
+function isDeviceFingerprintOnLicense(data: LicenseInfo, machineId: string) {
+  return collectLicenseFingerprints(data).includes(machineId)
+}
+
+/** Server says this fingerprint is already absent — local cleanup is still correct. */
+export function isAlreadyInactiveOnServerMessage(message?: string | null) {
+  if (!message) return false
+  return /not registered on this device/i.test(message)
+}
+
 type DeactivateOtherDevicesResult = {
   success: boolean
   deactivatedCount: number
@@ -325,6 +335,27 @@ export const useRegistrationStore = defineStore('useRegistrationStore', {
       }
     },
 
+    /**
+     * Align local registration with the license server for this device.
+     * Stale local fingerprints can show "registered" while deactivate fails.
+     */
+    async syncLicenseFromServer(licenseCode?: string): Promise<LicenseInfo | null> {
+      const info = this.regInfo
+      const code = licenseCode
+        || (info && typeof info === 'object' ? info.license_code : '')
+        || ''
+      if (!code) return null
+
+      const remote = await this.checkLicense(code)
+      if (!remote) return null
+
+      if (info && typeof info === 'object' && info.license_code === code) {
+        await this.updateRegInfo(remote)
+      }
+
+      return remote
+    },
+
     async tryAutoRegisterOnStartup(): Promise<AutoRegisterResult> {
       // Official Microsoft Store AppX only — licensed via store purchase, no key API.
       if (isMsStoreBuild()) {
@@ -348,11 +379,8 @@ export const useRegistrationStore = defineStore('useRegistrationStore', {
 
       try {
         const today = new Date().toISOString().substring(0, 10)
-        const storedFingerprints = [info.fingerprint_1, info.fingerprint_2, info.fingerprint_3]
-        const isAlreadyActivated = storedFingerprints.includes(machineId)
         const isExpired = today > (info.license_expiry || '') && info.license_expiry !== '0000-00-00'
-
-        if (isAlreadyActivated && !isExpired) {
+        if (isExpired) {
           return { success: true, skipped: true }
         }
 
@@ -363,6 +391,9 @@ export const useRegistrationStore = defineStore('useRegistrationStore', {
           return { success: false, error: errorText }
         }
 
+        // Always prefer server fingerprints over stale local cache.
+        await this.updateRegInfo(checkData)
+
         const isKeyExpired = today > (checkData.license_expiry || '') && checkData.license_expiry !== '0000-00-00'
         if (isKeyExpired) {
           const errorText = 'This activation key has expired'
@@ -370,11 +401,12 @@ export const useRegistrationStore = defineStore('useRegistrationStore', {
           return { success: false, error: errorText }
         }
 
-        const activations = calculateActivations(checkData)
-        const fingerprints = [checkData.fingerprint_1, checkData.fingerprint_2, checkData.fingerprint_3]
-        const isDeviceRegistered = fingerprints.includes(machineId)
+        if (isDeviceFingerprintOnLicense(checkData, machineId)) {
+          return { success: true, skipped: true }
+        }
 
-        if (activations >= 3 && !isDeviceRegistered) {
+        const activations = calculateActivations(checkData)
+        if (activations >= 3) {
           const errorText = 'The number of activations has been exceeded'
           this._notifyAutoRegisterError(errorText)
           return { success: false, error: errorText }
@@ -392,6 +424,10 @@ export const useRegistrationStore = defineStore('useRegistrationStore', {
         return { success: false, error: errorText }
       } catch (error) {
         console.error('Auto registration failed:', error)
+        // Offline / unreachable: keep trusting local registration if fingerprint matches.
+        if (isDeviceFingerprintOnLicense(info, machineId)) {
+          return { success: true, skipped: true }
+        }
         const errorText = getErrorMessage(error, 'An error occurred while activating the application')
         this._notifyAutoRegisterError(errorText)
         return { success: false, error: errorText }

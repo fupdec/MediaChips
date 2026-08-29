@@ -3937,6 +3937,8 @@ const ru = {
     registration_failed: 'Регистрация не удалась',
     no_activation_key_found: 'Ключ активации не найден',
     deactivation_failed: 'Деактивация не удалась',
+    deactivation_successful: 'Ключ лицензии успешно деактивирован.',
+    deactivation_already_inactive: 'Это устройство не было активно на сервере лицензий. Локальная регистрация очищена.',
     device_id_unavailable: 'ID устройства недоступен',
     server_unavailable: 'Сервер недоступен',
     activations_exceeded: 'Превышено количество активаций',
