@@ -311,17 +311,33 @@ async function loadDatabaseSizes() {
     return
   }
 
-  try {
-    const {data} = await typedApi.getDatabaseSizes({ids})
-    dbSizes.value = data.sizes || {}
-    const counts = data.backupCounts || {}
-    // Older servers may omit backupCounts — fall back to 0 once sizes are known.
-    dbBackupCounts.value = Object.fromEntries(
-      ids.map((id) => [id, counts[id] ?? 0]),
-    )
-  } catch (error) {
-    console.error('Error loading database sizes:', error)
-  }
+  // Drop sizes for removed DBs; keep cached values for the rest so the UI
+  // does not flash "…" while a huge library is still measuring.
+  const idSet = new Set(ids)
+  dbSizes.value = Object.fromEntries(
+    Object.entries(dbSizes.value).filter(([id]) => idSet.has(id)),
+  )
+  dbBackupCounts.value = Object.fromEntries(
+    Object.entries(dbBackupCounts.value).filter(([id]) => idSet.has(id)),
+  )
+
+  // Measure each DB independently so small ones paint before the largest finishes.
+  await Promise.all(ids.map(async (id) => {
+    try {
+      const {data} = await typedApi.getDatabaseSizes({ids: [id]})
+      const size = data.sizes?.[id]
+      if (typeof size === 'number') {
+        dbSizes.value = {...dbSizes.value, [id]: size}
+      }
+      // Older servers may omit backupCounts — fall back to 0 once sizes are known.
+      dbBackupCounts.value = {
+        ...dbBackupCounts.value,
+        [id]: data.backupCounts?.[id] ?? 0,
+      }
+    } catch (error) {
+      console.error('Error loading database size:', id, error)
+    }
+  }))
 }
 
 function formatDbSize(id: string) {

@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Global search** — default text search uses name/tag FTS only; bookmark notes and text-file content scans are opt-in (`deep`) so large libraries no longer stall on the first keystroke
+- **Database sizes in settings** — measure folder size via system `du` on macOS/Linux (much faster on huge generated-media trees) and load each database independently so smaller ones appear before the largest finishes
 
 ### Fixed
 
