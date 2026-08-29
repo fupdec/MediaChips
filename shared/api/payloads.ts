@@ -21,6 +21,16 @@ export interface AddMediaPayload {
   [key: string]: unknown
 }
 
+export interface AddMediaBulkPayload {
+  mode?: 'lite'
+  type: string | number | MediaType
+  files?: string[]
+  roots?: string[]
+  excluded?: string[]
+  expandZips?: boolean
+  [key: string]: unknown
+}
+
 export interface MediaTypeWritePayload {
   name?: string
   extensions?: string

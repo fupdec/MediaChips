@@ -90,6 +90,7 @@ export const API_ROUTES = {
   taskGetConfig: '/api/Task/getConfig',
   taskGetMachineId: '/api/Task/getMachineId',
   taskAddMedia: '/api/Task/addMedia',
+  taskAddMediaBulk: '/api/Task/addMediaBulk',
   taskCheckFileExists: '/api/Task/checkFileExists',
   taskConvertVideos: '/api/Task/convertVideos',
   taskCreateTestVideoSegment: '/api/Task/createTestVideoSegment',

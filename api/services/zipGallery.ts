@@ -329,7 +329,9 @@ export async function collectFilesWithZipGalleries(options: {
     if (expandZips && isZipFilePath(root)) {
       const listed = await listZipImageEntries(root, extensions)
       if (listed.ok === true) {
-        files.push(...listed.entries.map((entry) => entry.virtualPath))
+        for (const entry of listed.entries) {
+          files.push(entry.virtualPath)
+        }
       } else {
         skippedZips.push(listed.skipped)
       }
@@ -354,13 +356,18 @@ export async function collectFilesWithZipGalleries(options: {
       return 'skip'
     },
   })
-  files.push(...walkedFiles)
+  // Avoid `push(...hugeArray)` — it overflows the call stack on large libraries.
+  for (const filePath of walkedFiles) {
+    files.push(filePath)
+  }
 
   if (expandZips) {
     for (const zipPath of zipPaths) {
       const listed = await listZipImageEntries(zipPath, extensions)
       if (listed.ok === true) {
-        files.push(...listed.entries.map((entry) => entry.virtualPath))
+        for (const entry of listed.entries) {
+          files.push(entry.virtualPath)
+        }
       } else {
         skippedZips.push(listed.skipped)
       }

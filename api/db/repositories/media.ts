@@ -351,6 +351,35 @@ export function createMediaRepository(db: DrizzleClient) {
       })
     },
 
+    /**
+     * Thin-row bulk insert for fast import. Skips existing paths via
+     * ON CONFLICT DO NOTHING. Returns only newly inserted rows.
+     */
+    bulkCreateLite(items: Array<Partial<MediaInsert>>): Array<Pick<MediaRow, 'id' | 'path'>> {
+      if (!items.length) return []
+
+      const timestamp = nowIso()
+      return mapChunks(items, (chunk) => (
+        db.insert(media)
+          .values(chunk.map((item) => ({
+            path: item.path ?? '',
+            basename: item.basename ?? null,
+            name: item.name ?? null,
+            ext: item.ext ?? null,
+            filesize: item.filesize ?? 0,
+            mediaTypeId: item.mediaTypeId == null ? null : Number(item.mediaTypeId),
+            createdAt: item.createdAt ?? timestamp,
+            updatedAt: item.updatedAt ?? timestamp,
+          })))
+          .onConflictDoNothing()
+          .returning({
+            id: media.id,
+            path: media.path,
+          })
+          .all()
+      ))
+    },
+
     findOldIdMappings(): Array<{id: number; oldId: string | null}> {
       return db.select({id: media.id, oldId: media.oldId}).from(media).all()
     },

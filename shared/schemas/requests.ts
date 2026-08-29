@@ -246,6 +246,19 @@ export const AddMediaRequestSchema = z.object({
   is_check_duplicates: z.boolean().optional(),
 }).passthrough()
 
+/** Thin-row bulk import (skip probe/thumbs). Provide `files` and/or `roots`. */
+export const AddMediaBulkRequestSchema = z.object({
+  mode: z.literal('lite').optional().default('lite'),
+  type: z.union([z.string(), z.number(), z.record(z.unknown())]),
+  files: z.array(z.string().min(1)).max(5000).optional(),
+  roots: z.array(z.string().min(1)).max(200).optional(),
+  excluded: z.array(z.string()).optional(),
+  expandZips: z.boolean().optional(),
+}).passthrough().refine(
+  (value) => (value.files?.length ?? 0) > 0 || (value.roots?.length ?? 0) > 0,
+  {message: 'Provide files and/or roots'},
+)
+
 export const ParsePathTagsRequestSchema = z.object({
   paths: z.array(z.object({
     path: z.string().optional(),
@@ -1016,6 +1029,7 @@ export type ParsedBulkMetaApplyRequest = z.infer<typeof BulkMetaApplyRequestSche
 export type ParsedGlobalSearchRequest = z.infer<typeof GlobalSearchRequestSchema>
 export type ParsedPathPayload = z.infer<typeof PathPayloadSchema>
 export type ParsedAddMediaRequest = z.infer<typeof AddMediaRequestSchema>
+export type ParsedAddMediaBulkRequest = z.infer<typeof AddMediaBulkRequestSchema>
 export type ParsedParsePathTagsRequest = z.infer<typeof ParsePathTagsRequestSchema>
 export type ParsedApplyParseLibraryTagsRequest = z.infer<typeof ApplyParseLibraryTagsRequestSchema>
 export type ParsedPlaylistWriteRequest = z.infer<typeof PlaylistWriteRequestSchema>

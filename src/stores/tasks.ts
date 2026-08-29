@@ -43,9 +43,18 @@ export interface MediaAddingState {
   /** Task id in the notifications/tasks list for this add run. */
   notificationTaskId: string | null
   media_type_id: number | null
+  /**
+   * Restrict import to these media-type ids.
+   * Empty array = all managed types (video/image/audio/text).
+   */
+  media_type_ids: number[]
   is_parsing: boolean
   is_exclude: boolean
   is_check_duplicates: boolean
+  /** Skip probe/thumbs; use bulk lite insert. */
+  is_fast_import: boolean
+  /** True when auto-enabled by file-count threshold (checkbox locked on). */
+  fast_import_locked: boolean
   skipFileScan: boolean
   directFiles: string[]
   /** When true, successful adds are queued into the media Inbox pending-review list. */
@@ -83,9 +92,12 @@ export const useTasksStore = defineStore('useTasksStore', {
       facesFound: 0,
       notificationTaskId: null,
       media_type_id: null,
+      media_type_ids: [],
       is_parsing: true,
       is_exclude: false,
       is_check_duplicates: true,
+      is_fast_import: false,
+      fast_import_locked: false,
       skipFileScan: false,
       directFiles: [],
       fromInbox: false,

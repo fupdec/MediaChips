@@ -33,6 +33,29 @@
           @dragover.prevent
           class="pa-2 pa-sm-4"
         >
+          <div class="media-adding-types mb-4">
+            <div class="text-caption text-medium-emphasis mb-2">
+              {{ t('media.adding.media_types') }}
+            </div>
+            <div class="d-flex flex-wrap ga-2">
+              <v-chip
+                v-for="item in mediaTypeSelectItems"
+                :key="item.value"
+                :prepend-icon="item.icon ? `mdi-${item.icon}` : undefined"
+                :variant="isMediaTypeChipActive(item.value) ? 'flat' : 'tonal'"
+                :color="isMediaTypeChipActive(item.value) ? 'primary' : undefined"
+                filter
+                label
+                @click="toggleMediaTypeChip(item.value)"
+              >
+                {{ item.title }}
+              </v-chip>
+            </div>
+            <div class="text-caption text-medium-emphasis mt-2">
+              {{ t('media.adding.media_types_hint') }}
+            </div>
+          </div>
+
           <div
             v-if="isElectron"
             class="d-flex flex-wrap ga-2 mb-3"
@@ -53,7 +76,7 @@
             class="mb-4"
             :base-url="appStore.localhost || ''"
             :path="browsePath"
-            :extensions="currentMediaType?.extensions || ''"
+            :extensions="browserExtensions"
             :selected-paths="selectedBrowserPaths"
             :places="browsePlaces"
             :active-place-id="activePlaceId"
@@ -78,7 +101,6 @@
               {{ t('media.adding.paths_section') }}
             </div>
 
-            <!-- Форма с путями к файлам -->
             <v-form ref="mediaForm" v-model="isFormValid">
               <v-textarea
                 :model-value="mediaAddingState.paths"
@@ -96,9 +118,21 @@
             </v-form>
 
             <div class="media-adding-options__checks mt-3">
+              <v-checkbox
+                v-model="mediaAddingState.is_fast_import"
+                :disabled="mediaAddingState.fast_import_locked"
+                :label="t('media.adding.fast_import')"
+                :hint="t('media.adding.fast_import_hint')"
+                persistent-hint
+                class="mt-0"
+                density="compact"
+                @update:model-value="onFastImportToggle"
+              />
+
               <!-- Проверка дубликатов по содержимому файла -->
               <v-checkbox
                 v-model="mediaAddingState.is_check_duplicates"
+                :disabled="mediaAddingState.is_fast_import"
                 :label="t('media.adding.check_duplicates')"
                 class="mt-0"
                 hide-details
@@ -120,6 +154,7 @@
               <div class="d-flex align-center">
                 <v-checkbox
                   v-model="mediaAddingState.is_parsing"
+                  :disabled="mediaAddingState.is_fast_import"
                   :label="t('media.adding.parse_tags')"
                   class="mt-0"
                   hide-details
@@ -180,7 +215,7 @@ import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
-import {getCurrentMediaType, isImageMediaType} from '@/utils/mediaType'
+import {isImageMediaType, getMenuOrderedMediaTypes, isManagedMediaType, combineMediaTypeExtensions, resolveTargetMediaTypesForAdding} from '@/utils/mediaType'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 
 // Компоненты
@@ -284,27 +319,72 @@ const isDialogVisible = computed({
 const isElectron = computed(() => appStore.isElectron)
 const mediaAddingState = computed(() => tasksStore.mediaAdding)
 
-const currentMediaType = computed(() =>
-  getCurrentMediaType(
-    appStore.mediaTypes,
-    tasksStore.mediaAdding.media_type_id || itemsStore.environment?.media_type_id,
-  )
-)
+const mediaTypeSelectItems = computed(() => (
+  getMenuOrderedMediaTypes(appStore.mediaTypes)
+    .filter(isManagedMediaType)
+    .map((mediaType) => ({
+      title: getMediaTypeName(mediaType, t),
+      value: Number(mediaType.id),
+      icon: mediaType.icon || undefined,
+    }))
+))
 
-const isImageAdding = computed(() => isImageMediaType(currentMediaType.value))
+const selectedMediaTypeIds = computed({
+  get() {
+    return tasksStore.mediaAdding.media_type_ids || []
+  },
+  set(value: number[]) {
+    const ids = (value || []).map(Number).filter((id) => Number.isFinite(id))
+    tasksStore.mediaAdding.media_type_ids = ids
+    tasksStore.mediaAdding.media_type_id = ids.length === 1 ? ids[0] : null
+  },
+})
+
+const allManagedMediaTypeIds = computed(() => mediaTypeSelectItems.value.map((item) => item.value))
+
+function isMediaTypeChipActive(id: number): boolean {
+  const selected = selectedMediaTypeIds.value
+  if (!selected.length) return true
+  return selected.includes(id)
+}
+
+function toggleMediaTypeChip(id: number) {
+  const selected = [...selectedMediaTypeIds.value]
+  const allIds = allManagedMediaTypeIds.value
+
+  if (!selected.length) {
+    // "All" → narrow to this type only
+    selectedMediaTypeIds.value = [id]
+    return
+  }
+
+  const index = selected.indexOf(id)
+  if (index >= 0) {
+    selected.splice(index, 1)
+  } else {
+    selected.push(id)
+  }
+
+  // Empty or every type picked → back to "all types"
+  selectedMediaTypeIds.value = (
+    !selected.length || selected.length === allIds.length
+  ) ? [] : selected
+}
+
+const targetMediaTypes = computed(() => (
+  resolveTargetMediaTypesForAdding(appStore.mediaTypes, selectedMediaTypeIds.value)
+))
+
+const browserExtensions = computed(() => combineMediaTypeExtensions(targetMediaTypes.value))
+
+const isImageAdding = computed(() => targetMediaTypes.value.some(isImageMediaType))
 
 const pathsHint = computed(() => {
   if (isContainerRuntime.value) return t('media.adding.paths_hint_docker')
   return t('media.adding.paths_hint')
 })
 
-const dialogHeader = computed(() => {
-  const typeName = getMediaTypeName(currentMediaType.value, t)
-  if (typeName) {
-    return t('media.adding.files_for_type', {type: typeName})
-  }
-  return t('media.adding.files')
-})
+const dialogHeader = computed(() => t('media.adding.files'))
 
 // Кнопки действий в диалоге
 const dialogActionButtons = computed(() => [
@@ -340,6 +420,19 @@ const onPathsInput = (value: string) => {
 
 const onExcludedInput = (value: string) => {
   tasksStore.mediaAdding.excluded = String(normalizePastedFilePathsText(value) ?? '')
+}
+
+const onFastImportToggle = (value: boolean | null) => {
+  if (tasksStore.mediaAdding.fast_import_locked) {
+    tasksStore.mediaAdding.is_fast_import = true
+    return
+  }
+  const enabled = Boolean(value)
+  tasksStore.mediaAdding.is_fast_import = enabled
+  if (enabled) {
+    tasksStore.mediaAdding.is_parsing = false
+    tasksStore.mediaAdding.is_check_duplicates = false
+  }
 }
 
 // Методы
@@ -382,6 +475,12 @@ function openBrowsePlace(nextPath: string) {
 function onBrowserSelection(paths: string[]) {
   selectedBrowserPaths.value = paths
   tasksStore.mediaAdding.paths = String(normalizePastedFilePathsText(paths.join('\n')) ?? '')
+  // Folder picks are the large-library case — prefer server-side roots walk.
+  if (paths.length && !tasksStore.mediaAdding.fast_import_locked) {
+    tasksStore.mediaAdding.is_fast_import = true
+    tasksStore.mediaAdding.is_parsing = false
+    tasksStore.mediaAdding.is_check_duplicates = false
+  }
 }
 
 const selectMultipleDirectories = async () => {
@@ -392,6 +491,11 @@ const selectMultipleDirectories = async () => {
   const normalized = String(normalizePastedFilePathsText(merged) ?? '')
   tasksStore.mediaAdding.paths = normalized
   selectedBrowserPaths.value = transformTextToArray(normalized)
+  if (!tasksStore.mediaAdding.fast_import_locked) {
+    tasksStore.mediaAdding.is_fast_import = true
+    tasksStore.mediaAdding.is_parsing = false
+    tasksStore.mediaAdding.is_check_duplicates = false
+  }
 }
 
 const selectMultipleDirectoriesExcluded = async () => {
@@ -428,6 +532,7 @@ const resetDialogState = () => {
   tasksStore.mediaAdding.paths = props.initialPaths || ''
   tasksStore.mediaAdding.excluded = ''
   tasksStore.mediaAdding.skipFileScan = Boolean(props.initialPaths)
+  tasksStore.mediaAdding.fast_import_locked = false
   tasksStore.mediaAdding.directFiles = props.initialPaths
     ? props.initialPaths.split('\n').map((row) => row.trim()).filter(Boolean)
     : []
@@ -449,11 +554,9 @@ const resetDialogState = () => {
 }
 
 const syncMediaTypeFromContext = () => {
-  const mediaTypeId = tasksStore.mediaAdding.media_type_id
-    || itemsStore.environment?.media_type_id
-  if (mediaTypeId) {
-    tasksStore.mediaAdding.media_type_id = Number(mediaTypeId)
-  }
+  // Default: all types (empty media_type_ids). Do not inherit page Videos fallback.
+  tasksStore.mediaAdding.media_type_ids = []
+  tasksStore.mediaAdding.media_type_id = null
 }
 
 /**

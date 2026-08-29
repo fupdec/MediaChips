@@ -434,6 +434,7 @@ import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import type {BrowseDirectoryEntry, BrowsePlace} from '@/services/typedApi/browse'
 import {getReadableFileSize} from '@/services/formatUtils'
+import {getApiErrorMessage} from '@/types/vue'
 import FolderTagsMenu from '@/components/dialogs/FolderTagsMenu.vue'
 import DialogFolderTagsManager from '@/components/dialogs/DialogFolderTagsManager.vue'
 import {
@@ -697,10 +698,7 @@ async function loadDirectory(targetPath: string) {
     }
     await reloadFolderTags()
   } catch (err: unknown) {
-    const message = (err as {response?: {data?: {message?: string}}; message?: string})
-      ?.response?.data?.message
-      || (err as {message?: string})?.message
-      || t('media.adding.browser_load_error')
+    const message = getApiErrorMessage(err, t('media.adding.browser_load_error'))
     error.value = message
     entries.value = []
     folderTagsByPath.value = {}

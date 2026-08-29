@@ -22,9 +22,17 @@ import {
   inferMediaTypeFromPaths,
   parseMediaTypeExtensions,
   isImageMediaType,
+  resolveTargetMediaTypesForAdding,
+  combineMediaTypeExtensions,
+  bucketFilesByMediaType,
 } from '@/utils/mediaType'
 import {ensureStarterMeta} from '@/services/ensureStarterMeta'
 import {ONBOARDING_STEP_COUNT, saveOnboardingStep, shouldShowOnboarding} from '@/composable/useOnboarding'
+import {getApiErrorMessage} from '@/types/vue'
+import {
+  FAST_IMPORT_AUTO_THRESHOLD,
+  MEDIA_BULK_LITE_HTTP_CHUNK,
+} from '@shared/mediaBulkImport'
 
 
 
@@ -195,14 +203,12 @@ export const useMediaAdding = () => {
     let keepTaskAfterComplete = false
 
     const pathsForType = transformTextToArray(task.value.paths)
-    const mediaType = resolveMediaTypeForAdding(mediaTypes.value, {
-      mediaTypeId: task.value.media_type_id || ENV.value.media_type_id,
-      paths: pathsForType,
-      directFiles,
-      skipFileScan,
-    })
+    const targetTypes = resolveTargetMediaTypesForAdding(
+      mediaTypes.value,
+      task.value.media_type_ids,
+    )
 
-    if (!mediaType) {
+    if (!targetTypes.length) {
       console.error('Media type not found')
       task.value.finished = true
       task.value.active = false
@@ -216,13 +222,22 @@ export const useMediaAdding = () => {
       return
     }
 
-    task.value.addedMediaTypeId = mediaType.id
-    task.value.addedMediaType = mediaType.type ?? null
+    const primaryType = targetTypes.length === 1
+      ? targetTypes[0]
+      : (resolveMediaTypeForAdding(mediaTypes.value, {
+        mediaTypeId: task.value.media_type_id || ENV.value.media_type_id,
+        paths: pathsForType,
+        directFiles,
+        skipFileScan,
+      }) || targetTypes[0])
 
-    const extensions = mediaType.extensions ?? ''
+    task.value.addedMediaTypeId = primaryType?.id ?? null
+    task.value.addedMediaType = primaryType?.type ?? null
+
+    const extensions = combineMediaTypeExtensions(targetTypes)
     const extensionList = parseMediaTypeExtensions(extensions)
     const regexString = JSON.stringify(buildExtensionPathRegex(extensions))
-    const expandZips = isImageMediaType(mediaType)
+    const expandZips = targetTypes.some(isImageMediaType)
 
     const paths = pathsForType
     const excluded = transformTextToArray(task.value.excluded)
@@ -247,7 +262,203 @@ export const useMediaAdding = () => {
 
     const isZipPath = (filePath: string) => /\.zip$/i.test(filePath)
 
+    const useRootsFastImport = Boolean(task.value.is_fast_import)
+      && !skipFileScan
+      && paths.length > 0
+
     try {
+      if (useRootsFastImport) {
+        task.value.is_parsing = false
+        task.value.is_check_duplicates = false
+        task.value.fast_import_locked = true
+        task.value.status = t('media.adding.fast_import_roots_status', {
+          count: paths.length,
+          types: targetTypes.length,
+        })
+        task.value.total = targetTypes.length
+        task.value.current = 0
+        task.value.progress = 0
+        task.value.processed = t('media.adding.in_progress', {
+          current: 0,
+          total: targetTypes.length,
+        })
+
+        let bulkInsertedTotal = 0
+        let scannedTotal = 0
+        const ensuredTypeIds: number[] = []
+
+        for (let typeIndex = 0; typeIndex < targetTypes.length; typeIndex += 1) {
+          if (task.value.stopped) break
+
+          const mediaType = targetTypes[typeIndex]
+          task.value.addedMediaTypeId = mediaType.id
+          task.value.addedMediaType = mediaType.type ?? null
+          task.value.status = t('media.adding.fast_import_roots_type', {
+            name: mediaType.name || mediaType.type || String(mediaType.id),
+            current: typeIndex + 1,
+            total: targetTypes.length,
+          })
+
+          const typeFiles = directFiles.length
+            ? filterPathsByExtensions(directFiles, String(mediaType.extensions || ''))
+            : []
+
+          try {
+            const response = await typedApi.addMediaBulk({
+              mode: 'lite',
+              type: mediaType,
+              roots: paths,
+              files: typeFiles.length ? typeFiles : undefined,
+              excluded: task.value.is_exclude ? excluded : [],
+              expandZips: isImageMediaType(mediaType),
+            })
+            const data = response.data
+            bulkInsertedTotal += Number(data.inserted || 0)
+            scannedTotal += Number(data.scanned || 0)
+            ensuredTypeIds.push(Number(mediaType.id))
+
+            for (const entry of data.added || []) {
+              task.value.added.push(entry.path)
+              task.value.addedMedia.push({
+                path: entry.path,
+                mediaId: entry.mediaId,
+              })
+            }
+            if (task.value.added.length > 5_000) {
+              task.value.added = task.value.added.slice(0, 5_000)
+            }
+            if (task.value.addedMedia.length > 5_000) {
+              task.value.addedMedia = task.value.addedMedia.slice(0, 5_000)
+            }
+
+            for (const errPath of data.errors || []) {
+              task.value.errors.push(errPath)
+            }
+            if (task.value.errors.length > 5_000) {
+              task.value.errors = task.value.errors.slice(0, 5_000)
+            }
+          } catch (error) {
+            console.error('Bulk addMedia roots failed:', error)
+            const message = getApiErrorMessage(error, t('media.adding.error_title'))
+            task.value.errors.push(`${mediaType.name || mediaType.id}: ${message}`)
+          }
+
+          const doneTypes = typeIndex + 1
+          const progress = Math.min((doneTypes / targetTypes.length) * 100, 100)
+          const progressText = scannedTotal > 0
+            ? t('media.adding.fast_import_roots_progress', {
+              inserted: bulkInsertedTotal,
+              scanned: scannedTotal,
+              typesDone: doneTypes,
+              typesTotal: targetTypes.length,
+            })
+            : t('media.adding.in_progress', {current: doneTypes, total: targetTypes.length})
+
+          task.value.current = doneTypes
+          task.value.progress = progress
+          task.value.processed = progressText
+
+          await tasksStore.updateTask(taskId, {
+            subtitle: progressText,
+            progress,
+          })
+        }
+
+        const addedCount = bulkInsertedTotal
+        task.value.total = scannedTotal || targetTypes.length
+        task.value.current = scannedTotal || targetTypes.length
+
+        if (addedCount > 0 && ensuredTypeIds.length) {
+          try {
+            await ensureStarterMeta({
+              mediaTypeIds: [...new Set(ensuredTypeIds.filter((id) => Number.isFinite(id)))],
+            })
+          } catch (error) {
+            console.error('Failed to ensure starter meta after adding media:', error)
+          }
+        }
+
+        if (addedCount > 0) {
+          task.value.finished = true
+          task.value.active = false
+          task.value.media_type_id = null
+          task.value.status = t('media.adding.complete')
+          keepTaskAfterComplete = true
+
+          await tasksStore.updateTask(taskId, {
+            subtitle: t('media.adding.added_count', {count: addedCount}),
+            progress: 100,
+            color: 'success',
+            done: true,
+            action: undefined,
+          })
+
+          setNotification({
+            type: 'success',
+            title: t('media.adding.complete'),
+            text: t('media.adding.added_count', {count: addedCount}),
+            actions: fromInbox
+              ? [
+                openProcessAction(),
+                {
+                  id: 'open-media-inbox-pending',
+                  text: t('media_inbox.open_pending'),
+                  icon: 'inbox-arrow-down',
+                  action: () => mediaInboxStore.open('pending'),
+                  hide: true,
+                },
+              ]
+              : [openProcessAction()],
+          })
+
+          if (fromInbox) {
+            const ids = (task.value.addedMedia || [])
+              .map((entry) => Number(entry.mediaId))
+              .filter((id) => Number.isFinite(id) && id > 0)
+            if (ids.length) mediaInboxStore.enqueuePendingReview(ids)
+          }
+
+          if (shouldShowOnboarding(false)) {
+            await saveOnboardingStep(ONBOARDING_STEP_COUNT - 1)
+            await openMediaAddingProcess()
+          }
+        } else {
+          task.value.finished = true
+          task.value.active = false
+          task.value.media_type_id = null
+          task.value.status = t('media.adding.complete')
+
+          setNotification({
+            type: 'info',
+            title: t('media.adding.complete'),
+            text: t('media.adding.no_new_media'),
+            actions: [openProcessAction()],
+          })
+        }
+
+        if (
+          !ENV.value.media_type_id
+          || targetTypes.some((item) => Number(item.id) === Number(ENV.value.media_type_id))
+        ) {
+          listSync.getItemsFromDb({
+            ids: [],
+            type: 'media',
+          })
+        }
+
+        const resolvedWatcherPaths = [
+          ...task.value.added,
+          ...task.value.duplicates.map((entry) => entry.path),
+        ]
+
+        if (resolvedWatcherPaths.length > 0 && watcherStore.files.length > 0) {
+          watcherStore.files = removeWatcherNewPaths(watcherStore.files, resolvedWatcherPaths)
+        }
+
+        eventBus.emit('update:watcher')
+        return
+      }
+
       // skipFileScan: direct file drops/additions already have full paths;
       // avoid getFileList/lstat (which can surface OS access-denied errors).
       // ZIP drops still need expansion when adding images.
@@ -324,16 +535,50 @@ export const useMediaAdding = () => {
         task.value.errors.push(message)
       }
 
-      task.value.status = t('media.adding.gathering_metadata')
-      task.value.total = files.length
+      const filesByType = bucketFilesByMediaType(files, targetTypes)
+      const typedEntries = targetTypes
+        .map((mediaType) => ({
+          mediaType,
+          files: filesByType.get(Number(mediaType.id)) || [],
+        }))
+        .filter((entry) => entry.files.length > 0)
+
+      const allTypedFiles = typedEntries.flatMap((entry) => entry.files)
+      if (!allTypedFiles.length && files.length) {
+        // Extensions matched scan but not bucket (shouldn't happen) — keep raw list
+        // on primary type so we don't silently drop files.
+        typedEntries.push({mediaType: primaryType, files})
+      }
+
+      if (allTypedFiles.length > FAST_IMPORT_AUTO_THRESHOLD) {
+        task.value.is_fast_import = true
+        task.value.fast_import_locked = true
+        task.value.is_parsing = false
+        task.value.is_check_duplicates = false
+      }
+
+      const useFastImport = Boolean(task.value.is_fast_import)
+      if (useFastImport) {
+        task.value.is_parsing = false
+      }
+
+      task.value.status = useFastImport
+        ? t('media.adding.fast_import_status', {count: allTypedFiles.length || files.length})
+        : t('media.adding.gathering_metadata')
+      task.value.total = allTypedFiles.length || files.length
       task.value.current = 0
       task.value.progress = 0
-      task.value.processed = t('media.adding.in_progress', {current: 0, total: files.length})
+      task.value.processed = t('media.adding.in_progress', {
+        current: 0,
+        total: task.value.total,
+      })
 
-      const percentage = files.length > 0 ? 100 / files.length : 0
+      const totalFiles = task.value.total
+      const percentage = totalFiles > 0 ? 100 / totalFiles : 0
       const addedForParsing: AddedMediaEntry[] = []
       let lastProgressUpdate = 0
       let current = 0
+      let bulkInsertedTotal = 0
       const progressStartedAt = Date.now()
 
       const formatAddingProgress = (done: number, total: number) => {
@@ -352,50 +597,13 @@ export const useMediaAdding = () => {
         return t('media.adding.in_progress', {current: done, total})
       }
 
-      const processFile = async (filePath: string) => {
-        try {
-          const response = await typedApi.addMedia({
-            path: filePath,
-            type: mediaType,
-            is_check_duplicates: task.value.is_check_duplicates,
-          })
-
-          if (response.status === 202) {
-            const data = response.data
-            task.value.duplicates.push({
-              path: filePath,
-              duplicate: data.duplicate,
-            })
-          } else if (response.status === 201) {
-            task.value.added.push(filePath)
-
-            if (response.data?.id) {
-              task.value.addedMedia.push({
-                path: filePath,
-                mediaId: response.data.id,
-              })
-            }
-
-            if (task.value.is_parsing && response.data?.id) {
-              addedForParsing.push({path: filePath, mediaId: response.data.id})
-            }
-          }
-        } catch (error) {
-          console.error(`Error adding file ${filePath}:`, error)
-          task.value.errors.push(filePath)
-        }
-
-        current += 1
-        await updateProgress()
-      }
-
       const updateProgress = async (force = false) => {
         const now = Date.now()
         if (!force && now - lastProgressUpdate < 150) return
 
         lastProgressUpdate = now
         const progress = Math.min(current * percentage, 100)
-        const progressText = formatAddingProgress(current, files.length)
+        const progressText = formatAddingProgress(current, totalFiles)
 
         task.value.current = current
         task.value.progress = progress
@@ -407,32 +615,141 @@ export const useMediaAdding = () => {
         })
       }
 
-      await runWithConcurrency(
-        files,
-        ADD_MEDIA_CONCURRENCY,
-        processFile,
-        () => task.value.stopped,
-      )
+      const processFilesForType = async (mediaType: MediaType, typeFiles: string[]) => {
+        if (useFastImport) {
+          for (let offset = 0; offset < typeFiles.length; offset += MEDIA_BULK_LITE_HTTP_CHUNK) {
+            if (task.value.stopped) break
+
+            const chunk = typeFiles.slice(offset, offset + MEDIA_BULK_LITE_HTTP_CHUNK)
+            try {
+              const response = await typedApi.addMediaBulk({
+                mode: 'lite',
+                type: mediaType,
+                files: chunk,
+              })
+              const data = response.data
+              bulkInsertedTotal += Number(data.inserted || 0)
+
+              for (const entry of data.added || []) {
+                task.value.added.push(entry.path)
+                task.value.addedMedia.push({
+                  path: entry.path,
+                  mediaId: entry.mediaId,
+                })
+              }
+
+              if (task.value.added.length > 5_000) {
+                task.value.added = task.value.added.slice(0, 5_000)
+              }
+              if (task.value.addedMedia.length > 5_000) {
+                task.value.addedMedia = task.value.addedMedia.slice(0, 5_000)
+              }
+
+              for (const errPath of data.errors || []) {
+                task.value.errors.push(errPath)
+              }
+              if (task.value.errors.length > 5_000) {
+                task.value.errors = task.value.errors.slice(0, 5_000)
+              }
+            } catch (error) {
+              console.error('Bulk addMedia chunk failed:', error)
+              const message = error instanceof Error ? error.message : String(error)
+              task.value.errors.push(`bulk chunk @${offset}: ${message}`)
+              for (const filePath of chunk) {
+                task.value.errors.push(filePath)
+              }
+              if (task.value.errors.length > 5_000) {
+                task.value.errors = task.value.errors.slice(0, 5_000)
+              }
+            }
+
+            current = Math.min(current + chunk.length, totalFiles)
+            await updateProgress(true)
+          }
+          return
+        }
+
+        const processFile = async (filePath: string) => {
+          try {
+            const response = await typedApi.addMedia({
+              path: filePath,
+              type: mediaType,
+              is_check_duplicates: task.value.is_check_duplicates,
+            })
+
+            if (response.status === 202) {
+              const data = response.data
+              task.value.duplicates.push({
+                path: filePath,
+                duplicate: data.duplicate,
+              })
+            } else if (response.status === 201) {
+              task.value.added.push(filePath)
+
+              if (response.data?.id) {
+                task.value.addedMedia.push({
+                  path: filePath,
+                  mediaId: response.data.id,
+                })
+              }
+
+              if (task.value.is_parsing && response.data?.id) {
+                addedForParsing.push({path: filePath, mediaId: response.data.id})
+              }
+            }
+          } catch (error) {
+            console.error(`Error adding file ${filePath}:`, error)
+            task.value.errors.push(filePath)
+          }
+
+          current += 1
+          await updateProgress()
+        }
+
+        await runWithConcurrency(
+          typeFiles,
+          ADD_MEDIA_CONCURRENCY,
+          processFile,
+          () => task.value.stopped,
+        )
+      }
+
+      for (const entry of typedEntries) {
+        if (task.value.stopped) break
+        task.value.addedMediaTypeId = entry.mediaType.id
+        task.value.addedMediaType = entry.mediaType.type ?? null
+        await processFilesForType(entry.mediaType, entry.files)
+      }
 
       await updateProgress(true)
 
-      if (task.value.added.length > 0 && mediaType.id != null) {
-        // Ensure Tags (parser) is pinned to this media type — upgraded DBs often
-        // have Tags on Videos only, so image cards never show path/folder tags.
+      const addedCount = useFastImport
+        ? bulkInsertedTotal
+        : task.value.added.length
+
+      const ensuredTypeIds = [...new Set(
+        typedEntries
+          .map((entry) => Number(entry.mediaType.id))
+          .filter((id) => Number.isFinite(id)),
+      )]
+
+      if (addedCount > 0 && ensuredTypeIds.length) {
         try {
-          await ensureStarterMeta({mediaTypeIds: [Number(mediaType.id)]})
+          await ensureStarterMeta({mediaTypeIds: ensuredTypeIds})
         } catch (error) {
           console.error('Failed to ensure starter meta after adding media:', error)
         }
       }
 
-      if (addedForParsing.length > 0) {
+      if (!useFastImport && addedForParsing.length > 0) {
         task.value.status = t('media.adding.adding_metadata')
         await parseTagsForAddedMedia(addedForParsing)
       }
 
-      if (task.value.added.length > 0) {
-        await suggestTagsFromAddedFiles()
+      if (addedCount > 0) {
+        if (!useFastImport) {
+          await suggestTagsFromAddedFiles()
+        }
 
         task.value.finished = true
         task.value.active = false
@@ -442,7 +759,7 @@ export const useMediaAdding = () => {
 
         if (keepTaskAfterComplete) {
           await tasksStore.updateTask(taskId, {
-            subtitle: t('media.adding.added_count', {count: task.value.added.length}),
+            subtitle: t('media.adding.added_count', {count: addedCount}),
             progress: 100,
             color: 'success',
             done: true,
@@ -453,7 +770,7 @@ export const useMediaAdding = () => {
         setNotification({
           type: 'success',
           title: t('media.adding.complete'),
-          text: t('media.adding.added_count', {count: task.value.added.length}),
+          text: t('media.adding.added_count', {count: addedCount}),
           actions: fromInbox
             ? [
               openProcessAction(),
@@ -495,7 +812,7 @@ export const useMediaAdding = () => {
 
       if (
         !ENV.value.media_type_id
-        || Number(ENV.value.media_type_id) === Number(mediaType.id)
+        || targetTypes.some((item) => Number(item.id) === Number(ENV.value.media_type_id))
       ) {
         listSync.getItemsFromDb({
           ids: [],
@@ -515,7 +832,7 @@ export const useMediaAdding = () => {
       eventBus.emit('update:watcher')
     } catch (error) {
       console.error('Error in addMedia process:', error)
-      const message = error instanceof Error ? error.message : String(error)
+      const message = getApiErrorMessage(error, t('media.adding.error_title'))
       setNotification({
         title: t('media.adding.error_title'),
         text: message,
@@ -684,7 +1001,10 @@ export const useMediaAdding = () => {
     const mediaTypes = appStore.mediaTypes as MediaType[]
     const paths = transformTextToArray(task.value.paths)
     const excluded = transformTextToArray(task.value.excluded)
-    const mediaType = resolveMediaTypeForAdding(mediaTypes, {
+    const mediaType = resolveTargetMediaTypesForAdding(
+      mediaTypes,
+      task.value.media_type_ids,
+    )[0] || resolveMediaTypeForAdding(mediaTypes, {
       mediaTypeId: task.value.media_type_id,
       paths,
       directFiles: task.value.directFiles || [],

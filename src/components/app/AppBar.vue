@@ -30,7 +30,7 @@
         style="height: 40px;"
       >
 
-        <DialogMediaAdding v-if="itemsStore.type == 'media'"/>
+        <DialogMediaAdding v-if="showAddMediaButton"/>
         <TagsAdd v-if="itemsStore.type == 'tag'"/>
         <TagsAdd v-else :button="false"/>
 
@@ -112,6 +112,8 @@
         class="d-flex align-center"
         style="height: 40px;"
       >
+        <DialogMediaAdding v-if="showAddMediaButton"/>
+
         <AppBarButton
           v-if="itemsStore.type === 'playlist'"
           :action="openAddPlaylist"
@@ -126,6 +128,14 @@
           icon="checkbox-marked-outline"
           :active="itemsStore.isSelect"
         />
+      </div>
+
+      <div
+        v-else-if="showAddMediaButton && !itemsStore.isSelect"
+        class="d-flex align-center"
+        style="height: 40px;"
+      >
+        <DialogMediaAdding/>
       </div>
 
       <v-spacer/>
@@ -245,6 +255,30 @@ const isCardSelectPage = computed(() =>
   || itemsStore.type === 'playlist'
   || isFoldersRoute(route.path),
 )
+
+const isTagsSurface = computed(() => {
+  const path = route.path
+  if (path === '/tags' || path.startsWith('/tags/')) return true
+  if (itemsStore.type === 'tag') return true
+  return false
+})
+
+/** Add-media control in the app bar on every library surface except tag pages. */
+const showAddMediaButton = computed(() => {
+  if (itemsStore.isSelect || isTagsSurface.value) return false
+  if (route.path.startsWith('/settings')) return false
+
+  return itemsStore.type === 'media'
+    || itemsStore.type === 'mark'
+    || itemsStore.type === 'playlist'
+    || isFoldersRoute(route.path)
+    || route.path === '/'
+    || route.path.startsWith('/media')
+    || route.path.startsWith('/meta')
+    || route.path.startsWith('/tag')
+    || route.path.startsWith('/markers')
+    || route.path.startsWith('/playlists')
+})
 
 function openAddPlaylist() {
   dialogsStore.openPlaylistAdd()

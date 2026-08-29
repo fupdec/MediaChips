@@ -7,6 +7,7 @@ import {
   PathPayloadSchema,
   CheckFilesPayloadSchema,
   AddMediaRequestSchema,
+  AddMediaBulkRequestSchema,
   ParsePathTagsRequestSchema,
   ApplyParseLibraryTagsRequestSchema,
   RenameFileRequestSchema,
@@ -154,6 +155,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/getFileList', 'getFileList', validateBody(GetFileListRequestSchema))
 
   register('post', '/addMedia', 'addMedia', validateBody(AddMediaRequestSchema))
+  register('post', '/addMediaBulk', 'addMediaBulk', validateBody(AddMediaBulkRequestSchema))
   register('post', '/addMediaVideo', 'addMediaVideo', validateBody(AddMediaRequestSchema))
   register('post', '/addMediaImage', 'addMediaImage', validateBody(AddMediaRequestSchema))
   register('post', '/addMediaAudio', 'addMediaAudio', validateBody(AddMediaRequestSchema))

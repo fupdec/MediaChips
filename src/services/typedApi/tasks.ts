@@ -13,6 +13,7 @@ import type {
 import type {
   ConversionJobResponse,
   AddMediaPayload,
+  AddMediaBulkPayload,
   BackupNamePayload,
   BulkMetaApplyPayload,
   ConfigUpdatePayload,
@@ -58,6 +59,7 @@ import {
 } from '@shared/schemas'
 import {
   AddMediaRequestSchema,
+  AddMediaBulkRequestSchema,
   DatabaseSizesRequestSchema,
   DuplicateDbRequestSchema,
   CheckFilesPayloadSchema,
@@ -280,6 +282,21 @@ export const tasksApi = {
     return apiClient.post(API_ROUTES.taskAddMedia, payload).then((res) => ({
       ...res,
       data: validated(parseAddMediaResponse, res.data),
+    }))
+  },
+
+  addMediaBulk(body: AddMediaBulkPayload) {
+    const payload = validateRequest(AddMediaBulkRequestSchema, body)
+    return apiClient.post<{
+      scanned: number
+      inserted: number
+      skipped: number
+      errors: string[]
+      added: Array<{path: string; mediaId: number}>
+    }>(API_ROUTES.taskAddMediaBulk, payload, {timeout: 1_800_000}).then((res) => ({
+      ...res,
+      // sendOk writes the payload at the top level (not wrapped in `{data: ...}`).
+      data: res.data,
     }))
   },
 
