@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **UI copy tone** — clearer, less formal strings across all locales (EN/RU/DE/ES/FR/PT/JA/CN): shorter prompts, toasts without “successfully”, and simpler confirmations
 - **Browser and inspector UI** — unified bottom dock, refreshed folder controls, grid layouts, settings, dialogs, and media previews
 - **Database and server startup** — database discovery, migration/schema repair, watched-folder stability, and LAN startup behavior were hardened
 - **Media processing** — improved thumbnail validation, video previews, FFmpeg conversion, and filesystem safety checks
