@@ -5,6 +5,34 @@ All notable changes to MediaChips are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-08-30
+
+### Added
+
+- **Fast bulk media import** — import large libraries with a dedicated high-throughput path and progress in the tasks UI
+- **Library size paywall** — freemium uses a 100-item library cap (replacing the older index-based limit) with clearer upgrade prompts
+
+### Changed
+
+- **Global search** — default text search uses name/tag FTS only; bookmark notes and text-file content scans are opt-in (`deep`) so large libraries no longer stall on the first keystroke
+- **Database sizes in settings** — measure folder size via system `du` on macOS/Linux (much faster on huge generated-media trees) and load each database independently so smaller ones appear before the largest finishes
+- **README** — repositioned around massive local libraries with a refreshed hero screenshot
+- **Sidebar section actions** — shared edit tooltips for clearer section controls
+- **UI copy tone** — clearer, less formal strings across locales
+
+### Fixed
+
+- **Scraped posters on Windows** — normalize path-browserify roots and write thumbs atomically with EPERM retries so TPDB/TMDB poster overwrites succeed while cards are open
+- **License deactivate mismatch** — local “registered” status could disagree with the license server when fingerprints were stale; sync from the server on check/startup, and clear local registration if deactivate reports the device is already inactive
+- **Inspector media refresh** — skip metadata/filesize re-probe when the source file is missing, so opening the side panel no longer spams ffprobe errors; show a file-missing icon instead of thumbnail replace actions
+- **Linux black card thumbs** — reject empty/corrupt on-disk JPEG stubs (failed FFmpeg 6 writes) and regenerate on demand instead of serving them forever
+- **Infinite-scroll thumb storms** — allow two concurrent ffmpeg thumb/preview jobs so appending a page is less likely to stall behind a single worker
+- **Global search substrings** — match media names with LIKE substrings when FTS alone is too strict
+- **Image card thumbs** — refresh image cards after on-grid thumb generation
+- **Multi-select rating** — stop rating from leaking across selected cards
+
+## [Unreleased]
+
 ## [1.11.0] - 2026-08-29
 
 ### Added
