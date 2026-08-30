@@ -316,7 +316,7 @@ export const documentationTranslations = {
     'database.backups': { name: 'Manage backups', content: `<p>Backups protect the current database state. Create backups before large imports, bulk edits, restores or experiments with metadata structure.</p>` },
     'database.backups.create': { name: 'Creating backups', content: `<p>Backup creation saves database data and, depending on settings, generated images. Remove generated previews first if you need a smaller archive.</p>` },
     'database.backups.restore': { name: 'Restoring backups', content: `<p>Restoring replaces the current database. Create a backup of the current state first if you may need to return to it.</p>` },
-    'settings.about': { name: 'About and registration', content: `<p>The About tab contains app information and registration state. When the app is not registered, some limits can apply, such as the number of items shown per page.</p>` },
+    'settings.about': { name: 'About and registration', content: `<p>The About tab contains app information and registration state. When the app is not registered, the free library is limited to 100 media items. Register with a lifetime activation key to unlock unlimited media.</p>` },
   },
   pt: {
     app: { name: 'Aplicativo', content: `<p>O MediaChips é um catálogo de mídia local. Ele armazena seu banco de dados localmente, funciona por uma interface de navegador e pode transmitir mídia pelo endereço do servidor local exibido na página inicial.</p><p>O aplicativo é baseado em arquivos de mídia, campos de metadados personalizados, valores de tags, filtros, playlists e no player de vídeo integrado.</p>` },

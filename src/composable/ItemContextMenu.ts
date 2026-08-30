@@ -6,7 +6,6 @@ import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useOperationsStore} from '@/stores/operations'
 import {useNotificationsStore} from '@/stores/notifications'
-import {useRegistrationStore} from '@/stores/registration'
 import {useTasksStore} from '@/stores/tasks'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
@@ -85,7 +84,6 @@ export default function useItemContextMenu(
   const playlistsStore = useAppStore().playlists
   const itemsStore = useItemsStore()
   const settingsStore = useSettingsStore()
-  const registrationStore = useRegistrationStore()
   const tasksStore = useTasksStore()
 
   const eventBus = useEventBus()
@@ -101,8 +99,6 @@ export default function useItemContextMenu(
   const { runForSelection: runSceneScrapeForSelection, runForMedia: runSceneScrapeForMedia } = useAutoSceneScrapeBatch()
   const tmdbPersonBatch = useTmdbPersonAutoScrapeBatch()
 
-  const reg = options.reg ?? registrationStore.reg
-  const x = options.x ?? 0
   const isSelectMode = () => !options.singleItem && itemsStore.isSelect
 
   const currentMediaType = computed(() => {
@@ -522,7 +518,7 @@ export default function useItemContextMenu(
             name: t('context_menu.play_video_in'),
             type: 'menu',
             icon: 'play-circle',
-            disabled: !is_file_exists || (!reg && x > 14),
+            disabled: !is_file_exists,
             menu: playInMenu,
           })
         }
@@ -532,7 +528,7 @@ export default function useItemContextMenu(
             name: t('context_menu.play_audio_in'),
             type: 'menu',
             icon: 'play-circle',
-            disabled: !is_file_exists || (!reg && x > 14),
+            disabled: !is_file_exists,
             menu: [
               {
                 name: t('context_menu.mediachips_player'),

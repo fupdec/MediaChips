@@ -43,6 +43,8 @@
 
     <DialogError v-if="dialogsStore.error.show"/>
 
+    <DialogPaywall v-if="dialogsStore.paywall.show"/>
+
     <DialogProcess
       v-if="dialogsStore.process.show"
       :dialog="dialogsStore.process.show"
@@ -267,6 +269,9 @@ const DialogMediaAdding = defineAsyncComponent(() =>
 const DialogError = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogError.vue')
 )
+const DialogPaywall = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogPaywall.vue')
+)
 const DialogProcess = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogProcess.vue')
 )
@@ -429,9 +434,15 @@ const addMediaInitialPaths = ref('')
 const addMediaInitialBrowsePath = ref('')
 
 function openAddMediaDialog(options?: {paths?: string; browsePath?: string}) {
-  addMediaInitialPaths.value = options?.paths || ''
-  addMediaInitialBrowsePath.value = options?.browsePath || ''
-  addMediaDialogOpen.value = true
+  void (async () => {
+    const {useFreeLibraryGate} = await import('@/composable/useFreeLibraryGate')
+    const gate = useFreeLibraryGate()
+    if (!(await gate.ensureCanImportMedia())) return
+
+    addMediaInitialPaths.value = options?.paths || ''
+    addMediaInitialBrowsePath.value = options?.browsePath || ''
+    addMediaDialogOpen.value = true
+  })()
 }
 
 watch(addMediaDialogOpen, (open) => {

@@ -4,7 +4,6 @@ import {useAppStore} from '@/stores/app'
 import {usePlayerStore} from '@/stores/player'
 import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
-import {useRegistrationStore} from '@/stores/registration'
 import {useItemsStore} from '@/stores/items'
 import {useEventBus} from '@/utils/eventBus'
 import {
@@ -45,7 +44,6 @@ import {
   resolvePlayableVideo,
   resolveSemanticPlaybackStart,
   resolveVideoSourcePlan,
-  shouldBlockUnregisteredPlaylistDepth,
   shouldSeekDirectOnLoadSrc,
 } from '@/utils/playerPlaybackResolve'
 import {
@@ -79,7 +77,6 @@ export function createPlayerLoadSrc({
   const playerStore = usePlayerStore()
   const settingsStore = useSettingsStore()
   const dialogsStore = useDialogsStore()
-  const registrationStore = useRegistrationStore()
   const itemsStore = useItemsStore()
   const eventBus = useEventBus()
   const {t} = useI18n()
@@ -327,15 +324,6 @@ export function createPlayerLoadSrc({
     updateItemVideo(media.id)
     playerStore.playbackError = false
     dialogsStore.closeMarkAdding()
-    if (shouldBlockUnregisteredPlaylistDepth({
-      registered: Boolean(registrationStore.reg),
-      nowPlaying: playerStore.nowPlaying,
-    })) {
-      await liveSession.clearLiveTranscodeHandlers()
-      videoEl.src = ''
-      isReady.value = true
-      return
-    }
     if (isPlayerWindow.value) updatePlayerWindowTitle(media)
     playerStore.changePlayerStatusText({
       text: `${playerStore.nowPlaying + 1}. ${media.name}`,

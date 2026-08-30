@@ -128,8 +128,15 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       resolve: null as ((action: 'restore' | 'purge' | 'cancel') => void) | null,
     },
     videoConversion: { show: false, items: [] as MediaItem[] },
+    paywall: { show: false },
   }),
   actions: {
+    openPaywall() {
+      this.paywall.show = true
+    },
+    closePaywall() {
+      this.paywall.show = false
+    },
     openVideoConversion(items: MediaItem[]) {
       this.videoConversion.items = items.map((item) => ({...item}))
       this.videoConversion.show = true

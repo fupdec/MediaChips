@@ -64,6 +64,8 @@ export function registerConfigRoute(
       ...(typeof config.lastSeenVersion === 'string' ? { lastSeenVersion: config.lastSeenVersion } : {}),
       ...(typeof config.skippedUpdateVersions === 'string' ? { skippedUpdateVersions: config.skippedUpdateVersions } : {}),
       ...(typeof config.seenFeatureHints === 'string' ? { seenFeatureHints: config.seenFeatureHints } : {}),
+      ...(typeof config.freeLibraryCapSettled === 'string' ? { freeLibraryCapSettled: config.freeLibraryCapSettled } : {}),
+      ...(typeof config.freeLibraryGrandfathered === 'string' ? { freeLibraryGrandfathered: config.freeLibraryGrandfathered } : {}),
     })
   })
 }

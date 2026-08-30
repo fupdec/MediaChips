@@ -563,11 +563,20 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     isAppReady.value = true
     store.is_app_ready = true
     runAutoRegistration()
+    void settleFreeLibraryCapOnStartup()
     if (!operationsStore.migrationLowDb.dialog) {
       openOnboardingIfNeeded(isPlayerWindow.value)
       void openWhatsNewIfNeeded(isPlayerWindow.value)
     }
     await nextTick()
+  }
+
+  function settleFreeLibraryCapOnStartup(): void {
+    import('@/services/freeLibraryCapConfig')
+      .then(({settleFreeLibraryCapIfNeeded}) => settleFreeLibraryCapIfNeeded())
+      .catch((error) => {
+        console.warn('Failed to settle free library cap:', error)
+      })
   }
 
   async function bootstrapPlayerWindow(): Promise<void> {

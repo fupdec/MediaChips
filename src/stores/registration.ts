@@ -31,6 +31,10 @@ interface RegistrationState {
   machineId: string | null
   licenseApiBaseUrl: string
   _regInfoCache: LicenseInfo | '' | null
+  /** Cached media library size for free-tier gating. */
+  libraryCount: number
+  /** Bumped to ask SettingsRegistration to open the activation-key stepper. */
+  keyEntryRequestToken: number
 }
 
 type AutoRegisterResult = {
@@ -183,10 +187,28 @@ export const useRegistrationStore = defineStore('useRegistrationStore', {
     machineId: null,
     licenseApiBaseUrl: LICENSE_API_BASE_URL,
     _regInfoCache: null,
+    libraryCount: 0,
+    keyEntryRequestToken: 0,
   }),
   actions: {
     invalidateRegInfoCache() {
       this._regInfoCache = null
+    },
+
+    requestKeyEntry() {
+      this.keyEntryRequestToken += 1
+    },
+
+    async refreshLibraryCount(): Promise<number> {
+      try {
+        const response = await typedApi.getMediaStats()
+        const total = Number(response.data?.total) || 0
+        this.libraryCount = total
+        return total
+      } catch (error) {
+        console.error('Failed to refresh library count:', error)
+        return this.libraryCount
+      }
     },
 
     async updateRegInfo(value: string | LicenseInfo) {

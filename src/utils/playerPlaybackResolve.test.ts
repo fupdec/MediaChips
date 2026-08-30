@@ -506,7 +506,7 @@ describe('loadSrc seek / registration / duration gates', () => {
     })).toBeCloseTo(2011.95, 5)
   })
 
-  it('blocks deep unregistered playlist indices', () => {
+  it('no longer blocks playlist depth for unregistered users', () => {
     expect(shouldBlockUnregisteredPlaylistDepth({
       registered: false,
       nowPlaying: UNREGISTERED_PLAYLIST_MAX_INDEX,
@@ -514,7 +514,7 @@ describe('loadSrc seek / registration / duration gates', () => {
     expect(shouldBlockUnregisteredPlaylistDepth({
       registered: false,
       nowPlaying: UNREGISTERED_PLAYLIST_MAX_INDEX + 1,
-    })).toBe(true)
+    })).toBe(false)
     expect(shouldBlockUnregisteredPlaylistDepth({
       registered: true,
       nowPlaying: 99,

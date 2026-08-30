@@ -192,7 +192,7 @@ function onDrop(event: DragEvent) {
     return
   }
 
-  startDroppedMediaAdding({
+  void startDroppedMediaAdding({
     paths,
     mediaTypeId,
     mediaTypes: appStore.mediaTypes,

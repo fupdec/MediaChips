@@ -89,7 +89,7 @@
 
     <div v-if="licenseInfo?.license_type !== 'Lifetime'" class="mb-4">
       <v-btn
-        @click="openLink('https://mediachips.app/')"
+        @click="openLink(BUY_ACTIVATION_KEY_URL)"
         color="primary"
         rounded
         variant="flat"
@@ -361,6 +361,7 @@ import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {isMsStoreBuild} from '@/utils/sfwBuild'
 import {openExternal} from '@/services/shellService'
+import {BUY_ACTIVATION_KEY_URL} from '@/utils/freeLibraryCap'
 import type {VFormInstance} from '@/types/vue'
 import type {LicenseInfo} from '@/types/stores'
 
@@ -680,6 +681,9 @@ onMounted(() => {
   if (savedLicenseCode.value) {
     refreshLicenseFromServer()
   }
+  if (registrationStore.keyEntryRequestToken > 0 && !isStoreChannel) {
+    openDialog()
+  }
 })
 
 watch(savedLicenseCode, (licenseCode) => {
@@ -689,6 +693,11 @@ watch(savedLicenseCode, (licenseCode) => {
     remoteLicenseInfo.value = null
     activated_devices.value = 0
   }
+})
+
+watch(() => registrationStore.keyEntryRequestToken, (token, previous) => {
+  if (!token || token === previous || isStoreChannel) return
+  openDialog()
 })
 </script>
 

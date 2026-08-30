@@ -571,6 +571,9 @@ const startMediaAddingProcess = async () => {
     return
   }
 
+  const {useFreeLibraryGate} = await import('@/composable/useFreeLibraryGate')
+  if (!(await useFreeLibraryGate().ensureCanImportMedia())) return
+
   // Активируем задачу и показываем диалог процесса
   syncMediaTypeFromContext()
   tasksStore.mediaAdding.paths = String(normalizePastedFilePathsText(tasksStore.mediaAdding.paths || '') ?? '')

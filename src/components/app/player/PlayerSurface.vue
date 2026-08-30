@@ -112,13 +112,6 @@
             </v-btn>
           </div>
 
-          <div v-if="!reg && player.nowPlaying > 14" class="reg-block">
-            <div class="mb-2">{{ t('registration.application_not_registered') }}</div>
-            <div class="caption">
-              {{ t('registration.unregistered_playlist_limit') }}
-            </div>
-          </div>
-
           <div v-if="showTranscodeSpinner" class="transcode-spinner">
             <v-progress-circular
               indeterminate
@@ -194,7 +187,6 @@ const session = inject(PLAYER_SESSION_KEY)!
 const {
   player,
   isPlayerWindow,
-  reg,
   videoPlayer,
   controls,
   marks,

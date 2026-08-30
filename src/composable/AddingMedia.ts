@@ -151,6 +151,15 @@ export const useMediaAdding = () => {
 
   const addMedia = async () => {
     if (addMediaInProgress) return
+
+    const {useFreeLibraryGate} = await import('@/composable/useFreeLibraryGate')
+    const gate = useFreeLibraryGate()
+    if (!(await gate.ensureCanImportMedia())) {
+      task.value.active = false
+      task.value.dialogProcess = false
+      return
+    }
+
     addMediaInProgress = true
 
     const skipFileScan = task.value.skipFileScan
@@ -847,12 +856,15 @@ export const useMediaAdding = () => {
           task.value.notificationTaskId = null
         }
       } else {
-        // Completed: never keep a Stop action in notifications.
         await tasksStore.updateTask(taskId, {
           done: true,
           action: undefined,
         })
       }
+
+      void import('@/composable/useFreeLibraryGate').then(({useFreeLibraryGate}) => {
+        void useFreeLibraryGate().refreshLibraryCount()
+      })
     }
   }
 

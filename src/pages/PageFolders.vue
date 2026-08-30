@@ -2090,6 +2090,9 @@ async function ensureInLibrary(filePath: string): Promise<MediaItem | null> {
     return loadMediaItemById(pending.mediaId)
   }
 
+  const {useFreeLibraryGate} = await import('@/composable/useFreeLibraryGate')
+  if (!(await useFreeLibraryGate().ensureCanImportMedia())) return null
+
   markIngesting(filePath, true)
   try {
     const mediaType = inferMediaTypeFromPaths([filePath], appStore.mediaTypes)

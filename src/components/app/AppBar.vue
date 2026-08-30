@@ -142,20 +142,16 @@
 
       <!-- RIGHT AREA -->
       <div class="d-flex align-center">
-        <v-tooltip v-if="!reg"
+        <v-tooltip v-if="showFreeLibraryLock"
           location="bottom">
           <template v-slot:activator="{ props: activatorProps }">
             <v-btn v-bind="activatorProps"
-              @click="register"
+              @click="openRegistrationPaywall"
               icon>
               <v-icon>mdi-lock-question</v-icon>
             </v-btn>
           </template>
-          <span>
-            {{ t('registration.application_not_registered') }}
-            <br/>
-            {{ t('registration.unregistered_items_limit') }}
-          </span>
+          <span>{{ lockTooltip }}</span>
         </v-tooltip>
 
         <div class="mr-1">
@@ -187,6 +183,8 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useRegistrationStore} from '@/stores/registration'
+import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
+import {FREE_LIBRARY_CAP} from '@/utils/freeLibraryCap'
 import {useI18n} from 'vue-i18n'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {isFoldersRoute} from '@/composable/useBrowserLayout'
@@ -240,6 +238,25 @@ const itemsEditMetaRef = ref<{editMeta: () => void} | null>(null)
 /* Colors */
 const tabs = computed(() => app.tabs)
 const reg = computed(() => registrationStore.reg)
+const {
+  libraryCount,
+  grandfathered,
+  atCap,
+  refreshLibraryCount,
+  openPaywall,
+} = useFreeLibraryGate()
+
+const showFreeLibraryLock = computed(() => !reg.value && !grandfathered.value)
+
+const lockTooltip = computed(() => {
+  if (atCap.value) {
+    return t('registration.appbar_free_limit', {cap: FREE_LIBRARY_CAP})
+  }
+  return t('registration.appbar_free_slots', {
+    count: libraryCount.value,
+    cap: FREE_LIBRARY_CAP,
+  })
+})
 
 const showDarwinTrafficLightSpacer = computed(() => (
   isMac && isElectron && !isWinElectron && !fullscreen.value
@@ -380,10 +397,8 @@ async function createTab() {
   }
 }
 
-function register() {
-  if (!route.path.startsWith('/settings')) {
-    router.push("/settings/?tab=about")
-  }
+function openRegistrationPaywall() {
+  openPaywall()
 }
 
 const handleEnterFullScreen = () => {
@@ -399,6 +414,7 @@ let unsubscribeLeaveFullScreen: (() => void) | undefined
 
 onMounted(() => {
   void syncFullscreenState()
+  void refreshLibraryCount()
   unsubscribeEnterFullScreen = subscribeElectronIpc('enter-full-screen', handleEnterFullScreen)
   unsubscribeLeaveFullScreen = subscribeElectronIpc('leave-full-screen', handleLeaveFullScreen)
   window.addEventListener('focus', syncFullscreenState)

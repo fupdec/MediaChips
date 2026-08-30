@@ -1,7 +1,6 @@
 <template>
   <div
     ref="itemRootRef"
-    :disabled="!reg && x > 14"
     :draggable="isCardDragEnabled"
     @contextmenu.stop="showContextMenu"
     @mousedown="onItemMouseDown"
@@ -75,9 +74,6 @@
           :item="item"
           :type="type"
         ></ItemFavorite>
-        <div v-if="!reg && x > 14"
-             class="reg-block"
-             v-html="'App not registered'"/>
       </div>
 
       <div
