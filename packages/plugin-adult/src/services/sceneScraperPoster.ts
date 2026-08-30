@@ -1,4 +1,4 @@
-import { createImage } from '@/services/fileService'
+import { createImage, isCreateImageSuccessStatus } from '@/services/fileService'
 import {
   getMediaThumbAspectRatio,
   getVideoThumbOutputPath,
@@ -24,7 +24,7 @@ export async function applyScenePosterToVideoThumb({
   const aspectRatio = getMediaThumbAspectRatio(mediaWidth, mediaHeight)
   const sizes = getVideoThumbSaveSizes(aspectRatio)
   const result = await createImage(url, outputPath, sizes)
-  const success = result.status === 201
+  const success = isCreateImageSuccessStatus(result.status)
 
   if (!success) {
     console.error('Scene poster apply failed:', outputPath, result.data)

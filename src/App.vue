@@ -482,8 +482,10 @@ function applyConfig(config: ServerConfigPayload) {
 
   app.localhost = resolveDirectBackendUrl(config as AppConfig, currentServer.value)
   app.appVersion = config.appVersion ?? ''
-  app.dbPath = config.path ?? ''
-  app.mediaPath = path.join(config.path ?? '', 'media')
+  // path-browserify treats `\` as a literal; keep stored roots slash-normalized on Windows.
+  const dbPath = String(config.path ?? '').replace(/\\/g, '/')
+  app.dbPath = dbPath
+  app.mediaPath = path.join(dbPath, 'media')
   app.databases = config.databases ?? []
   app.config = config
 

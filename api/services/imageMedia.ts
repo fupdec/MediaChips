@@ -4,6 +4,7 @@ import path from 'path'
 import exifr from 'exifr'
 import { Jimp } from 'jimp'
 import {getCenterCropRect, getDisplayDimensions} from './imageGeometry'
+import {writeFileAtomically} from './safeFileReplace'
 
 const THUMB_HEIGHT = 320
 const THUMB_JPEG_QUALITY = 85
@@ -16,11 +17,13 @@ async function getSharp() {
 
 async function writeThumbWithSharp(input: string | Buffer, outputPath: string): Promise<void> {
   const sharp = await getSharp()
-  await sharp(input)
-    .rotate()
-    .resize({height: THUMB_HEIGHT, withoutEnlargement: true})
-    .jpeg({quality: THUMB_JPEG_QUALITY, mozjpeg: true})
-    .toFile(outputPath)
+  await writeFileAtomically(outputPath, async (tempPath) => {
+    await sharp(input)
+      .rotate()
+      .resize({height: THUMB_HEIGHT, withoutEnlargement: true})
+      .jpeg({quality: THUMB_JPEG_QUALITY, mozjpeg: true})
+      .toFile(tempPath)
+  })
 }
 
 /**
@@ -77,7 +80,9 @@ async function decodeImageBuffer(buffer: Buffer): Promise<JimpImage> {
 
 async function writeJpeg(image: JimpImage, outputPath: string, quality = THUMB_JPEG_QUALITY) {
   const buffer = await image.getBuffer('image/jpeg', {quality})
-  await fs.promises.writeFile(outputPath, buffer)
+  await writeFileAtomically(outputPath, async (tempPath) => {
+    await fs.promises.writeFile(tempPath, buffer)
+  })
 }
 
 async function readExifOrientation(pathToFile: string): Promise<number> {
@@ -204,10 +209,12 @@ async function processAndSaveImageWithSharp({
     }
   }
 
-  await pipeline
-    .jpeg({quality: THUMB_JPEG_QUALITY, mozjpeg: true})
-    .toFile(outputPath)
-  return outputPath
+  await writeFileAtomically(outputPath, async (tempPath) => {
+    await pipeline
+      .jpeg({quality: THUMB_JPEG_QUALITY, mozjpeg: true})
+      .toFile(tempPath)
+  })
+  return path.normalize(outputPath)
 }
 
 async function processAndSaveImageWithJimp({buffer, outputPath, sizes}: ProcessAndSaveImageOptions) {
@@ -232,7 +239,7 @@ async function processAndSaveImageWithJimp({buffer, outputPath, sizes}: ProcessA
   }
 
   await writeJpeg(image, outputPath, THUMB_JPEG_QUALITY)
-  return outputPath
+  return path.normalize(outputPath)
 }
 
 const getImageMetadataFromBuffer = async (buffer: Buffer) => {
@@ -351,11 +358,13 @@ const createImageThumb = async (pathToFile: string, id: string | number, dbPath:
 }
 
 async function processAndSaveImage(options: ProcessAndSaveImageOptions) {
-  fs.mkdirSync(path.dirname(options.outputPath), {recursive: true})
+  const outputPath = path.normalize(String(options.outputPath || ''))
+  const normalized = {...options, outputPath}
+  fs.mkdirSync(path.dirname(outputPath), {recursive: true})
   try {
-    return await processAndSaveImageWithSharp(options)
+    return await processAndSaveImageWithSharp(normalized)
   } catch {
-    return processAndSaveImageWithJimp(options)
+    return processAndSaveImageWithJimp(normalized)
   }
 }
 

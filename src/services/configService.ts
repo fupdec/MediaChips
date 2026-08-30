@@ -17,8 +17,10 @@ function applyConfigToStore(config: ServerConfig) {
   const store = useAppStore()
   store.localhost = resolveDirectBackendUrl(config)
   store.appVersion = config.appVersion || store.appVersion
-  store.dbPath = config.path || ''
-  store.mediaPath = path.join(config.path || '', 'media')
+  // path-browserify treats `\` as a literal; keep stored roots slash-normalized on Windows.
+  const dbPath = String(config.path || '').replace(/\\/g, '/')
+  store.dbPath = dbPath
+  store.mediaPath = path.join(dbPath, 'media')
   store.databases = config.databases || []
   store.config = config
 }

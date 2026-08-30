@@ -1,5 +1,5 @@
 import path from 'path-browserify'
-import {createImage} from '@/services/fileService'
+import {createImage, isCreateImageSuccessStatus} from '@/services/fileService'
 import {typedApi} from '@/services/typedApi'
 import {useItemsStore} from '@/stores/items'
 import {sortPinnedAssignmentItems} from '@/utils/pinnedMetaOrder'
@@ -163,12 +163,17 @@ export async function applyTmdbPersonExtrasToTag({
 
     let imageFailed = false
     if (selected.has('image') && extras.image) {
-      const imagePath = path.join(dbPath, 'meta', String(meta.id), `${tagId}_main.jpg`)
+      const imagePath = path.join(
+        String(dbPath || '').replace(/\\/g, '/'),
+        'meta',
+        String(meta.id),
+        `${tagId}_main.jpg`,
+      )
       const aspectRatio = Number(meta.imageAspectRatio) || 1
       const sizes = {width: TAG_IMAGE_SAVE_WIDTH, height: TAG_IMAGE_SAVE_WIDTH / aspectRatio}
       const downloadUrl = toTmdbProfileDownloadUrl(extras.image)
       const result = await createImage(downloadUrl, imagePath, sizes)
-      imageFailed = result.status !== 201
+      imageFailed = !isCreateImageSuccessStatus(result.status)
 
       if (!imageFailed) {
         // Clear negative file-exists / thumb caches so the new poster shows up immediately.

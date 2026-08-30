@@ -27,6 +27,10 @@ function refererCandidatesForUrl(url: URL): Array<string | undefined> {
   if (/(^|\.)tmdb\.org$/i.test(url.hostname)) {
     return [undefined, 'https://www.themoviedb.org/']
   }
+  // TPDB CDN accepts either the site or CDN origin; prefer the site first.
+  if (/(^|\.)theporndb\.net$/i.test(url.hostname)) {
+    return ['https://theporndb.net/', `${url.origin}/`, undefined]
+  }
   return [`${url.origin}/`, undefined]
 }
 

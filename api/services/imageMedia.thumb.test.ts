@@ -96,4 +96,19 @@ describe('imageMedia thumbs (sharp-first)', () => {
     expect(meta.width).toBe(100)
     expect(meta.height).toBe(100)
   })
+
+  it('processAndSaveImage overwrites an existing thumb without leaving .tmp files', async () => {
+    const buffer = fs.readFileSync(samplePng)
+    const out = path.join(tmpDir, 'overwrite.jpg')
+    fs.writeFileSync(out, 'stale')
+
+    await processAndSaveImage({
+      buffer,
+      outputPath: out,
+      sizes: {width: 80, height: 80},
+    })
+
+    expect(fs.statSync(out).size).toBeGreaterThan(50)
+    expect(fs.readdirSync(tmpDir).filter((name) => name.endsWith('.tmp'))).toEqual([])
+  })
 })

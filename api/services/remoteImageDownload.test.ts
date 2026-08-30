@@ -48,4 +48,25 @@ describe('downloadRemoteImage', () => {
       downloadRemoteImage('https://cdn.example.com/poster.jpg', {retries: 1}),
     ).rejects.toThrow('Unexpected content type')
   })
+
+  it('prefers theporndb.net referer for TPDB CDN URLs', async () => {
+    vi.mocked(axios.get).mockResolvedValue({
+      data: Buffer.alloc(256, 4),
+      headers: {'content-type': 'image/jpeg'},
+    })
+
+    await downloadRemoteImage(
+      'https://cdn.theporndb.net/scene/aa/bb/cc/hash/background/poster.webp',
+      {retries: 1},
+    )
+
+    expect(axios.get).toHaveBeenCalledWith(
+      'https://cdn.theporndb.net/scene/aa/bb/cc/hash/background/poster.webp',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Referer: 'https://theporndb.net/',
+        }),
+      }),
+    )
+  })
 })

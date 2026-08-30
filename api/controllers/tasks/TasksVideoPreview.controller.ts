@@ -149,7 +149,8 @@ export default function createTasksVideoPreviewController(shared: TaskController
 
   const createImage = async function (req: ApiRequest, res: ApiResponse) {
     try {
-      const {outputPath, url, sizes, image} = req.body
+      const {url, sizes, image} = req.body
+      const outputPath = path.normalize(String(req.body.outputPath || ''))
       const downloadUrl = url
         || (typeof image === 'string' && /^https?:\/\//i.test(image.trim()) ? image.trim() : null)
       let buf: Buffer

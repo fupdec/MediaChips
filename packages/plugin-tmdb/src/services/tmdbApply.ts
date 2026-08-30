@@ -1,5 +1,5 @@
 import path from 'path-browserify'
-import {createImage} from '@/services/fileService'
+import {createImage, isCreateImageSuccessStatus} from '@/services/fileService'
 import {typedApi} from '@/services/typedApi'
 import {sortPinnedAssignmentItems} from '@/utils/pinnedMetaOrder'
 import {findOrCreateTagByName} from '@/utils/tagLookup'
@@ -182,14 +182,19 @@ export async function applyTmdbExtrasToMedia({
 
     let posterFailed = false
     if (selected.has('poster') && data.image) {
-      const outputPath = path.join(mediaPath, 'videos', 'thumbs', `${mediaId}.jpg`)
+      const outputPath = path.join(
+        String(mediaPath || '').replace(/\\/g, '/'),
+        'videos',
+        'thumbs',
+        `${mediaId}.jpg`,
+      )
       // Movie posters are typically 2:3; match video thumb height.
       const sizes = {
         width: Math.round(VIDEO_THUMB_HEIGHT * (2 / 3)),
         height: VIDEO_THUMB_HEIGHT,
       }
       const result = await createImage(data.image, outputPath, sizes)
-      posterFailed = result.status !== 201
+      posterFailed = !isCreateImageSuccessStatus(result.status)
     }
 
     if (skippedKeys.length) {
