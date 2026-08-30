@@ -1,7 +1,7 @@
 {
   "name": "mediachips",
   "productName": "MediaChips",
-  "version": "1.12.0",
+  "version": "1.11.1",
   "author": {
     "name": "MediaChips contributors"
   },
@@ -146,7 +146,7 @@
   "build": {
     "appId": "com.mediachips.app",
     "productName": "MediaChips",
-    "copyright": "Copyright © 2026 MediaChips",
+    "copyright": "Copyright \u00a9 2026 MediaChips",
     "beforePack": "./scripts/electron-before-pack.mjs",
     "directories": {
       "output": "release"
