@@ -5,8 +5,8 @@
 <h1 align="center">MediaChips</h1>
 
 <p align="center">
-  <strong>Your media library, finally under control.</strong><br />
-  Built for collections that outgrew folders.
+  <strong>Custom metadata. Deep tags &amp; filters. Visual browsing.</strong><br />
+  Build the library interface that fits <em>your</em> collection.
 </p>
 
 <p align="center">
@@ -24,25 +24,24 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/readme-hero.jpg" alt="MediaChips browsing a library with 500k+ images — tags sidebar, grid, and inspector" width="920" />
+  <img src="docs/images/readme-hero.jpg" alt="MediaChips — tags sidebar, media grid, and inspector with custom metadata" width="920" />
 </p>
 
-MediaChips is an open-source desktop app for **organizing, tagging, filtering, and browsing** local media — videos, images, audio, and text — without uploading anything to the cloud.
+MediaChips is an open-source desktop app for local **videos, images, audio, and text**.  
+You shape the library: define **chips** (custom metadata), keep rich **tags**, filter by anything, and browse with **previews and view modes** that make the collection readable — not just a folder tree.
 
-Attach the metadata that fits your collection (tags, ratings, favorites, custom fields), then find what you need with filters, global search, and a visual browser built for large libraries.
-
-> **Private. Local. Yours.** MediaChips does not collect your data or send your library anywhere. Inspect the code, extend it with plugins, or self-host on your LAN / NAS.
+> **Private. Local. Yours.** Nothing is uploaded to the cloud. Inspect the code, extend it with plugins, or self-host on your LAN / NAS.
 
 ---
 
 ## Why MediaChips?
 
-- **Built for huge libraries** — browse and filter collections with hundreds of thousands of files
-- **Completely local** — your files and metadata stay on your machine
-- **Flexible metadata (chips)** — define the fields and tags that make sense for *your* library
-- **Visual browsing** — cards, hover previews, storyboards, inspector, and an Eagle-style browser layout
-- **Power tools** — duplicates, path-based tagging, CLIP semantic search, face tools, watched folders
-- **Stash import** — bring scenes, performers, studios, tags, and markers into MediaChips
+- **Custom chips** — ratings, favorites, dates, numbers, nested fields, or whatever schema your collection needs
+- **Detailed tags** — images, synonyms, categories, hierarchy, and full tag pages
+- **Deep filters** — any field or tag combination; save presets and refine until it fits
+- **Visual previews** — storyboards, hover / timeline scrub, inline playback, big preview
+- **View modes** — browser layout (sidebar + grid + inspector), media / tags / folders, cards you can tune
+- **Stays usable at scale** — the same workflow on small libraries and on hundreds of thousands of files
 - **Windows · macOS · Linux · Docker / NAS**
 
 ---
@@ -70,7 +69,7 @@ Full NAS setup (volumes, `PUID`/`PGID`, mounts): **[DOCKER.md](./DOCKER.md)**.
 
 Install the **Stash import** plugin and import from your `stash-go.sqlite` database.
 
-MediaChips can import **scenes, performers, studios, tags, and markers** (matched by path / oshash). Galleries, performer images, and some Stash-only structures are not a full 1:1 migrate — use MediaChips as the next home for your collection, not a drop-in Stash clone.
+MediaChips can import **scenes, performers, studios, tags, and markers** (matched by path / oshash). Galleries, performer images, and some Stash-only structures are not a full 1:1 migrate — then keep organizing with your own chips, filters, and views.
 
 More: [mediachips.app](https://mediachips.app) · plugin docs in `plugins/official/stash/`.
 
@@ -78,33 +77,33 @@ More: [mediachips.app](https://mediachips.app) · plugin docs in `plugins/offici
 
 ## Features
 
-### Browse
+### Chips & tags
 
-- Browser layout — tags sidebar, inspector, filters, compact controls
-- Videos, images, audio, and text in one library
-- Hover preview, storyboard / timeline grids, inline playback
-- Multiple databases, tabs, playlists, LAN / mobile browser access
+- Built-in and custom chip types (tags, ratings, favorites, bookmarks, text, dates, numbers, colors, …)
+- Rich tag profiles — images, countries, nested chips, synonyms
+- Chip recipes — installable metadata presets for common setups
+- Tag hierarchy, categories, merge tools, virtual folder tags
 
-### Organize
+### Filters & search
 
-- Custom **chips** (tags, ratings, favorites, bookmarks, dates, numbers, nested fields)
-- Chip recipes — installable metadata presets
+- Filter by any parameter or tag (including nested fields); exact / negative conditions
+- Saved filter presets; sort and group-by controls
+- Global search (`/`) across names and tags
+- Optional CLIP Find scene and on-device face tools
+
+### Browse & preview
+
+- Eagle-style browser: tags sidebar, inspector, docked filters
+- Hover preview, 3×3 storyboard grids, timeline scrub, inline play
+- Media, tags, and folders views; customizable cards and layouts
+- Built-in player with timeline markers, chapters, and playlists
+
+### Library tools
+
 - Path tags & regex extraction, watched folders, bulk edit
 - Duplicate finder (hybrid fingerprint + visual grid)
-
-### Find
-
-- Filter by any field or tag; saved filter presets
-- Global search (`/`) across names and tags
-- CLIP semantic search / Find scene (local models)
-- Face detection & matching (optional, on-device)
-
-### Extend
-
-- Plugin system (Stash, Jellyfin, Plex, Emby, TMDB, Adult scrapers, …)
-- Backup & restore
-- Password protection · SFW mode
-- 8 UI languages
+- Multiple databases, backup & restore, LAN / mobile browser access
+- Plugins (Stash, Jellyfin, Plex, Emby, TMDB, Adult scrapers, …)
 
 ---
 
