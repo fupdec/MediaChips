@@ -63,6 +63,7 @@
     "@mediachips/plugin-plex": "file:packages/plugin-plex",
     "@mediachips/plugin-stash": "file:packages/plugin-stash",
     "@mediachips/plugin-tmdb": "file:packages/plugin-tmdb",
+    "@parcel/watcher": "^2.6.0",
     "@xenova/transformers": "^2.17.2",
     "archiver": "^7.0.1",
     "axios": "^1.18.1",
@@ -146,7 +147,7 @@
   "build": {
     "appId": "com.mediachips.app",
     "productName": "MediaChips",
-    "copyright": "Copyright \u00a9 2026 MediaChips",
+    "copyright": "Copyright © 2026 MediaChips",
     "beforePack": "./scripts/electron-before-pack.mjs",
     "directories": {
       "output": "release"
@@ -176,6 +177,8 @@
       "**/node_modules/sharp/**",
       "**/node_modules/@img/**",
       "**/node_modules/better-sqlite3/**",
+      "**/node_modules/@parcel/watcher/**",
+      "**/node_modules/@parcel/watcher-*/**",
       "**/node_modules/node-llama-cpp/**",
       "**/node_modules/@node-llama-cpp/**"
     ],

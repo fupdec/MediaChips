@@ -363,6 +363,10 @@ export const tasksApi = {
     return apiClient.post(API_ROUTES.watchedFolder, body)
   },
 
+  assessWatchedFolder(body: {path: string; excludedPaths?: string[]}) {
+    return apiClient.post(API_ROUTES.watchedFolderAssess, body)
+  },
+
   deleteWatchedFolder(id: number) {
     return apiClient.delete(apiWatchedFolder(id))
   },

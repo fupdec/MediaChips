@@ -640,11 +640,23 @@ const addNewFolder = async () => {
   const folderName = folderData.value.name || folderData.value.path
   const extras = folderPayloadExtras()
 
+  const {runWatchFolderRiskGate} = await import('@/composable/useWatchFolderRiskGate')
+  const gate = await runWatchFolderRiskGate({
+    path: folderData.value.path,
+    excludedPaths: extras.excludedPaths,
+  })
+  if (gate.action === 'skip') {
+    return
+  }
+
+  folderData.value.excludedPaths = gate.excludedPaths
+  const gatedExtras = folderPayloadExtras()
+
   await typedApi.createWatchedFolder({
     folder: {
       path: folderData.value.path,
       name: folderName,
-      ...extras,
+      ...gatedExtras,
     },
     types: [1],
   }).then(async () => {
@@ -686,6 +698,17 @@ const editFolder = (folder: WatchedFolderEntry) => {
 const saveFolder = async () => {
   const validation = await folderForm.value?.validate()
   if (!validation?.valid || folderData.value.id == null) return
+
+  const extras = folderPayloadExtras()
+  const {runWatchFolderRiskGate} = await import('@/composable/useWatchFolderRiskGate')
+  const gate = await runWatchFolderRiskGate({
+    path: folderData.value.path,
+    excludedPaths: extras.excludedPaths,
+  })
+  if (gate.action === 'skip') {
+    return
+  }
+  folderData.value.excludedPaths = gate.excludedPaths
 
   watcherBusy.value = true
   try {

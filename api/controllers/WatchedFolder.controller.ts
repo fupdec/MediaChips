@@ -5,9 +5,37 @@ import type { ApiRequest, ApiResponse } from '../types/http'
 import { createWatchedFoldersRepository } from '../db/repositories/watchedFolders'
 import { normalizeExcludedPaths } from '../utils/watchedFolderExcludes'
 import { normalizeMediaPath } from '../utils/normalizeUserPath'
+import { assessWatchFolderRisk } from '../services/watchFolderRisk'
 
 export default function (db: ApiDb) {
   const watchedFoldersRepo = createWatchedFoldersRepository(db.drizzle)
+
+  const assess = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const folderPath = normalizeMediaPath(String(req.body?.path || ''))
+      const excludedPaths = Array.isArray(req.body?.excludedPaths)
+        ? normalizeExcludedPaths(folderPath, req.body.excludedPaths)
+        : []
+
+      const result = await assessWatchFolderRisk({path: folderPath, excludedPaths})
+      sendOk(res, result)
+    } catch (err: unknown) {
+      // Fail-open: never block the client on assess errors.
+      sendOk(res, {
+        path: String(req.body?.path || ''),
+        fileCount: 0,
+        dirCount: 0,
+        limit: 1,
+        ratio: 0,
+        grade: 'green',
+        usePolling: false,
+        diskKind: 'unknown',
+        hddFactorApplied: false,
+        failedOpen: true,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
 
   const create = async function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -16,14 +44,14 @@ export default function (db: ApiDb) {
         types,
       } = req.body
 
-      const path = normalizeMediaPath(String(folder?.path || ''))
+      const folderPath = normalizeMediaPath(String(folder?.path || ''))
       const excludedPaths = Object.prototype.hasOwnProperty.call(folder || {}, 'excludedPaths')
-        ? normalizeExcludedPaths(path, folder.excludedPaths)
+        ? normalizeExcludedPaths(folderPath, folder.excludedPaths)
         : undefined
 
       watchedFoldersRepo.upsertFolderWithTypes(
         {
-          path,
+          path: folderPath,
           name: folder?.name,
           icon: folder?.icon,
           ...(excludedPaths !== undefined ? {excludedPaths} : {}),
@@ -84,6 +112,7 @@ export default function (db: ApiDb) {
   }
 
   return {
+    assess,
     create,
     update,
     deleteOne,

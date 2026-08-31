@@ -3,7 +3,7 @@ import type { AppWebSocket } from '../types/websockets'
 import type { Request } from 'express'
 
 const {
-  watch,
+  watchFolders,
   mockWatcher,
   fullSync,
   refreshDbPaths,
@@ -14,12 +14,12 @@ const {
 } = vi.hoisted(() => {
   const mockWatcher = {
     on: vi.fn(),
-    close: vi.fn(),
-    add: vi.fn(),
+    close: vi.fn().mockResolvedValue(undefined),
+    notifyReady: vi.fn(),
   }
 
   return {
-    watch: vi.fn(() => mockWatcher),
+    watchFolders: vi.fn(async () => mockWatcher),
     mockWatcher,
     fullSync: vi.fn().mockResolvedValue(undefined),
     refreshDbPaths: vi.fn().mockResolvedValue(undefined),
@@ -30,10 +30,8 @@ const {
   }
 })
 
-vi.mock('chokidar', () => ({
-  default: {
-    watch,
-  },
+vi.mock('./parcelFolderWatcher', () => ({
+  watchFolders,
 }))
 
 vi.mock('./watcherSync', () => ({
@@ -96,6 +94,13 @@ function triggerWatcherEvent(event: string, ...args: unknown[]) {
   return handler(...args)
 }
 
+async function flushWatcherStart() {
+  await vi.waitFor(() => {
+    expect(watchFolders).toHaveBeenCalled()
+    expect(mockWatcher.notifyReady).toHaveBeenCalled()
+  })
+}
+
 describe('createWatcherWsHandler', () => {
   const db = {drizzle: {}} as never
   const req = {} as Request
@@ -112,13 +117,14 @@ describe('createWatcherWsHandler', () => {
     fullSync.mockResolvedValue(undefined)
     refreshDbPaths.mockResolvedValue(undefined)
     getReports.mockReturnValue([{folder: {path: '/media/movies'}, files: []}])
+    watchFolders.mockResolvedValue(mockWatcher)
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('starts chokidar and sends file reports after ready', async () => {
+  it('starts parcel watcher and sends file reports after ready', async () => {
     const ws = createMockWebSocket()
     createWatcherWsHandler(db)(ws, req)
 
@@ -127,8 +133,13 @@ describe('createWatcherWsHandler', () => {
       folders,
       extensions: {'/media/movies': ['mp4']},
     }))
+    await flushWatcherStart()
 
-    expect(watch).toHaveBeenCalledWith(['/media/movies/**/*.mp4'], expect.any(Object))
+    expect(watchFolders).toHaveBeenCalledWith({
+      folderPaths: ['/media/movies'],
+      extensionsByFolder: {'/media/movies': ['mp4']},
+      excludedPaths: [],
+    })
     expect(refreshDbPaths).not.toHaveBeenCalled()
     await triggerWatcherEvent('ready')
     expect(fullSync).toHaveBeenCalledWith(folders)
@@ -147,6 +158,7 @@ describe('createWatcherWsHandler', () => {
       folders,
       extensions: {'/media/movies': ['mp4']},
     }))
+    await flushWatcherStart()
 
     await ws.emit('message', JSON.stringify({type: 'stop'}))
 
@@ -164,10 +176,15 @@ describe('createWatcherWsHandler', () => {
       folders,
       extensions: {'/media/movies': ['mp4']},
     }))
+    await flushWatcherStart()
     await triggerWatcherEvent('ready')
 
     vi.clearAllMocks()
     getReports.mockReturnValue([{folder: {path: '/media/movies'}, files: []}])
+    watchFolders.mockResolvedValue(mockWatcher)
+    mockWatcher.on.mockImplementation(function mockOn(this: typeof mockWatcher) {
+      return this
+    })
 
     await ws.emit('message', JSON.stringify({
       type: 'update',
@@ -178,7 +195,7 @@ describe('createWatcherWsHandler', () => {
     expect(refreshDbPaths).toHaveBeenCalled()
     expect(syncFolderMetadata).toHaveBeenCalledWith(folders)
     expect(setFolders).not.toHaveBeenCalled()
-    expect(watch).not.toHaveBeenCalled()
+    expect(watchFolders).not.toHaveBeenCalled()
     expect(ws.messages[ws.messages.length - 1]).toEqual({
       type: 'files',
       data: [{folder: {path: '/media/movies'}, files: []}],
@@ -194,6 +211,7 @@ describe('createWatcherWsHandler', () => {
       folders,
       extensions: {'/media/movies': ['mp4']},
     }))
+    await flushWatcherStart()
     await triggerWatcherEvent('ready')
 
     vi.clearAllMocks()
@@ -217,6 +235,7 @@ describe('createWatcherWsHandler', () => {
       folders,
       extensions: {'/media/movies': ['mp4']},
     }))
+    await flushWatcherStart()
     await triggerWatcherEvent('ready')
 
     vi.clearAllMocks()
@@ -237,7 +256,7 @@ describe('createWatcherWsHandler', () => {
 
     await ws.emit('message', '{bad-json')
 
-    expect(watch).not.toHaveBeenCalled()
+    expect(watchFolders).not.toHaveBeenCalled()
     expect(ws.messages).toEqual([])
   })
 })

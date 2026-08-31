@@ -10,16 +10,19 @@ const TARGET_SPECS = {
     ffprobe: new Set(['darwin/arm64', 'darwin/x64']),
     onnxruntime: new Set(['darwin/arm64', 'darwin/x64']),
     sharpPackage: /^sharp-(darwin|libvips-darwin)-/,
+    parcelWatcher: /^watcher-darwin-/,
   },
   win: {
     ffprobe: new Set(['win32/x64', 'win32/arm64', 'win32/ia32']),
     onnxruntime: new Set(['win32/x64', 'win32/arm64']),
     sharpPackage: /^sharp-(win32|libvips-win32)-/,
+    parcelWatcher: /^watcher-win32-/,
   },
   linux: {
     ffprobe: new Set(['linux/x64', 'linux/arm64']),
     onnxruntime: new Set(['linux/x64', 'linux/arm64']),
     sharpPackage: /^sharp-(linux|libvips-linux)-/,
+    parcelWatcher: /^watcher-linux-/,
   },
 }
 
@@ -96,6 +99,17 @@ function pruneSharpPackages(pattern, removed) {
   }
 }
 
+function pruneParcelWatcherPackages(pattern, removed) {
+  const parcelDir = join(root, 'node_modules/@parcel')
+  if (!existsSync(parcelDir)) return
+
+  for (const name of readdirSync(parcelDir)) {
+    if (!/^watcher-/.test(name)) continue
+    if (pattern.test(name)) continue
+    removePath(join(parcelDir, name), `@parcel/${name}`, removed)
+  }
+}
+
 function pruneModels(removed) {
   // Face detection (SCRFD) and recognition (R50) download on demand — strip any cached copies from dist.
   const faceApiDir = join(root, 'models/face-api')
@@ -145,6 +159,7 @@ export function pruneNativeBinaries(target) {
   )
 
   pruneSharpPackages(spec.sharpPackage, removed)
+  pruneParcelWatcherPackages(spec.parcelWatcher, removed)
   pruneModels(removed)
 
   const saved = removed.reduce((sum, entry) => sum + entry.bytes, 0)

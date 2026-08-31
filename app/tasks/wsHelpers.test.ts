@@ -33,22 +33,21 @@ describe('getWatcherFoldersConfigKey', () => {
 })
 
 describe('buildWatcherMasks', () => {
-  it('creates recursive glob masks per folder extension', () => {
+  it('returns folder roots (globs removed for parcel / chokidar ≥4)', () => {
     const masks = buildWatcherMasks({
       '/media/movies': ['mp4', 'mkv'],
       '/media/clips': ['mp4'],
     })
 
     expect(masks).toEqual([
-      '/media/movies/**/*.mp4',
-      '/media/movies/**/*.mkv',
-      '/media/clips/**/*.mp4',
+      '/media/movies',
+      '/media/clips',
     ])
   })
 })
 
 describe('buildWatcherWatchPaths', () => {
-  it('uses folder roots for mounted volumes to avoid slow glob polling', () => {
+  it('always uses folder roots', () => {
     const extensions = {
       '/Volumes/pron/#torrents/': ['mp4', 'mkv'],
     }
@@ -57,8 +56,7 @@ describe('buildWatcherWatchPaths', () => {
       '/Volumes/pron/#torrents/',
     ])
     expect(buildWatcherWatchPaths(extensions, false)).toEqual([
-      '/Volumes/pron/#torrents/**/*.mp4',
-      '/Volumes/pron/#torrents/**/*.mkv',
+      '/Volumes/pron/#torrents/',
     ])
   })
 })

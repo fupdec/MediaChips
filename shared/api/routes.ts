@@ -110,6 +110,7 @@ export const API_ROUTES = {
   tagsInMedia: '/api/TagsInMedia',
   valuesInMedia: '/api/ValuesInMedia',
   watchedFolder: '/api/WatchedFolder',
+  watchedFolderAssess: '/api/WatchedFolder/assess',
   mediaTypesInWatchedFolders: '/api/MediaTypesInWatchedFolders',
   tasksBackupsGetBackups: '/api/TasksBackups/getBackups',
   tasksBackupsCreateBackup: '/api/TasksBackups/createBackup',

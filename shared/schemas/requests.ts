@@ -613,6 +613,11 @@ export const WatchedFolderUpdateRequestSchema = z.object({
   excludedPaths: z.array(z.string()).optional(),
 }).passthrough()
 
+export const WatchedFolderAssessRequestSchema = z.object({
+  path: z.string().min(1),
+  excludedPaths: z.array(z.string()).optional(),
+}).passthrough()
+
 const coercedId = z.coerce.number()
 
 export const TagsInMediaLinkSchema = z.object({
@@ -1041,3 +1046,4 @@ export type ParsedSavedFilterWriteRequest = z.infer<typeof SavedFilterWriteReque
 export type ParsedSettingUpdateRequest = z.infer<typeof SettingUpdateRequestSchema>
 export type ParsedWatchedFolderCreateRequest = z.infer<typeof WatchedFolderCreateRequestSchema>
 export type ParsedWatchedFolderUpdateRequest = z.infer<typeof WatchedFolderUpdateRequestSchema>
+export type ParsedWatchedFolderAssessRequest = z.infer<typeof WatchedFolderAssessRequestSchema>

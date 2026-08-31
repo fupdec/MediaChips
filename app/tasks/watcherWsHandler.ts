@@ -9,11 +9,10 @@ import type {
 } from '../types/websockets'
 import { errorMessage } from '../types/websockets'
 import type { Request } from 'express'
-import chokidar from 'chokidar'
 import { WatcherSyncEngine } from './watcherSync'
-import { buildChokidarOptions, needsPollingForFolders, collectExcludedWatchPaths } from './watcherChokidarOptions'
+import { collectExcludedWatchPaths } from './watcherOptions'
+import { watchFolders, type ParcelFolderWatcher } from './parcelFolderWatcher'
 import {
-  buildWatcherWatchPaths,
   foldersConfigUnchanged,
   getWatcherFoldersConfigKey,
 } from './wsHelpers'
@@ -23,7 +22,7 @@ const FILE_EVENT_DEBOUNCE_MS = 200
 
 export function createWatcherWsHandler(db: ApiDb): WsHandler {
   return (ws: AppWebSocket, _req: Request) => {
-    let watcher: ReturnType<typeof chokidar.watch> | null = null
+    let watcher: ParcelFolderWatcher | null = null
     let watchedFolders: WatchedFolderEntry[] = []
     const syncEngine = new WatcherSyncEngine(db)
 
@@ -36,6 +35,7 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
     let scanNotificationActive = false
     let scanFailed = false
     let scanError: string | undefined
+    let startGeneration = 0
 
     const sendReports = () => {
       if (ws.readyState !== 1) {
@@ -221,36 +221,50 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
     }
 
     const startWatcher = (folders: WatchedFolderEntry[], extensions: WatcherExtensionsMap) => {
+      const generation = ++startGeneration
+
       if (watcher) {
-        watcher.close()
+        void watcher.close()
         watcher = null
       }
 
       const folderPaths = folders.map((folder) => folder.path)
-      const usePolling = needsPollingForFolders(folderPaths)
-      const watchPaths = buildWatcherWatchPaths(extensions, usePolling)
       const excludedPaths = collectExcludedWatchPaths(folders)
 
       syncEngine.setFolders(folders)
 
-      watcher = chokidar.watch(
-        watchPaths,
-        buildChokidarOptions(folderPaths, excludedPaths),
-      )
+      void (async () => {
+        try {
+          const next = await watchFolders({
+            folderPaths,
+            extensionsByFolder: extensions || {},
+            excludedPaths,
+          })
 
-      watcher
-        .on('add', (filePath: string) => {
-          queueFileEvent('add', filePath)
-        })
-        .on('unlink', (filePath: string) => {
-          queueFileEvent('unlink', filePath)
-        })
-        .on('ready', async () => {
-          await runFullSync()
-        })
-        .on('error', (error: unknown) => {
-          console.error('Watcher error:', error)
-        })
+          if (generation !== startGeneration) {
+            await next.close()
+            return
+          }
+
+          watcher = next
+          watcher
+            .on('add', (filePath: unknown) => {
+              queueFileEvent('add', String(filePath))
+            })
+            .on('unlink', (filePath: unknown) => {
+              queueFileEvent('unlink', String(filePath))
+            })
+            .on('ready', () => {
+              void runFullSync()
+            })
+            .on('error', (error: unknown) => {
+              console.error('Watcher error:', error)
+            })
+          watcher.notifyReady()
+        } catch (error: unknown) {
+          console.error('Failed to start folder watcher:', errorMessage(error))
+        }
+      })()
     }
 
     const updateWatcher = (folders: WatchedFolderEntry[], extensions: WatcherExtensionsMap) => {
@@ -268,7 +282,7 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
         return
       }
 
-      // Restart so chokidar `ignored` (excludes) and watch roots stay in sync.
+      // Restart so excludes and watch roots stay in sync.
       startWatcher(folders, extensions)
     }
 
@@ -306,8 +320,9 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
             break
 
           case 'stop':
+            startGeneration += 1
             if (watcher) {
-              watcher.close()
+              void watcher.close()
               watcher = null
             }
             syncEngine.reset()
@@ -327,11 +342,13 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
     })
 
     ws.on('close', () => {
+      startGeneration += 1
       if (debounceTimer) {
         clearTimeout(debounceTimer)
       }
       if (watcher) {
-        watcher.close()
+        void watcher.close()
+        watcher = null
       }
     })
 

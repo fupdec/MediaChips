@@ -142,6 +142,7 @@
 
     <DialogFolder v-if="watcherStore.dialogFolder"/>
     <DialogMediaInbox v-if="mediaInboxStore.dialog"/>
+    <DialogWatchFolderRisk v-if="watchFolderRiskOpen"/>
 
     <DialogBrowseFolder
       v-if="operationsStore.moving.dialog"
@@ -228,6 +229,7 @@ import {useBrowserLayoutHotkeys} from '@/composable/useBrowserLayoutHotkeys'
 import {useItemsSelectionHotkeys} from '@/composable/useItemsSelectionHotkeys'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {registerAppShellHandler} from '@/composable/appShell'
+import {useWatchFolderRiskGateState} from '@/composable/useWatchFolderRiskGate'
 import {eventBus} from '@/utils/eventBus'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 import type {MediaItem, Tag} from '@/types/stores'
@@ -350,6 +352,9 @@ const DialogBulkEditingItems = defineAsyncComponent(() =>
 )
 const DialogFolder = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogFolder.vue')
+)
+const DialogWatchFolderRisk = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogWatchFolderRisk.vue')
 )
 const DialogMediaInbox = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMediaInbox.vue')

@@ -12,6 +12,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const nativeModules = [
   'node_modules/better-sqlite3/build/Release/better_sqlite3.node',
   'node_modules/better-sqlite3/build/Release/test_extension.node',
+  'node_modules/@parcel/watcher-darwin-arm64/watcher.node',
+  'node_modules/@parcel/watcher-darwin-x64/watcher.node',
 ]
 
 for (const relativePath of nativeModules) {

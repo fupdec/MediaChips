@@ -1,4 +1,3 @@
-import path from 'path'
 import type {
   MoveFilesWsMessage,
   WatchedFolderEntry,
@@ -20,27 +19,21 @@ export function getWatcherFoldersConfigKey(folders: WatchedFolderEntry[]): strin
   )
 }
 
-export function buildWatcherMasks(extensions: WatcherExtensionsMap): string[] {
-  const masks: string[] = []
-
-  for (const folder in extensions) {
-    for (const ext of extensions[folder]) {
-      masks.push(path.join(folder, '**', `*.${ext}`))
-    }
-  }
-
-  return masks
-}
-
+/**
+ * Watch roots for @parcel/watcher (and formerly chokidar ≥4): folder paths only.
+ * Globs are not supported by the native watcher — extension filtering happens
+ * in the parcel adapter.
+ */
 export function buildWatcherWatchPaths(
   extensions: WatcherExtensionsMap,
-  useFolderRoots = false,
+  _useFolderRoots = true,
 ): string[] {
-  if (useFolderRoots) {
-    return Object.keys(extensions)
-  }
+  return Object.keys(extensions)
+}
 
-  return buildWatcherMasks(extensions)
+/** @deprecated Globs are unused; kept for any external callers during transition. */
+export function buildWatcherMasks(extensions: WatcherExtensionsMap): string[] {
+  return buildWatcherWatchPaths(extensions)
 }
 
 export function normalizeMoveMessageItems(msg: MoveFilesWsMessage): MoveItemInput[] {
