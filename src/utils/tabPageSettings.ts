@@ -1,5 +1,6 @@
 import {useItemsStore} from '@/stores/items'
 import {typedApi} from '@/services/typedApi'
+import {serializeGroupBySetting} from '@/utils/itemsGroupBy'
 
 function toId(value: unknown): number | null {
   const n = Number(value)
@@ -24,6 +25,10 @@ export async function copyCurrentPageSettingsToTab(tabId: number): Promise<void>
     limit: Number(itemsStore.limit) || 101,
     sortBy: String(itemsStore.sortBy || 'name'),
     sortDir: String(itemsStore.sortDir || 'asc'),
+    firstChar: serializeGroupBySetting(
+      itemsStore.groupBy,
+      itemsStore.groupByMetaId,
+    ),
     page: 1,
   })
 }

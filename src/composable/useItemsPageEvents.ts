@@ -487,6 +487,11 @@ export function useItemsPageEvents({
       if (props.items_type === 'media' && !props.mediaTypeId) return
       if (props.items_type === 'tag' && !props.metaId) return
 
+      itemsStore.updateMultiple({
+        groupBy: 'none',
+        groupByMetaId: null,
+        groups: [],
+      })
       itemsStore.clearSelection()
       itemsStore.listScopeIds = null
       itemsStore.listScope = null

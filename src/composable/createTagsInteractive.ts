@@ -27,11 +27,29 @@ function getTrashNameConflict(error: unknown): {tags: TrashNameConflictTag[]; id
   return {tags, ids}
 }
 
+function getNameConflict(error: unknown): number | null {
+  const data = getErrorResponseData<{
+    code?: string
+    conflictingTagId?: unknown
+    message?: string
+  }>(error)
+  if (!data || data.code !== 'name_conflict') return null
+  const id = Number(data.conflictingTagId)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
 export async function createTagsInteractive(body: CreateTagPayload[]): Promise<Tag[] | null> {
   try {
     const response = await typedApi.createTags(body)
     return response.data
   } catch (error) {
+    const conflictingId = getNameConflict(error)
+    if (conflictingId && body.length === 1) {
+      await reloadTagsCatalog()
+      const message = getErrorResponseData<{message?: string}>(error)?.message
+      throw new Error(message || `Tag name “${body[0].name}” already exists`)
+    }
+
     const conflict = getTrashNameConflict(error)
     if (!conflict) throw error
 

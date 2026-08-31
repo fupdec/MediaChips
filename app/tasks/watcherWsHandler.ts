@@ -168,7 +168,7 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
       isProcessing = true
 
       try {
-        syncEngine.setFolders(watchedFolders)
+        syncEngine.syncFolderMetadata(watchedFolders)
         await syncEngine.refreshDbPaths()
         sendReports()
       } catch (error: unknown) {
@@ -232,9 +232,6 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
       const excludedPaths = collectExcludedWatchPaths(folders)
 
       syncEngine.setFolders(folders)
-      void syncEngine.refreshDbPaths().then(() => {
-        sendReports()
-      })
 
       watcher = chokidar.watch(
         watchPaths,

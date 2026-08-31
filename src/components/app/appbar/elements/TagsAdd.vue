@@ -315,6 +315,7 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import {registerAppShellHandler} from '@/composable/appShell'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {createTagsInteractive} from '@/composable/createTagsInteractive'
+import {findTagByNameOrSynonymAnyCategory} from '@/utils/tagLookup'
 import {transformTextToArray, validateName} from '@/services/formatUtils'
 import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
 import {leafCategoryOptions} from '@/utils/tagCategoryTree'
@@ -578,14 +579,12 @@ async function addSingle(original: string) {
   }
   selectedMetaId.value = metaId
 
-  const exists = app.tags.find(
-    (i) => i.name?.toLowerCase() === name.toLowerCase(),
-  )
+  const exists = findTagByNameOrSynonymAnyCategory(name, app.tags)
   if (exists) {
     notificationsStore.setNotification({
       type: 'warning',
       title: t('meta.dialogs.adding_tags'),
-      text: t('notifications_text.duplicates_list', {items: name}),
+      text: t('notifications_text.duplicates_list', {items: exists.name || name}),
     })
     return
   }
@@ -669,10 +668,8 @@ async function add() {
   added.value = []
 
   arr.forEach(n => {
-    const exists = app.tags.find(
-      i => i.name?.toLowerCase() === n.toLowerCase(),
-    )
-    if (exists) dups.value.push(n)
+    const exists = findTagByNameOrSynonymAnyCategory(n, app.tags)
+    if (exists) dups.value.push(exists.name || n)
     else added.value.push(n)
   })
 

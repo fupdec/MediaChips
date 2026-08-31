@@ -39,8 +39,20 @@ export function assertTagNameAvailable(
 ): void {
   const conflictingTagId = findTagIdByNormalizedName(sqlite, name, excludeTagId)
   if (conflictingTagId == null) return
+
+  const row = sqlite.prepare(`
+    SELECT t.name, m.name AS metaName
+    FROM tags t
+    LEFT JOIN meta m ON m.id = t.metaId
+    WHERE t.id = ?
+  `).get(conflictingTagId) as {name: string | null; metaName: string | null} | undefined
+
+  const existingName = String(row?.name || name).trim()
+  const categorySuffix = row?.metaName
+    ? ` in “${String(row.metaName).trim()}”`
+    : ''
   throw new TagNameConflictError(
-    `Tag name "${String(name).trim()}" already exists`,
+    `Tag name “${existingName}” already exists${categorySuffix}`,
     conflictingTagId,
   )
 }

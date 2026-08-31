@@ -35,14 +35,30 @@ function syncLaneCount() {
 
 let mutationObserver: MutationObserver | null = null
 
+function syncDockReserve() {
+  if (typeof document === 'undefined') return
+
+  const laneHeight = stacked.value ? 112 : 56
+  const bottomOffset = useBottomBar.value ? 72 : 16
+  const reserve = hasLanes.value ? `${laneHeight + bottomOffset + 16}px` : '0px'
+  document.documentElement.style.setProperty('--floating-bottom-dock-reserve', reserve)
+}
+
+watch([hasLanes, stacked, useBottomBar], () => {
+  requestAnimationFrame(syncBounds)
+  syncDockReserve()
+}, {immediate: true})
+
 onMounted(() => {
   observeGrid()
   syncBounds()
   syncLaneCount()
+  syncDockReserve()
   if (!hostRef.value || typeof MutationObserver === 'undefined') return
   mutationObserver = new MutationObserver(() => {
     syncLaneCount()
     syncBounds()
+    syncDockReserve()
   })
   mutationObserver.observe(hostRef.value, {childList: true})
 })
@@ -50,10 +66,9 @@ onMounted(() => {
 onBeforeUnmount(() => {
   mutationObserver?.disconnect()
   mutationObserver = null
-})
-
-watch(hasLanes, () => {
-  requestAnimationFrame(syncBounds)
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.setProperty('--floating-bottom-dock-reserve', '0px')
+  }
 })
 </script>
 

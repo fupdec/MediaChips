@@ -346,7 +346,10 @@ export const ClearDataRequestSchema = z.object({
 })
 
 export const CreateThumbRequestSchema = z.object({
-  timestamp: z.coerce.number(),
+  timestamp: z.union([
+    z.coerce.number().finite(),
+    z.string().min(1),
+  ]),
   inputPath: z.string().min(1),
   outputPath: z.string().min(1),
   width: z.coerce.number(),
