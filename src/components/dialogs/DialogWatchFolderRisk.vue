@@ -214,6 +214,6 @@ const onAsIs = () => {
 .watch-risk-dialog__meter {
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(var(--v-theme-surface-variant), 0.35);
+  background: rgba(var(--v-theme-surface-variant), 0.08);
 }
 </style>
