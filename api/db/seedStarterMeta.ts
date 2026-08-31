@@ -206,10 +206,6 @@ const STARTER_CATEGORY_TAGS: Record<string, StarterCategoryTag[]> = {
   Gender: [
     {name: 'Female', color: '#e91e63'},
     {name: 'Male', color: '#2196f3'},
-    {name: 'Non-Binary', synonyms: 'Non-binary, Nonbinary', color: '#9c27b0'},
-    {name: 'Transgender Female', synonyms: 'Trans Female, Transfeminine', color: '#f06292'},
-    {name: 'Transgender Male', synonyms: 'Trans Male, Transmasculine', color: '#64b5f6'},
-    {name: 'Intersex', color: '#ff9800'},
   ],
   'Eye color': [
     {name: 'Blue', color: '#1e88e5'},

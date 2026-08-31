@@ -32,8 +32,8 @@ describe('postMigrations', () => {
       expect(sqlite.prepare(`SELECT COUNT(*) as count FROM settings`).get()).toMatchObject({count: expect.any(Number)})
       // 5 media fields + 10 performer children
       expect(sqlite.prepare(`SELECT COUNT(*) as count FROM meta`).get()).toEqual({count: 15})
-      // Tags(3) + Gender(6) + Eye color(6) + Hair colors(9)
-      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM tags`).get()).toEqual({count: 24})
+      // Tags(3) + Gender(2) + Eye color(6) + Hair colors(9)
+      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM tags`).get()).toEqual({count: 20})
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='index' AND name='media_media_type_id_idx'`).get()).toBeTruthy()
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='index' AND name='tags_name_normalized_unique'`).get()).toBeTruthy()
       expect(
@@ -111,11 +111,7 @@ describe('postMigrations', () => {
       )
       expect(tagsByCategory.filter((row) => row.category === 'Gender').map((row) => row.tag)).toEqual([
         'Female',
-        'Intersex',
         'Male',
-        'Non-Binary',
-        'Transgender Female',
-        'Transgender Male',
       ])
       expect(tagsByCategory.filter((row) => row.category === 'Eye color').map((row) => row.tag)).toEqual([
         'Amber',
