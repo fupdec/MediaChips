@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Player touch gestures (LAN / PWA)** — swipe left/right for next/previous; double-tap left/right halves to seek ±10s (single tap still play/pause; mouse double-click still toggles fullscreen)
+
 ## [1.11.0] - 2026-08-29
 
 ### Added

@@ -47,7 +47,7 @@ export async function createTagsInteractive(body: CreateTagPayload[]): Promise<T
     if (conflictingId && body.length === 1) {
       await reloadTagsCatalog()
       const message = getErrorResponseData<{message?: string}>(error)?.message
-      throw new Error(message || `Tag name “${body[0].name}” already exists`)
+      throw new Error(message || `Tag name “${body[0].name}” already exists`, {cause: error})
     }
 
     const conflict = getTrashNameConflict(error)

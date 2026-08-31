@@ -150,6 +150,10 @@
     justify-content: center;
     overflow: hidden;
     background-color: #000;
+    /* Prefer player gestures (swipe / double-tap) over browser pan/zoom. */
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
     &.system-title-bar {
       max-height: 100%;
     }
@@ -183,6 +187,7 @@
       right: 0;
       z-index: 3;
       overflow: visible;
+      touch-action: manipulation;
     }
 
     > .preview {
