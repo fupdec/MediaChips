@@ -89,6 +89,7 @@
           <v-chip
             v-for="i in category.items"
             :key="`${i.name}_${item.id}`"
+            :title="formatMetaValue(i)"
           >{{ formatMetaValue(i) }}
           </v-chip>
         </div>
@@ -160,6 +161,7 @@
           <v-chip
             v-for="i in category.items"
             :key="`${i.name}_${item.id}`"
+            :title="formatMetaValue(i)"
             :text="formatMetaValue(i)"
           ></v-chip>
         </template>
@@ -221,6 +223,7 @@
         <v-chip
           v-else
           :prepend-icon="`mdi-${entry.data.icon}`"
+          :title="formatMetaValue(entry.data)"
           :text="formatMetaValue(entry.data)"
         ></v-chip>
       </template>
@@ -490,9 +493,10 @@ const assignmentRows = computed(() => {
   return itemsStore.sortedAssigned
 })
 
+/** Chip labels are single-line; keep newlines readable without wrapping the chip. */
 const formatMetaValue = (meta: ValueWithMeta): string => {
   const unit = normalizeMeasurementUnit(meta.measurementUnit)
-  return formatMeasurementDisplay(meta.value, unit)
+  return formatMeasurementDisplay(meta.value, unit).replace(/\r\n|\r|\n/g, ' ')
 }
 
 const tagItems = computed((): TagWithMeta[] => {

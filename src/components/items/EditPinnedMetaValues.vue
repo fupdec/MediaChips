@@ -404,7 +404,7 @@
                 </template>
               </v-number-input>
 
-              <v-text-field
+              <v-textarea
                 v-if="item.meta?.type === 'string'"
                 :model-value="getStringVal(item)"
                 @update:model-value="setVal($event, getItemKey(item))"
@@ -414,6 +414,8 @@
                 density="compact"
                 :hide-details="fieldHideDetails"
                 clearable
+                auto-grow
+                rows="1"
                 :variant="fieldVariant"
               >
                 <template
@@ -422,7 +424,7 @@
                 >
                   <EditingFieldRestoreBtn inline @click="restore(getItemKey(item))" />
                 </template>
-              </v-text-field>
+              </v-textarea>
 
               <v-checkbox
                 v-if="item.meta?.type === 'boolean'"

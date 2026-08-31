@@ -3,6 +3,7 @@
  */
 import {afterEach, describe, expect, it} from 'vitest'
 import {
+  FFMPEG_QUEUE_CONCURRENCY,
   getMediaPostProcessQueueStats,
   resetMediaPostProcessQueues,
   runWithFfmpegLimit,
@@ -20,18 +21,18 @@ describe('mediaPostProcessQueue', () => {
     resetMediaPostProcessQueues()
   })
 
-  it('limits concurrent ffmpeg work to 1', async () => {
+  it(`limits concurrent ffmpeg work to ${FFMPEG_QUEUE_CONCURRENCY}`, async () => {
     let active = 0
     let maxActive = 0
 
-    await Promise.all(Array.from({length: 4}, () => runWithFfmpegLimit(async () => {
+    await Promise.all(Array.from({length: FFMPEG_QUEUE_CONCURRENCY * 2}, () => runWithFfmpegLimit(async () => {
       active += 1
       maxActive = Math.max(maxActive, active)
       await delay(15)
       active -= 1
     })))
 
-    expect(maxActive).toBe(1)
+    expect(maxActive).toBe(FFMPEG_QUEUE_CONCURRENCY)
     expect(getMediaPostProcessQueueStats().ffmpeg.active).toBe(0)
   })
 
