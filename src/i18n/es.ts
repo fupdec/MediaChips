@@ -1312,6 +1312,7 @@ const es = {
     dynamic_playlists: 'Listas inteligentes',
     manual_playlists: 'Mis listas',
     smart_playlists_docs: 'Sobre listas inteligentes',
+    create_smart_playlist: 'Crear lista inteligente',
     editing_smart_playlist: 'Editar lista inteligente',
     smart_playlist_filters: 'Filtros guardados',
     smart_playlist_filters_hint: 'Los chips rellenos son condiciones activas que definen esta lista inteligente. Los contorneados están guardados pero inactivos.',

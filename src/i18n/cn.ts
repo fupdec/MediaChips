@@ -1312,6 +1312,7 @@ const cn = {
     dynamic_playlists: '智能播放列表',
     manual_playlists: '我的播放列表',
     smart_playlists_docs: '关于智能播放列表',
+    create_smart_playlist: '创建智能播放列表',
     editing_smart_playlist: '编辑智能播放列表',
     smart_playlist_filters: '已保存筛选',
     smart_playlist_filters_hint: '实心芯片为定义此智能播放列表的活动条件。轮廓芯片已保存但当前未启用。',

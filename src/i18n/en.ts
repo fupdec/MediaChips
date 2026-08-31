@@ -1392,6 +1392,7 @@ const en = {
     dynamic_playlists: 'Smart playlists',
     manual_playlists: 'My playlists',
     smart_playlists_docs: 'About smart playlists',
+    create_smart_playlist: 'Create smart playlist',
     editing_smart_playlist: 'Editing smart playlist',
     smart_playlist_filters: 'Saved filters',
     smart_playlist_filters_hint: 'Filled chips are active conditions that define this smart playlist. Outlined chips are saved but currently inactive.',

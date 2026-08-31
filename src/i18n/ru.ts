@@ -1392,6 +1392,7 @@ const ru = {
     dynamic_playlists: 'Умные плейлисты',
     manual_playlists: 'Мои плейлисты',
     smart_playlists_docs: 'Об умных плейлистах',
+    create_smart_playlist: 'Создать умный плейлист',
     editing_smart_playlist: 'Редактирование умного плейлиста',
     smart_playlist_filters: 'Сохранённые фильтры',
     smart_playlist_filters_hint: 'Заполненные чипы — активные условия, определяющие этот умный плейлист. Контурные — сохранены, но сейчас не участвуют в отборе.',

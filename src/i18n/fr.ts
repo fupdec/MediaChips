@@ -1312,6 +1312,7 @@ const fr = {
     dynamic_playlists: 'Listes de lecture intelligentes',
     manual_playlists: 'Mes playlists',
     smart_playlists_docs: 'À propos des listes de lecture intelligentes',
+    create_smart_playlist: 'Créer une liste de lecture intelligente',
     editing_smart_playlist: 'Modification d\'une liste de lecture intelligente',
     smart_playlist_filters: 'Filtres enregistrés',
     smart_playlist_filters_hint: 'Les chips remplies sont des conditions actives qui définissent cette liste de lecture intelligente. Les jetons décrits sont enregistrés mais actuellement inactifs.',

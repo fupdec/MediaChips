@@ -1312,6 +1312,7 @@ const ja = {
     dynamic_playlists: 'スマートプレイリスト',
     manual_playlists: '私のプレイリスト',
     smart_playlists_docs: 'スマートプレイリストについて',
+    create_smart_playlist: 'スマートプレイリストを作成',
     editing_smart_playlist: 'スマートプレイリストの編集',
     smart_playlist_filters: '保存されたフィルター',
     smart_playlist_filters_hint: '満たされたチップは、このスマート プレイリストを定義するアクティブな条件です。輪郭を描かれたチップは保存されていますが、現在は非アクティブです。',

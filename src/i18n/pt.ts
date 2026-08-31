@@ -1312,6 +1312,7 @@ const pt = {
     dynamic_playlists: 'Playlists inteligentes',
     manual_playlists: 'Minhas listas de reprodução',
     smart_playlists_docs: 'Sobre playlists inteligentes',
+    create_smart_playlist: 'Criar playlist inteligente',
     editing_smart_playlist: 'Editando playlist inteligente',
     smart_playlist_filters: 'Filtros salvos',
     smart_playlist_filters_hint: 'Fichas preenchidas são condições ativas que definem esta lista de reprodução inteligente. Os chips delineados são salvos, mas atualmente inativos.',

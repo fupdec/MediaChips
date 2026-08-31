@@ -51,18 +51,6 @@
 
           <div class="d-flex align-center flex-nowrap ga-2 items-control-deck__controls">
             <v-btn
-              color="primary"
-              variant="tonal"
-              size="small"
-              :icon="smAndDown"
-              :rounded="smAndDown ? undefined : 'xl'"
-              v-tooltip:top="t('playlists.smart_playlists_docs')"
-              @click="showSmartPlaylistsDocs"
-            >
-              <v-icon size="18" :start="!smAndDown">mdi-help-circle-outline</v-icon>
-              <span v-if="!smAndDown">{{ t('playlists.smart_playlists_docs') }}</span>
-            </v-btn>
-            <v-btn
               color="success"
               variant="flat"
               size="small"
@@ -76,93 +64,41 @@
             </v-btn>
           </div>
         </div>
-
-        <div class="items-control-deck__section playlists-control-deck__mix">
-          <div
-            class="playlists-control-deck__mix-label text-caption text-medium-emphasis"
-            v-tooltip:top="t('playlists.mix_hint')"
-          >
-            <v-icon size="14" class="mr-1">mdi-playlist-music</v-icon>
-            {{ t('playlists.mix_title') }}
-            <v-icon
-              size="14"
-              class="ml-1 opacity-70"
-              icon="mdi-information-outline"
-              aria-hidden="true"
-            />
-          </div>
-          <div class="d-flex align-center flex-wrap ga-2 playlists-control-deck__mix-row">
-            <v-text-field
-              v-model="mixPhrase"
-              :placeholder="t('playlists.mix_placeholder')"
-              :aria-label="t('playlists.mix_title')"
-              density="compact"
-              hide-details
-              clearable
-              rounded="xl"
-              variant="outlined"
-              prepend-inner-icon="mdi-magnify"
-              single-line
-              class="items-control-deck__field playlists-control-deck__mix-field"
-              :disabled="mixBusy"
-              @update:model-value="onMixPhraseInput"
-              @keyup.enter="runMixPlay"
-            />
-            <v-btn
-              color="primary"
-              rounded="xl"
-              variant="flat"
-              size="small"
-              :loading="mixBusy"
-              :disabled="!mixPhrase.trim() || mixBusy"
-              @click="runMixPlay"
-            >
-              <v-icon start size="18">mdi-play</v-icon>
-              {{ t('playlists.mix_play') }}
-            </v-btn>
-            <v-btn
-              color="primary"
-              rounded="xl"
-              variant="tonal"
-              size="small"
-              :loading="mixSaving"
-              :disabled="!canSaveMix"
-              @click="runMixSave"
-            >
-              <v-icon start size="18">mdi-content-save-outline</v-icon>
-              <span v-if="!smAndDown">{{ t('playlists.mix_save') }}</span>
-            </v-btn>
-          </div>
-          <div class="d-flex flex-wrap align-center ga-2 mt-2">
-            <v-chip
-              v-for="example in mixExamples"
-              :key="example"
-              size="small"
-              variant="tonal"
-              color="primary"
-              class="nl-mix-example"
-              :disabled="mixBusy"
-              @click="applyMixExample(example)"
-            >
-              {{ example }}
-            </v-chip>
-            <template v-if="lastMix && lastMix.ids.length">
-              <v-chip size="small" variant="tonal" color="secondary">
-                {{ mixSourceText(lastMix.source) }}
-              </v-chip>
-              <span class="text-caption text-medium-emphasis">
-                {{ t('playlists.mix_count', {count: lastMix.ids.length}) }}
-              </span>
-            </template>
-          </div>
-        </div>
       </div>
     </div>
 
     <section class="smart-playlists-section">
-      <div class="playlists-section-title d-flex align-center mb-3">
-        <v-icon size="20" start>mdi-filter-variant</v-icon>
-        <span>{{ t('playlists.dynamic_playlists') }}</span>
+      <div class="playlists-section-title d-flex align-center justify-space-between flex-wrap ga-2 mb-3">
+        <div class="d-flex align-center min-width-0">
+          <v-icon size="20" start>mdi-filter-variant</v-icon>
+          <span>{{ t('playlists.dynamic_playlists') }}</span>
+        </div>
+        <div class="d-flex align-center flex-nowrap ga-2">
+          <v-btn
+            color="primary"
+            variant="tonal"
+            size="small"
+            :icon="smAndDown"
+            :rounded="smAndDown ? undefined : 'xl'"
+            v-tooltip:top="t('playlists.smart_playlists_docs')"
+            @click="showSmartPlaylistsDocs"
+          >
+            <v-icon size="18" :start="!smAndDown">mdi-help-circle-outline</v-icon>
+            <span v-if="!smAndDown">{{ t('playlists.smart_playlists_docs') }}</span>
+          </v-btn>
+          <v-btn
+            color="success"
+            variant="flat"
+            size="small"
+            :icon="smAndDown"
+            :rounded="smAndDown ? undefined : 'xl'"
+            v-tooltip:top="t('playlists.create_smart_playlist')"
+            @click="dialogPlaylistMix = true"
+          >
+            <v-icon size="18" :start="!smAndDown">mdi-playlist-plus</v-icon>
+            <span v-if="!smAndDown">{{ t('playlists.create_smart_playlist') }}</span>
+          </v-btn>
+        </div>
       </div>
 
       <v-alert
@@ -307,6 +243,13 @@
       :dialog="dialogPlaylistAdd"
     />
 
+    <DialogPlaylistMix
+      v-if="dialogPlaylistMix"
+      :dialog="dialogPlaylistMix"
+      @close="dialogPlaylistMix = false"
+      @saved="onMixSaved"
+    />
+
     <DialogPlaylistEdit
       v-if="dialogPlaylistEdit"
       @close="dialogPlaylistEdit = false"
@@ -340,6 +283,7 @@ import {typedApi} from '@/services/typedApi'
 import DialogPlaylistAdd from "@/components/dialogs/DialogPlaylistAdd.vue"
 import DialogPlaylistEdit from "@/components/dialogs/DialogPlaylistEdit.vue"
 import DialogSmartPlaylistEdit from "@/components/dialogs/DialogSmartPlaylistEdit.vue"
+import DialogPlaylistMix from "@/components/dialogs/DialogPlaylistMix.vue"
 import PlaylistCard from "@/components/playlists/PlaylistCard.vue"
 import DynamicPlaylistRow from "@/components/playlists/DynamicPlaylistRow.vue"
 import {loadPlaylistThumbs} from '@/utils/playlistThumbs'
@@ -347,15 +291,6 @@ import {openSeparatePlayer, canOpenSeparatePlayer} from '@/utils/playerWindow'
 import {setNotification} from '@/services/notificationService'
 import {useEventBus} from '@/utils/eventBus'
 import {useDialogsStore} from '@/stores/dialogs'
-import {
-  formatNlMixSeekTime,
-  nlMixSourceMessageKey,
-  playNlPlaylistMix,
-  resolveNlPlaylistMix,
-  saveNlPlaylistMix,
-  type NlPlaylistMixResult,
-} from '@/services/nlPlaylistMix'
-import {useOpenMediaList} from '@/utils/openMediaList'
 import {useAppShell} from '@/composable/appShell'
 import {getErrorStatus} from '@/types/vue'
 import {getDefaultMediaTypeId, isVideoMediaType} from '@/utils/mediaType'
@@ -390,7 +325,6 @@ const settingsStore = useSettingsStore()
 const {t} = useI18n()
 const {width, smAndDown} = useDisplay()
 const appShell = useAppShell()
-const {openMediaList} = useOpenMediaList()
 
 const {
   controlDeckSentinel,
@@ -398,155 +332,6 @@ const {
   stickyControlDeck,
   toggleStickyControlDeck,
 } = useStickyControlDeck()
-
-const mixPhrase = ref('')
-const mixBusy = ref(false)
-const mixSaving = ref(false)
-const lastMix = ref<NlPlaylistMixResult | null>(null)
-let mixAbort: AbortController | null = null
-
-const mixExamples = computed(() => [
-  t('playlists.mix_example_unwatched'),
-  t('playlists.mix_example_favorites'),
-  t('playlists.mix_example_vibe'),
-])
-
-const canSaveMix = computed(() => (
-  Boolean(lastMix.value?.ids.length)
-  && !mixBusy.value
-  && !mixSaving.value
-))
-
-const mixSourceText = (source: NlPlaylistMixResult['source']) =>
-  t(`playlists.${nlMixSourceMessageKey(source)}`)
-
-const onMixPhraseInput = () => {
-  if (lastMix.value) lastMix.value = null
-}
-
-const applyMixExample = (example: string) => {
-  mixPhrase.value = example
-  lastMix.value = null
-  void runMixPlay()
-}
-
-const runMixPlay = async () => {
-  const phrase = mixPhrase.value.trim()
-  if (!phrase || mixBusy.value) return
-
-  mixAbort?.abort()
-  const controller = new AbortController()
-  mixAbort = controller
-  mixBusy.value = true
-  lastMix.value = null
-  try {
-    const mix = await resolveNlPlaylistMix(phrase, {
-      mediaTypeId: videoMediaType.value?.id ?? getDefaultMediaTypeId(appStore.mediaTypes),
-      signal: controller.signal,
-    })
-    if (controller.signal.aborted) return
-    lastMix.value = mix
-
-    if (!mix.videos.length) {
-      setNotification({
-        type: 'info',
-        title: t('playlists.mix_title'),
-        text: t('playlists.mix_empty'),
-      })
-      return
-    }
-
-    const {played, seekTime} = await playNlPlaylistMix(mix)
-    if (controller.signal.aborted) return
-    if (!played) {
-      setNotification({
-        type: 'error',
-        title: t('playlists.mix_title'),
-        text: t('playlists.preparing_playback_failed'),
-      })
-      return
-    }
-
-    setNotification({
-      type: 'success',
-      title: t('playlists.mix_play'),
-      text: [
-        mixSourceText(mix.source),
-        seekTime > 0
-          ? t('playlists.mix_playing_at', {count: mix.videos.length, time: formatNlMixSeekTime(seekTime)})
-          : t('playlists.mix_playing', {count: mix.videos.length}),
-      ].join(' · '),
-      actions: [
-        {
-          id: 'nl-mix-show-list',
-          text: t('playlists.mix_show_list'),
-          icon: 'view-grid-outline',
-          action: () => {
-            void openMediaList({
-              mediaTypeId: videoMediaType.value?.id ?? undefined,
-              ids: mix.ids,
-              filters: mix.filters.length ? mix.filters : undefined,
-              scope: {
-                kind: 'semantic',
-                label: mix.phrase,
-              },
-            })
-          },
-          hide: true,
-        },
-        {
-          id: 'nl-mix-save',
-          text: t('playlists.mix_save'),
-          icon: 'content-save-outline',
-          action: () => {
-            void runMixSave()
-          },
-          hide: true,
-        },
-      ],
-    })
-  } catch (error) {
-    if (controller.signal.aborted) return
-    console.error('NL mix failed:', error)
-    setNotification({
-      type: 'error',
-      title: t('playlists.mix_title'),
-      text: error instanceof Error ? error.message : String(error),
-    })
-  } finally {
-    if (mixAbort === controller) mixAbort = null
-    mixBusy.value = false
-  }
-}
-
-const runMixSave = async () => {
-  if (!lastMix.value?.ids.length || mixSaving.value) return
-  mixSaving.value = true
-  try {
-    const saved = await saveNlPlaylistMix(lastMix.value, mixPhrase.value.trim() || lastMix.value.phrase)
-    setNotification({
-      type: 'success',
-      title: t('playlists.mix_save'),
-      text: saved.kind === 'smart'
-        ? t('playlists.mix_saved_smart', {name: saved.name})
-        : t('playlists.mix_saved_static', {name: saved.name}),
-    })
-    if (saved.kind === 'smart') {
-      await loadDynamicPlaylists()
-    } else {
-      await getPlaylists()
-    }
-  } catch (error) {
-    console.error('NL mix save failed:', error)
-    setNotification({
-      type: 'error',
-      title: t('playlists.mix_save'),
-      text: error instanceof Error ? error.message : String(error),
-    })
-  } finally {
-    mixSaving.value = false
-  }
-}
 
 const container = ref<HTMLElement | null>(null)
 const playlists = ref<PagePlaylist[]>([])
@@ -559,6 +344,7 @@ const playingPlaylistId = ref<string | number | null>(null)
 const dialogPlaylistEdit = ref(false)
 const dialogSmartPlaylistEdit = ref(false)
 const dialogPlaylistAdd = ref(false)
+const dialogPlaylistMix = ref(false)
 const playlist_edit = ref<PagePlaylist | null>(null)
 const smart_playlist_edit = ref<PagePlaylist | null>(null)
 const eventBus = useEventBus()
@@ -1052,6 +838,15 @@ async function onPlaylistsReload() {
   syncPlaylistsItemsStore()
 }
 
+async function onMixSaved(kind: 'smart' | 'static') {
+  if (kind === 'smart') {
+    await loadDynamicPlaylists()
+  } else {
+    await getPlaylists()
+  }
+  syncPlaylistsItemsStore()
+}
+
 onMounted(async () => {
   syncPlaylistsItemsStore()
   eventBus.on('playlists:reload', onPlaylistsReload)
@@ -1075,54 +870,6 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 .playlists-layout-container.v-container {
   padding-top: 8px;
-}
-
-.playlists-control-deck {
-  &__mix {
-    padding: 10px var(--deck-pad-x, 14px) 12px;
-  }
-
-  &__mix-label {
-    display: inline-flex;
-    align-items: center;
-    margin-bottom: 8px;
-    line-height: 1.35;
-    cursor: help;
-  }
-
-  &__mix-row {
-    min-width: 0;
-  }
-
-  &__mix-field {
-    flex: 1 1 280px;
-    min-width: 180px;
-    max-width: 560px;
-    margin-inline: 0 !important;
-
-    :deep(.v-field) {
-      --v-input-control-height: var(--deck-control-h, 40px);
-      height: var(--deck-control-h, 40px) !important;
-      min-height: var(--deck-control-h, 40px) !important;
-      font-size: 0.75rem;
-    }
-
-    :deep(.v-field__input) {
-      min-height: var(--deck-control-h, 40px) !important;
-      max-height: var(--deck-control-h, 40px) !important;
-      padding-top: 0 !important;
-      padding-bottom: 0 !important;
-      font-size: 0.75rem !important;
-      line-height: 1.2 !important;
-      align-items: center;
-    }
-
-    :deep(.v-field__prepend-inner),
-    :deep(.v-field__clearable) {
-      padding-top: 0 !important;
-      align-self: center;
-    }
-  }
 }
 
 .playlists-grid {

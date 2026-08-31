@@ -58,23 +58,6 @@
           </div>
 
           <div class="d-flex align-center flex-nowrap ga-2 items-control-deck__controls markers-control-deck__controls">
-            <v-text-field
-              v-model="searchInput"
-              :placeholder="t('markers.search_placeholder')"
-              :aria-label="t('markers.search_placeholder')"
-              prepend-inner-icon="mdi-magnify"
-              variant="outlined"
-              density="compact"
-              rounded="xl"
-              clearable
-              hide-details
-              single-line
-              class="items-control-deck__field markers-control-deck__field markers-control-deck__search"
-              @click:clear="applySearch('')"
-              @keydown.enter="applySearch(searchInput)"
-              @blur="applySearch(searchInput)"
-            />
-
             <v-autocomplete
               :model-value="marksStore.sortBy"
               @update:model-value="onSortChange"
@@ -131,6 +114,30 @@
             >
               <v-icon size="18" :start="!smAndDown">mdi-movie-open-outline</v-icon>
               <span v-if="!smAndDown">{{ t('markers.clip_studio_mode') }}</span>
+            </v-btn>
+
+            <v-btn
+              @click="showFiltersPanel = !showFiltersPanel"
+              v-tooltip:top="t('appbar.buttons.filter')"
+              color="primary"
+              :variant="showFiltersPanel ? 'flat' : 'tonal'"
+              size="small"
+              icon
+            >
+              <v-badge
+                v-if="activeFiltersCount > 0"
+                :content="activeFiltersCount"
+                color="secondary"
+                floating
+              >
+                <v-icon size="18">mdi-filter-outline</v-icon>
+              </v-badge>
+              <v-icon
+                v-else
+                size="18"
+              >
+                mdi-filter-outline
+              </v-icon>
             </v-btn>
           </div>
         </div>
@@ -193,48 +200,69 @@
           </div>
         </v-expand-transition>
 
-        <div class="items-control-deck__section markers-control-deck__filters">
-          <v-chip-group
-            :model-value="marksStore.selectedTypes"
-            @update:model-value="onTypesChange"
-            color="primary"
-            column
-            multiple
+        <v-expand-transition>
+          <div
+            v-if="showFiltersPanel"
+            class="items-control-deck__section markers-control-deck__filters"
           >
-            <v-chip
-              filter
-              size="small"
-              :color="marksStore.clipsOnly || clipStudioMode ? 'primary' : undefined"
-              :variant="marksStore.clipsOnly || clipStudioMode ? 'flat' : 'tonal'"
-              :prepend-icon="clipStudioMode ? 'mdi-lock' : 'mdi-movie-open-play-outline'"
-              :class="{'markers-control-deck__clips-locked': clipStudioMode}"
-              v-tooltip:top="clipStudioMode ? t('markers.clips_only_locked') : t('markers.clips_only')"
-              @click.stop="toggleClipsOnly"
-            >
-              {{ t('markers.clips_only') }}
-            </v-chip>
-            <v-chip value="favorite" size="small">
-              <v-icon icon="mdi-heart" size="small" start/>
-              {{ t('meta.default_names.favorite') }}
-            </v-chip>
-            <v-chip value="bookmark" size="small">
-              <v-icon icon="mdi-bookmark" size="small" start/>
-              {{ t('meta.default_names.bookmark') }}
-            </v-chip>
-            <v-chip value="chapter" size="small">
-              <v-icon icon="mdi-movie-open-outline" size="small" start/>
-              {{ t('player.auto_chapters') }}
-            </v-chip>
-            <v-chip
-              v-for="meta in marksStore.filterMetas"
-              :key="meta.id"
-              :value="String(meta.id)"
-              size="small"
-              :prepend-icon="`mdi-${String(meta.icon || 'tag')}`"
-              :text="String(meta.name ?? '')"
+            <v-text-field
+              v-model="searchInput"
+              :placeholder="t('markers.search_placeholder')"
+              :aria-label="t('markers.search_placeholder')"
+              prepend-inner-icon="mdi-magnify"
+              variant="outlined"
+              density="compact"
+              rounded="xl"
+              clearable
+              hide-details
+              single-line
+              class="items-control-deck__field markers-control-deck__field markers-control-deck__search"
+              @click:clear="applySearch('')"
+              @keydown.enter="applySearch(searchInput)"
+              @blur="applySearch(searchInput)"
             />
-          </v-chip-group>
-        </div>
+            <v-chip-group
+              :model-value="marksStore.selectedTypes"
+              @update:model-value="onTypesChange"
+              color="primary"
+              class="markers-control-deck__filter-chips"
+              multiple
+            >
+              <v-chip
+                filter
+                size="small"
+                :color="marksStore.clipsOnly || clipStudioMode ? 'primary' : undefined"
+                :variant="marksStore.clipsOnly || clipStudioMode ? 'flat' : 'tonal'"
+                :prepend-icon="clipStudioMode ? 'mdi-lock' : 'mdi-movie-open-play-outline'"
+                :class="{'markers-control-deck__clips-locked': clipStudioMode}"
+                v-tooltip:top="clipStudioMode ? t('markers.clips_only_locked') : t('markers.clips_only')"
+                @click.stop="toggleClipsOnly"
+              >
+                {{ t('markers.clips_only') }}
+              </v-chip>
+              <v-chip value="favorite" size="small">
+                <v-icon icon="mdi-heart" size="small" start/>
+                {{ t('meta.default_names.favorite') }}
+              </v-chip>
+              <v-chip value="bookmark" size="small">
+                <v-icon icon="mdi-bookmark" size="small" start/>
+                {{ t('meta.default_names.bookmark') }}
+              </v-chip>
+              <v-chip value="chapter" size="small">
+                <v-icon icon="mdi-movie-open-outline" size="small" start/>
+                {{ t('player.auto_chapters') }}
+              </v-chip>
+              <v-chip
+                v-for="meta in marksStore.filterMetas"
+                :key="meta.id"
+                :value="String(meta.id)"
+                size="small"
+                :prepend-icon="`mdi-${String(meta.icon || 'tag')}`"
+                :text="String(meta.name ?? '')"
+              />
+            </v-chip-group>
+          </div>
+        </v-expand-transition>
       </div>
     </div>
 
@@ -531,6 +559,49 @@ watch(
 
 const searchInput = ref(marksStore.search || '')
 const showInfiniteLoader = ref(false)
+const markersPageStorageKey = 'mediachips:markers-page-state'
+
+type MarkersPageState = {
+  showFiltersPanel?: boolean
+}
+
+function readMarkersPageState(): MarkersPageState {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(markersPageStorageKey)
+    if (!raw) return {}
+    const value = JSON.parse(raw) as MarkersPageState
+    return value && typeof value === 'object' ? value : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeMarkersPageState(patch: Partial<MarkersPageState>) {
+  if (typeof window === 'undefined') return
+  try {
+    const current = readMarkersPageState()
+    window.localStorage.setItem(markersPageStorageKey, JSON.stringify({...current, ...patch}))
+  } catch {
+    // Storage can be unavailable in restricted browser contexts.
+  }
+}
+
+const showFiltersPanel = ref(readMarkersPageState().showFiltersPanel === true)
+
+const activeFiltersCount = computed(() => {
+  let count = 0
+  if (marksStore.search.trim()) count += 1
+  if (marksStore.clipsOnly) count += 1
+  const defaults = marksStore.getDefaultTypes(marksStore.filterMetas)
+  const selected = new Set(marksStore.selectedTypes.map(String))
+  const isDefaultSelection = defaults.length > 0
+    && defaults.length === selected.size
+    && defaults.every((type) => selected.has(String(type)))
+  if (defaults.length > 0 && !isDefaultSelection) count += 1
+  return count
+})
+
 const {
   controlDeckSentinel,
   controlDeckClass,
@@ -933,6 +1004,10 @@ const exportSelectedClips = async (mode: 'concat' | 'folder' = 'concat') => {
   }
 }
 
+watch(showFiltersPanel, (value) => {
+  writeMarkersPageState({showFiltersPanel: value})
+})
+
 onMounted(async () => {
   searchInput.value = marksStore.search || ''
   syncMarkersItemsStore()
@@ -1053,9 +1128,10 @@ onBeforeUnmount(() => {
   }
 
   &__search {
-    width: 220px;
-    min-width: 160px;
-    max-width: 240px;
+    width: 180px;
+    min-width: 140px;
+    max-width: 220px;
+    flex: 0 0 auto;
   }
 
   &__select-all {
@@ -1071,7 +1147,27 @@ onBeforeUnmount(() => {
   }
 
   &__filters {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
     padding: 8px var(--deck-pad-x, 14px) 10px;
+    min-width: 0;
+  }
+
+  &__filter-chips {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0 !important;
+
+    :deep(.v-slide-group__content) {
+      flex-wrap: nowrap;
+      gap: 4px;
+    }
+
+    :deep(.v-chip-group) {
+      margin: 0;
+    }
   }
 
   &__studio {
@@ -1108,9 +1204,9 @@ onBeforeUnmount(() => {
     }
 
     &__search {
-      flex: 1 1 140px;
+      flex: 0 1 140px;
       width: auto;
-      max-width: none;
+      max-width: 180px;
     }
   }
 }

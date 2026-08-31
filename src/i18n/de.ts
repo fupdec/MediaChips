@@ -1312,6 +1312,7 @@ const de = {
     dynamic_playlists: 'Intelligente Wiedergabelisten',
     manual_playlists: 'Meine Playlists',
     smart_playlists_docs: 'Über intelligente Playlists',
+    create_smart_playlist: 'Intelligente Playlist erstellen',
     editing_smart_playlist: 'Bearbeiten einer intelligenten Wiedergabeliste',
     smart_playlist_filters: 'Gespeicherte Filter',
     smart_playlist_filters_hint: 'Gefüllte Chips sind aktive Bedingungen, die diese intelligente Playlist definieren. Umrissene Chips werden gespeichert, sind aber derzeit inaktiv.',
