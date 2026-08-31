@@ -262,12 +262,13 @@
       </v-alert>
 
       <div class="media-folder-browser__list">
-        <div
+        <FoldersBrowseSkeleton
           v-if="loading"
-          class="media-folder-browser__empty"
-        >
-          {{ t('common.loading') }}
-        </div>
+          class="media-folder-browser__skeleton"
+          view-mode="list"
+          :size="3"
+          gap-size="compact"
+        />
         <div
           v-else-if="!visibleEntries.length"
           class="media-folder-browser__empty"
@@ -437,6 +438,7 @@ import {getReadableFileSize} from '@/services/formatUtils'
 import {getApiErrorMessage} from '@/types/vue'
 import FolderTagsMenu from '@/components/dialogs/FolderTagsMenu.vue'
 import DialogFolderTagsManager from '@/components/dialogs/DialogFolderTagsManager.vue'
+import FoldersBrowseSkeleton from '@/components/folders/FoldersBrowseSkeleton.vue'
 import {
   canGoFolderHistoryBack,
   canGoFolderHistoryForward,
@@ -1097,6 +1099,11 @@ watch(
   text-align: center;
   color: rgba(var(--v-theme-on-surface), 0.6);
   font-size: 0.8125rem;
+}
+
+.media-folder-browser__skeleton {
+  padding: 8px 10px 12px;
+  min-height: 0;
 }
 
 .media-folder-browser__check {

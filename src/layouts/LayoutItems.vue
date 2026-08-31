@@ -187,10 +187,19 @@
     <!-- Filters: top panel in the control deck -->
     <Filters v-if="pageInitialized" :isReady="isFiltersReady"/>
 
-    <Loading v-if="loader.is_busy"/>
+    <ItemsBrowseSkeleton
+      v-if="loader.is_busy"
+      class="items-page-grid"
+      :size="ITEMS.size"
+      :gap-size="SETTINGS.gapSize"
+      :view="ITEMS.view"
+      :items-type="listItemType"
+      :media-type="mediaType"
+      :image-aspect-ratio="virtualCardAspectRatio"
+    />
 
     <ItemsPaginationBar
-      v-if="showPagination"
+      v-if="showPagination && !loader.is_busy"
       v-model:page="paginationPage"
       v-model:jump-page="jumpPageForPagination"
       :pages="pages"
@@ -200,7 +209,7 @@
     />
 
     <ItemsMasonryGrid
-      v-if="pageInitialized && ITEMS.itemsOnPage.length && (isMasonryGrid || isSquaresGrid)"
+      v-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && (isMasonryGrid || isSquaresGrid)"
       :key="`masonry-${itemsRenderKey}`"
       :items="ITEMS.itemsOnPage"
       :items-type="listItemType"
@@ -218,7 +227,7 @@
     />
 
     <ItemsVirtualGrid
-      v-else-if="pageInitialized && ITEMS.itemsOnPage.length && useVirtualGrid"
+      v-else-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && useVirtualGrid"
       :key="`virtual-${itemsRenderKey}`"
       :items="ITEMS.itemsOnPage"
       :items-type="listItemType"
@@ -240,7 +249,7 @@
     />
 
     <div
-      v-else-if="pageInitialized && ITEMS.itemsOnPage.length"
+      v-else-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length"
       :key="`grid-${itemsRenderKey}`"
       ref="itemsGridRef"
       :class="itemsGridClasses"
@@ -291,7 +300,7 @@
     </div>
 
     <div
-      v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd && mainScrollOverflowing"
+      v-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd && mainScrollOverflowing"
       class="scroll-top-after-items"
     >
       <v-btn
@@ -306,7 +315,7 @@
     </div>
 
     <ItemsPaginationBar
-      v-if="showPagination"
+      v-if="showPagination && !loader.is_busy"
       v-model:page="paginationPage"
       v-model:jump-page="jumpPageForPagination"
       :pages="pages"
@@ -315,7 +324,7 @@
       @jump="jumpToPage"
     />
 
-    <div v-if="pageInitialized && 0 == total && total == totalInDb"
+    <div v-if="!loader.is_busy && pageInitialized && 0 == total && total == totalInDb"
       class="layout-img">
       <v-img src="/images/no-data.svg"
         max-height="40vh"
@@ -358,7 +367,7 @@
       </div>
     </div>
 
-    <div v-if="pageInitialized && 0 == total && total !== totalInDb"
+    <div v-if="!loader.is_busy && pageInitialized && 0 == total && total !== totalInDb"
       class="layout-img">
       <v-img :src="image_filters_no_results"
         max-height="40vh"
@@ -469,11 +478,11 @@ import type {Meta} from '@/types/stores'
 
 // Компоненты
 import Item from '@/components/items/Item.vue'
+import ItemsBrowseSkeleton from '@/components/items/ItemsBrowseSkeleton.vue'
 import ItemsVirtualGrid from '@/components/items/ItemsVirtualGrid.vue'
 import ItemsMasonryGrid from '@/components/items/ItemsMasonryGrid.vue'
 import Filters from '@/components/app/Filters.vue'
 import SavedFilters from '@/components/elements/FiltersSaved.vue'
-import Loading from '@/components/elements/Loading.vue'
 import ItemsPaginationBar from '@/components/elements/ItemsPaginationBar.vue'
 import QuickActionButton from '@/components/app/QuickActionButton.vue'
 import ToolbarSort from '@/components/app/toolbar/ToolbarSort.vue'
