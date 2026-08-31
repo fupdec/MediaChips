@@ -28,6 +28,7 @@ export type EventBusMap = {
     applied?: number
   }
   'app:database-changed': void
+  'library:nav-counts-changed': void
   'markers:reload': void
   'playlists:reload': void
   'folders:go-up': void

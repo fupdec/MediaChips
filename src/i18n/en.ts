@@ -2881,6 +2881,7 @@ const en = {
       in_progress: 'In progress: {current} of {total}',
       in_progress_eta: 'In progress: {current} of {total} • ~{eta} left',
       added_count: 'Added ({count})',
+      added_list_capped: 'Showing the last {shown} of {total} added in this run',
       existing_count: 'Existing ({count})',
       duplicates_by_size_count: 'Duplicates by file size ({count})',
       duplicates_by_content_count: 'Duplicates by file content ({count})',

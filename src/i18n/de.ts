@@ -2795,6 +2795,7 @@ const de = {
       in_progress: 'In Bearbeitung: {current} von {total}',
       in_progress_eta: 'In Bearbeitung: {current} von {total} • ~{eta} übrig',
       added_count: 'Hinzugefügt ({count})',
+      added_list_capped: 'Es werden die letzten {shown} von {total} in diesem Durchlauf hinzugefügten Dateien angezeigt',
       existing_count: 'Vorhanden ({count})',
       duplicates_by_size_count: 'Duplikate nach Dateigröße ({count})',
       duplicates_by_content_count: 'Duplikate nach Dateiinhalt ({count})',

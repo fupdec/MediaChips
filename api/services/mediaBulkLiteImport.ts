@@ -229,9 +229,10 @@ export async function runMediaBulkLiteImport(
     ))
     insertedCount += insertedRows.length
     for (const row of insertedRows) {
-      if (added.length < MEDIA_BULK_LITE_ADDED_CAP) {
-        added.push({path: row.path, mediaId: row.id})
+      if (added.length >= MEDIA_BULK_LITE_ADDED_CAP) {
+        added.shift()
       }
+      added.push({path: row.path, mediaId: row.id})
     }
   }
 

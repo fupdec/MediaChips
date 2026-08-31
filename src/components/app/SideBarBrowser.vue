@@ -461,7 +461,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, defineAsyncComponent, onMounted, ref, watch} from 'vue'
+import {computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
@@ -476,6 +476,7 @@ import {
 } from '@/composable/useLibraryNavItems'
 import {isLibraryNavLinkActive} from '@/utils/libraryNavActive'
 import {typedApi} from '@/services/typedApi'
+import {useEventBus} from '@/utils/eventBus'
 import SidebarTagsBrowser from '@/components/app/SidebarTagsBrowser.vue'
 
 const Draggable = defineAsyncComponent(() => import('vuedraggable'))
@@ -502,6 +503,7 @@ const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const marksStore = useMarksStore()
 const settingsStore = useSettingsStore()
+const eventBus = useEventBus()
 
 const fullWidth = 260
 const railWidth = 52
@@ -716,6 +718,11 @@ async function loadNavCounts() {
 
 onMounted(() => {
   void loadNavCounts()
+  eventBus.on('library:nav-counts-changed', loadNavCounts)
+})
+
+onUnmounted(() => {
+  eventBus.off('library:nav-counts-changed', loadNavCounts)
 })
 
 watch(

@@ -2795,6 +2795,7 @@ const fr = {
       in_progress: 'En cours : {current} de {total}',
       in_progress_eta: 'En cours : {current} de {total} • ~{eta} restant',
       added_count: 'Ajouté ({count})',
+      added_list_capped: 'Affichage des {shown} derniers fichiers ajoutés sur {total} dans cette importation',
       existing_count: 'Existant ({count})',
       duplicates_by_size_count: 'Doublons par taille de fichier ({count})',
       duplicates_by_content_count: 'Doublons par contenu de fichier ({count})',

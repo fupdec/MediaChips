@@ -2881,6 +2881,7 @@ const ru = {
       in_progress: 'В процессе: {current} из {total}',
       in_progress_eta: 'В процессе: {current} из {total} • ~{eta} осталось',
       added_count: 'Добавлено ({count})',
+      added_list_capped: 'Показаны последние {shown} из {total} добавленных в этом прогоне',
       existing_count: 'Существующие ({count})',
       duplicates_by_size_count: 'Дубликаты по размеру файла ({count})',
       duplicates_by_content_count: 'Дубликаты по содержимому ({count})',

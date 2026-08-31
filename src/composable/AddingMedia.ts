@@ -15,7 +15,7 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import {removeWatcherNewPaths} from '@/utils/watcherReportUtils'
 import type { ParsePathTagEntry } from '@shared/api/responses'
 import type { MediaType } from '@/types/media'
-import type { AddedMediaEntry } from '@/stores/tasks'
+import type { AddedMediaEntry, MediaAddingState } from '@/stores/tasks'
 import {
   buildExtensionPathRegex,
   getDefaultMediaTypeId,
@@ -31,22 +31,12 @@ import {ONBOARDING_STEP_COUNT, saveOnboardingStep, shouldShowOnboarding} from '@
 import {getApiErrorMessage} from '@/types/vue'
 import {
   FAST_IMPORT_AUTO_THRESHOLD,
+  MEDIA_BULK_LITE_ADDED_CAP,
   MEDIA_BULK_LITE_HTTP_CHUNK,
 } from '@shared/mediaBulkImport'
 
 
 
-
-const filterPathsByExtensions = (paths: string[], extensions: string): string[] => {
-  const allowed = parseMediaTypeExtensions(extensions)
-
-  return paths.filter((filePath: string) => {
-    const ext = String(filePath).split('.').pop()?.toLowerCase()
-    return ext && allowed.includes(ext)
-  })
-}
-
-const ADD_MEDIA_CONCURRENCY = 3
 
 async function runWithConcurrency<T>(
   items: T[],
@@ -69,6 +59,53 @@ async function runWithConcurrency<T>(
     }
   }))
 }
+
+const filterPathsByExtensions = (paths: string[], extensions: string): string[] => {
+  const allowed = parseMediaTypeExtensions(extensions)
+
+  return paths.filter((filePath: string) => {
+    const ext = String(filePath).split('.').pop()?.toLowerCase()
+    return ext && allowed.includes(ext)
+  })
+}
+
+const trimCappedAddedLists = (task: MediaAddingState) => {
+  if (task.added.length > MEDIA_BULK_LITE_ADDED_CAP) {
+    task.added = task.added.slice(-MEDIA_BULK_LITE_ADDED_CAP)
+  }
+  if (task.addedMedia.length > MEDIA_BULK_LITE_ADDED_CAP) {
+    task.addedMedia = task.addedMedia.slice(-MEDIA_BULK_LITE_ADDED_CAP)
+  }
+}
+
+const appendBulkLiteAddedResponse = (
+  task: MediaAddingState,
+  data: {
+    inserted?: number
+    added?: AddedMediaEntry[]
+    errors?: string[]
+  },
+) => {
+  task.addedTotal = (task.addedTotal || 0) + Number(data.inserted || 0)
+
+  for (const entry of data.added || []) {
+    task.added.push(entry.path)
+    task.addedMedia.push({
+      path: entry.path,
+      mediaId: entry.mediaId,
+    })
+  }
+  trimCappedAddedLists(task)
+
+  for (const errPath of data.errors || []) {
+    task.errors.push(errPath)
+  }
+  if (task.errors.length > MEDIA_BULK_LITE_ADDED_CAP) {
+    task.errors = task.errors.slice(-MEDIA_BULK_LITE_ADDED_CAP)
+  }
+}
+
+const ADD_MEDIA_CONCURRENCY = 3
 
 const resolveMediaTypeForAdding = (
   mediaTypes: MediaType[],
@@ -178,6 +215,7 @@ export const useMediaAdding = () => {
     task.value.errors = []
     task.value.duplicates = []
     task.value.added = []
+    task.value.addedTotal = 0
     task.value.addedMedia = []
     task.value.parsingTags = false
     task.value.suggestedTags = []
@@ -326,26 +364,7 @@ export const useMediaAdding = () => {
             scannedTotal += Number(data.scanned || 0)
             ensuredTypeIds.push(Number(mediaType.id))
 
-            for (const entry of data.added || []) {
-              task.value.added.push(entry.path)
-              task.value.addedMedia.push({
-                path: entry.path,
-                mediaId: entry.mediaId,
-              })
-            }
-            if (task.value.added.length > 5_000) {
-              task.value.added = task.value.added.slice(0, 5_000)
-            }
-            if (task.value.addedMedia.length > 5_000) {
-              task.value.addedMedia = task.value.addedMedia.slice(0, 5_000)
-            }
-
-            for (const errPath of data.errors || []) {
-              task.value.errors.push(errPath)
-            }
-            if (task.value.errors.length > 5_000) {
-              task.value.errors = task.value.errors.slice(0, 5_000)
-            }
+            appendBulkLiteAddedResponse(task.value, data)
           } catch (error) {
             console.error('Bulk addMedia roots failed:', error)
             const message = getApiErrorMessage(error, t('media.adding.error_title'))
@@ -374,6 +393,7 @@ export const useMediaAdding = () => {
         }
 
         const addedCount = bulkInsertedTotal
+        task.value.addedTotal = addedCount
         task.value.total = scannedTotal || targetTypes.length
         task.value.current = scannedTotal || targetTypes.length
 
@@ -465,6 +485,9 @@ export const useMediaAdding = () => {
         }
 
         eventBus.emit('update:watcher')
+        if (addedCount > 0) {
+          eventBus.emit('library:nav-counts-changed')
+        }
         return
       }
 
@@ -639,27 +662,7 @@ export const useMediaAdding = () => {
               const data = response.data
               bulkInsertedTotal += Number(data.inserted || 0)
 
-              for (const entry of data.added || []) {
-                task.value.added.push(entry.path)
-                task.value.addedMedia.push({
-                  path: entry.path,
-                  mediaId: entry.mediaId,
-                })
-              }
-
-              if (task.value.added.length > 5_000) {
-                task.value.added = task.value.added.slice(0, 5_000)
-              }
-              if (task.value.addedMedia.length > 5_000) {
-                task.value.addedMedia = task.value.addedMedia.slice(0, 5_000)
-              }
-
-              for (const errPath of data.errors || []) {
-                task.value.errors.push(errPath)
-              }
-              if (task.value.errors.length > 5_000) {
-                task.value.errors = task.value.errors.slice(0, 5_000)
-              }
+              appendBulkLiteAddedResponse(task.value, data)
             } catch (error) {
               console.error('Bulk addMedia chunk failed:', error)
               const message = error instanceof Error ? error.message : String(error)
@@ -735,6 +738,8 @@ export const useMediaAdding = () => {
       const addedCount = useFastImport
         ? bulkInsertedTotal
         : task.value.added.length
+
+      task.value.addedTotal = addedCount
 
       const ensuredTypeIds = [...new Set(
         typedEntries
@@ -839,6 +844,9 @@ export const useMediaAdding = () => {
       }
 
       eventBus.emit('update:watcher')
+      if (addedCount > 0) {
+        eventBus.emit('library:nav-counts-changed')
+      }
     } catch (error) {
       console.error('Error in addMedia process:', error)
       const message = getApiErrorMessage(error, t('media.adding.error_title'))

@@ -29,6 +29,8 @@ export interface MediaAddingState {
   errors: string[]
   duplicates: MediaAddingDuplicate[]
   added: string[]
+  /** Total files added in this run (may exceed `added.length` when the list is capped). */
+  addedTotal: number
   addedMedia: AddedMediaEntry[]
   parsingTags: boolean
   suggestedTags: string[]
@@ -79,6 +81,7 @@ export const useTasksStore = defineStore('useTasksStore', {
       errors: [],
       duplicates: [],
       added: [],
+      addedTotal: 0,
       addedMedia: [],
       parsingTags: false,
       suggestedTags: [],

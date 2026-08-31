@@ -2795,6 +2795,7 @@ const ja = {
       in_progress: '進行中: {current}/{total}',
       in_progress_eta: '進行中: {current} / {total} • ~{eta} が残っています',
       added_count: '追加 ({count})',
+      added_list_capped: 'この実行で追加された {total} 件のうち、最後の {shown} 件を表示しています',
       existing_count: '既存 ({count})',
       duplicates_by_size_count: 'ファイル サイズによる重複 ({count})',
       duplicates_by_content_count: 'ファイル内容ごとの重複 ({count})',

@@ -2795,6 +2795,7 @@ const cn = {
       in_progress: '进行中：{current} / {total}',
       in_progress_eta: '进行中：{current} / {total} • 剩余约 {eta}',
       added_count: '已添加（{count}）',
+      added_list_capped: '显示本次添加的 {total} 个文件中的最后 {shown} 个',
       existing_count: '已存在（{count}）',
       duplicates_by_size_count: '按文件大小重复（{count}）',
       duplicates_by_content_count: '按文件内容重复（{count}）',

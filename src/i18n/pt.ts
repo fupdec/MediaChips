@@ -2795,6 +2795,7 @@ const pt = {
       in_progress: 'Em andamento: {current} de {total}',
       in_progress_eta: 'Em andamento: {current} de {total} • ~{eta} restante',
       added_count: 'Adicionado ({count})',
+      added_list_capped: 'Mostrando os últimos {shown} de {total} adicionados nesta importação',
       existing_count: 'Existente ({count})',
       duplicates_by_size_count: 'Duplicatas por tamanho de arquivo ({count})',
       duplicates_by_content_count: 'Duplicatas por conteúdo do arquivo ({count})',

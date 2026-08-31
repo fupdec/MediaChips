@@ -472,13 +472,22 @@
             <div class="process-list-row">
               <v-chip
                 @click="is_show_added = !is_show_added"
-                :text="t('media.adding.added_count', {count: task.added.length})"
+                :text="addedCountLabel"
                 prepend-icon="mdi-plus"
                 color="success"
                 size="small"
               />
             </div>
             <v-card v-if="is_show_added" variant="outlined" class="pa-2 mt-2">
+              <div
+                v-if="addedListCapped"
+                class="text-caption text-medium-emphasis mb-2"
+              >
+                {{ t('media.adding.added_list_capped', {
+                  shown: task.added.length,
+                  total: addedTotal,
+                }) }}
+              </div>
               <v-virtual-scroll
                 :height="task.added.length > 10 ? 150 : task.added.length * 15"
                 :items="task.added"
@@ -728,6 +737,7 @@ import {
 } from '@/composable/useOnboarding'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
+import {MEDIA_BULK_LITE_ADDED_CAP} from '@shared/mediaBulkImport'
 import {useAutoSceneScrapeBatch} from '@mediachips/plugin-adult/composables/useAutoSceneScrapeBatch'
 
 interface DialogHeaderButton {
@@ -917,6 +927,17 @@ const duplicateMarkers = {
 
 // Computed properties
 const task = computed(() => tasksStore.mediaAdding)
+const addedTotal = computed(() => {
+  const total = Number(task.value.addedTotal || 0)
+  return total > 0 ? total : task.value.added.length
+})
+const addedCountLabel = computed(() =>
+  t('media.adding.added_count', {count: addedTotal.value}),
+)
+const addedListCapped = computed(() =>
+  addedTotal.value > task.value.added.length
+  && task.value.added.length >= MEDIA_BULK_LITE_ADDED_CAP,
+)
 const isAddedVideo = computed(() =>
   String(task.value.addedMediaType || '').toLowerCase() === 'video',
 )
