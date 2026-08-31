@@ -102,6 +102,30 @@
             >
               <v-icon size="18">mdi-eye-settings-outline</v-icon>
             </v-btn>
+
+            <v-btn
+              @click="showFiltersPanel = !showFiltersPanel"
+              v-tooltip:top="t('appbar.buttons.filter')"
+              color="primary"
+              :variant="showFiltersPanel ? 'flat' : 'tonal'"
+              size="small"
+              icon
+            >
+              <v-badge
+                v-if="activeFiltersCount > 0"
+                :content="activeFiltersCount"
+                color="secondary"
+                floating
+              >
+                <v-icon size="18">mdi-filter-outline</v-icon>
+              </v-badge>
+              <v-icon
+                v-else
+                size="18"
+              >
+                mdi-filter-outline
+              </v-icon>
+            </v-btn>
           </div>
         </div>
 
@@ -289,214 +313,218 @@
                 {{ chip.name }}
               </span>
             </div>
-          </div>
-        </div>
-
-        <div class="folders-page__toolbar">
-          <v-text-field
-            v-model="searchQuery"
-            density="compact"
-            variant="outlined"
-            hide-details
-            clearable
-            rounded="xl"
-            prepend-inner-icon="mdi-magnify"
-            :placeholder="t('folders_browser.search_placeholder')"
-            class="folders-page__search"
-            @keydown.esc.stop="searchQuery = ''"
-          />
-
-          <div class="folders-page__filters">
-            <div class="folders-page__chip-rail">
-              <button
-                type="button"
-                class="folders-page__filter-chip"
-                :class="{'folders-page__filter-chip--on': mediaTypeId == null}"
-                @click="setMediaTypeFilter(null)"
-              >
-                {{ t('folders_browser.all_types') }}
-              </button>
-              <button
-                v-for="mediaType in visibleMediaTypes"
-                :key="mediaType.id"
-                type="button"
-                class="folders-page__filter-chip"
-                :class="{'folders-page__filter-chip--on': mediaTypeId === mediaType.id}"
-                @click="setMediaTypeFilter(mediaType.id)"
-              >
-                <v-icon
-                  size="13"
-                  :icon="`mdi-${mediaType.icon || 'file'}`"
-                />
-                <span>{{ mediaTypeTitle(mediaType) }}</span>
-              </button>
-            </div>
-
-            <div
-              v-if="uniqueFolderTagChips.length"
-              class="folders-page__chip-rail folders-page__chip-rail--tags"
-            >
-              <button
-                type="button"
-                class="folders-page__filter-chip folders-page__filter-chip--tag"
-                :class="{'folders-page__filter-chip--on': tagFilterId == null}"
-                @click="tagFilterId = null"
-              >
-                <v-icon size="13" icon="mdi-tag-multiple-outline"/>
-                <span>{{ t('folders_browser.all_tags') }}</span>
-              </button>
-              <button
-                v-for="chip in uniqueFolderTagChips"
-                :key="chip.tagId"
-                type="button"
-                class="folders-page__filter-chip folders-page__filter-chip--tag"
-                :class="{'folders-page__filter-chip--on': tagFilterId === chip.tagId}"
-                :style="chip.color && tagFilterId === chip.tagId
-                  ? {'--chip-accent': chip.color}
-                  : undefined"
-                @click="tagFilterId = tagFilterId === chip.tagId ? null : chip.tagId"
-              >
-                {{ chip.name }}
-              </button>
-            </div>
-          </div>
-
-          <div class="folders-page__actions">
-            <template v-if="currentPath">
+            <div class="folders-page__actions">
+              <template v-if="currentPath">
+                <v-btn
+                  size="small"
+                  variant="flat"
+                  color="success"
+                  rounded="xl"
+                  :icon="mdAndDown"
+                  :disabled="loading || !addablePendingCount"
+                  v-tooltip:top="addablePendingCount
+                    ? t('folders_browser.add_to_library')
+                    : t('folders_browser.no_addable_files')"
+                  @click="addCurrentFolder"
+                >
+                  <v-icon
+                    size="18"
+                    :start="!mdAndDown"
+                    icon="mdi-plus"
+                  />
+                  <span v-if="!mdAndDown">{{ t('folders_browser.add_new') }}</span>
+                  <span
+                    v-if="!mdAndDown && addablePendingCount"
+                    class="folders-page__cta-count"
+                  >
+                    {{ addablePendingCount }}
+                  </span>
+                </v-btn>
+                <v-btn
+                  size="small"
+                  variant="tonal"
+                  rounded="xl"
+                  icon
+                  :disabled="loading"
+                  v-tooltip:top="t('folders_browser.new_folder')"
+                  @click="openCreateFolderDialog"
+                >
+                  <v-icon size="18" icon="mdi-folder-plus-outline"/>
+                </v-btn>
+                <FolderTagsMenu
+                  :folder-path="currentPath"
+                  v-model:open="currentTagsMenuOpen"
+                  @saved="reloadFolderTags"
+                >
+                  <template #activator="{props: menuProps}">
+                    <v-btn
+                      v-bind="menuProps"
+                      size="small"
+                      variant="tonal"
+                      color="primary"
+                      rounded="xl"
+                      icon
+                      v-tooltip:top="t('media.adding.folder_tags_edit')"
+                    >
+                      <v-icon size="18" icon="mdi-tag-multiple-outline"/>
+                    </v-btn>
+                  </template>
+                </FolderTagsMenu>
+                <v-btn
+                  size="small"
+                  variant="tonal"
+                  color="primary"
+                  rounded="xl"
+                  icon
+                  v-tooltip:top="t('folders_browser.reveal')"
+                  @click="revealPath(currentPath)"
+                >
+                  <v-icon size="18" icon="mdi-folder-open-outline"/>
+                </v-btn>
+                <v-btn
+                  size="small"
+                  variant="tonal"
+                  color="primary"
+                  rounded="xl"
+                  icon
+                  :disabled="!visibleMedia.length"
+                  v-tooltip:top="t('folders_browser.play_all')"
+                  @click="playAllInPath(currentPath)"
+                >
+                  <v-icon size="18" icon="mdi-play"/>
+                </v-btn>
+              </template>
               <v-btn
+                v-else
                 size="small"
                 variant="flat"
                 color="success"
                 rounded="xl"
                 :icon="mdAndDown"
-                :disabled="loading || !addablePendingCount"
-                v-tooltip:top="addablePendingCount
-                  ? t('folders_browser.add_to_library')
-                  : t('folders_browser.no_addable_files')"
-                @click="addCurrentFolder"
+                v-tooltip:top="mdAndDown ? t('commandPalette.actions.add_media') : undefined"
+                @click="openAddMedia"
               >
                 <v-icon
                   size="18"
                   :start="!mdAndDown"
                   icon="mdi-plus"
                 />
-                <span v-if="!mdAndDown">{{ t('folders_browser.add_new') }}</span>
-                <span
-                  v-if="!mdAndDown && addablePendingCount"
-                  class="folders-page__cta-count"
-                >
-                  {{ addablePendingCount }}
-                </span>
+                <span v-if="!mdAndDown">{{ t('commandPalette.actions.add_media') }}</span>
               </v-btn>
-              <v-btn
-                size="small"
-                variant="tonal"
-                rounded="xl"
-                icon
-                :disabled="loading"
-                v-tooltip:top="t('folders_browser.new_folder')"
-                @click="openCreateFolderDialog"
-              >
-                <v-icon size="18" icon="mdi-folder-plus-outline"/>
-              </v-btn>
-              <FolderTagsMenu
-                :folder-path="currentPath"
-                v-model:open="currentTagsMenuOpen"
-                @saved="reloadFolderTags"
+              <v-menu
+                location="bottom end"
+                content-class="folders-page__more-menu"
               >
                 <template #activator="{props: menuProps}">
                   <v-btn
                     v-bind="menuProps"
                     size="small"
-                    variant="tonal"
-                    color="primary"
+                    :variant="showHidden ? 'tonal' : 'text'"
+                    :color="showHidden ? 'primary' : undefined"
                     rounded="xl"
                     icon
-                    v-tooltip:top="t('media.adding.folder_tags_edit')"
+                    v-tooltip:top="t('common.more')"
                   >
-                    <v-icon size="18" icon="mdi-tag-multiple-outline"/>
+                    <v-icon size="18" icon="mdi-dots-horizontal"/>
                   </v-btn>
                 </template>
-              </FolderTagsMenu>
-              <v-btn
-                size="small"
-                variant="tonal"
-                color="primary"
-                rounded="xl"
-                icon
-                v-tooltip:top="t('folders_browser.reveal')"
-                @click="revealPath(currentPath)"
-              >
-                <v-icon size="18" icon="mdi-folder-open-outline"/>
-              </v-btn>
-              <v-btn
-                size="small"
-                variant="tonal"
-                color="primary"
-                rounded="xl"
-                icon
-                :disabled="!visibleMedia.length"
-                v-tooltip:top="t('folders_browser.play_all')"
-                @click="playAllInPath(currentPath)"
-              >
-                <v-icon size="18" icon="mdi-play"/>
-              </v-btn>
-            </template>
-            <v-btn
-              v-else
-              size="small"
-              variant="flat"
-              color="success"
-              rounded="xl"
-              :icon="mdAndDown"
-              v-tooltip:top="mdAndDown ? t('commandPalette.actions.add_media') : undefined"
-              @click="openAddMedia"
-            >
-              <v-icon
-                size="18"
-                :start="!mdAndDown"
-                icon="mdi-plus"
-              />
-              <span v-if="!mdAndDown">{{ t('commandPalette.actions.add_media') }}</span>
-            </v-btn>
-            <v-menu
-              location="bottom end"
-              content-class="folders-page__more-menu"
-            >
-              <template #activator="{props: menuProps}">
-                <v-btn
-                  v-bind="menuProps"
-                  size="small"
-                  :variant="showHidden ? 'tonal' : 'text'"
-                  :color="showHidden ? 'primary' : undefined"
-                  rounded="xl"
-                  icon
-                  v-tooltip:top="t('common.more')"
+                <v-list
+                  density="compact"
+                  class="folders-page__more-list"
                 >
-                  <v-icon size="18" icon="mdi-dots-horizontal"/>
-                </v-btn>
-              </template>
-              <v-list
-                density="compact"
-                class="folders-page__more-list"
-              >
-                <v-list-item
-                  v-if="currentPath"
-                  :prepend-icon="showHidden ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
-                  :title="t('folders_browser.show_hidden')"
-                  :active="showHidden"
-                  slim
-                  @click="showHidden = !showHidden"
-                />
-                <v-list-item
-                  prepend-icon="mdi-folder-multiple-outline"
-                  :title="t('media.adding.folder_tags_manager_open')"
-                  slim
-                  @click="folderTagsManagerOpen = true"
-                />
-              </v-list>
-            </v-menu>
+                  <v-list-item
+                    v-if="currentPath"
+                    :prepend-icon="showHidden ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
+                    :title="t('folders_browser.show_hidden')"
+                    :active="showHidden"
+                    slim
+                    @click="showHidden = !showHidden"
+                  />
+                  <v-list-item
+                    prepend-icon="mdi-folder-multiple-outline"
+                    :title="t('media.adding.folder_tags_manager_open')"
+                    slim
+                    @click="folderTagsManagerOpen = true"
+                  />
+                </v-list>
+              </v-menu>
+            </div>
           </div>
+          <v-expand-transition>
+            <div
+              v-if="showFiltersPanel"
+              class="folders-page__toolbar"
+            >
+              <v-text-field
+                v-model="searchQuery"
+                density="compact"
+                variant="outlined"
+                hide-details
+                clearable
+                rounded="xl"
+                prepend-inner-icon="mdi-magnify"
+                :placeholder="t('folders_browser.search_placeholder')"
+                class="folders-page__search"
+                @keydown.esc.stop="searchQuery = ''"
+              />
+
+              <div class="folders-page__filters">
+                <div class="folders-page__chip-rail">
+                  <button
+                    type="button"
+                    class="folders-page__filter-chip"
+                    :class="{'folders-page__filter-chip--on': mediaTypeId == null}"
+                    @click="setMediaTypeFilter(null)"
+                  >
+                    {{ t('folders_browser.all_types') }}
+                  </button>
+                  <button
+                    v-for="mediaType in visibleMediaTypes"
+                    :key="mediaType.id"
+                    type="button"
+                    class="folders-page__filter-chip"
+                    :class="{'folders-page__filter-chip--on': mediaTypeId === mediaType.id}"
+                    @click="setMediaTypeFilter(mediaType.id)"
+                  >
+                    <v-icon
+                      size="13"
+                      :icon="`mdi-${mediaType.icon || 'file'}`"
+                    />
+                    <span>{{ mediaTypeTitle(mediaType) }}</span>
+                  </button>
+                </div>
+
+                <div
+                  v-if="uniqueFolderTagChips.length"
+                  class="folders-page__chip-rail folders-page__chip-rail--tags"
+                >
+                  <button
+                    type="button"
+                    class="folders-page__filter-chip folders-page__filter-chip--tag"
+                    :class="{'folders-page__filter-chip--on': tagFilterId == null}"
+                    @click="tagFilterId = null"
+                  >
+                    <v-icon size="13" icon="mdi-tag-multiple-outline"/>
+                    <span>{{ t('folders_browser.all_tags') }}</span>
+                  </button>
+                  <button
+                    v-for="chip in uniqueFolderTagChips"
+                    :key="chip.tagId"
+                    type="button"
+                    class="folders-page__filter-chip folders-page__filter-chip--tag"
+                    :class="{'folders-page__filter-chip--on': tagFilterId === chip.tagId}"
+                    :style="chip.color && tagFilterId === chip.tagId
+                      ? {'--chip-accent': chip.color}
+                      : undefined"
+                    @click="tagFilterId = tagFilterId === chip.tagId ? null : chip.tagId"
+                  >
+                    {{ chip.name }}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </v-expand-transition>
         </div>
 
         <v-progress-linear
@@ -532,7 +560,18 @@
     </div>
 
     <div
-      v-if="!loading && !visibleFolders.length && !visibleMedia.length && !fsFiles.length && !missingMedia.length && !searchQuery && tagFilterId == null"
+      v-if="loading"
+      class="items-page-grid items-virtual-grid folders-page__skeleton"
+    >
+      <FoldersBrowseSkeleton
+        :size="itemsStore.size"
+        :gap-size="settingsStore.gapSize"
+        :view-mode="foldersViewMode"
+      />
+    </div>
+
+    <div
+      v-else-if="!visibleFolders.length && !visibleMedia.length && !fsFiles.length && !missingMedia.length && !searchQuery && tagFilterId == null"
       class="folders-page__empty"
     >
       <div
@@ -575,7 +614,7 @@
     </div>
 
     <div
-      v-else-if="!loading && !visibleFolders.length && !visibleMedia.length && !fsFiles.length && !missingMedia.length && (searchQuery || tagFilterId != null)"
+      v-else-if="!visibleFolders.length && !visibleMedia.length && !fsFiles.length && !missingMedia.length && (searchQuery || tagFilterId != null)"
       class="folders-page__empty"
     >
       <div
@@ -840,6 +879,7 @@ import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRoute, useRouter} from 'vue-router'
 import {useDisplay} from 'vuetify'
+import FoldersBrowseSkeleton from '@/components/folders/FoldersBrowseSkeleton.vue'
 import FoldersVirtualGrid from '@/components/folders/FoldersVirtualGrid.vue'
 import FolderTagsMenu from '@/components/dialogs/FolderTagsMenu.vue'
 import DialogFolderTagsManager from '@/components/dialogs/DialogFolderTagsManager.vue'
@@ -947,6 +987,7 @@ type FoldersPageState = {
   /** @deprecated prefer viewMode */
   listMode?: boolean
   viewMode?: FoldersViewMode
+  showFiltersPanel?: boolean
   path?: string | null
   libraryPath?: string | null
   filesystemPath?: string
@@ -989,6 +1030,7 @@ const presenceFilter = ref<PresenceFilter>(
     : 'all',
 )
 const showAppearancePanel = ref(false)
+const showFiltersPanel = ref(savedFoldersPageState.showFiltersPanel === true)
 const folderTagsByPath = ref<Record<string, FolderBrowseTagChip[]>>({})
 const tagFilterId = ref<number | null>(null)
 const coverUrlByMediaId = ref<Record<number, string>>({})
@@ -1170,6 +1212,14 @@ const entryCount = computed(() =>
     + fsFiles.value.length
     + missingMedia.value.length,
 )
+
+const activeFiltersCount = computed(() => {
+  let count = 0
+  if (mediaTypeId.value != null) count += 1
+  if (tagFilterId.value != null) count += 1
+  if (searchQuery.value.trim()) count += 1
+  return count
+})
 
 const pageTitle = computed(() => {
   if (!currentPath.value) return t('navigation.folders')
@@ -2460,6 +2510,10 @@ watch(foldersViewMode, (value) => {
   }
 })
 
+watch(showFiltersPanel, (value) => {
+  writeFoldersPageState({showFiltersPanel: value})
+})
+
 watch(showHidden, () => {
   if (currentPath.value) void loadBrowse()
 })
@@ -2743,7 +2797,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding: 10px var(--deck-pad-x, 14px) 12px;
+  padding: 2px 0 4px;
 }
 
 .folders-page__search {
@@ -2900,6 +2954,10 @@ onBeforeUnmount(() => {
 
 .folders-page__progress {
   margin: 0;
+}
+
+.folders-page__skeleton {
+  padding-top: 4px;
 }
 
 .folders-page__appearance-section {
@@ -3182,7 +3240,7 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Phone only: search on its own row; filters + actions stay on the second. */
+/* Phone only: search on its own row; filter chips fill the rest. */
 @media (max-width: 599px) {
   .folders-page__search {
     max-width: none;
@@ -3192,6 +3250,11 @@ onBeforeUnmount(() => {
   .folders-page__filters {
     flex: 1 1 0;
     min-width: 0;
+  }
+
+  .folders-page__nav {
+    flex-wrap: wrap;
+    row-gap: 8px;
   }
 
   .folders-page__actions {
