@@ -20,7 +20,6 @@ import { formatMarkTimestamp } from '../../../shared/markTimestamp'
 import { generateVideoGrid } from '../../services/videoGrid'
 import { resolveMediaIdFromGridRequest } from '../../services/videoGridRequest'
 import { isUsableVideoThumbFile } from '../../services/videoPreviewThumb'
-import { writeFileAtomically } from '../../services/safeFileReplace'
 
 export default function createTasksVideoPreviewController(shared: TaskControllerShared) {
   const {db, dbPath, createThumbMiddle, createThumbCustom, getImageMedia} = shared
@@ -67,14 +66,12 @@ export default function createTasksVideoPreviewController(shared: TaskController
         }
       }
 
-      await writeFileAtomically(outputPath, async (tempPath) => {
-        await createThumbCustom(
-          req.body.timestamp,
-          resolvedInputPath,
-          tempPath,
-          req.body.width,
-        )
-      })
+      await createThumbCustom(
+        req.body.timestamp,
+        resolvedInputPath,
+        outputPath,
+        req.body.width,
+      )
       sendOk(res, outputPath)
     } catch (e) {
       sendAsClientError(res, e, 'Failed to create thumbnail')

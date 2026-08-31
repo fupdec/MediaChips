@@ -13,16 +13,11 @@ function isRetryableFsError(error: unknown): boolean {
 /**
  * Replace `outputPath` with `tempPath`.
  *
- * On Windows, thumbs are often still open by the UI (`/api/get-file`), so a direct
- * overwrite or rename can fail with EPERM/EBUSY. Retry unlink+rename, then fall
- * back to copyFile over the destination.
+ * Destination files are often still open by the UI (`/api/get-file`), so a direct
+ * overwrite or rename can fail with EPERM/EBUSY (especially on Windows). Retry
+ * unlink+rename, then fall back to copyFile over the destination.
  */
 export async function replaceFileWithRetry(tempPath: string, outputPath: string): Promise<void> {
-  if (process.platform !== 'win32') {
-    await fs.promises.rename(tempPath, outputPath)
-    return
-  }
-
   const attempts = 10
   let lastError: unknown
 
@@ -69,7 +64,10 @@ export async function writeFileAtomically(
   const resolved = path.normalize(outputPath)
   await fs.promises.mkdir(path.dirname(resolved), {recursive: true})
 
-  const tempPath = `${resolved}.${process.pid}.${Date.now()}.tmp`
+  const ext = path.extname(resolved)
+  const stem = ext ? resolved.slice(0, -ext.length) : resolved
+  // Keep the real extension so ffmpeg/sharp can infer the container/codec.
+  const tempPath = `${stem}.${process.pid}.${Date.now()}.tmp${ext || '.bin'}`
   try {
     await writeTemp(tempPath)
     await replaceFileWithRetry(tempPath, resolved)

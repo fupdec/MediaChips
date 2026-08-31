@@ -25,13 +25,6 @@ vi.mock('../../services/mediaPathResolver', () => ({
   resolveActiveDbFilePath: vi.fn(() => '/tmp/video.mp4'),
 }))
 
-vi.mock('../../services/safeFileReplace', () => ({
-  writeFileAtomically: vi.fn(async (_outputPath: string, writeTemp: (tempPath: string) => Promise<unknown>) => {
-    await writeTemp('/tmp/out.tmp.jpg')
-    return '/tmp/out.jpg'
-  }),
-}))
-
 vi.mock('../../services/videoPreviewThumb', () => ({
   isUsableVideoThumbFile: vi.fn(() => false),
 }))

@@ -7,6 +7,7 @@ import {
   runWithConversionLimit,
 } from '../services/mediaPostProcessQueue'
 import { getFfmpegPath, getFfprobePath } from './ffmpegPaths'
+import { writeFileAtomically } from '../services/safeFileReplace'
 import {
   acceptKeyframeHit,
   isUsableDuration,
@@ -396,25 +397,26 @@ async function extractVideoFrame({
   vf?: string
   jpegQuality?: number
 }) {
-  const args: string[] = []
+  return writeFileAtomically(output, async (tempPath) => {
+    const args: string[] = []
 
-  if (timestamp) {
-    args.push('-ss', timestamp)
-  }
+    if (timestamp) {
+      args.push('-ss', timestamp)
+    }
 
-  args.push('-i', input, '-frames:v', '1')
+    args.push('-i', input, '-frames:v', '1')
 
-  if (vf) {
-    args.push('-vf', vf)
-  }
+    if (vf) {
+      args.push('-vf', vf)
+    }
 
-  if (jpegQuality != null && /\.jpe?g$/i.test(output)) {
-    args.push('-q:v', String(jpegQuality))
-  }
+    if (jpegQuality != null && /\.jpe?g$/i.test(tempPath)) {
+      args.push('-q:v', String(jpegQuality))
+    }
 
-  pushSingleImageOutput(args, output)
-  await runFfmpeg(args)
-  return output
+    pushSingleImageOutput(args, tempPath)
+    await runFfmpeg(args)
+  })
 }
 
 async function extractVideoThumbnail({
@@ -440,24 +442,25 @@ async function extractVideoThumbnail({
     // Skip the common all-black first frame when metadata is unavailable.
   }
 
-  const args = [
-    '-ss',
-    String(seekSeconds),
-    '-i',
-    input,
-    '-vf',
-    `scale=-1:${height}`,
-    '-frames:v',
-    '1',
-  ]
+  return writeFileAtomically(outputPath, async (tempPath) => {
+    const args = [
+      '-ss',
+      String(seekSeconds),
+      '-i',
+      input,
+      '-vf',
+      `scale=-1:${height}`,
+      '-frames:v',
+      '1',
+    ]
 
-  if (jpegQuality != null && /\.jpe?g$/i.test(outputPath)) {
-    args.push('-q:v', String(jpegQuality))
-  }
+    if (jpegQuality != null && /\.jpe?g$/i.test(tempPath)) {
+      args.push('-q:v', String(jpegQuality))
+    }
 
-  pushSingleImageOutput(args, outputPath)
-  await runFfmpeg(args)
-  return outputPath
+    pushSingleImageOutput(args, tempPath)
+    await runFfmpeg(args)
+  })
 }
 
 /** Extract embedded album art / attached picture as a JPEG cover thumb. */
@@ -472,22 +475,23 @@ async function extractAudioCoverArt({
   height?: number
   jpegQuality?: number
 }) {
-  const args = [
-    '-i',
-    input,
-    '-an',
-    '-map',
-    '0:v:0',
-    '-vf',
-    `scale=-1:${height}`,
-    '-frames:v',
-    '1',
-    '-q:v',
-    String(jpegQuality),
-  ]
-  pushSingleImageOutput(args, outputPath)
-  await runFfmpeg(args)
-  return outputPath
+  return writeFileAtomically(outputPath, async (tempPath) => {
+    const args = [
+      '-i',
+      input,
+      '-an',
+      '-map',
+      '0:v:0',
+      '-vf',
+      `scale=-1:${height}`,
+      '-frames:v',
+      '1',
+      '-q:v',
+      String(jpegQuality),
+    ]
+    pushSingleImageOutput(args, tempPath)
+    await runFfmpeg(args)
+  })
 }
 
 async function combineVideoFrames({
@@ -503,20 +507,22 @@ async function combineVideoFrames({
   mapLabel?: string
   jpegQuality?: number
 }) {
-  const args = ['-y']
+  await writeFileAtomically(output, async (tempPath) => {
+    const args = ['-y']
 
-  for (const input of inputs) {
-    args.push('-i', input)
-  }
+    for (const input of inputs) {
+      args.push('-i', input)
+    }
 
-  args.push('-filter_complex', filterComplex, '-map', mapLabel)
+    args.push('-filter_complex', filterComplex, '-map', mapLabel)
 
-  if (jpegQuality != null && /\.jpe?g$/i.test(output)) {
-    args.push('-q:v', String(jpegQuality))
-  }
+    if (jpegQuality != null && /\.jpe?g$/i.test(tempPath)) {
+      args.push('-q:v', String(jpegQuality))
+    }
 
-  pushSingleImageOutput(args, output, {overwrite: false})
-  await runFfmpeg(args)
+    pushSingleImageOutput(args, tempPath, {overwrite: false})
+    await runFfmpeg(args)
+  })
 }
 
 async function cutVideoSegment({

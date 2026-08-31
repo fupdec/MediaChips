@@ -5,6 +5,7 @@
 
 import type {AlignSampleImage} from './faceAlignMath'
 import type {FaceQualityImage} from './faceBoxQuality'
+import {writeFileAtomically} from './safeFileReplace'
 
 export type FaceRasterImage = AlignSampleImage & FaceQualityImage
 
@@ -113,15 +114,17 @@ export async function writeFaceRasterJpeg(
   quality = 90,
 ): Promise<void> {
   const sharp = await getSharp()
-  await sharp(Buffer.from(image.bitmap.data), {
-    raw: {
-      width: image.width,
-      height: image.height,
-      channels: 4,
-    },
+  await writeFileAtomically(outputPath, async (tempPath) => {
+    await sharp(Buffer.from(image.bitmap.data), {
+      raw: {
+        width: image.width,
+        height: image.height,
+        channels: 4,
+      },
+    })
+      .jpeg({quality, mozjpeg: true})
+      .toFile(tempPath)
   })
-    .jpeg({quality, mozjpeg: true})
-    .toFile(outputPath)
 }
 
 export async function cropFaceRasterToJpeg(
@@ -131,21 +134,23 @@ export async function cropFaceRasterToJpeg(
   quality = 90,
 ): Promise<void> {
   const sharp = await getSharp()
-  await sharp(Buffer.from(image.bitmap.data), {
-    raw: {
-      width: image.width,
-      height: image.height,
-      channels: 4,
-    },
-  })
-    .extract({
-      left: Math.max(0, Math.floor(rect.left)),
-      top: Math.max(0, Math.floor(rect.top)),
-      width: Math.max(1, Math.floor(rect.width)),
-      height: Math.max(1, Math.floor(rect.height)),
+  await writeFileAtomically(outputPath, async (tempPath) => {
+    await sharp(Buffer.from(image.bitmap.data), {
+      raw: {
+        width: image.width,
+        height: image.height,
+        channels: 4,
+      },
     })
-    .jpeg({quality, mozjpeg: true})
-    .toFile(outputPath)
+      .extract({
+        left: Math.max(0, Math.floor(rect.left)),
+        top: Math.max(0, Math.floor(rect.top)),
+        width: Math.max(1, Math.floor(rect.width)),
+        height: Math.max(1, Math.floor(rect.height)),
+      })
+      .jpeg({quality, mozjpeg: true})
+      .toFile(tempPath)
+  })
 }
 
 export async function containPathToJpeg(
@@ -155,12 +160,14 @@ export async function containPathToJpeg(
   quality = 90,
 ): Promise<void> {
   const sharp = await getSharp()
-  await sharp(imagePath)
-    .rotate()
-    .resize(size, size, {
-      fit: 'contain',
-      background: {r: 0, g: 0, b: 0, alpha: 1},
-    })
-    .jpeg({quality, mozjpeg: true})
-    .toFile(outputPath)
+  await writeFileAtomically(outputPath, async (tempPath) => {
+    await sharp(imagePath)
+      .rotate()
+      .resize(size, size, {
+        fit: 'contain',
+        background: {r: 0, g: 0, b: 0, alpha: 1},
+      })
+      .jpeg({quality, mozjpeg: true})
+      .toFile(tempPath)
+  })
 }

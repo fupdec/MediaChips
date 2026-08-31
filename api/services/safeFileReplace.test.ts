@@ -26,7 +26,7 @@ describe('safeFileReplace', () => {
     })
 
     expect(fs.readFileSync(target, 'utf8')).toBe('poster-bytes')
-    expect(fs.readdirSync(tmpDir).filter((name) => name.endsWith('.tmp'))).toEqual([])
+    expect(fs.readdirSync(tmpDir).filter((name) => name.includes('.tmp'))).toEqual([])
   })
 
   it('replaces an existing file', async () => {
@@ -44,5 +44,45 @@ describe('safeFileReplace', () => {
     )
 
     expect(fs.readFileSync(target, 'utf8')).toBe('new')
+  })
+
+  it('overwrites a locked destination via copy fallback when rename fails', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-safe-replace-'))
+    const target = path.join(tmpDir, 'out.jpg')
+    const temp = path.join(tmpDir, 'out.jpg.tmp')
+    fs.writeFileSync(target, 'old')
+    fs.writeFileSync(temp, 'new')
+
+    // Simulate a destination that survives unlink but accepts copyFile.
+    const originalUnlink = fs.promises.unlink
+    const originalRename = fs.promises.rename
+    let unlinkCalls = 0
+    let renameCalls = 0
+    fs.promises.unlink = (async (filePath: fs.PathLike) => {
+      unlinkCalls += 1
+      if (String(filePath) === target) {
+        const err = new Error('EPERM') as NodeJS.ErrnoException
+        err.code = 'EPERM'
+        throw err
+      }
+      return originalUnlink(filePath)
+    }) as typeof fs.promises.unlink
+    fs.promises.rename = (async () => {
+      renameCalls += 1
+      const err = new Error('EPERM') as NodeJS.ErrnoException
+      err.code = 'EPERM'
+      throw err
+    }) as typeof fs.promises.rename
+
+    try {
+      await replaceFileWithRetry(temp, target)
+      expect(fs.readFileSync(target, 'utf8')).toBe('new')
+      expect(unlinkCalls).toBeGreaterThan(0)
+      expect(renameCalls).toBeGreaterThan(0)
+      expect(fs.existsSync(temp)).toBe(false)
+    } finally {
+      fs.promises.unlink = originalUnlink
+      fs.promises.rename = originalRename
+    }
   })
 })
