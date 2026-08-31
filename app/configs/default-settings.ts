@@ -68,7 +68,7 @@ const Settings = [  {
   },
   {
     "option": "headerGradient",
-    "value": 0
+    "value": 1
   },
   {
     "option": "colorScroll",
