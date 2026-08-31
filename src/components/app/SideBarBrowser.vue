@@ -201,261 +201,259 @@
 
     <div
       v-else
-      class="sidebar-browser__scroll scrollable vertical"
+      class="sidebar-browser__expanded"
     >
-      <div class="scrollable-child">
-        <v-list
-          nav
-          density="compact"
-          class="sidebar-browser__nav"
-        >
-          <div class="sidebar-section sidebar-section--actions sidebar-section--library">
-            <span class="sidebar-section__label">{{ t('navigation.section_library') }}</span>
-            <div class="sidebar-section__actions">
-              <v-btn
-                icon
-                size="x-small"
-                data-feature-hint="edit-library-nav"
-                :variant="libraryEditMode ? 'flat' : 'text'"
-                :color="libraryEditMode ? 'primary' : undefined"
-                :aria-label="libraryEditMode
-                  ? t('navigation.done_editing_menu')
-                  : t('navigation.edit_menu_items')"
-                @click="libraryEditMode = !libraryEditMode"
-              >
-                <v-tooltip activator="parent" location="bottom">
-                  {{ libraryEditMode
-                    ? t('navigation.done_editing_menu')
-                    : t('navigation.edit_menu_items') }}
-                </v-tooltip>
-                <v-icon size="16">
-                  {{ libraryEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
-                </v-icon>
-              </v-btn>
-              <v-btn
-                icon
-                size="x-small"
-                variant="text"
-                :aria-label="t('browser_layout.collapse_sidebar')"
-                @click="toggleCollapsed"
-              >
-                <v-tooltip activator="parent" location="bottom">
-                  <span class="d-inline-flex align-center ga-2">
-                    <span>{{ t('browser_layout.collapse_sidebar') }}</span>
-                    <v-hotkey keys="b" variant="flat"/>
-                  </span>
-                </v-tooltip>
-                <v-icon size="16">mdi-chevron-left</v-icon>
-              </v-btn>
-            </div>
-          </div>
-
-          <Draggable
-            v-model="libraryEditRows"
-            item-key="key"
-            handle=".sidebar-browser__library-drag"
-            :animation="200"
-            ghost-class="sidebar-browser__library-ghost"
-            :disabled="!libraryEditMode"
-            @start="libraryDragging = true"
-            @end="onLibraryReorderEnd"
+      <div class="sidebar-browser__scroll scrollable vertical">
+        <div class="scrollable-child">
+          <v-list
+            nav
+            density="compact"
+            class="sidebar-browser__nav"
           >
-            <template #item="{element: link}">
-              <v-list-item
-                v-show="libraryEditMode || !link.hidden"
-                :to="libraryEditMode ? undefined : link.to"
-                :title="link.title"
-                :exact="link.exact"
-                :active="!libraryEditMode && isNavLinkActive(link)"
-                :ripple="!libraryEditMode"
-                color="primary"
-                :link="!libraryEditMode"
-                class="sidebar-browser__library-item"
-                :class="{
-                  'sidebar-browser__library-item--editing': libraryEditMode,
-                  'sidebar-browser__library-item--hidden': link.hidden,
-                }"
-              >
-                <template #prepend>
-                  <v-icon
-                    v-if="libraryEditMode"
-                    size="16"
-                    class="sidebar-browser__library-drag text-medium-emphasis"
-                    :aria-label="t('navigation.reorder_library_item')"
-                  >
-                    mdi-drag-vertical
-                  </v-icon>
-                  <v-icon
-                    :icon="link.icon"
-                    size="24"
-                  />
-                </template>
-                <template
-                  v-if="!libraryEditMode && navCount(link.key) != null"
-                  #append
-                >
-                  <span class="sidebar-browser__nav-count">{{ navCount(link.key) }}</span>
-                </template>
-                <template
-                  v-else-if="libraryEditMode"
-                  #append
-                >
-                  <v-btn
-                    icon
-                    size="x-small"
-                    variant="text"
-                    :aria-label="link.hidden
-                      ? t('meta.settings.show_in_navigation')
-                      : t('meta.settings.hide_in_navigation')"
-                    :disabled="togglingLibraryKey === link.key"
-                    @click.stop="onToggleLibraryHidden(link.key)"
-                  >
-                    <v-icon size="16">
-                      {{ link.hidden ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
-                    </v-icon>
-                  </v-btn>
-                </template>
-              </v-list-item>
-            </template>
-          </Draggable>
-        </v-list>
-
-        <div class="sidebar-browser__tags">
-          <div class="sidebar-section sidebar-section--actions sidebar-section--tags">
-            <span class="sidebar-section__label">{{ t('navigation.section_tags') }}</span>
-            <div class="sidebar-section__actions">
-              <v-btn
-                icon
-                size="x-small"
-                variant="text"
-                :aria-label="tagsAllExpanded
-                  ? t('browser_layout.collapse_all_categories')
-                  : t('browser_layout.expand_all_categories')"
-                @click="toggleAllTagCategories"
-              >
-                <v-tooltip activator="parent" location="bottom">
-                  {{ tagsAllExpanded
-                    ? t('browser_layout.collapse_all_categories')
-                    : t('browser_layout.expand_all_categories') }}
-                </v-tooltip>
-                <v-icon size="16">
-                  {{ tagsAllExpanded ? 'mdi-unfold-less-horizontal' : 'mdi-unfold-more-horizontal' }}
-                </v-icon>
-              </v-btn>
-              <v-btn
-                icon
-                size="x-small"
-                :variant="tagsEditMode ? 'flat' : 'text'"
-                :color="tagsEditMode ? 'primary' : undefined"
-                :aria-label="tagsEditMode
-                  ? t('navigation.done_editing_menu')
-                  : t('navigation.edit_menu_items')"
-                @click="tagsEditMode = !tagsEditMode"
-              >
-                <v-tooltip activator="parent" location="bottom">
-                  {{ tagsEditMode
+            <div class="sidebar-section sidebar-section--actions sidebar-section--library">
+              <span class="sidebar-section__label">{{ t('navigation.section_library') }}</span>
+              <div class="sidebar-section__actions">
+                <v-btn
+                  icon
+                  size="x-small"
+                  data-feature-hint="edit-library-nav"
+                  :variant="libraryEditMode ? 'flat' : 'text'"
+                  :color="libraryEditMode ? 'primary' : undefined"
+                  :aria-label="libraryEditMode
                     ? t('navigation.done_editing_menu')
-                    : t('navigation.edit_menu_items') }}
-                </v-tooltip>
-                <v-icon size="16">
-                  {{ tagsEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
-                </v-icon>
-              </v-btn>
-              <v-btn
-                icon
-                size="x-small"
-                variant="text"
-                :aria-label="t('all_tags.add_category')"
-                @click="openCreateCategoryFromSidebar"
-              >
-                <v-tooltip activator="parent" location="bottom">
-                  {{ t('all_tags.add_category') }}
-                </v-tooltip>
-                <v-icon size="16">mdi-plus</v-icon>
-              </v-btn>
-              <v-btn
-                icon
-                size="x-small"
-                :to="allTagsLink.to"
-                :exact="allTagsLink.exact"
-                :variant="isAllTagsActive ? 'flat' : 'text'"
-                :color="isAllTagsActive ? 'primary' : undefined"
-                :aria-label="allTagsLink.title"
-              >
-                <v-tooltip activator="parent" location="bottom">
-                  {{ allTagsLink.title }}
-                </v-tooltip>
-                <v-icon size="16">{{ allTagsLink.icon }}</v-icon>
-              </v-btn>
+                    : t('navigation.edit_menu_items')"
+                  @click="libraryEditMode = !libraryEditMode"
+                >
+                  <v-tooltip activator="parent" location="bottom">
+                    {{ libraryEditMode
+                      ? t('navigation.done_editing_menu')
+                      : t('navigation.edit_menu_items') }}
+                  </v-tooltip>
+                  <v-icon size="16">
+                    {{ libraryEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
+                  </v-icon>
+                </v-btn>
+                <v-btn
+                  icon
+                  size="x-small"
+                  variant="text"
+                  :aria-label="t('browser_layout.collapse_sidebar')"
+                  @click="toggleCollapsed"
+                >
+                  <v-tooltip activator="parent" location="bottom">
+                    <span class="d-inline-flex align-center ga-2">
+                      <span>{{ t('browser_layout.collapse_sidebar') }}</span>
+                      <v-hotkey keys="b" variant="flat"/>
+                    </span>
+                  </v-tooltip>
+                  <v-icon size="16">mdi-chevron-left</v-icon>
+                </v-btn>
+              </div>
             </div>
-          </div>
 
-          <div class="sidebar-browser__tags-panel">
-            <SidebarTagsBrowser
-              ref="tagsBrowserRef"
-              :edit-mode="tagsEditMode"
-              @all-expanded-change="tagsAllExpanded = $event"
-            />
+            <Draggable
+              v-model="libraryEditRows"
+              item-key="key"
+              handle=".sidebar-browser__library-drag"
+              :animation="200"
+              ghost-class="sidebar-browser__library-ghost"
+              :disabled="!libraryEditMode"
+              @start="libraryDragging = true"
+              @end="onLibraryReorderEnd"
+            >
+              <template #item="{element: link}">
+                <v-list-item
+                  v-show="libraryEditMode || !link.hidden"
+                  :to="libraryEditMode ? undefined : link.to"
+                  :title="link.title"
+                  :exact="link.exact"
+                  :active="!libraryEditMode && isNavLinkActive(link)"
+                  :ripple="!libraryEditMode"
+                  color="primary"
+                  :link="!libraryEditMode"
+                  class="sidebar-browser__library-item"
+                  :class="{
+                    'sidebar-browser__library-item--editing': libraryEditMode,
+                    'sidebar-browser__library-item--hidden': link.hidden,
+                  }"
+                >
+                  <template #prepend>
+                    <v-icon
+                      v-if="libraryEditMode"
+                      size="16"
+                      class="sidebar-browser__library-drag text-medium-emphasis"
+                      :aria-label="t('navigation.reorder_library_item')"
+                    >
+                      mdi-drag-vertical
+                    </v-icon>
+                    <v-icon
+                      :icon="link.icon"
+                      size="24"
+                    />
+                  </template>
+                  <template
+                    v-if="!libraryEditMode && navCount(link.key) != null"
+                    #append
+                  >
+                    <span class="sidebar-browser__nav-count">{{ navCount(link.key) }}</span>
+                  </template>
+                  <template
+                    v-else-if="libraryEditMode"
+                    #append
+                  >
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      :aria-label="link.hidden
+                        ? t('meta.settings.show_in_navigation')
+                        : t('meta.settings.hide_in_navigation')"
+                      :disabled="togglingLibraryKey === link.key"
+                      @click.stop="onToggleLibraryHidden(link.key)"
+                    >
+                      <v-icon size="16">
+                        {{ link.hidden ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
+                      </v-icon>
+                    </v-btn>
+                  </template>
+                </v-list-item>
+              </template>
+            </Draggable>
+          </v-list>
+
+          <div class="sidebar-browser__tags">
+            <div class="sidebar-section sidebar-section--actions sidebar-section--tags">
+              <span class="sidebar-section__label">{{ t('navigation.section_tags') }}</span>
+              <div class="sidebar-section__actions">
+                <v-btn
+                  icon
+                  size="x-small"
+                  variant="text"
+                  :aria-label="tagsAllExpanded
+                    ? t('browser_layout.collapse_all_categories')
+                    : t('browser_layout.expand_all_categories')"
+                  @click="toggleAllTagCategories"
+                >
+                  <v-tooltip activator="parent" location="bottom">
+                    {{ tagsAllExpanded
+                      ? t('browser_layout.collapse_all_categories')
+                      : t('browser_layout.expand_all_categories') }}
+                  </v-tooltip>
+                  <v-icon size="16">
+                    {{ tagsAllExpanded ? 'mdi-unfold-less-horizontal' : 'mdi-unfold-more-horizontal' }}
+                  </v-icon>
+                </v-btn>
+                <v-btn
+                  icon
+                  size="x-small"
+                  :variant="tagsEditMode ? 'flat' : 'text'"
+                  :color="tagsEditMode ? 'primary' : undefined"
+                  :aria-label="tagsEditMode
+                    ? t('navigation.done_editing_menu')
+                    : t('navigation.edit_menu_items')"
+                  @click="tagsEditMode = !tagsEditMode"
+                >
+                  <v-tooltip activator="parent" location="bottom">
+                    {{ tagsEditMode
+                      ? t('navigation.done_editing_menu')
+                      : t('navigation.edit_menu_items') }}
+                  </v-tooltip>
+                  <v-icon size="16">
+                    {{ tagsEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
+                  </v-icon>
+                </v-btn>
+                <v-btn
+                  icon
+                  size="x-small"
+                  variant="text"
+                  :aria-label="t('all_tags.add_category')"
+                  @click="openCreateCategoryFromSidebar"
+                >
+                  <v-tooltip activator="parent" location="bottom">
+                    {{ t('all_tags.add_category') }}
+                  </v-tooltip>
+                  <v-icon size="16">mdi-plus</v-icon>
+                </v-btn>
+                <v-btn
+                  icon
+                  size="x-small"
+                  :to="allTagsLink.to"
+                  :exact="allTagsLink.exact"
+                  :variant="isAllTagsActive ? 'flat' : 'text'"
+                  :color="isAllTagsActive ? 'primary' : undefined"
+                  :aria-label="allTagsLink.title"
+                >
+                  <v-tooltip activator="parent" location="bottom">
+                    {{ allTagsLink.title }}
+                  </v-tooltip>
+                  <v-icon size="16">{{ allTagsLink.icon }}</v-icon>
+                </v-btn>
+              </div>
+            </div>
+
+            <div class="sidebar-browser__tags-panel">
+              <SidebarTagsBrowser
+                ref="tagsBrowserRef"
+                :edit-mode="tagsEditMode"
+                @all-expanded-change="tagsAllExpanded = $event"
+              />
+            </div>
           </div>
         </div>
-
-        <v-list
-          nav
-          density="compact"
-          class="sidebar-browser__system"
-        >
-          <v-list-subheader class="sidebar-section">
-            {{ t('navigation.section_system') }}
-          </v-list-subheader>
-
-          <v-list-item
-            :to="settingsLink.to"
-            :prepend-icon="settingsLink.icon"
-            :title="settingsLink.title"
-            :active="isSettingsActive"
-            color="primary"
-            link
-          />
-
-          <v-list-item
-            v-if="showTrash"
-            :prepend-icon="trashLink.icon"
-            :title="trashLink.title"
-            @click="openTrash()"
-          />
-
-          <v-list-item
-            v-if="showInbox"
-            :disabled="watcherBusy"
-            :title="t('media_inbox.nav')"
-            @click="openInbox()"
-            @mouseover="inboxHovered = true"
-            @mouseleave="inboxHovered = false"
-          >
-            <template #prepend>
-              <v-badge
-                v-if="!watcherBusy"
-                :content="inboxBadgeCount"
-                :model-value="inboxBadgeCount > 0"
-                :dot="!inboxHovered"
-                color="success"
-                location="top right"
-              >
-                <v-badge
-                  :content="inboxLostCount"
-                  :model-value="inboxLostCount > 0"
-                  :dot="!inboxHovered"
-                  color="error"
-                  location="bottom right"
-                >
-                  <v-icon icon="mdi-inbox-outline"/>
-                </v-badge>
-              </v-badge>
-              <v-icon v-else icon="mdi-inbox-outline"/>
-            </template>
-          </v-list-item>
-        </v-list>
       </div>
+
+      <v-list
+        nav
+        density="compact"
+        class="sidebar-browser__system"
+      >
+        <v-list-item
+          :to="settingsLink.to"
+          :prepend-icon="settingsLink.icon"
+          :title="settingsLink.title"
+          :active="isSettingsActive"
+          color="primary"
+          link
+        />
+
+        <v-list-item
+          v-if="showTrash"
+          :prepend-icon="trashLink.icon"
+          :title="trashLink.title"
+          @click="openTrash()"
+        />
+
+        <v-list-item
+          v-if="showInbox"
+          :disabled="watcherBusy"
+          :title="t('media_inbox.nav')"
+          @click="openInbox()"
+          @mouseover="inboxHovered = true"
+          @mouseleave="inboxHovered = false"
+        >
+          <template #prepend>
+            <v-badge
+              v-if="!watcherBusy"
+              :content="inboxBadgeCount"
+              :model-value="inboxBadgeCount > 0"
+              :dot="!inboxHovered"
+              color="success"
+              location="top right"
+            >
+              <v-badge
+                :content="inboxLostCount"
+                :model-value="inboxLostCount > 0"
+                :dot="!inboxHovered"
+                color="error"
+                location="bottom right"
+              >
+                <v-icon icon="mdi-inbox-outline"/>
+              </v-badge>
+            </v-badge>
+            <v-icon v-else icon="mdi-inbox-outline"/>
+          </template>
+        </v-list-item>
+      </v-list>
     </div>
   </v-navigation-drawer>
 </template>
@@ -842,10 +840,16 @@ watch(
   flex-shrink: 0;
 }
 
-.sidebar-browser__scroll {
-  flex: 1;
+.sidebar-browser__expanded {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   min-height: 0;
-  height: auto;
+}
+
+.sidebar-browser__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .sidebar-section {
@@ -917,13 +921,21 @@ watch(
   gap: 4px;
 }
 
+.sidebar-browser__tags {
+  /* Match .v-list--nav horizontal padding so the Tags label lines up with Library */
+  padding-inline: 8px;
+}
+
 .sidebar-browser__tags-panel {
   margin: 0 0 4px;
   padding-inline: 8px;
 }
 
 .sidebar-browser__system {
+  flex-shrink: 0;
+  padding-top: 8px;
   padding-bottom: 12px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }
 
 .sidebar-browser__nav-count {
