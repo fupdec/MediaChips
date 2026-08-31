@@ -929,7 +929,7 @@ const de = {
     feedback_email: 'Ihre E-Mail *',
     feedback_subject: 'Betreff',
     feedback_message: 'Nachricht *',
-    feedback_system_info: 'App-Version: {version} · Betriebssystem: {os}',
+    feedback_system_info: 'App-Version: {version} · Betriebssystem: {os} {osVersion}',
     feedback_system_info_privacy: 'Diese Informationen werden nur an den Entwickler weitergegeben.',
     feedback_screenshots: 'Screenshots',
     feedback_screenshots_hint: 'Optional. Bis zu 3 Bilder, jeweils 5 MB.',

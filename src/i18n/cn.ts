@@ -929,7 +929,7 @@ const cn = {
     feedback_email: '您的邮箱 *',
     feedback_subject: '主题',
     feedback_message: '消息 *',
-    feedback_system_info: '应用版本：{version} · 操作系统：{os}',
+    feedback_system_info: '应用版本：{version} · 操作系统：{os} {osVersion}',
     feedback_system_info_privacy: '此信息仅开发者可见。',
     feedback_screenshots: '截图',
     feedback_screenshots_hint: '可选。最多 3 张图片，每张不超过 5 MB。',

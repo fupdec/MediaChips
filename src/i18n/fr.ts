@@ -929,7 +929,7 @@ const fr = {
     feedback_email: 'Votre email *',
     feedback_subject: 'Sujet',
     feedback_message: 'Message*',
-    feedback_system_info: 'Version de l\'application : {version} · Système d\'exploitation : {os}',
+    feedback_system_info: 'Version de l\'application : {version} · Système d\'exploitation : {os} {osVersion}',
     feedback_system_info_privacy: 'Ces informations sont partagées uniquement avec le développeur.',
     feedback_screenshots: 'Captures d\'écran',
     feedback_screenshots_hint: 'Facultatif. Jusqu\'à 3 images, 5 MB chacune.',

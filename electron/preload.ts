@@ -481,7 +481,8 @@ contextBridge.exposeInMainWorld('osAPI', {
   tmpdir: os.tmpdir(),
   arch: os.arch(),
   type: os.type(),
-  version: os.version()
+  version: os.version(),
+  systemVersion: process.getSystemVersion(),
 });
 
 // Экспортируем версию

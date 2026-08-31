@@ -93,7 +93,11 @@
           />
 
           <p class="text-caption text-medium-emphasis mt-4 mb-0">
-            {{ t('home.feedback_system_info', {version: store.appVersion, os: feedbackOs}) }}
+            {{ t('home.feedback_system_info', {
+              version: store.appVersion,
+              os: feedbackSystemInfo.os,
+              osVersion: feedbackOsVersionLabel,
+            }) }}
             <br>
             {{ t('home.feedback_system_info_privacy') }}
           </p>
@@ -180,18 +184,35 @@ const platformLabels: Record<string, string> = {
   linux: 'Linux',
 }
 
-function getFeedbackOs() {
+function getFeedbackSystemInfo() {
   if (window.osAPI) {
-    const {platform, version, arch} = window.osAPI
-    const name = platformLabels[platform] || platform
-    return `${name} ${version} (${arch})`
+    const {platform, systemVersion, version, arch} = window.osAPI
+    return {
+      os: platformLabels[platform] || platform,
+      osVersion: systemVersion || '',
+      arch: arch || '',
+      legacyKernelVersion: version || '',
+    }
   }
 
   const uaData = (navigator as Navigator & {userAgentData?: {platform?: string}}).userAgentData
-  return uaData?.platform || navigator.platform || 'Unknown'
+  return {
+    os: uaData?.platform || navigator.platform || 'Unknown',
+    osVersion: '',
+    arch: '',
+    legacyKernelVersion: '',
+  }
 }
 
-const feedbackOs = computed(() => getFeedbackOs())
+const feedbackSystemInfo = computed(() => getFeedbackSystemInfo())
+
+const feedbackOsVersionLabel = computed(() => {
+  const {osVersion, arch, legacyKernelVersion} = feedbackSystemInfo.value
+  const version = osVersion || legacyKernelVersion
+  if (!version) return arch ? `(${arch})` : ''
+  return arch ? `${version} (${arch})` : version
+})
+
 const isFeedbackValid = computed(() => {
   const email = feedback.email.trim()
   return Boolean(feedback.name.trim() && /^\S+@\S+\.\S+$/.test(email) && feedback.message.trim())
@@ -241,7 +262,13 @@ async function sendFeedback() {
     formData.append('subject', feedback.subject.trim())
     formData.append('message', feedback.message.trim())
     formData.append('appVersion', store.appVersion)
-    formData.append('os', feedbackOs.value)
+    formData.append('os', feedbackSystemInfo.value.os)
+    if (feedbackSystemInfo.value.osVersion) {
+      formData.append('osVersion', feedbackSystemInfo.value.osVersion)
+    }
+    if (feedbackSystemInfo.value.arch) {
+      formData.append('arch', feedbackSystemInfo.value.arch)
+    }
 
     for (const screenshot of feedback.screenshots || []) {
       formData.append('screenshots[]', screenshot, screenshot.name)

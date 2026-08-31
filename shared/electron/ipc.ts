@@ -357,6 +357,7 @@ export interface ElectronOsAPI {
   arch: string
   type: string
   version: string
+  systemVersion?: string
 }
 
 export interface ElectronAppInfo {

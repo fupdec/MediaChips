@@ -929,7 +929,7 @@ const ja = {
     feedback_email: 'あなたのメールアドレス *',
     feedback_subject: '主題',
     feedback_message: 'メッセージ *',
-    feedback_system_info: 'アプリのバージョン: {version} · OS: {os}',
+    feedback_system_info: 'アプリのバージョン: {version} · OS: {os} {osVersion}',
     feedback_system_info_privacy: 'この情報は開発者のみと共有されます。',
     feedback_screenshots: 'スクリーンショット',
     feedback_screenshots_hint: 'オプション。最大 3 つの画像 (それぞれ 5 MB)。',

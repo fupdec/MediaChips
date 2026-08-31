@@ -1005,7 +1005,7 @@ const ru = {
     feedback_email: 'Ваш email *',
     feedback_subject: 'Тема',
     feedback_message: 'Сообщение *',
-    feedback_system_info: 'Версия приложения: {version} · ОС: {os}',
+    feedback_system_info: 'Версия приложения: {version} · ОС: {os} {osVersion}',
     feedback_system_info_privacy: 'Эта информация будет известна только разработчику.',
     feedback_screenshots: 'Скриншоты',
     feedback_screenshots_hint: 'Необязательно. До 3 изображений, каждое до 5 МБ.',

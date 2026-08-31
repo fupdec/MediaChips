@@ -1005,7 +1005,7 @@ const en = {
     feedback_email: 'Your email *',
     feedback_subject: 'Subject',
     feedback_message: 'Message *',
-    feedback_system_info: 'App version: {version} · OS: {os}',
+    feedback_system_info: 'App version: {version} · OS: {os} {osVersion}',
     feedback_system_info_privacy: 'This information is shared with the developer only.',
     feedback_screenshots: 'Screenshots',
     feedback_screenshots_hint: 'Optional. Up to 3 images, 5 MB each.',
