@@ -84,6 +84,18 @@
 
             <div class="filters-top__chrome-end">
               <v-btn
+                v-if="showTopChips"
+                class="filters-top__chrome-btn filters-top__chrome-btn--text"
+                variant="text"
+                size="small"
+                density="compact"
+                color="primary"
+                @click="handleDeactivateAllFilters"
+              >
+                {{ t('filters.deactivate_all_filters') }}
+              </v-btn>
+
+              <v-btn
                 v-if="isPanelView"
                 :color="is_filters_changed ? 'success' : 'primary'"
                 class="filters-top__chrome-btn"
@@ -100,18 +112,6 @@
                   mdi-check
                 </v-icon>
                 {{ t('common.apply') }}
-              </v-btn>
-
-              <v-btn
-                v-if="showTopChips"
-                class="filters-top__chrome-btn filters-top__chrome-btn--text"
-                variant="text"
-                size="small"
-                density="compact"
-                color="primary"
-                @click="handleDeactivateAllFilters"
-              >
-                {{ t('filters.deactivate_all_filters') }}
               </v-btn>
 
               <v-btn
@@ -809,8 +809,21 @@ const apply = async () => {
     }
   }
 
+  const join = itemsStore.filtersJoin === 'or' ? 'or' : 'and'
+  if (savedFilter?.id) {
+    try {
+      await typedApi.updateSavedFilter(Number(savedFilter.id), {filtersJoin: join})
+      itemsStore.updateState({
+        key: 'savedFilter',
+        value: {...savedFilter, filtersJoin: join},
+      })
+    } catch (error) {
+      console.error('Error saving filtersJoin:', error)
+    }
+  }
+
   itemsStore.updateState({key: "filters", value: cloneFilters(filters.value)})
-  void pageCommands.setFilters({filters: filters.value})
+  await Promise.resolve(pageCommands.setFilters({filters: filters.value}))
 }
 
 const addFilterRows = async (filterId: number | null | undefined, isSavedFilter = false) => {
@@ -838,7 +851,7 @@ const addFilterRows = async (filterId: number | null | undefined, isSavedFilter 
   }
 }
 
-const saveCurrentAsNamed = async (name: string) => {
+const saveCurrentAsNamed = async (name: string, icon?: string) => {
   const trimmed = String(name || '').trim()
   if (!trimmed) return
 
@@ -857,6 +870,8 @@ const saveCurrentAsNamed = async (name: string) => {
       size: layout.size,
       view: layout.view == null ? null : Number(layout.view),
       groupBy: layout.groupBy,
+      filtersJoin: layout.filtersJoin,
+      icon: icon ?? null,
     })
     const data = response.data
     savedFilter = Array.isArray(data) ? data[0] : data
@@ -1003,7 +1018,7 @@ watch(filtersVisible, (visible) => {
 
 .filters-top__shell {
   width: 100%;
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border: 1px solid rgba(var(--v-theme-primary), 0.18);
   border-radius: 16px;
   background: rgb(var(--v-theme-surface));
   overflow: hidden;
@@ -1017,7 +1032,7 @@ watch(filtersVisible, (visible) => {
   border: 0;
   border-radius: 0;
   background: transparent;
-  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-top: 1px solid rgba(var(--v-theme-primary), 0.18);
 }
 
 .filters-top__chrome {

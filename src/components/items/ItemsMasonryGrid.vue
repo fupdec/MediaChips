@@ -57,6 +57,7 @@ import {useVirtualMasonryWindow} from '@/composable/useVirtualMasonryWindow'
 import {setVisibleItemIds, clearVisibleItemIds} from '@/utils/visibleItemsWindow'
 import {
   estimateMasonryItemHeight,
+  estimateSquareItemHeight,
   getDistributedCardWidth,
   getGridGap,
   getLayoutMetrics,
@@ -79,6 +80,7 @@ const props = withDefaults(defineProps<{
   gridClasses?: HTMLAttributes['class']
   gridLayoutOptions?: GridLayoutOptions
   virtual?: boolean
+  squareItems?: boolean
 }>(), {
   items: () => [],
   itemsType: 'media',
@@ -91,6 +93,7 @@ const props = withDefaults(defineProps<{
   gridClasses: undefined,
   gridLayoutOptions: undefined,
   virtual: false,
+  squareItems: false,
 })
 
 const layoutRef = ref<HTMLElement | null>(null)
@@ -118,7 +121,7 @@ const {
   visibleItems,
   totalHeight,
   itemStyle,
-} = useVirtualMasonryWindow(itemsSource, layoutRef, layoutOptions, virtualEnabled)
+} = useVirtualMasonryWindow(itemsSource, layoutRef, layoutOptions, virtualEnabled, computed(() => props.squareItems))
 
 watch(
   visibleItems,
@@ -160,11 +163,12 @@ const columns = computed(() => {
 
   const items = props.items || []
   const width = colWidth.value
+  const heightFn = props.squareItems ? estimateSquareItemHeight : estimateMasonryItemHeight
 
   return packMasonryColumns(
     items,
     effectiveColumnCount.value,
-    (item) => estimateMasonryItemHeight(item, width),
+    (item) => heightFn(item, width),
     width,
     gap.value.y,
   )
@@ -245,17 +249,19 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
-.items-masonry-grid:not(.items-masonry-grid--virtual) :deep(.item.item-media.item-view-3) {
+.items-masonry-grid:not(.items-masonry-grid--virtual) :deep(.item.item-media.item-view-3),
+.items-masonry-grid:not(.items-masonry-grid--virtual) :deep(.item.item-media.item-view-6) {
   content-visibility: auto;
   contain-intrinsic-size: auto 220px;
 }
 
-.items-masonry-grid--virtual :deep(.item.item-media.item-view-3) {
+.items-masonry-grid--virtual :deep(.item.item-media.item-view-3),
+.items-masonry-grid--virtual :deep(.item.item-media.item-view-6) {
   content-visibility: visible;
   contain-intrinsic-size: unset;
 }
 
-.items-masonry-grid :deep(.item:not(.item-view-3)) {
+.items-masonry-grid :deep(.item:not(.item-view-3):not(.item-view-6)) {
   content-visibility: auto;
   contain-intrinsic-size: auto 180px;
 }

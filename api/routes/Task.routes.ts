@@ -7,6 +7,7 @@ import {
   PathPayloadSchema,
   CheckFilesPayloadSchema,
   AddMediaRequestSchema,
+  AddMediaBulkRequestSchema,
   ParsePathTagsRequestSchema,
   ApplyParseLibraryTagsRequestSchema,
   RenameFileRequestSchema,
@@ -25,6 +26,10 @@ import {
   CreateImageRequestSchema,
   CreateMarkThumbRequestSchema,
   VideoPreviewTaskRequestSchema,
+  ConvertVideosRequestSchema,
+  TestVideoSegmentRequestSchema,
+  TrimVideoRequestSchema,
+  TrimVideoDeleteOriginalRequestSchema,
   SuggestTagsRequestSchema,
   BackupNameRequestSchema,
   FaceMediaIdRequestSchema,
@@ -132,6 +137,16 @@ export default function registerRoutes(app: Express, db: ApiDb) {
     routeHandler(route, ...middlewares, lazyHandler)
   }
 
+  register('post', '/convertVideos', 'convertVideos', validateBody(ConvertVideosRequestSchema))
+  register('post', '/createTestVideoSegment', 'createTestVideoSegment', validateBody(TestVideoSegmentRequestSchema))
+  register('post', '/trimVideo', 'trimVideo', validateBody(TrimVideoRequestSchema))
+  register('post', '/trimDeleteOriginal', 'trimDeleteOriginal', validateBody(TrimVideoDeleteOriginalRequestSchema))
+  register('get', '/trim/:jobId', 'trimStatus')
+  register('post', '/trim/:jobId/cancel', 'cancelTrim')
+  register('get', '/conversion/:jobId', 'conversionStatus')
+  register('post', '/conversion/cancel-all', 'cancelAllConversions')
+  register('post', '/conversion/:jobId/cancel', 'cancelConversion')
+
   register('post', '/checkFileExists', 'checkFileExists', validateBody(PathPayloadSchema))
   register('post', '/checkFilesExists', 'checkFilesExists', validateBody(CheckFilesPayloadSchema))
   register('post', '/renameFile', 'renameFile', validateBody(RenameFileRequestSchema))
@@ -140,6 +155,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   register('post', '/getFileList', 'getFileList', validateBody(GetFileListRequestSchema))
 
   register('post', '/addMedia', 'addMedia', validateBody(AddMediaRequestSchema))
+  register('post', '/addMediaBulk', 'addMediaBulk', validateBody(AddMediaBulkRequestSchema))
   register('post', '/addMediaVideo', 'addMediaVideo', validateBody(AddMediaRequestSchema))
   register('post', '/addMediaImage', 'addMediaImage', validateBody(AddMediaRequestSchema))
   register('post', '/addMediaAudio', 'addMediaAudio', validateBody(AddMediaRequestSchema))

@@ -35,7 +35,10 @@ export function getVideoThumbOutputPath(
   mediaId: number,
   mediaTypeFolder = 'videos',
 ) {
-  return path.join(mediaPath, mediaTypeFolder, 'thumbs', `${mediaId}.jpg`)
+  // path-browserify treats `\` as a normal character; normalize Windows DB paths
+  // so thumbs land in media/videos/thumbs rather than a broken mixed path.
+  const base = String(mediaPath || '').replace(/\\/g, '/')
+  return path.join(base, mediaTypeFolder, 'thumbs', `${mediaId}.jpg`)
 }
 
 export function getMediaThumbAspectRatio(

@@ -5,7 +5,7 @@
     max-width="840"
     scrollable
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         :header="t('media.adding.folder_tags_manager_title')"
         closable

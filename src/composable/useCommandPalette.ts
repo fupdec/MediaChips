@@ -20,6 +20,8 @@ import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {buildInboxFilters} from '@/utils/homeMediaListFilters'
 import {typedApi} from '@/services/typedApi'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
+import {isFoldersRoute} from '@/composable/useBrowserLayout'
+import {useFsBrowseSelection} from '@/stores/fsBrowseSelection'
 import {
   filterCommandPaletteCommands,
   type CommandPaletteCommand,
@@ -49,12 +51,14 @@ export function useCommandPaletteCommands(options: {
     browseWithoutFocus,
     openFocusTagPage,
     applyFocusTagToMediaIds,
+    applyTrayToItems,
   } = useSessionFocusActions()
   const appShell = useAppShell()
   const nav = useLibraryNavItems()
   const {openReviewMode} = useReviewModeLauncher()
   const {openInbox} = useMediaInbox()
   const {openMediaList} = useOpenMediaList()
+  const fsSelection = useFsBrowseSelection()
 
   async function toggleTheme() {
     if (settingsStore.system_dark_mode === '1') {
@@ -185,12 +189,12 @@ export function useCommandPaletteCommands(options: {
         id: 'browse-media-created',
         title: t('commandPalette.actions.browse_media_created'),
         subtitle: t('commandPalette.actions.browse_media_created_hint'),
-        icon: 'mdi-calendar-star',
+        icon: 'mdi-calendar-plus',
         group: 'actions',
-        keywords: ['calendar', 'created', 'date', 'media created', 'timeline'],
+        keywords: ['calendar', 'created', 'date', 'added', 'date added', 'timeline', 'library'],
         run: () => {
           void openMediaList({
-            sortBy: 'mediaCreatedAt',
+            sortBy: 'createdAt',
             sortDir: 'desc',
             groupBy: 'dateDay',
           })
@@ -236,7 +240,8 @@ export function useCommandPaletteCommands(options: {
         keywords: ['selection', 'multi'],
         shortcut: 's',
         run: () => {
-          if (!isItemsLibraryRoute(router.currentRoute.value.path)) {
+          const path = router.currentRoute.value.path
+          if (!isItemsLibraryRoute(path) && !isFoldersRoute(path)) {
             const id = getDefaultMediaTypeId(appStore.mediaTypes)
             if (id != null) void router.push(`/media?mediaTypeId=${id}`)
           }
@@ -245,6 +250,7 @@ export function useCommandPaletteCommands(options: {
             itemsStore.selection = []
             itemsStore.selected_last = null
             itemsStore.selectionAnchor = null
+            if (isFoldersRoute(path)) fsSelection.clearSelection()
           }
         },
       },
@@ -300,15 +306,24 @@ export function useCommandPaletteCommands(options: {
       },
     )
 
-    if (sessionFocusStore.tag) {
-      const focusName = sessionFocusStore.tag.name
+    if (sessionFocusStore.isActive) {
+      const focusName = sessionFocusStore.namesLabel
+      const applyToSelection = () => {
+        if (!itemsStore.selection.length) return
+        const type = itemsStore.type === 'tag' ? 'tag' : 'media'
+        if (type === 'tag') {
+          void applyTrayToItems([...itemsStore.selection], 'tag')
+          return
+        }
+        void applyFocusTagToMediaIds([...itemsStore.selection])
+      }
       list.push(
         {
           id: 'session-focus-open',
           title: t('commandPalette.actions.session_focus_open', {name: focusName}),
           icon: 'mdi-bullseye-arrow',
           group: 'actions',
-          keywords: ['focus', 'session', 'tag', 'performer'],
+          keywords: ['focus', 'session', 'tag', 'performer', 'tray'],
           run: () => openFocusTagPage(),
         },
         {
@@ -316,7 +331,7 @@ export function useCommandPaletteCommands(options: {
           title: t('commandPalette.actions.session_focus_with', {name: focusName}),
           icon: 'mdi-filter-outline',
           group: 'actions',
-          keywords: ['focus', 'filter', 'tagged'],
+          keywords: ['focus', 'filter', 'tagged', 'tray'],
           run: () => { void browseWithFocus() },
         },
         {
@@ -325,7 +340,7 @@ export function useCommandPaletteCommands(options: {
           subtitle: t('commandPalette.actions.session_focus_without_hint'),
           icon: 'mdi-tag-plus-outline',
           group: 'actions',
-          keywords: ['focus', 'untagged', 'tagging'],
+          keywords: ['focus', 'untagged', 'tagging', 'tray'],
           run: () => { void browseWithoutFocus() },
         },
         {
@@ -334,19 +349,15 @@ export function useCommandPaletteCommands(options: {
           subtitle: t('commandPalette.actions.session_focus_apply_hint'),
           icon: 'mdi-tag-plus',
           group: 'actions',
-          keywords: ['focus', 'apply', 'selection'],
-          run: () => {
-            if (itemsStore.selection.length) {
-              void applyFocusTagToMediaIds([...itemsStore.selection])
-            }
-          },
+          keywords: ['focus', 'apply', 'selection', 'tray'],
+          run: applyToSelection,
         },
         {
           id: 'session-focus-clear',
           title: t('commandPalette.actions.session_focus_clear'),
           icon: 'mdi-close-circle-outline',
           group: 'actions',
-          keywords: ['focus', 'clear', 'end'],
+          keywords: ['focus', 'clear', 'end', 'tray'],
           run: () => clearFocus(),
         },
       )
@@ -362,6 +373,15 @@ export function useCommandPaletteCommands(options: {
         run: () => { void router.push('/playlists') },
       })
     }
+
+    list.push({
+      id: 'nav-folders',
+      title: t('navigation.folders'),
+      icon: 'mdi-folder-outline',
+      group: 'navigation',
+      keywords: ['folder', 'directory', 'finder', 'explorer', 'path'],
+      run: () => { void router.push('/folders') },
+    })
 
     if (nav.showMarkers.value) {
       list.push({
@@ -386,7 +406,7 @@ export function useCommandPaletteCommands(options: {
       })
     }
 
-    for (const meta of nav.metaVisible.value) {
+    for (const meta of nav.metaVisibleLeaves.value) {
       list.push({
         id: `nav-meta-${meta.id}`,
         title: meta.name || String(meta.id),

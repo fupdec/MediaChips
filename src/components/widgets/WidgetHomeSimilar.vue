@@ -11,13 +11,14 @@
 
       <div class="d-flex align-center ga-1">
         <v-btn
-          @click="loadSimilar"
+          v-tooltip:top="t('home.widgets.reshuffle')"
+          @click="reshuffle"
           :loading="loading"
           color="primary"
           icon
           size="small"
           variant="text"
-          :title="t('home.widgets.reshuffle')"
+          :aria-label="t('home.widgets.reshuffle')"
         >
           <v-icon>mdi-shuffle</v-icon>
         </v-btn>
@@ -71,11 +72,11 @@
       class="widget-home-similar__scroll"
       aria-hidden="true"
     >
-      <div
+      <HomeCardSkeleton
         v-for="index in 5"
         :key="index"
-        class="widget-home-similar__skeleton"
-        :class="{'widget-home-similar__skeleton--seed': index === 1}"
+        variant="media"
+        :seed="index === 1"
       />
     </div>
   </section>
@@ -93,6 +94,7 @@ import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {openTextMedia} from '@/utils/openTextMedia'
 import {findMediaTypeById} from '@/utils/mediaType'
 import WidgetMediaCard from '@/components/widgets/WidgetMediaCard.vue'
+import HomeCardSkeleton from '@/components/widgets/HomeCardSkeleton.vue'
 import type {HomeMediaItem} from '@/types/widgets'
 import type {ParsedHomeSimilarResponse} from '@shared/schemas/home'
 
@@ -107,15 +109,18 @@ const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const {openMediaList} = useOpenMediaList()
 
-const loading = ref(false)
+const loading = ref(true)
 const payload = ref<ParsedHomeSimilarResponse>({seed: null, seedItem: null, items: []})
 const seedItem = ref<HomeMediaItem | null>(null)
 const items = ref<HomeMediaItem[]>([])
 
-async function loadSimilar() {
+async function loadSimilar(excludeSeedId?: number | null) {
   loading.value = true
   try {
-    const res = await typedApi.getHomeSimilar({limit: props.limit})
+    const res = await typedApi.getHomeSimilar({
+      limit: props.limit,
+      ...(excludeSeedId && excludeSeedId > 0 ? {excludeSeedId} : {}),
+    })
     payload.value = res.data
     const nextSeed = (res.data.seedItem || null) as HomeMediaItem | null
     const nextItems = (res.data.items || []) as HomeMediaItem[]
@@ -181,6 +186,11 @@ function onViewAll() {
   })
 }
 
+function reshuffle() {
+  const currentId = Number(seedItem.value?.id)
+  void loadSimilar(Number.isFinite(currentId) && currentId > 0 ? currentId : null)
+}
+
 watch(() => props.limit, () => {
   void loadSimilar()
 })
@@ -215,20 +225,6 @@ onMounted(() => {
     justify-content: center;
     width: 28px;
     opacity: 0.7;
-  }
-
-  &__skeleton {
-    width: 148px;
-    flex: 0 0 148px;
-    align-self: stretch;
-    min-height: 148px;
-    border-radius: 8px;
-    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    background: rgba(var(--v-theme-on-surface), 0.06);
-
-    &--seed {
-      border-color: rgba(var(--v-theme-primary), 0.35);
-    }
   }
 }
 </style>

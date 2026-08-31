@@ -7,10 +7,11 @@
     :z-index="11000"
     @after-leave="handleAfterLeave"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="closeDialog"
         :header="dialogTitle"
+        icon="newspaper-variant-outline"
         closable
       />
 
@@ -36,8 +37,8 @@
         <v-divider v-if="entries.length > 1" vertical></v-divider>
 
         <v-card-text class="article stylish-article pt-0">
-          <v-card-title class="px-0">
-            <div class="d-flex align-center">
+          <div class="d-flex align-center flex-wrap ga-2 px-0 py-3">
+            <div class="text-subtitle-1 font-weight-medium">
               <span>{{ selected.version }}</span>
               <span v-if="selected.name" class="ml-1">({{ selected.name }})</span>
             </div>
@@ -47,7 +48,7 @@
             <span v-if="selected.date" class="text-medium-emphasis text-caption">
               {{ t('changelog.release_date', { date: formatDate(selected.date) }) }}
             </span>
-          </v-card-title>
+          </div>
 
           <div v-if="!selected.content" class="text-medium-emphasis">
             {{ t('changelog.empty') }}
@@ -57,9 +58,15 @@
         </v-card-text>
       </div>
 
-      <v-card-actions v-if="showWhatsNewActions" class="px-4 pb-4">
+      <v-card-actions v-if="showWhatsNewActions" class="px-5 pb-5 pt-1">
         <v-spacer></v-spacer>
-        <v-btn color="primary" variant="flat" @click="closeDialog">
+        <v-btn
+          color="primary"
+          variant="flat"
+          rounded="pill"
+          class="px-5"
+          @click="closeDialog"
+        >
           {{ t('changelog.got_it') }}
         </v-btn>
       </v-card-actions>

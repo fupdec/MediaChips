@@ -14,15 +14,15 @@
           rounded="xl"
           variant="flat"
           prepend-icon="mdi-plus"
-          text="Add new meta"
+          :text="t('meta.dialogs.add_new_meta')"
         ></v-btn>
       </template>
 
       <template #default>
-        <v-card>
+        <v-card rounded="xl">
           <DialogHeader
             @close="closeDialog"
-            :header="`Adding meta`"
+            :header="t('meta.dialogs.adding_meta')"
             :buttons="buttons"
             closable
           />
@@ -52,6 +52,9 @@
                 :rules="[(v) => !!v || 'Type is required']"
                 :menu-props="{ attach: '.meta-add-dialog-content' }"
                 label="Type"
+                variant="outlined"
+                density="comfortable"
+                rounded="lg"
               >
                 <template v-slot:selection="{ item }">
                   <v-icon :icon="item.raw.icon" size="16" start />
@@ -72,6 +75,10 @@
                 v-model="name"
                 :rules="[nameRules]"
                 label="Name"
+                class="mt-4"
+                variant="outlined"
+                density="comfortable"
+                rounded="lg"
               />
 
               <v-text-field
@@ -79,6 +86,10 @@
                 label="Hint"
                 hint="This text under the field is the hint"
                 persistent-hint
+                class="mt-4"
+                variant="outlined"
+                density="comfortable"
+                rounded="lg"
               />
 
               <DialogIcons
@@ -91,6 +102,9 @@
                 v-model="isLink"
                 label="Link to an Internet address"
                 hide-details
+                class="mt-2"
+                color="primary"
+                inset
               />
             </v-form>
           </v-card-text>
@@ -160,7 +174,7 @@ const initButtons = () => {
   buttons.value = [
     {
       icon: 'plus',
-      text: 'Add',
+      text: t('common.add'),
       color: 'success',
       variant: 'flat',
       action: addMeta

@@ -337,8 +337,20 @@ export function resolveLiveStreamUrlOptions(input: {
   }
 }
 
-/** Free-tier playlist depth: indices above this require registration. */
+/** @deprecated Index-based free tier removed; library size cap is used instead. */
 export const UNREGISTERED_PLAYLIST_MAX_INDEX = 14
+
+/**
+ * @deprecated Free-tier playlist depth gate removed. Prefer free library size cap.
+ * Always returns false so existing call sites stay harmless until cleaned up.
+ */
+export function shouldBlockUnregisteredPlaylistDepth(_input: {
+  registered: boolean
+  nowPlaying: number
+  maxIndex?: number
+}): boolean {
+  return false
+}
 
 export type VideoSourcePlan =
   | {kind: 'unsupported'}
@@ -451,16 +463,6 @@ export function shouldSeekDirectOnLoadSrc(input: {
   return input.explicitStart != null
     || input.targetStartTime > 0
     || input.segmentStart != null
-}
-
-/** Free-tier gate: unregistered users cannot play deep playlist indices. */
-export function shouldBlockUnregisteredPlaylistDepth(input: {
-  registered: boolean
-  nowPlaying: number
-  maxIndex?: number
-}): boolean {
-  if (input.registered) return false
-  return input.nowPlaying > (input.maxIndex ?? UNREGISTERED_PLAYLIST_MAX_INDEX)
 }
 
 /** Pick duration on loadedmetadata (never trust live chunk element duration). */

@@ -19,9 +19,6 @@
       density="compact"
     >
       {{ t('settings_labels.field_pinning.hint') }}
-      <div v-if="mode === 'from-meta' && !isMetaTypeArray" class="mt-1">
-        {{ t('meta.settings.only_array_child_meta') }}
-      </div>
     </v-alert>
 
     <v-card

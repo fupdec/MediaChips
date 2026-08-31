@@ -5,14 +5,14 @@
       type="info"
       variant="tonal"
       density="comfortable"
-      rounded="lg"
+      rounded="xl"
     >
       <div class="text-body-2 mb-2">
         {{ t('settings_labels.plugins.download_alert') }}
       </div>
       <v-btn
         color="primary"
-        rounded
+        rounded="xl"
         variant="flat"
         size="small"
         prepend-icon="mdi-open-in-new"
@@ -33,7 +33,7 @@
 
     <div class="d-flex flex-wrap ga-2 mb-4">
       <v-btn
-        rounded
+        rounded="xl"
         variant="tonal"
         prepend-icon="mdi-zip-box-outline"
         :loading="installing"
@@ -50,7 +50,7 @@
       type="error"
       variant="tonal"
       density="comfortable"
-      rounded="lg"
+      rounded="xl"
       closable
       @click:close="pluginsStore.installError = null"
     >
@@ -148,7 +148,7 @@
             <v-btn
               v-if="entry.source === 'user'"
               size="small"
-              rounded
+              rounded="xl"
               variant="text"
               color="error"
               :disabled="uninstallingId === entry.manifest.id"
@@ -164,9 +164,17 @@
 
     <div
       v-else
-      class="text-caption text-medium-emphasis mb-2"
+      class="settings-empty text-center py-10 px-4 mb-2"
     >
-      {{ t('settings_labels.plugins.empty_installed') }}
+      <div class="settings-empty__icon mb-3" aria-hidden="true">
+        <v-icon icon="mdi-puzzle-outline" size="28"/>
+      </div>
+      <div class="text-body-1 font-weight-medium mb-1">
+        {{ t('settings_labels.plugins.empty_installed') }}
+      </div>
+      <div class="text-caption text-medium-emphasis">
+        {{ t('settings_labels.plugins.empty_installed_hint') }}
+      </div>
     </div>
   </div>
 </template>
@@ -283,5 +291,24 @@ onMounted(() => {
 
 .plugins-install-steps {
   line-height: 1.5;
+}
+
+.settings-empty {
+  border-radius: 22px;
+  border: 1px dashed rgba(var(--v-theme-on-surface), 0.14);
+  background:
+    radial-gradient(80% 120% at 50% 0%, rgba(var(--v-theme-primary), 0.08), transparent 65%),
+    rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.settings-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
 }
 </style>

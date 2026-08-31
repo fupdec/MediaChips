@@ -10,6 +10,7 @@ import {
   getActiveConnection,
 } from '../db'
 import { createMediaRepository } from '../db/repositories/media'
+import { createTagsRepository } from '../db/repositories/tags'
 import createTasksMigrateFromLowDbController from '../controllers/tasks/TasksMigrateFromLowDb.controller'
 
 async function writeZip(filePath: string, entries: Record<string, string>) {
@@ -294,5 +295,80 @@ describe('migrateFromLowDb', () => {
       '/videos/other.mp4',
       '/videos/same.mp4',
     ])
+  })
+
+  it('imports duplicate tag names across categories instead of failing unique index', async () => {
+    const dbFolder = path.join(tmpDir, 'db-dup-tags')
+    const backupsFolder = path.join(dbFolder, 'backups')
+    const sqlitePath = path.join(dbFolder, 'db.sqlite')
+    fs.mkdirSync(backupsFolder, { recursive: true })
+    fs.mkdirSync(path.join(dbFolder, 'media'), { recursive: true })
+    fs.mkdirSync(path.join(dbFolder, 'meta'), { recursive: true })
+
+    const backupPath = path.join(backupsFolder, 'legacy-dup-tags.zip')
+    await writeZip(backupPath, {
+      'dbs.json': JSON.stringify({
+        folders: [],
+        metaAssignedToVideos: [{ id: 'genre' }, { id: 'people' }],
+      }),
+      'databases/dbv.json': JSON.stringify({
+        videos: [{
+          id: 1,
+          path: '/videos/clip.mp4',
+          size: 10,
+          date: '2020-01-01',
+          edit: '2020-01-01',
+          resolution: '100x100',
+          duration: 1,
+          genre: ['action'],
+          people: ['action-person'],
+        }],
+      }),
+      'databases/dbpl.json': JSON.stringify({ playlists: [] }),
+      'databases/dbm.json': JSON.stringify({ markers: [] }),
+      'databases/meta.json': JSON.stringify({
+        meta: [
+          {
+            id: 'genre',
+            type: 'simple',
+            dataType: 'array',
+            date: '2020-01-01',
+            edit: '2020-01-01',
+            settings: {
+              name: 'Genre',
+              icon: 'tag',
+              items: [{ id: 'action', name: 'Action' }],
+            },
+          },
+          {
+            id: 'people',
+            type: 'simple',
+            dataType: 'array',
+            date: '2020-01-01',
+            edit: '2020-01-01',
+            settings: {
+              name: 'People',
+              icon: 'account',
+              items: [{ id: 'action-person', name: 'action' }],
+            },
+          },
+        ],
+        cards: [],
+      }),
+    })
+
+    const db = createApiDb({
+      drizzleConnection: createDrizzleClient(sqlitePath),
+      path: dbFolder,
+    })
+    closeActiveConnection()
+
+    const controller = createTasksMigrateFromLowDbController(db)
+    await expect(controller.migrateFromLowDb(backupPath)).resolves.toBeTypeOf('string')
+
+    const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
+    const tags = tagsRepo.findAllRaw()
+    expect(tags).toHaveLength(2)
+    expect(tags.map((row) => row.name).sort()).toEqual(['Action', 'action (People)'])
   })
 })

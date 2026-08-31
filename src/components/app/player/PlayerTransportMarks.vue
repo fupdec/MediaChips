@@ -15,20 +15,21 @@
         <v-icon size="20" v-else>mdi-tooltip-outline</v-icon>
         <div class="tip">
           <span class="mr-2">{{ t('player.marks_list') }}</span>
-          <v-hotkey keys="m"/>
+          <v-hotkey keys="i"/>
         </div>
       </v-btn>
 
       <v-btn
-        @click="addMark"
-        :color="dialogsStore.markAdding.show ? 'primary' : undefined"
+        @click="toggleStudioMode"
+        :color="player.studioMode ? 'primary' : undefined"
         icon
         dark
       >
-        <v-icon v-if="dialogsStore.markAdding.show">mdi-plus-circle</v-icon>
-        <v-icon v-else>mdi-plus</v-icon>
+        <v-icon size="20">mdi-movie-open-edit-outline</v-icon>
         <div class="tip">
-          <span class="mr-2" v-html="t('player.controls.add_mark')"/>
+          <span class="mr-2">{{ t(player.studioMode ? 'player.studio_mode_on' : 'player.studio_mode') }}</span>
+          <v-hotkey keys="shift+m"/>
+          <span class="mx-1">·</span>
           <v-hotkey keys="1"/>
           ,
           <v-hotkey keys="2"/>
@@ -91,10 +92,9 @@ const {t} = useI18n()
 const {
   player,
   playerStore,
-  dialogsStore,
   density,
   toggleMarks,
-  addMark,
+  toggleStudioMode,
   jumpToMark,
   togglePlaylist,
 } = inject(PLAYER_TRANSPORT_KEY)!

@@ -12,6 +12,7 @@ export const HOME_WIDGET_IDS = [
   'markers',
   'health',
   'topTags',
+  'tagSpotlight',
 ] as const
 
 export type HomeWidgetId = typeof HOME_WIDGET_IDS[number]
@@ -41,6 +42,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
     'createdCalendar',
     'quickActions',
     'inbox',
+    'tagSpotlight',
     'continue',
     'similar',
     'favorites',
@@ -58,6 +60,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
     createdCalendar: true,
     quickActions: true,
     inbox: true,
+    tagSpotlight: true,
     continue: true,
     similar: true,
     favorites: true,

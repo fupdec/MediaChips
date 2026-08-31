@@ -54,11 +54,11 @@
             size="small"
             icon
           >
-            <v-icon>mdi-tune</v-icon>
+            <v-icon>mdi-eye-settings-outline</v-icon>
           </v-btn>
         </template>
         <span>
-        {{ t('appbar.buttons.customize') }}
+        {{ t('appbar.buttons.customize_appearance') }}
       </span>
       </v-tooltip>
 
@@ -229,10 +229,12 @@ const selectAll = async () => {
 .speed-dial-container {
   position: fixed;
   bottom: 60px;
-  right: 20px;
+  right: calc(var(--app-inspector-width, 0px) + 20px);
   width: 56px;
   height: 56px;
-  z-index: 1;
+  // Above card hover states (.item.big-preview uses z-index: 1010) so the
+  // floating action button never gets covered by a card's favorite icon.
+  z-index: 1200;
 }
 
 .speed-dial-absolute {

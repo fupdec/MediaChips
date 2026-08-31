@@ -1,5 +1,10 @@
 <template>
-  <div ref="layoutRef" class="items-virtual-grid" :style="gridStyle">
+  <div
+    ref="layoutRef"
+    class="items-virtual-grid"
+    :class="{ 'list-grid': listGrid }"
+    :style="gridStyle"
+  >
     <div
       class="virtual-grid-spacer"
       :style="{ height: `${topSpacer}px` }"
@@ -57,6 +62,7 @@ const props = withDefaults(defineProps<{
   imageGrid?: boolean
   wideImage?: boolean
   lineGrid?: boolean
+  listGrid?: boolean
   chipsGrid?: boolean
   imageAspectRatio?: number
 }>(), {
@@ -73,6 +79,7 @@ const props = withDefaults(defineProps<{
   imageGrid: false,
   wideImage: false,
   lineGrid: false,
+  listGrid: false,
   chipsGrid: false,
 })
 
@@ -85,6 +92,7 @@ const resolvedLayoutOptions = computed<GridLayoutOptions>(() => ({
   imageGrid: props.imageGrid ?? false,
   wideImage: props.wideImage ?? false,
   lineGrid: props.lineGrid ?? false,
+  listGrid: props.listGrid ?? false,
   chipsGrid: props.chipsGrid ?? false,
   imageAspectRatio: props.imageAspectRatio,
   ...props.gridLayoutOptions,
@@ -98,6 +106,7 @@ const layoutOptions = computed(() => ({
   imageGrid: props.imageGrid ?? false,
   wideImage: props.wideImage ?? false,
   lineGrid: props.lineGrid ?? false,
+  listGrid: props.listGrid ?? false,
   chipsGrid: props.chipsGrid ?? false,
   // Image cards use a fixed 16:9 estimate so locked row heights stay jump-free.
   imageAspectRatio: props.imageAspectRatio

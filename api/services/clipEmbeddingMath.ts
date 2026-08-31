@@ -106,19 +106,38 @@ export function bestTileCosineSimilarity(
 }
 
 /** Best cosine across any seed tile × any candidate tile (scene-level similar). */
+export function bestPairwiseCosineSimilarity(
+  seed: ClipEmbeddingVector[],
+  candidate: ClipEmbeddingVector[],
+): {score: number; seedTileIndex: number; tileIndex: number} {
+  if (!seed.length || !candidate.length) {
+    return {score: 0, seedTileIndex: 0, tileIndex: 0}
+  }
+  let best = -Infinity
+  let seedTileIndex = 0
+  let tileIndex = 0
+  for (let i = 0; i < seed.length; i++) {
+    for (let j = 0; j < candidate.length; j++) {
+      const score = cosineSimilarity(seed[i], candidate[j])
+      if (score > best) {
+        best = score
+        seedTileIndex = i
+        tileIndex = j
+      }
+    }
+  }
+  return {
+    score: Number.isFinite(best) ? best : 0,
+    seedTileIndex,
+    tileIndex,
+  }
+}
+
 export function maxPairwiseCosineSimilarity(
   seed: ClipEmbeddingVector[],
   candidate: ClipEmbeddingVector[],
 ): number {
-  if (!seed.length || !candidate.length) return 0
-  let best = -Infinity
-  for (const seedEmbedding of seed) {
-    for (const candidateEmbedding of candidate) {
-      const score = cosineSimilarity(seedEmbedding, candidateEmbedding)
-      if (score > best) best = score
-    }
-  }
-  return Number.isFinite(best) ? best : 0
+  return bestPairwiseCosineSimilarity(seed, candidate).score
 }
 
 export function rankByCosineSimilarity(
@@ -173,17 +192,29 @@ export function rankByMaxCosineSimilarity(
   return rankByMaxCosineSimilarityHits(query, candidates, limit).map((row) => row.id)
 }
 
+export type ClipPairwiseSimilarityHit = {
+  id: number
+  score: number
+  tileIndex: number
+  tileCount: number
+}
+
 export function rankByMaxPairwiseCosineSimilarityHits(
   seed: ClipEmbeddingVector[],
   candidates: ClipEmbeddingCandidate[],
   limit: number,
-): Array<{id: number; score: number}> {
+): ClipPairwiseSimilarityHit[] {
   if (!seed.length || limit <= 0) return []
   return candidates
-    .map((candidate) => ({
-      id: candidate.id,
-      score: maxPairwiseCosineSimilarity(seed, candidate.embeddings),
-    }))
+    .map((candidate) => {
+      const best = bestPairwiseCosineSimilarity(seed, candidate.embeddings)
+      return {
+        id: candidate.id,
+        score: best.score,
+        tileIndex: best.tileIndex,
+        tileCount: candidate.embeddings.length,
+      }
+    })
     .filter((row) => Number.isFinite(row.score))
     .sort((a, b) => b.score - a.score || a.id - b.id)
     .slice(0, limit)

@@ -9,8 +9,11 @@ import type {
   MediaThumbsRequestPayload,
   MergeMediaPayload,
 } from '@shared/api/payloads'
-import {listMediaDuplicateGroups} from '../services/mediaDuplicateGroups'
+import {
+  listMediaDuplicateGroups,
+} from '../services/mediaDuplicateGroups'
 import {mergeMediaItems} from '../services/mediaMerge'
+import {browseLibraryFolders} from '../services/mediaFolderBrowse'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import path from 'path'
@@ -69,7 +72,7 @@ export default function (db: ApiDb) {
         ? mediaTypesRepo.findById(Number(target.mediaTypeId))
         : undefined
 
-      await deleteMediaGeneratedAssets(db, getDbPath(), target, mediaType?.type || '')
+      await deleteMediaGeneratedAssets(db, getDbPath(), {id: target.id}, mediaType?.type || '')
 
       const purgePath = String(
         target.trashOriginalPath
@@ -127,6 +130,19 @@ export default function (db: ApiDb) {
     }
   };
 
+  const folderBrowse = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{path?: string | null; mediaTypeId?: number | null}>(req)
+      const result = await browseLibraryFolders(db, {
+        path: body.path,
+        mediaTypeId: body.mediaTypeId,
+      })
+      sendOk(res, result)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while browsing library folders.')
+    }
+  }
+
   const getFilteredIds = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<ItemsListRequest>(req)
@@ -138,6 +154,8 @@ export default function (db: ApiDb) {
         direction: body.direction,
         find_duplicates: body.find_duplicates,
         duplicates_by: body.duplicates_by || 'filesize',
+        includeNavigation: body.includeNavigation === true,
+        skipTotals: body.skipTotals === true,
       })
 
       sendOk(res, result)
@@ -501,6 +519,7 @@ export default function (db: ApiDb) {
     purgeExpiredTrash,
     getOneById,
     getAll,
+    folderBrowse,
     getFilteredIds,
     getBasicsByIds,
     getThumbs,

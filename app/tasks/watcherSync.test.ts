@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { promises as fs } from 'fs'
 import {
   WatcherSyncEngine,
   mapMediaRowsToDbEntries,
@@ -76,5 +77,72 @@ describe('WatcherSyncEngine', () => {
 
     expect(engine.applyFileEvent('add', '/folder-a/tmp/skip.mp4')).toBe(false)
     expect(engine.applyFileEvent('add', '/folder-a/keep.mp4')).toBe(true)
+  })
+
+  it('refreshDbPaths keeps tracked filesystem paths and does not mark them as lost', async () => {
+    findPathEntriesByMediaTypeIdsUnderFolder.mockReturnValue([
+      {id: 1, mediaTypeId: 10, path: '/folder-a/a.mp4'},
+      {id: 2, mediaTypeId: 10, path: '/folder-a/b.mp4'},
+    ])
+
+    const engine = new WatcherSyncEngine({} as never)
+    engine.setFolders([{
+      path: '/folder-a',
+      types: [{id: 10, extensions: 'mp4'}],
+    }])
+
+    engine.applyFileEvent('add', '/folder-a/a.mp4')
+    engine.applyFileEvent('add', '/folder-a/b.mp4')
+
+    await engine.refreshDbPaths()
+
+    const report = engine.getReports()[0]?.files[0]
+    expect(report?.lost).toEqual([])
+    expect(report?.new).toEqual([])
+  })
+
+  it('refreshDbPaths reconciles db entries missing from fsPaths when the file still exists', async () => {
+    findPathEntriesByMediaTypeIdsUnderFolder.mockReturnValue([
+      {id: 1, mediaTypeId: 10, path: '/folder-a/a.mp4'},
+    ])
+
+    const accessSpy = vi.spyOn(fs, 'access').mockResolvedValue(undefined)
+
+    const engine = new WatcherSyncEngine({} as never)
+    engine.setFolders([{
+      path: '/folder-a',
+      types: [{id: 10, extensions: 'mp4'}],
+    }])
+
+    await engine.refreshDbPaths()
+
+    expect(accessSpy).toHaveBeenCalledWith('/folder-a/a.mp4')
+    const report = engine.getReports()[0]?.files[0]
+    expect(report?.lost).toEqual([])
+    expect(report?.new).toEqual([])
+
+    accessSpy.mockRestore()
+  })
+
+  it('refreshDbPaths keeps genuinely missing files in lost', async () => {
+    findPathEntriesByMediaTypeIdsUnderFolder.mockReturnValue([
+      {id: 1, mediaTypeId: 10, path: '/folder-a/missing.mp4'},
+    ])
+
+    const accessSpy = vi.spyOn(fs, 'access').mockRejectedValue(new Error('ENOENT'))
+
+    const engine = new WatcherSyncEngine({} as never)
+    engine.setFolders([{
+      path: '/folder-a',
+      types: [{id: 10, extensions: 'mp4'}],
+    }])
+
+    await engine.refreshDbPaths()
+
+    const report = engine.getReports()[0]?.files[0]
+    expect(report?.lost).toEqual([{id: 1, path: '/folder-a/missing.mp4'}])
+    expect(report?.new).toEqual([])
+
+    accessSpy.mockRestore()
   })
 })

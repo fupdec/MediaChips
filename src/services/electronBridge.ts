@@ -3,6 +3,7 @@ import type {
   ElectronOperableAPI,
   OpenDialogResult,
 } from '@shared/electron/ipc'
+import type {AppMenuCheckedState} from '@shared/electron/appMenuState'
 
 export function isElectron(): boolean {
   return typeof window !== 'undefined' && Boolean(window.electronAPI)
@@ -34,6 +35,17 @@ export async function syncMinimizeToTray(enabled: boolean): Promise<void> {
     await api.invoke('set-minimize-to-tray', enabled)
   } catch (error) {
     console.error('Failed to sync minimize-to-tray setting:', error)
+  }
+}
+
+export async function syncAppMenuState(state: AppMenuCheckedState): Promise<void> {
+  const api = getElectronAPI()
+  if (!api?.invoke) return
+
+  try {
+    await api.invoke('set-app-menu-state', state)
+  } catch (error) {
+    console.error('Failed to sync app menu state:', error)
   }
 }
 

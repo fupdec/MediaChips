@@ -15,6 +15,7 @@ import {
   makeXstackLayout,
   planGridTileTimestamps,
 } from '../../shared/videoPreview'
+import { writeFileAtomically } from './safeFileReplace'
 
 function ensureDir(dirPath: string) {
   if (!fs.existsSync(dirPath)) {
@@ -66,12 +67,6 @@ export class VideoGrid {
     const outPath = path.join(this.gridsPath, this.output)
     const {tileWidth, tileHeight} = sprite
 
-    const args: string[] = ['-hide_banner', '-loglevel', 'error', '-y']
-    for (const timestamp of timestamps) {
-      // Place -ss before -i for fast keyframe seek (same as extractVideoFrame).
-      args.push('-ss', timestamp, '-i', this.input)
-    }
-
     const scales: string[] = []
     const stackPads: string[] = []
     const layouts: string[] = []
@@ -88,16 +83,24 @@ export class VideoGrid {
       `${scales.join(';')};` +
       `${stackPads.join('')}xstack=inputs=${this.tileCount}:layout=${layouts.join('|')}[v]`
 
-    args.push(
-      '-filter_complex', filterComplex,
-      '-map', '[v]',
-      '-frames:v', '1',
-      '-q:v', String(VIDEO_GRID_JPEG_QUALITY),
-      outPath,
-    )
+    await writeFileAtomically(outPath, async (tempPath) => {
+      const args: string[] = ['-hide_banner', '-loglevel', 'error', '-y']
+      for (const timestamp of timestamps) {
+        // Place -ss before -i for fast keyframe seek (same as extractVideoFrame).
+        args.push('-ss', timestamp, '-i', this.input)
+      }
 
-    // runFfmpeg already holds the global ffmpeg slot (re-entrant).
-    await runFfmpeg(args)
+      args.push(
+        '-filter_complex', filterComplex,
+        '-map', '[v]',
+        '-frames:v', '1',
+        '-q:v', String(VIDEO_GRID_JPEG_QUALITY),
+        tempPath,
+      )
+
+      // runFfmpeg already holds the global ffmpeg slot (re-entrant).
+      await runFfmpeg(args)
+    })
     return {output: this.output}
   }
 }

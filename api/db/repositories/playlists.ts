@@ -1,8 +1,10 @@
-import { asc, eq } from 'drizzle-orm'
+import { asc, eq, isNull, or } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { playlists } from '../schema/playlists'
 import { nowIso } from '../utils/timestamps'
 import { forEachChunk } from '../utils/chunk'
+
+const notDeleted = or(isNull(playlists.deletedAt), eq(playlists.deletedAt, ''))
 
 export type PlaylistRow = typeof playlists.$inferSelect
 export type PlaylistInsert = typeof playlists.$inferInsert
@@ -45,7 +47,7 @@ export function createPlaylistsRepository(db: DrizzleClient) {
     },
 
     findAll(): PlaylistRow[] {
-      return db.select().from(playlists).orderBy(asc(playlists.name)).all()
+      return db.select().from(playlists).where(notDeleted).orderBy(asc(playlists.name)).all()
     },
 
     updateById(id: number, data: Partial<PlaylistInsert>): void {

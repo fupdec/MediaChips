@@ -1,11 +1,8 @@
 import type { FilterLike } from '../types/db'
 import type { SqlParamBinder } from '../types/mediaFilter'
+import type { TagLinkContext } from './tagDescendantSql'
 
-export interface TagLinkContext {
-  table: string
-  idColumn: string
-  entityRef: string
-}
+export type { TagLinkContext }
 
 export const MEDIA_TAG_LINK: TagLinkContext = {
   table: 'tagsInMedia',

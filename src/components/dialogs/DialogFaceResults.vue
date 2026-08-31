@@ -731,6 +731,7 @@ import {
 } from '@/services/modelDownloadConsent'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
+import {createTagsInteractive} from '@/composable/createTagsInteractive'
 import {isAdultUiAvailable} from '@/services/adultFeatures'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsStore} from '@/stores/items'
@@ -1497,8 +1498,9 @@ const createTagFromFace = async (face: FaceResult) => {
   busyFaceId.value = face.id
   hideHoverImage()
   try {
-    const response = await typedApi.createTags([{name, metaId}])
-    const tagId = Number(response.data?.[0]?.id)
+    const createdTags = await createTagsInteractive([{name, metaId}])
+    const tagId = Number(createdTags?.[0]?.id)
+    if (!createdTags) return
     if (!Number.isFinite(tagId) || tagId <= 0) {
       throw new Error(t('face_results.create_tag_failed'))
     }

@@ -25,7 +25,6 @@
 </template>
 
 <script setup lang="ts">
-import path from "path-browserify"
 import {useI18n} from "vue-i18n"
 import {useAppStore} from "@/stores/app"
 import {openPath} from '@/services/shellService'
@@ -34,8 +33,8 @@ const store = useAppStore()
 const {t} = useI18n()
 
 const openFolder = () => {
+  // dbPath is already the active database directory (app_storage/<id>), not a file.
   if (!store.dbPath) return
-  const folder = path.dirname(store.dbPath)
-  openPath(folder, false)
+  openPath(store.dbPath, false)
 }
 </script>

@@ -5,54 +5,56 @@
       :model-value="dialog"
       @update:model-value="close"
       scrollable
-      width="500"
+      width="520"
     >
-      <v-card>
-        <!-- Inline DialogHeader -->
-        <v-toolbar color="primary">
-          <v-toolbar-title>{{ t('media.type.adding_media_type') }}</v-toolbar-title>
-          <v-spacer></v-spacer>
-          <v-toolbar-items>
-            <v-btn
-              color="success"
-              variant="flat"
-              @click="addMeta"
-              class="ml-2"
-            >
-              <v-icon icon="mdi-plus" start></v-icon>
-              {{ t('common.add') }}
-            </v-btn>
-            <v-btn icon @click="close">
-              <v-icon>mdi-close</v-icon>
-            </v-btn>
-          </v-toolbar-items>
-        </v-toolbar>
+      <v-card rounded="xl">
+        <DialogHeader
+          :header="t('media.type.adding_media_type')"
+          :buttons="buttons"
+          closable
+          @close="close"
+        />
 
-        <v-card-text class="pa-4">
+        <v-card-text class="pa-4 pa-sm-6">
           <v-form
             v-model="valid"
             ref="form"
             class="flex-grow-1"
             @submit.prevent
           >
-            <v-text-field v-model="name" :rules="[nameRules]" :label="t('common.name')" />
+            <v-text-field
+              v-model="name"
+              :rules="[nameRules]"
+              :label="t('common.name')"
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
+              class="mb-3"
+              hide-details="auto"
+            />
+
             <v-combobox
               v-model="extensions"
               :hide-no-data="!search"
               :items="[]"
               :rules="[v => v.length > 0 || t('common.extension_required')]"
-              v-model:search-input="search"
+              v-model:search="search"
               hide-selected
               :label="t('media.type.extensions')"
               :hint="t('media.type.file_extensions_hint')"
               multiple
               chips
               closable-chips
-              append-icon=""
+              variant="outlined"
+              density="comfortable"
+              rounded="lg"
+              class="mb-3"
+              hide-details="auto"
+              persistent-hint
             >
-              <template v-slot:no-data>
+              <template #no-data>
                 <v-list-item @click="addExt">
-                  <span class="mr-2 text-subtitle-1">{{ t('common.add') }}</span>
+                  <span class="mr-2 text-subtitle-2">{{ t('common.add') }}</span>
                   <v-chip size="small">
                     {{ search }}
                   </v-chip>
@@ -60,35 +62,29 @@
               </template>
             </v-combobox>
 
-            <div class="text-medium-emphasis text-caption mt-2 mb-1">{{ t('meta.settings.icon') }}</div>
-            <div class="d-flex align-center">
-              <v-icon @click="dialogIcons = true" size="large" start>mdi-{{ icon }}</v-icon>
-              <v-btn @click="dialogIcons = true" color="primary" rounded variant="flat">
-                {{ t('meta.settings.select_icon') }}
-              </v-btn>
-            </div>
+            <DialogIcons
+              :icon="icon"
+              @apply="changeIcon"
+            />
           </v-form>
         </v-card-text>
       </v-card>
     </v-dialog>
-
-    <DialogIcons
-      :icon="icon"
-      @apply="changeIcon"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, defineAsyncComponent } from 'vue'
-import { useI18n } from 'vue-i18n'
-import type { VFormInstance } from '@/types/vue'
-import { typedApi } from '@/services/typedApi'
+import {ref, computed, defineAsyncComponent} from 'vue'
+import {useI18n} from 'vue-i18n'
+import type {VFormInstance} from '@/types/vue'
+import {typedApi} from '@/services/typedApi'
 import {validateName} from '@/services/formatUtils'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
+
 const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
 
 defineProps({
-  dialog: Boolean
+  dialog: Boolean,
 })
 
 const emit = defineEmits(['close', 'added'])
@@ -96,12 +92,22 @@ const emit = defineEmits(['close', 'added'])
 const {t} = useI18n()
 const form = ref<VFormInstance>(null)
 
-const dialogIcons = ref(false)
 const valid = ref(false)
 const name = ref('')
 const extensions = ref<string[]>([])
 const search = ref('')
 const icon = ref('shape')
+
+const buttons = computed(() => [
+  {
+    icon: 'plus',
+    text: t('common.add'),
+    color: 'success',
+    function: () => {
+      void addMeta()
+    },
+  },
+])
 
 function addExt() {
   if (search.value && !extensions.value.includes(search.value)) {
@@ -111,7 +117,6 @@ function addExt() {
 }
 
 function changeIcon(selectedIcon: string) {
-  dialogIcons.value = false
   icon.value = selectedIcon
 }
 
@@ -122,7 +127,7 @@ function nameRules(string: string) {
 
 async function addMeta() {
   if (form.value) {
-    const { valid: isValid } = await form.value.validate()
+    const {valid: isValid} = await form.value.validate()
     if (!isValid) return
   }
 
@@ -141,7 +146,6 @@ async function addMeta() {
 }
 
 function close() {
-  // Сброс формы
   if (form.value) {
     form.value.reset()
   }

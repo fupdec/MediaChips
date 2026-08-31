@@ -156,6 +156,8 @@ function createAuthService(db: ApiDb) {
 const PUBLIC_PATHS = new Set([
   '/api/health',
   '/api/ping',
+  '/api/config',
+  '/api/clear-cache',
   '/api/auth/login',
   '/api/auth/status',
   '/api/auth/logout',

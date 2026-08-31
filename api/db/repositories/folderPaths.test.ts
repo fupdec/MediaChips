@@ -1,60 +1,27 @@
 /**
  * @vitest-environment node
  */
-import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { beforeEach, describe, expect, it } from 'vitest'
-import * as schema from '../schema'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { createTestDb as createSharedTestDb, closeTestDb } from '../testUtils/createTestDb'
 import { createFolderPathsRepository } from './folderPaths'
 import { createTagsInFoldersRepository } from './tagsInFolders'
 
 function createTestDb() {
-  const sqlite = new Database(':memory:')
-  sqlite.exec(`
-    CREATE TABLE folderPaths (
-      id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-      path text NOT NULL,
-      createdAt text NOT NULL,
-      updatedAt text NOT NULL
-    );
-    CREATE UNIQUE INDEX folder_paths_path_unique_idx ON folderPaths (path);
-    CREATE TABLE tagsInFolders (
-      folderId integer NOT NULL,
-      tagId integer NOT NULL,
-      metaId integer NOT NULL,
-      PRIMARY KEY(folderId, tagId, metaId)
-    );
-    CREATE TABLE tags (
-      id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-      name text,
-      synonyms text,
-      rating integer DEFAULT 0,
-      favorite integer DEFAULT false,
-      bookmark integer DEFAULT false,
-      country text,
-      color text,
-      views integer DEFAULT 0,
-      viewedAt text,
-      metaId integer,
-      createdAt text NOT NULL,
-      updatedAt text NOT NULL
-    );
-    CREATE TABLE meta (
-      id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-      name text,
-      icon text
-    );
-  `)
-
-  const db = drizzle(sqlite, {schema})
-  return {sqlite, db}
+  const {sqlite, drizzle: db, dbPath} = createSharedTestDb('folder-paths')
+  return {sqlite, db, dbPath}
 }
 
 describe('folderPaths remap', () => {
   let db: ReturnType<typeof createTestDb>['db']
+  let sqlite: ReturnType<typeof createTestDb>['sqlite']
+  let dbPath: string
 
   beforeEach(() => {
-    ;({db} = createTestDb())
+    ;({db, sqlite, dbPath} = createTestDb())
+  })
+
+  afterEach(() => {
+    closeTestDb({sqlite, dbPath})
   })
 
   it('batches findAllByPaths lookups', () => {
@@ -151,14 +118,19 @@ describe('folderPaths remap', () => {
 describe('tagsInFolders list and clear', () => {
   let db: ReturnType<typeof createTestDb>['db']
   let sqlite: ReturnType<typeof createTestDb>['sqlite']
+  let dbPath: string
 
   beforeEach(() => {
-    ;({db, sqlite} = createTestDb())
-    sqlite.prepare(`INSERT INTO meta (id, name, icon) VALUES (10, 'Genre', 'tag')`).run()
+    ;({db, sqlite, dbPath} = createTestDb())
+    sqlite.prepare(`INSERT INTO meta (id, name, icon, createdAt, updatedAt) VALUES (10, 'Genre', 'tag', 't', 't')`).run()
     sqlite.prepare(`
       INSERT INTO tags (id, name, metaId, createdAt, updatedAt)
       VALUES (1, 'Action', 10, 't', 't'), (2, 'Drama', 10, 't', 't')
     `).run()
+  })
+
+  afterEach(() => {
+    closeTestDb({sqlite, dbPath})
   })
 
   it('lists folders with hydrated tags', () => {

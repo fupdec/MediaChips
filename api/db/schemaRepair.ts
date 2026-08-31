@@ -104,6 +104,13 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'tags', column: 'views', definition: 'integer DEFAULT 0'},
   {table: 'tags', column: 'viewedAt', definition: 'text'},
   {table: 'tags', column: 'metaId', definition: 'integer'},
+  {table: 'tags', column: 'parentTagId', definition: 'integer'},
+  {table: 'meta', column: 'parentMetaId', definition: 'integer'},
+  {table: 'tags', column: 'deletedAt', definition: 'text'},
+  {table: 'tags', column: 'trashOriginalName', definition: 'text'},
+  {table: 'marks', column: 'deletedAt', definition: 'text'},
+  {table: 'playlists', column: 'deletedAt', definition: 'text'},
+  {table: 'savedFilters', column: 'deletedAt', definition: 'text'},
   {table: 'filterRows', column: 'order', definition: 'integer DEFAULT 0'},
   {table: 'faces', column: 'tagId', definition: 'integer'},
   {table: 'faces', column: 'matchScore', definition: 'real'},
@@ -119,7 +126,30 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'savedFilters', column: 'size', definition: 'integer'},
   {table: 'savedFilters', column: 'view', definition: 'integer'},
   {table: 'savedFilters', column: 'groupBy', definition: 'text'},
+  {table: 'savedFilters', column: 'filtersJoin', definition: "text DEFAULT 'and'"},
+  {table: 'savedFilters', column: 'icon', definition: 'text'},
 ]
+
+/** Drop join rows left behind after a watched folder or media type was deleted. */
+export function repairOrphanedWatchedFolderLinks(sqlite: Database.Database): number {
+  if (!hasTable(sqlite, 'mediaTypesInWatchedFolders')) return 0
+
+  const conditions: string[] = []
+  if (hasTable(sqlite, 'watchedFolders')) {
+    conditions.push('"folderId" NOT IN (SELECT "id" FROM "watchedFolders")')
+  }
+  if (hasTable(sqlite, 'mediaTypes')) {
+    conditions.push('"mediaTypeId" NOT IN (SELECT "id" FROM "mediaTypes")')
+  }
+  if (!conditions.length) return 0
+
+  const result = sqlite.prepare(`
+    DELETE FROM "mediaTypesInWatchedFolders"
+    WHERE ${conditions.join(' OR ')}
+  `).run()
+
+  return Number(result.changes ?? 0)
+}
 
 export function repairSchemaColumns(sqlite: Database.Database): string[] {
   const repaired: string[] = []
@@ -391,6 +421,41 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
       'CREATE INDEX IF NOT EXISTS "tags_in_media_meta_media_idx" ON "tagsInMedia" ("metaId", "mediaId")',
     )
     repaired.push('tags_in_media_meta_media_idx')
+  }
+
+  if (hasTable(sqlite, 'tagsInMedia') && !hasIndex(sqlite, 'tags_in_media_tag_meta_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "tags_in_media_tag_meta_idx" ON "tagsInMedia" ("tagId", "metaId")',
+    )
+    repaired.push('tags_in_media_tag_meta_idx')
+  }
+
+  if (hasTable(sqlite, 'tagsInMedia') && !hasIndex(sqlite, 'tags_in_media_media_id_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "tags_in_media_media_id_idx" ON "tagsInMedia" ("mediaId")',
+    )
+    repaired.push('tags_in_media_media_id_idx')
+  }
+
+  if (hasTable(sqlite, 'tagsInTags') && !hasIndex(sqlite, 'tags_in_tags_tag_id_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "tags_in_tags_tag_id_idx" ON "tagsInTags" ("tagId")',
+    )
+    repaired.push('tags_in_tags_tag_id_idx')
+  }
+
+  if (hasTable(sqlite, 'tags') && hasColumn(sqlite, 'tags', 'parentTagId') && !hasIndex(sqlite, 'tags_parent_tag_id_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "tags_parent_tag_id_idx" ON "tags" ("parentTagId")',
+    )
+    repaired.push('tags_parent_tag_id_idx')
+  }
+
+  if (hasTable(sqlite, 'meta') && hasColumn(sqlite, 'meta', 'parentMetaId') && !hasIndex(sqlite, 'meta_parent_meta_id_idx')) {
+    sqlite.exec(
+      'CREATE INDEX IF NOT EXISTS "meta_parent_meta_id_idx" ON "meta" ("parentMetaId")',
+    )
+    repaired.push('meta_parent_meta_id_idx')
   }
 
   if (ensureTagsNameNormalizedUniqueIndex(sqlite)) {

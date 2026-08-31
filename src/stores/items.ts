@@ -20,6 +20,7 @@ import type { AssignedMeta, ItemsEnvironment, MediaItem, Meta, SavedFilter } fro
 import type { ItemsPageStoreUpdates } from '@/types/itemsPage'
 import { ensureMediaItem, getSegmentStart } from '@/utils/mediaItem'
 import { findFirstPlayableVideo } from '@/utils/findFirstPlayableVideo'
+import { resolveGalleryPlaylistVideos } from '@/utils/galleryPlaylist'
 import { cloneItemsStoreFieldValue } from '@/stores/itemsStoreClone'
 import type { ItemsGroupBy, ItemsGroupSummary } from '@/utils/itemsGroupBy'
 import { selectContiguousEntityIds } from '@/utils/itemsSelectionRange'
@@ -95,6 +96,10 @@ function createItemsStoreState() {
     thumbRefreshKeys: {} as Record<number, number>,
     thumbRegenerateKeys: {} as Record<number, number>,
     viewerLoadMoreHandler: null as (() => Promise<boolean>) | null,
+    /** Filter tags by first letter (A-Z). */
+    namePrefix: null as string | null,
+    /** Filter tags by color (`#rrggbb`) or `none`. */
+    colorFilter: null as string | null,
   }
 }
 
@@ -370,7 +375,34 @@ export const useItemsStore = defineStore('items', {
           (item) => Number(item?.id) === targetId
         )
 
-        if (playlistSource.length > 0 && targetInSource) {
+        let resolvedFullPlaylist = false
+        if (targetInSource) {
+          const appStore = useAppStore()
+          const mediaTypeId = this.environment.media_type_id ?? targetVideo.mediaTypeId
+          const mediaType = appStore.mediaTypes?.find((item) => item.id === Number(mediaTypeId))
+          const fullPlaylist = await resolveGalleryPlaylistVideos({
+            type: this.type,
+            mediaTypeId,
+            filters: this.filters,
+            filtersJoin: this.filtersJoin,
+            sortBy: this.sortBy,
+            sortDir: this.sortDir,
+            find_duplicates: this.find_duplicates,
+            duplicatesBy: getDuplicatesGroupKey(mediaType, this.duplicates_by),
+            listScopeIds: this.listScopeIds,
+            entities: this.entities,
+            navigationItems: this.navigationItems,
+            totalFiltered: this.totalFiltered,
+          })
+
+          if (fullPlaylist?.length) {
+            this.navigationItems = fullPlaylist
+            playlistVideos = fullPlaylist.map((item) => toRaw(item))
+            resolvedFullPlaylist = true
+          }
+        }
+
+        if (!resolvedFullPlaylist && playlistSource.length > 0 && targetInSource) {
           playlistVideos = playlistSource.map(item => toRaw(item))
         }
       }

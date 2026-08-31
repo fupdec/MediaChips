@@ -13,8 +13,8 @@ export const WatchedFolderSchema = z.object({
 export const WatchedFolderLinkSchema = z.object({
   folderId: z.number(),
   mediaTypeId: z.number().optional(),
-  mediaType: MediaTypeSchema.optional(),
-  watchedFolder: WatchedFolderSchema.optional(),
+  mediaType: MediaTypeSchema.nullable().optional(),
+  watchedFolder: WatchedFolderSchema.nullable().optional(),
 }).passthrough()
 
 export const DatabaseSizesResponseSchema = z.object({

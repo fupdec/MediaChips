@@ -10,7 +10,7 @@
       {{ t('settings_labels.library.chip_recipes_hint') }}
     </p>
 
-    <div class="chip-recipes__actions d-flex flex-wrap ga-2 mb-6">
+    <div class="chip-recipes__actions d-flex flex-wrap align-center ga-2 mb-6">
       <v-btn
         color="primary"
         rounded="xl"
@@ -28,9 +28,10 @@
         @click="pickImportFile"
       />
       <v-btn
-        variant="tonal"
+        variant="text"
         rounded="xl"
         color="primary"
+        class="text-none"
         prepend-icon="mdi-discord"
         :text="t('settings_labels.library.chip_recipes_share_discord')"
         @click="openDiscord"
@@ -61,7 +62,7 @@
       type="warning"
       variant="tonal"
       density="compact"
-      rounded="lg"
+      rounded="xl"
       class="mb-2"
     >
       <span class="text-caption">{{ catalogError }}</span>
@@ -69,16 +70,26 @@
 
     <div
       v-else-if="catalogLoading && !catalogEntries.length"
-      class="text-medium-emphasis text-body-2 py-6 text-center"
+      class="settings-empty text-center py-10 px-4"
     >
-      {{ t('common.loading') }}
+      <div class="text-body-2 text-medium-emphasis">
+        {{ t('common.loading') }}
+      </div>
     </div>
 
     <div
       v-else-if="!catalogEntries.length"
-      class="chip-recipes__empty text-medium-emphasis text-body-2"
+      class="settings-empty text-center py-10 px-4"
     >
-      {{ t('settings_labels.library.chip_recipes_catalog_empty') }}
+      <div class="settings-empty__icon mb-3" aria-hidden="true">
+        <v-icon icon="mdi-puzzle-outline" size="28"/>
+      </div>
+      <div class="text-body-1 font-weight-medium mb-1">
+        {{ t('settings_labels.library.chip_recipes_catalog_empty') }}
+      </div>
+      <div class="text-caption text-medium-emphasis">
+        {{ t('settings_labels.library.chip_recipes_catalog_empty_hint') }}
+      </div>
     </div>
 
     <div
@@ -171,7 +182,7 @@
       scrollable
       persistent
     >
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader
           :header="t('settings_labels.library.chip_recipes_export')"
           :subheader="exportFilenamePreview"
@@ -332,7 +343,7 @@
       scrollable
       persistent
     >
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader
           :header="previewRecipe?.name || t('settings_labels.library.chip_recipes_preview')"
           :subheader="previewRecipeSubheader"
@@ -821,10 +832,23 @@ onMounted(() => {
   border-color: rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
-.chip-recipes__empty {
-  padding: 20px 16px;
-  border: 1px dashed rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 16px;
+.settings-empty {
+  border-radius: 22px;
+  border: 1px dashed rgba(var(--v-theme-on-surface), 0.14);
+  background:
+    radial-gradient(80% 120% at 50% 0%, rgba(var(--v-theme-primary), 0.08), transparent 65%),
+    rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.settings-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
 }
 
 .chip-recipes-export__row {

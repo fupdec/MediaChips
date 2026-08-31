@@ -1,5 +1,12 @@
-import {describe, expect, it, vi} from 'vitest'
+import {beforeEach, describe, expect, it, vi} from 'vitest'
 import {partitionDroppedPaths, startDroppedMediaAdding} from './mediaDrop'
+
+vi.mock('@/composable/useFreeLibraryGate', () => ({
+  useFreeLibraryGate: () => ({
+    ensureCanImportMedia: vi.fn(async () => true),
+    refreshLibraryCount: vi.fn(async () => 0),
+  }),
+}))
 
 describe('partitionDroppedPaths', () => {
   it('splits files and directories by extension', () => {
@@ -28,7 +35,11 @@ describe('partitionDroppedPaths', () => {
 })
 
 describe('startDroppedMediaAdding', () => {
-  it('returns false without paths or resolvable media type', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns false without paths or resolvable media type', async () => {
     const tasksStore = {mediaAdding: {
       media_type_id: null,
       directFiles: [],
@@ -39,14 +50,14 @@ describe('startDroppedMediaAdding', () => {
     }}
     const eventBus = {emit: vi.fn()}
 
-    expect(startDroppedMediaAdding({
+    expect(await startDroppedMediaAdding({
       paths: [],
       mediaTypes: [],
       tasksStore,
       eventBus,
     })).toBe(false)
 
-    expect(startDroppedMediaAdding({
+    expect(await startDroppedMediaAdding({
       paths: ['/folder'],
       mediaTypes: [],
       tasksStore,
@@ -54,7 +65,7 @@ describe('startDroppedMediaAdding', () => {
     })).toBe(false)
   })
 
-  it('configures direct file drop and emits addMedia', () => {
+  it('configures direct file drop and emits addMedia', async () => {
     const tasksStore = {mediaAdding: {
       media_type_id: null as number | null,
       directFiles: [] as unknown[],
@@ -66,7 +77,7 @@ describe('startDroppedMediaAdding', () => {
     const eventBus = {emit: vi.fn()}
     const mediaTypes = [{id: 7, type: 'video', extensions: 'mp4'}] as never
 
-    expect(startDroppedMediaAdding({
+    expect(await startDroppedMediaAdding({
       paths: ['/a/clip.mp4'],
       mediaTypes,
       tasksStore,

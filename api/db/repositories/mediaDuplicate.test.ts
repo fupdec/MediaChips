@@ -2,47 +2,24 @@
  * @vitest-environment node
  */
 import { describe, expect, it } from 'vitest'
-import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { createTestDb, closeTestDb } from '../testUtils/createTestDb'
 import { createMediaRepository } from './media'
 
 describe('media repository duplicate lookups', () => {
   it('finds duplicates by basename, filesize, and media type', () => {
-    const sqlite = new Database(':memory:')
+    const {sqlite, drizzle: db, dbPath} = createTestDb('media-duplicate')
     sqlite.exec(`
-      CREATE TABLE media (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        path TEXT NOT NULL,
-        basename TEXT,
-        name TEXT,
-        ext TEXT,
-        filesize INTEGER NOT NULL DEFAULT 0,
-        contentHash TEXT,
-        oshash TEXT,
-        visualHash TEXT,
-        visualHashTiles TEXT,
-        rating INTEGER DEFAULT 0,
-        favorite INTEGER DEFAULT 0,
-        bookmark TEXT,
-        views INTEGER DEFAULT 0,
-        oldId TEXT,
-        viewedAt TEXT,
-        mediaTypeId INTEGER,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-      );
-
       INSERT INTO media (path, basename, filesize, mediaTypeId, contentHash, createdAt, updatedAt) VALUES
         ('/torrents/a.mp4', 'a.mp4', 1000, 1, NULL, '2024-01-01', '2024-01-01'),
         ('/other/b.mp4', 'b.mp4', 1000, 1, 'hash-b', '2024-01-01', '2024-01-01');
     `)
 
-    const repo = createMediaRepository(drizzle(sqlite))
+    const repo = createMediaRepository(db)
 
     expect(repo.findByBasenameFilesizeAndMediaType('a.mp4', 1000, 1)?.path).toBe('/torrents/a.mp4')
     expect(repo.findByBasenameFilesizeAndMediaType('missing.mp4', 1000, 1)).toBeUndefined()
     expect(repo.findLegacyHashCandidates(1000, 1, 'a.mp4')).toHaveLength(1)
     expect(repo.findLegacyHashCandidates(1000, 1, 'b.mp4')).toHaveLength(0)
-    sqlite.close()
+    closeTestDb({sqlite, dbPath})
   })
 })

@@ -10,11 +10,12 @@
       <v-card rounded="lg" variant="outlined" class="pa-3">
         <div class="d-flex align-center ga-2">
           <v-btn
+            v-tooltip:top="t('settings_labels.appearance.drag_to_change_order')"
             class="home-widget-drag"
             icon
             size="small"
             variant="text"
-            :title="t('settings_labels.appearance.drag_to_change_order')"
+            :aria-label="t('settings_labels.appearance.drag_to_change_order')"
           >
             <v-icon>mdi-drag</v-icon>
           </v-btn>
@@ -87,7 +88,7 @@ const widgetMeta = computed(() => ({
   },
   createdCalendar: {
     title: t('settings_labels.general.home_widget_created_calendar'),
-    icon: 'mdi-calendar-star',
+    icon: 'mdi-calendar-plus',
   },
   quickActions: {
     title: t('settings_labels.general.home_widget_quick_actions'),
@@ -124,6 +125,10 @@ const widgetMeta = computed(() => ({
   topTags: {
     title: t('settings_labels.general.home_widget_top_tags'),
     icon: 'mdi-tag-multiple',
+  },
+  tagSpotlight: {
+    title: t('settings_labels.general.home_widget_tag_spotlight'),
+    icon: 'mdi-tag-heart-outline',
   },
 }))
 

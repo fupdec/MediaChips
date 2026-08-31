@@ -10,6 +10,11 @@ export interface VideoBigPreviewRect {
 }
 
 export const VIDEO_BIG_PREVIEW_ANIMATION_MS = 350
+export const VIDEO_BIG_PREVIEW_EASING = 'cubic-bezier(0.16, 1, 0.3, 1)'
+
+function prefersReducedMotion(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+}
 
 function waitForPaint(): Promise<void> {
   return new Promise((resolve) => {
@@ -98,11 +103,16 @@ export function useVideoBigPreview() {
     cancelAnimation()
     applyVideoBigPreviewFrame(element, from)
 
+    if (prefersReducedMotion()) {
+      applyVideoBigPreviewFrame(element, to)
+      return
+    }
+
     activeAnimation = element.animate(
       [rectToFrame(from), rectToFrame(to)],
       {
         duration: VIDEO_BIG_PREVIEW_ANIMATION_MS,
-        easing: 'ease-in-out',
+        easing: VIDEO_BIG_PREVIEW_EASING,
         fill: 'forwards',
       },
     )

@@ -2,7 +2,6 @@
   <div class="edit-dialog-media-panel">
     <v-card
       variant="flat"
-      rounded="lg"
       class="edit-dialog-media-panel__card"
       :class="{'edit-dialog-media-panel__card--video': isVideoPanel}"
     >
@@ -36,29 +35,43 @@
                 @edited="$emit('edited', $event)"
               />
               <v-btn
+                v-if="!isFileExists"
                 size="small"
                 variant="tonal"
-                color="primary"
+                color="error"
                 icon
-                v-tooltip:top="t('image.create_thumb_random')"
-                :loading="isCreatingThumb === 'random'"
-                :disabled="!canCreateThumb || isCreatingThumb != null"
-                @click="createVideoThumb('random')"
+                v-tooltip:top="t('image.create_thumb_source_missing')"
+                tabindex="-1"
+                @click.stop
               >
-                <v-icon size="18">mdi-dice-5-outline</v-icon>
+                <v-icon size="18">mdi-file-alert</v-icon>
               </v-btn>
-              <v-btn
-                size="small"
-                variant="tonal"
-                color="primary"
-                icon
-                v-tooltip:top="t('image.create_thumb_default')"
-                :loading="isCreatingThumb === 'default'"
-                :disabled="!canCreateThumb || isCreatingThumb != null"
-                @click="createVideoThumb('default')"
-              >
-                <v-icon size="18">mdi-image-frame</v-icon>
-              </v-btn>
+              <template v-else>
+                <v-btn
+                  size="small"
+                  variant="tonal"
+                  color="primary"
+                  icon
+                  v-tooltip:top="t('image.create_thumb_random')"
+                  :loading="isCreatingThumb === 'random'"
+                  :disabled="!canCreateThumb || isCreatingThumb != null"
+                  @click="createVideoThumb('random')"
+                >
+                  <v-icon size="18">mdi-dice-5-outline</v-icon>
+                </v-btn>
+                <v-btn
+                  size="small"
+                  variant="tonal"
+                  color="primary"
+                  icon
+                  v-tooltip:top="t('image.create_thumb_default')"
+                  :loading="isCreatingThumb === 'default'"
+                  :disabled="!canCreateThumb || isCreatingThumb != null"
+                  @click="createVideoThumb('default')"
+                >
+                  <v-icon size="18">mdi-image-frame</v-icon>
+                </v-btn>
+              </template>
             </div>
           </div>
         </div>
@@ -274,19 +287,14 @@ async function createVideoThumb(mode: 'random' | 'default') {
       seekRatio: mode === 'random' ? Math.random() : 0.5,
     })
     invalidateVideoThumbCaches(media.id)
-    itemsStore.refreshThumb(media.id, {regenerate: true})
+    itemsStore.refreshThumb(media.id)
     emit('edited')
-    setNotification({
-      title: t('player.video_thumb_updated'),
-      text: media.path,
-      icon: 'image',
-      type: 'success',
-    })
   } catch (e) {
     console.error(e)
     setNotification({
       title: t('player.video_thumb_not_updated'),
       text: String(e),
+      filePath: media.path,
       icon: 'image',
       type: 'error',
     })

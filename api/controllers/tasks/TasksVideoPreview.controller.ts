@@ -1,5 +1,5 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import { HttpError, sendAsClientError, sendBadRequest, sendControllerError, sendNotFound, sendOk } from '../../types/errors'
+import { HttpError, sendAsClientError, sendBadRequest, sendControllerError, sendNotFound, sendOk, sendCreated } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import { createMarksRepository } from '../../db/repositories/marks'
 import { createMediaRepository } from '../../db/repositories/media'
@@ -19,6 +19,7 @@ import { upsertClipEmbeddingForMedia } from '../../services/mediaClipEmbeddings'
 import { formatMarkTimestamp } from '../../../shared/markTimestamp'
 import { generateVideoGrid } from '../../services/videoGrid'
 import { resolveMediaIdFromGridRequest } from '../../services/videoGridRequest'
+import { isUsableVideoThumbFile } from '../../services/videoPreviewThumb'
 
 export default function createTasksVideoPreviewController(shared: TaskControllerShared) {
   const {db, dbPath, createThumbMiddle, createThumbCustom, getImageMedia} = shared
@@ -27,7 +28,13 @@ export default function createTasksVideoPreviewController(shared: TaskController
 
   const createThumbForVideo = async function (req: ApiRequest, res: ApiResponse) {
     const seekRatio = req.body.seekRatio != null ? Number(req.body.seekRatio) : 0.5
-    createThumbMiddle(req.body.path, req.body.id, seekRatio)
+    const resolvedInputPath = resolveActiveDbFilePath(req.body.path, dbPath)
+    if (!resolvedInputPath) {
+      sendBadRequest(res, 'The video does not exist.')
+      return
+    }
+
+    createThumbMiddle(resolvedInputPath, req.body.id, seekRatio)
       .then((result: string) => {
         sendOk(res, result)
       })
@@ -44,30 +51,28 @@ export default function createTasksVideoPreviewController(shared: TaskController
         return
       }
 
-      const outputPath = req.body.outputPath
+      const outputPath = path.normalize(String(req.body.outputPath || ''))
       if (!outputPath) {
         sendBadRequest(res, 'No output path provided.')
         return
       }
 
-      const outputExists = await resolveExistingPath(outputPath)
-      if (!req.body.overwrite && outputExists) {
-        sendBadRequest(res, 'The image already exists.')
-        return
+      const overwrite = req.body.overwrite !== false
+      if (!overwrite) {
+        const outputExists = await resolveExistingPath(outputPath)
+        if (outputExists && isUsableVideoThumbFile(outputExists)) {
+          sendBadRequest(res, 'The image already exists.')
+          return
+        }
       }
 
-      const outputDir = path.dirname(outputPath)
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, {recursive: true})
-      }
-
-      const thumbResult = await createThumbCustom(
+      await createThumbCustom(
         req.body.timestamp,
         resolvedInputPath,
         outputPath,
         req.body.width,
       )
-      sendOk(res, thumbResult)
+      sendOk(res, outputPath)
     } catch (e) {
       sendAsClientError(res, e, 'Failed to create thumbnail')
     }
@@ -149,7 +154,8 @@ export default function createTasksVideoPreviewController(shared: TaskController
 
   const createImage = async function (req: ApiRequest, res: ApiResponse) {
     try {
-      const {outputPath, url, sizes, image} = req.body
+      const {url, sizes, image} = req.body
+      const outputPath = path.normalize(String(req.body.outputPath || ''))
       const downloadUrl = url
         || (typeof image === 'string' && /^https?:\/\//i.test(image.trim()) ? image.trim() : null)
       let buf: Buffer
@@ -174,7 +180,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
         outputPath,
         sizes,
       })
-      sendOk(res, {outputPath: result})
+      sendCreated(res, {outputPath: result})
     } catch (e) {
       console.log(e)
       const message = e instanceof Error

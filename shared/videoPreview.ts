@@ -19,6 +19,21 @@ export const VIDEO_GRID_SPRITE = {
   tileWidth: 480,
 } as const
 
+export const VIDEO_GRID_TILE_COUNT = VIDEO_GRID_SPRITE.cols * VIDEO_GRID_SPRITE.rows
+
+/** Valid 0-based contact-sheet tile, or null when the value is not a grid frame. */
+export function parseGridTileIndex(
+  value: unknown,
+  tileCount = VIDEO_GRID_TILE_COUNT,
+): number | null {
+  if (value == null || value === '') return null
+  const index = Math.floor(Number(value))
+  const count = Math.floor(Number(tileCount))
+  if (!Number.isFinite(index) || index < 0) return null
+  if (!Number.isFinite(count) || count <= 0 || index >= count) return null
+  return index
+}
+
 export interface GridTileDimensions {
   tileWidth: number
   tileHeight: number

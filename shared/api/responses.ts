@@ -87,6 +87,10 @@ export interface ItemsListRequest {
   /** Tag autocomplete / name+synonym search. */
   search?: string
   query?: string
+  /** Filter tags by first letter (A-Z). */
+  namePrefix?: string
+  /** Filter tags by color (`#rrggbb`) or `none` (no color). */
+  colorFilter?: string
 }
 
 export type ItemsPageListQuery = ItemsListRequest
@@ -209,6 +213,9 @@ export interface SavedFilterSummaryResponse {
 
 export interface MediaIdsResponse {
   ids?: number[]
+  totalFiltered?: number
+  totalFilesize?: number
+  navigation?: MediaItem[]
 }
 
 export interface DatabaseSizesResponse {

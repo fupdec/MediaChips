@@ -2,11 +2,8 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
-import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
 import {eq} from 'drizzle-orm'
-import {applySqlitePragmas} from '../db/pragmas'
-import * as schema from '../db/schema'
+import {createTestDb as createSharedTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import {meta} from '../db/schema/meta'
 import {metaInMediaTypes} from '../db/schema/metaInMediaTypes'
 import {pinnedMetas} from '../db/schema/pinnedMeta'
@@ -16,148 +13,13 @@ import type {ApiDb} from '../types/db'
 import {HttpError} from '../types/errors'
 import {duplicateTagCategory} from './metaCategoryDuplicate'
 
-function createTestDb(dbPath: string): ApiDb {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
-  sqlite.exec(`
-    CREATE TABLE meta (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT,
-      name TEXT,
-      icon TEXT,
-      hint TEXT,
-      "order" INTEGER,
-      views INTEGER DEFAULT 0,
-      oldId TEXT,
-      synonyms INTEGER DEFAULT 0,
-      hidden INTEGER DEFAULT 0,
-      nested INTEGER DEFAULT 0,
-      marks INTEGER DEFAULT 0,
-      bookmark INTEGER DEFAULT 0,
-      parser INTEGER DEFAULT 1,
-      pathRegex TEXT,
-      pathRegexReplace TEXT DEFAULT '$1',
-      pathRegexCreateTags INTEGER DEFAULT 1,
-      pathRegexEnabled INTEGER DEFAULT 0,
-      country INTEGER DEFAULT 0,
-      career INTEGER DEFAULT 0,
-      scraper INTEGER DEFAULT 0,
-      rating INTEGER DEFAULT 0,
-      favorite INTEGER DEFAULT 1,
-      chipVariant TEXT DEFAULT 'flat',
-      chipLabel INTEGER DEFAULT 0,
-      color INTEGER DEFAULT 0,
-      autoColorFromImage INTEGER DEFAULT 0,
-      imageAspectRatio REAL DEFAULT 1,
-      tagPageDesign TEXT DEFAULT 'profile',
-      measurementUnit TEXT,
-      isLink INTEGER DEFAULT 0,
-      ratingIcon TEXT DEFAULT 'star',
-      ratingIconEmpty TEXT DEFAULT 'star-outline',
-      ratingIconHalf TEXT DEFAULT 'star-half-full',
-      ratingMax INTEGER DEFAULT 5,
-      ratingColor TEXT DEFAULT '#ffab00',
-      ratingHalf INTEGER DEFAULT 0,
-      sortBy TEXT DEFAULT 'createdAt',
-      sortDir TEXT DEFAULT 'asc',
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE metaSettings (
-      metaId INTEGER PRIMARY KEY,
-      synonyms INTEGER DEFAULT 0,
-      hidden INTEGER DEFAULT 0,
-      nested INTEGER DEFAULT 0,
-      marks INTEGER DEFAULT 0,
-      bookmark INTEGER DEFAULT 0,
-      parser INTEGER DEFAULT 0,
-      country INTEGER DEFAULT 0,
-      career INTEGER DEFAULT 0,
-      scraper INTEGER DEFAULT 0,
-      rating INTEGER DEFAULT 0,
-      favorite INTEGER DEFAULT 1,
-      chipOutlined INTEGER DEFAULT 0,
-      chipLabel INTEGER DEFAULT 0,
-      color INTEGER DEFAULT 0,
-      imageAspectRatio REAL DEFAULT 1,
-      isLink INTEGER DEFAULT 0,
-      ratingIcon TEXT DEFAULT 'star',
-      ratingIconEmpty TEXT DEFAULT 'star-outline',
-      ratingIconHalf TEXT DEFAULT 'star-half-full',
-      ratingMax INTEGER DEFAULT 5,
-      ratingColor TEXT DEFAULT '#ffab00',
-      ratingHalf INTEGER DEFAULT 0,
-      sortBy TEXT DEFAULT 'createdAt',
-      sortDir TEXT DEFAULT 'asc'
-    );
-    CREATE TABLE metaInMediaTypes (
-      metaId INTEGER NOT NULL,
-      mediaTypeId INTEGER NOT NULL,
-      scraper TEXT,
-      show INTEGER DEFAULT 1,
-      "order" INTEGER,
-      PRIMARY KEY (metaId, mediaTypeId)
-    );
-    CREATE TABLE pinnedMetas (
-      metaId INTEGER NOT NULL,
-      pinnedMetaId INTEGER NOT NULL,
-      scraper TEXT,
-      show INTEGER DEFAULT 1,
-      "order" INTEGER,
-      PRIMARY KEY (metaId, pinnedMetaId)
-    );
-    CREATE TABLE tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      oldId TEXT UNIQUE,
-      name TEXT NOT NULL,
-      synonyms TEXT,
-      rating INTEGER DEFAULT 0 NOT NULL,
-      favorite INTEGER DEFAULT 0 NOT NULL,
-      bookmark TEXT,
-      country TEXT,
-      color TEXT,
-      views INTEGER DEFAULT 0,
-      viewedAt TEXT,
-      metaId INTEGER,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE savedFilters (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      metaId INTEGER,
-      mediaTypeId INTEGER,
-      tagId INTEGER,
-      tabId INTEGER,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE pageSettings (
-      page INTEGER DEFAULT 1,
-      size INTEGER DEFAULT 3,
-      view INTEGER DEFAULT 1,
-      "limit" INTEGER DEFAULT 101,
-      sortBy TEXT DEFAULT 'createdAt',
-      sortDir TEXT DEFAULT 'asc',
-      firstChar TEXT,
-      colors TEXT,
-      metaId INTEGER,
-      mediaTypeId INTEGER,
-      tagId INTEGER,
-      filterId INTEGER,
-      tabId INTEGER
-    );
-  `)
-
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite, {schema}),
-    path: dbPath,
-  } as ApiDb
+function createTestDb(dbPath: string): ApiDb & {dbPath: string} {
+  const {sqlite, drizzle, dbPath: sqliteDbPath} = createSharedTestDb('meta-dup')
+  return {sqlite, drizzle, path: dbPath, dbPath: sqliteDbPath} as ApiDb & {dbPath: string}
 }
 
 describe('duplicateTagCategory', () => {
-  let db: ApiDb
+  let db: ApiDb & {dbPath: string}
   let tmpDir: string
 
   beforeEach(() => {
@@ -166,7 +28,7 @@ describe('duplicateTagCategory', () => {
   })
 
   afterEach(() => {
-    db.sqlite.close()
+    closeTestDb({sqlite: db.sqlite, dbPath: db.dbPath})
     fs.rmSync(tmpDir, {recursive: true, force: true})
   })
 

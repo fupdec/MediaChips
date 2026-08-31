@@ -154,6 +154,55 @@ export function getMenuOrderedMediaTypes(mediaTypes: MediaType[] | null | undefi
     })
 }
 
+/** Empty/omitted `selectedIds` → all managed (video/image/audio/text) types. */
+export function resolveTargetMediaTypesForAdding(
+  mediaTypes: MediaType[] | null | undefined,
+  selectedIds: number[] | null | undefined,
+): MediaType[] {
+  const ordered = getMenuOrderedMediaTypes(mediaTypes).filter(isManagedMediaType)
+  if (!selectedIds?.length) return ordered
+  const idSet = new Set(selectedIds.map(Number).filter((id) => Number.isFinite(id)))
+  return ordered.filter((item) => idSet.has(Number(item.id)))
+}
+
+export function combineMediaTypeExtensions(mediaTypes: MediaType[]): string {
+  const parts = new Set<string>()
+  for (const mediaType of mediaTypes) {
+    for (const ext of parseMediaTypeExtensions(mediaType.extensions)) {
+      parts.add(ext)
+    }
+  }
+  return [...parts].join(',')
+}
+
+/** Assign each path to the first matching media type (by menu order). */
+export function bucketFilesByMediaType(
+  files: string[],
+  mediaTypes: MediaType[],
+): Map<number, string[]> {
+  const extToType = new Map<string, MediaType>()
+  for (const mediaType of mediaTypes) {
+    for (const ext of parseMediaTypeExtensions(mediaType.extensions)) {
+      if (!extToType.has(ext)) extToType.set(ext, mediaType)
+    }
+  }
+
+  const buckets = new Map<number, string[]>()
+  for (const mediaType of mediaTypes) {
+    buckets.set(Number(mediaType.id), [])
+  }
+
+  for (const filePath of files) {
+    const ext = String(filePath).split('.').pop()?.toLowerCase()
+    if (!ext) continue
+    const mediaType = extToType.get(ext)
+    if (!mediaType) continue
+    buckets.get(Number(mediaType.id))?.push(filePath)
+  }
+
+  return buckets
+}
+
 export function sortByMenuMediaTypeOrder<T>(
   items: T[],
   mediaTypes: MediaType[] | null | undefined,

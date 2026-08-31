@@ -2,38 +2,20 @@
  * @vitest-environment node
  */
 import {afterEach, describe, expect, it} from 'vitest'
-import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
-import {applySqlitePragmas} from '../db/pragmas'
+import {createTestDb as createSharedTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import type {ApiDb} from '../types/db'
 import {findVisualSimilarIds} from './visualHashBackfill'
 
+let lastDbPath: string | undefined
+
 function createTestDb(): ApiDb {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
+  const {sqlite, drizzle, dbPath} = createSharedTestDb('visual-hash-similar')
+  lastDbPath = dbPath
   sqlite.exec(`
-    CREATE TABLE mediaTypes (
-      id INTEGER PRIMARY KEY,
-      type TEXT NOT NULL
-    );
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      path TEXT NOT NULL UNIQUE,
-      filesize INTEGER NOT NULL DEFAULT 0,
-      visualHash TEXT,
-      visualHashTiles TEXT,
-      mediaTypeId INTEGER,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    INSERT INTO mediaTypes (id, type) VALUES (1, 'video');
+    INSERT INTO mediaTypes (id, type, createdAt, updatedAt) VALUES (1, 'video', '2026-01-01', '2026-01-01');
   `)
 
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite),
-    path: ':memory:',
-  } as ApiDb
+  return {sqlite, drizzle, path: dbPath} as ApiDb
 }
 
 function insertMedia(
@@ -63,7 +45,7 @@ describe('findVisualSimilarIds', () => {
   let db: ApiDb
 
   afterEach(() => {
-    db?.sqlite?.close()
+    if (db?.sqlite && lastDbPath) closeTestDb({sqlite: db.sqlite, dbPath: lastDbPath})
   })
 
   it('returns seed-first similar ids without requiring full-type tile payloads', async () => {

@@ -1,9 +1,14 @@
 import Database from 'better-sqlite3'
 import { applySqlitePragmas } from './pragmas'
 import { seedDefaults } from './seedDefaults'
-import { seedStarterMeta } from './seedStarterMeta'
+import { seedStarterMeta, seedStarterSavedFilters } from './seedStarterMeta'
 import { runLegacyUpgrades } from './legacyUpgrades'
-import { repairSchemaColumns, repairMissingTables, repairMissingIndexes } from './schemaRepair'
+import {
+  repairSchemaColumns,
+  repairMissingTables,
+  repairMissingIndexes,
+  repairOrphanedWatchedFolderLinks,
+} from './schemaRepair'
 import { ensureSearchFtsIndex } from './searchFts'
 
 export type PostMigrationOptions = {
@@ -18,12 +23,16 @@ export function runPostMigrations(dbPath: string, options: PostMigrationOptions 
   try {
     applySqlitePragmas(sqlite)
     seedDefaults(sqlite)
+    let freshlySeeded = false
     if (seedDemo) {
-      seedStarterMeta(sqlite)
+      freshlySeeded = seedStarterMeta(sqlite)
     }
     const repairedColumns = repairSchemaColumns(sqlite)
     if (repairedColumns.length) {
       console.log('\x1b[33m%s\x1b[0m', `⚙️ Repaired schema columns: ${repairedColumns.join(', ')}`)
+    }
+    if (seedDemo && freshlySeeded) {
+      seedStarterSavedFilters(sqlite)
     }
     const repairedTables = repairMissingTables(sqlite)
     if (repairedTables.length) {
@@ -32,6 +41,13 @@ export function runPostMigrations(dbPath: string, options: PostMigrationOptions 
     const repairedIndexes = repairMissingIndexes(sqlite)
     if (repairedIndexes.length) {
       console.log('\x1b[33m%s\x1b[0m', `⚙️ Repaired schema indexes: ${repairedIndexes.join(', ')}`)
+    }
+    const orphanedWatchedFolderLinks = repairOrphanedWatchedFolderLinks(sqlite)
+    if (orphanedWatchedFolderLinks) {
+      console.log(
+        '\x1b[33m%s\x1b[0m',
+        `⚙️ Removed ${orphanedWatchedFolderLinks} orphaned watched-folder type link(s)`,
+      )
     }
     const installedFts = ensureSearchFtsIndex(sqlite)
     if (installedFts.length) {

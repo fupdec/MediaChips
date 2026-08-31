@@ -55,9 +55,12 @@
       v-if="is_show_dialog_delete_confirm"
       variant="delete"
       :dialog="is_show_dialog_delete_confirm"
+      :text="t('media.move_to_trash_confirm')"
+      :check-box-text="t('actions.delete_permanently')"
+      :check-box="deletePermanently"
+      @update:check-box="deletePermanently = $event"
       @delete="deleteTag"
       @close="is_show_dialog_delete_confirm = false"
-      text="Delete tag?"
     />
 
     <DialogConfirm
@@ -151,6 +154,7 @@ const images = ref<TagImage[]>([])
 const buttons = ref<DialogHeaderButton[]>([])
 const debounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const is_show_dialog_delete_confirm = ref(false)
+const deletePermanently = ref(false)
 const is_show_unsaved_confirm = ref(false)
 const editingComponent = ref<EditComponentInstance | null>(null)
 const enrollmentQualityRef = ref<{
@@ -175,6 +179,7 @@ const initButtons = () => {
       color: 'error',
       variant: 'flat',
       action: () => {
+        deletePermanently.value = false
         is_show_dialog_delete_confirm.value = true
       }
     }
@@ -335,6 +340,7 @@ const deleteTag = async () => {
     await typedApi.deleteEntityOne('tag', {
       metaId: deletedMetaId,
       id: deletedTagId,
+      permanent: deletePermanently.value,
     })
 
     invalidateTagHoverCache(deletedMetaId, deletedTagId)
@@ -353,7 +359,7 @@ const deleteTag = async () => {
       type: 'tag',
     })
 
-    void reloadTagsCatalog()
+    await reloadTagsCatalog()
 
     forceClose()
 

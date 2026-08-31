@@ -37,9 +37,13 @@
     <DialogMediaAdding
       v-model="addMediaDialogOpen"
       hide-activator
+      :initial-paths="addMediaInitialPaths"
+      :initial-browse-path="addMediaInitialBrowsePath"
     />
 
     <DialogError v-if="dialogsStore.error.show"/>
+
+    <DialogPaywall v-if="dialogsStore.paywall.show"/>
 
     <DialogProcess
       v-if="dialogsStore.process.show"
@@ -98,6 +102,10 @@
       v-if="dialogsStore.mediaTrash.show"
     />
 
+    <DialogVideoConversion
+      v-if="dialogsStore.videoConversion.show"
+    />
+
     <DialogTextPreview
       v-if="dialogsStore.textPreview.show"
     />
@@ -121,6 +129,8 @@
       @close="closeConfirmDialog"
       @confirm="runConfirmDialog"
     />
+
+    <DialogTagTrashConflict v-if="dialogsStore.tagTrashConflict.show" />
 
     <DialogPlaylistAdd
       v-if="dialogsStore.playlistAdd.show"
@@ -186,24 +196,23 @@
       width="500"
       :z-index="2400"
     >
-      <v-card>
-        <v-card-title primary-title>{{ t('aboutApp.dialog_title') }}</v-card-title>
+      <v-card rounded="xl">
+        <DialogHeader
+          :header="t('aboutApp.dialog_title')"
+          icon="information-outline"
+          closable
+          @close="dialogsStore.about.show = false"
+        />
         <v-card-text class="pa-2 pa-sm-4">
           <About/>
         </v-card-text>
-        <v-card-actions>
-          <v-spacer/>
-          <v-btn color="primary" @click="dialogsStore.about.show = false">
-            {{ t('common.close') }}
-          </v-btn>
-        </v-card-actions>
       </v-card>
     </v-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import {defineAsyncComponent, computed, ref, onMounted, onBeforeUnmount} from 'vue'
+import {defineAsyncComponent, computed, ref, onMounted, onBeforeUnmount, watch} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useTasksStore} from '@/stores/tasks'
@@ -213,6 +222,7 @@ import {useOperationsStore} from '@/stores/operations'
 import {useItemsStore} from '@/stores/items'
 import {usePluginsStore} from '@/stores/plugins'
 import {useI18n} from 'vue-i18n'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {useAppHotkeys} from '@/composable/useAppHotkeys'
 import {useBrowserLayoutHotkeys} from '@/composable/useBrowserLayoutHotkeys'
 import {useItemsSelectionHotkeys} from '@/composable/useItemsSelectionHotkeys'
@@ -258,6 +268,9 @@ const DialogMediaAdding = defineAsyncComponent(() =>
 )
 const DialogError = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogError.vue')
+)
+const DialogPaywall = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogPaywall.vue')
 )
 const DialogProcess = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogProcess.vue')
@@ -323,6 +336,9 @@ const DialogSimilarMediaWall = defineAsyncComponent(() =>
 const DialogMediaTrash = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMediaTrash.vue')
 )
+const DialogVideoConversion = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogVideoConversion.vue')
+)
 const DialogTextPreview = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogTextPreview.vue')
 )
@@ -340,6 +356,9 @@ const DialogMediaInbox = defineAsyncComponent(() =>
 )
 const DialogConfirm = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogConfirm.vue')
+)
+const DialogTagTrashConflict = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogTagTrashConflict.vue')
 )
 const DialogBrowseFolder = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogBrowseFolder.vue')
@@ -411,10 +430,26 @@ useItemsSelectionHotkeys({
 })
 
 const addMediaDialogOpen = ref(false)
+const addMediaInitialPaths = ref('')
+const addMediaInitialBrowsePath = ref('')
 
-function openAddMediaDialog() {
-  addMediaDialogOpen.value = true
+function openAddMediaDialog(options?: {paths?: string; browsePath?: string}) {
+  void (async () => {
+    const {useFreeLibraryGate} = await import('@/composable/useFreeLibraryGate')
+    const gate = useFreeLibraryGate()
+    if (!(await gate.ensureCanImportMedia())) return
+
+    addMediaInitialPaths.value = options?.paths || ''
+    addMediaInitialBrowsePath.value = options?.browsePath || ''
+    addMediaDialogOpen.value = true
+  })()
 }
+
+watch(addMediaDialogOpen, (open) => {
+  if (open) return
+  addMediaInitialPaths.value = ''
+  addMediaInitialBrowsePath.value = ''
+})
 
 let unregisterShowAddMediaDialog: (() => void) | null = null
 

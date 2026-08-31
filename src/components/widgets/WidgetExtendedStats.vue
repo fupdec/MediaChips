@@ -8,8 +8,11 @@
         </div>
 
         <v-btn
+          v-tooltip:top="collapsed
+            ? t('home.widgets.extended_stats_expand')
+            : t('home.widgets.extended_stats_collapse')"
           @click="toggleCollapsed"
-          :title="collapsed
+          :aria-label="collapsed
             ? t('home.widgets.extended_stats_expand')
             : t('home.widgets.extended_stats_collapse')"
           icon
@@ -24,51 +27,90 @@
     <v-expand-transition>
       <v-card-text v-show="!collapsed" class="pa-3 pt-0">
         <v-row dense class="mb-2">
-          <v-col
-            v-for="item in summaryCards"
-            :key="item.id"
-            cols="6"
-            sm="4"
-            md="3"
-          >
-            <div class="widget-extended-stats__chip">
-              <div class="text-caption text-medium-emphasis">{{ item.label }}</div>
-              <div class="text-body-2 font-weight-medium">{{ item.value }}</div>
-            </div>
-          </v-col>
+          <template v-if="loading">
+            <v-col
+              v-for="index in 6"
+              :key="`ext-skel-${index}`"
+              cols="6"
+              sm="4"
+              md="3"
+            >
+              <div class="widget-extended-stats__chip widget-extended-stats__chip--skel" aria-hidden="true">
+                <v-skeleton-loader type="text" width="70%"/>
+                <v-skeleton-loader type="heading" width="40%" class="mt-1"/>
+              </div>
+            </v-col>
+          </template>
+          <template v-else>
+            <v-col
+              v-for="item in summaryCards"
+              :key="item.id"
+              cols="6"
+              sm="4"
+              md="3"
+            >
+              <div class="widget-extended-stats__chip">
+                <div class="text-caption text-medium-emphasis">{{ item.label }}</div>
+                <div class="text-body-2 font-weight-medium">{{ item.value }}</div>
+              </div>
+            </v-col>
+          </template>
         </v-row>
 
-        <div v-if="stats.byType.length" class="mb-3">
-          <div class="text-caption text-medium-emphasis mb-2">
-            {{ t('home.widgets.extended_stats_by_type') }}
+        <template v-if="!loading">
+          <div v-if="stats.byType.length" class="mb-3">
+            <div class="text-caption text-medium-emphasis mb-2">
+              {{ t('home.widgets.extended_stats_by_type') }}
+            </div>
+            <div class="d-flex flex-wrap ga-2">
+              <v-chip
+                v-for="typeRow in stats.byType"
+                :key="typeRow.mediaTypeId"
+                size="small"
+                variant="tonal"
+              >
+                <v-icon start size="14">mdi-{{ typeRow.icon || 'file' }}</v-icon>
+                {{ formatTypeName(typeRow) }}: {{ typeRow.count }}
+              </v-chip>
+            </div>
           </div>
-          <div class="d-flex flex-wrap ga-2">
-            <v-chip
-              v-for="typeRow in stats.byType"
-              :key="typeRow.mediaTypeId"
-              size="small"
-              variant="tonal"
-            >
-              <v-icon start size="14">mdi-{{ typeRow.icon || 'file' }}</v-icon>
-              {{ formatTypeName(typeRow) }}: {{ typeRow.count }}
-            </v-chip>
-          </div>
-        </div>
 
-        <div v-if="stats.largestFiles.length">
-          <div class="text-caption text-medium-emphasis mb-2">
-            {{ t('home.widgets.extended_stats_largest') }}
+          <div v-if="stats.largestFiles.length">
+            <div class="text-caption text-medium-emphasis mb-2">
+              {{ t('home.widgets.extended_stats_largest') }}
+            </div>
+            <div
+              v-for="file in stats.largestFiles"
+              :key="file.id"
+              class="widget-extended-stats__file text-caption d-flex justify-space-between ga-2"
+            >
+              <span class="text-truncate">{{ file.name || file.basename }}</span>
+              <span class="text-medium-emphasis text-no-wrap">
+                {{ formatFilesize(file.filesize ?? 0) }}
+              </span>
+            </div>
           </div>
-          <div
-            v-for="file in stats.largestFiles"
-            :key="file.id"
-            class="widget-extended-stats__file text-caption d-flex justify-space-between ga-2"
-          >
-            <span class="text-truncate">{{ file.name || file.basename }}</span>
-            <span class="text-medium-emphasis text-no-wrap">
-              {{ formatFilesize(file.filesize ?? 0) }}
-            </span>
+        </template>
+        <div
+          v-else
+          class="widget-extended-stats__skeleton-lists"
+          aria-hidden="true"
+        >
+          <v-skeleton-loader type="text" width="28%" class="mb-2"/>
+          <div class="d-flex flex-wrap ga-2 mb-3">
+            <v-skeleton-loader
+              v-for="index in 4"
+              :key="`type-skel-${index}`"
+              type="chip"
+            />
           </div>
+          <v-skeleton-loader type="text" width="28%" class="mb-2"/>
+          <v-skeleton-loader
+            v-for="index in 3"
+            :key="`file-skel-${index}`"
+            type="list-item"
+            class="widget-extended-stats__skel-file"
+          />
         </div>
       </v-card-text>
     </v-expand-transition>
@@ -97,6 +139,7 @@ const settingsStore = useSettingsStore()
 
 const stats = ref<ExtendedStats>(emptyExtendedStatsUi())
 const collapsed = ref(false)
+const loading = ref(true)
 
 const summaryCards = computed(() => {
   const total = stats.value.total || 0
@@ -166,11 +209,14 @@ async function toggleCollapsed() {
 }
 
 async function loadStats() {
+  loading.value = true
   try {
     const response = await typedApi.getHomeExtendedStats()
     stats.value = toExtendedStatsUi(response.data)
   } catch (error) {
     console.error(error)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -192,6 +238,17 @@ onMounted(() => {
     border-radius: 10px;
     background: rgba(var(--v-theme-on-surface), 0.04);
     min-height: 52px;
+
+    &--skel {
+      :deep(.v-skeleton-loader) {
+        background: transparent !important;
+        padding: 0 !important;
+      }
+
+      :deep(.v-skeleton-loader__bone) {
+        margin-block: 2px;
+      }
+    }
   }
 
   &__file {
@@ -200,6 +257,20 @@ onMounted(() => {
 
     &:last-child {
       border-bottom: none;
+    }
+  }
+
+  &__skeleton-lists {
+    :deep(.v-skeleton-loader) {
+      background: transparent !important;
+    }
+  }
+
+  &__skel-file {
+    padding: 0 !important;
+
+    :deep(.v-skeleton-loader__bone) {
+      margin-block: 4px;
     }
   }
 }

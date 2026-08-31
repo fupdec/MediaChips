@@ -120,7 +120,7 @@ async function applyCoreTagFields({
 
   for (let index = 0; index < Math.min(posters.length, imageTypes.length); index++) {
     const imagePath = path.join(
-      dbPath,
+      String(dbPath || '').replace(/\\/g, '/'),
       'meta',
       String(meta.id),
       `${tag.id}_${imageTypes[index]}.jpg`,

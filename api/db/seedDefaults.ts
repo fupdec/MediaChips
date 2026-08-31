@@ -53,6 +53,7 @@ const MIGRATION_SETTINGS = [
   {option: 'show_quick_action_button', value: '0'},
   {option: 'showPlaylistsInNavigation', value: '1'},
   {option: 'showMarkersInNavigation', value: '1'},
+  {option: 'library_nav_config', value: ''},
   {option: 'play_sound_on_video_preview', value: '0'},
   {option: 'big_video_preview', value: '1'},
   {option: 'big_video_preview_delay', value: '2000'},

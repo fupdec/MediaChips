@@ -25,6 +25,10 @@ vi.mock('../../services/mediaPathResolver', () => ({
   resolveActiveDbFilePath: vi.fn(() => '/tmp/video.mp4'),
 }))
 
+vi.mock('../../services/videoPreviewThumb', () => ({
+  isUsableVideoThumbFile: vi.fn(() => false),
+}))
+
 vi.mock('../../services/remoteImageDownload', () => ({
   downloadRemoteImage: vi.fn(),
 }))
@@ -98,5 +102,32 @@ describe('TasksVideoPreviewController createThumb errors', () => {
 
     expect(res.statusCode).toBe(400)
     expect(res.body).toEqual({message: 'ffmpeg failed'})
+  })
+
+  it('rejects createThumbForVideo when the source video cannot be resolved', async () => {
+    const {resolveActiveDbFilePath} = await import('../../services/mediaPathResolver')
+    vi.mocked(resolveActiveDbFilePath).mockReturnValueOnce(null)
+
+    const controller = createTasksVideoPreviewController({
+      db: {drizzle: {}} as never,
+      dbPath: '/tmp/db',
+      createThumbMiddle: vi.fn(),
+      createThumbCustom: vi.fn(),
+      getImageMedia: vi.fn(),
+    } as never)
+
+    const res = createResponse()
+    await controller.createThumbForVideo(
+      {
+        body: {
+          path: '/missing/video.mp4',
+          id: 1,
+        },
+      } as ApiRequest,
+      res,
+    )
+
+    expect(res.statusCode).toBe(400)
+    expect(res.body).toEqual({message: 'The video does not exist.'})
   })
 })

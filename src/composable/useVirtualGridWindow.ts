@@ -8,39 +8,40 @@ import {
   getLayoutTopInScroll,
   VIRTUAL_ROW_BUFFER,
 } from '@/utils/gridLayout'
-import type { MediaItem } from '@/types/stores'
-
 interface LayoutOptions {
   size: number
   gapSize: string
   imageGrid: boolean
   wideImage: boolean
   lineGrid: boolean
+  listGrid: boolean
   chipsGrid: boolean
   imageAspectRatio?: number
   lockRowHeight?: boolean
+  /** When set, used instead of media-card estimateRowHeight (e.g. folder tiles). */
+  rowHeightOverride?: number
 }
 
-interface VirtualGridRow {
+export interface VirtualGridRow<T> {
   index: number
   startIndex: number
-  items: MediaItem[]
+  items: T[]
 }
 
-export function useVirtualGridWindow(
-  itemsSource: ComputedRef<MediaItem[]>,
+export function useVirtualGridWindow<T>(
+  itemsSource: ComputedRef<T[]>,
   layoutRef: Ref<HTMLElement | null>,
-  layoutOptions: Ref<LayoutOptions>,
+  layoutOptions: Ref<LayoutOptions> | ComputedRef<LayoutOptions>,
 ) {
   const columnCount = ref(1)
   const rowHeight = ref(320)
   const topSpacer = ref(0)
   const bottomSpacer = ref(0)
-  const visibleRows = ref<VirtualGridRow[]>([])
+  const visibleRows = ref<VirtualGridRow<T>[]>([])
 
-  const allRows = computed((): VirtualGridRow[] => {
+  const allRows = computed((): VirtualGridRow<T>[] => {
     const items = itemsSource.value || []
-    return chunkIntoRows(items, columnCount.value) as VirtualGridRow[]
+    return chunkIntoRows(items, columnCount.value)
   })
 
   let scrollEl: HTMLElement | null = null
@@ -54,6 +55,7 @@ export function useVirtualGridWindow(
     imageGrid: layoutOptions.value.imageGrid,
     wideImage: layoutOptions.value.wideImage,
     lineGrid: layoutOptions.value.lineGrid,
+    listGrid: layoutOptions.value.listGrid,
     chipsGrid: layoutOptions.value.chipsGrid,
     imageAspectRatio: layoutOptions.value.imageAspectRatio,
     containerWidth: layoutRef.value?.clientWidth || 0,
@@ -69,11 +71,14 @@ export function useVirtualGridWindow(
 
     columnCount.value = metrics.columnCount
 
-    rowHeight.value = estimateRowHeight({
-      ...options,
-      containerWidth: layoutEl.clientWidth,
-      columnCount: columnCount.value,
-    })
+    const override = layoutOptions.value.rowHeightOverride
+    rowHeight.value = override != null && override > 0
+      ? override
+      : estimateRowHeight({
+        ...options,
+        containerWidth: layoutEl.clientWidth,
+        columnCount: columnCount.value,
+      })
   }
 
   const measureVisibleRows = () => {

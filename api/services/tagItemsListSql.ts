@@ -4,6 +4,8 @@ import { buildTagIdSelect, getTagFromClause } from './tagFilterSql'
 export type TagListSqlPartsInput = {
   whereSql: string
   joinSql?: string
+  /** Extra 1:1 joins for aggregate sort keys (mediaCount, videoCount, …). */
+  sortJoinSql?: string
   needsDistinct?: boolean
   direction?: string
 }
@@ -20,13 +22,16 @@ export function resolveTagListSqlParts(input: TagListSqlPartsInput): TagListSqlP
   const {
     whereSql,
     joinSql = '',
+    sortJoinSql = '',
     needsDistinct = false,
     direction = 'desc',
   } = input
 
+  const combinedJoin = [joinSql, sortJoinSql].filter(Boolean).join('\n')
+
   return {
     whereClause: `WHERE ${whereSql}`,
-    fromClause: getTagFromClause(joinSql),
+    fromClause: getTagFromClause(combinedJoin),
     idSelect: buildTagIdSelect(needsDistinct),
     sortDir: direction === 'asc' ? 'ASC' : 'DESC',
   }

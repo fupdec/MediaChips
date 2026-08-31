@@ -421,7 +421,7 @@ export function usePlayerSession() {
     if (!e.movementX && !e.movementY) return
     showControls()
     if (!playerStore.fullscreen || playerStore.mouseOverControls) return
-    if (playerStore.paused) return
+    if (playerStore.paused || playerStore.trimMode) return
 
     timeoutControls.value = window.setTimeout(() => {
       const hasNext = !isPlaylistNavDisabled({
@@ -441,6 +441,9 @@ export function usePlayerSession() {
   }, 5)
 
   const openAddingMark = (type?: string) => {
+    playerStore.studioMode = true
+    playerStore.marksVisible = true
+    playerStore.selectedMarkId = null
     dialogsStore.openMarkAdding({
       time: playerStore.currentTime,
       type: type || 'favorite',
@@ -489,6 +492,8 @@ export function usePlayerSession() {
     }
 
     try {
+      let savedId = isEditing ? editId : null
+
       if (isEditing) {
         await typedApi.updateMark(editId, mark)
         if (mark.tagId) {
@@ -512,7 +517,8 @@ export function usePlayerSession() {
           icon: 'content-save',
         })
       } else {
-        await typedApi.createMark(mark)
+        const created = await typedApi.createMark(mark)
+        savedId = Number(created.data?.id) || null
 
         if (mark.tagId) {
           await addTagToMedia(mark.tagId, Number(adding.meta?.id) || undefined)
@@ -525,7 +531,20 @@ export function usePlayerSession() {
       }
 
       await getMarks(video.value)
-      dialogsStore.closeMarkAdding()
+      if (playerStore.studioMode) {
+        const saved = savedId != null
+          ? playerStore.marks.find((item) => Number(item.id) === savedId)
+          : null
+        if (saved) {
+          playerStore.selectedMarkId = Number(saved.id)
+          dialogsStore.openMarkEditing(saved)
+        } else {
+          playerStore.selectedMarkId = null
+          dialogsStore.openMarkAdding({ time: playerStore.currentTime })
+        }
+      } else {
+        dialogsStore.closeMarkAdding()
+      }
     } catch (e: unknown) {
       console.error(e)
       const err = e as { response?: { data?: { message?: string } }; message?: string }
@@ -542,6 +561,13 @@ export function usePlayerSession() {
   }
 
   const editMark = (mark: PlayerMark) => {
+    if (
+      dialogsStore.markAdding.show
+      && Number(dialogsStore.markAdding.editId) === Number(mark.id)
+    ) return
+    playerStore.studioMode = true
+    playerStore.marksVisible = true
+    if (mark.id != null) playerStore.selectedMarkId = mark.id
     dialogsStore.openMarkEditing(mark)
   }
 

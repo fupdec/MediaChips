@@ -28,9 +28,17 @@
 
     <div
       v-if="!tagCategories.length"
-      class="text-medium-emphasis text-body-2 mb-5"
+      class="settings-empty text-center py-10 px-4 mb-5"
     >
-      {{ t('settings_labels.library.tag_categories_empty') }}
+      <div class="settings-empty__icon mb-3" aria-hidden="true">
+        <v-icon icon="mdi-tag-multiple-outline" size="28"/>
+      </div>
+      <div class="text-body-1 font-weight-medium mb-1">
+        {{ t('all_tags.no_categories') }}
+      </div>
+      <div class="text-caption text-medium-emphasis">
+        {{ t('all_tags.no_categories_hint') }}
+      </div>
     </div>
 
     <v-chip-group
@@ -39,17 +47,17 @@
       class="settings-tag-categories__chips mb-5"
     >
       <v-chip
-        v-for="category in tagCategories"
-        :key="category.id"
+        v-for="row in categoryTree"
+        :key="row.meta.id"
         class="settings-tag-categories__chip"
-        :class="{'settings-tag-categories__chip--hidden': category.hidden}"
-        @click="openEditCategory(category)"
-        @contextmenu.prevent.stop="showCategoryChipMenu($event, category)"
+        :class="{'settings-tag-categories__chip--hidden': row.meta.hidden}"
+        @click="openEditCategory(row.meta)"
+        @contextmenu.prevent.stop="showCategoryChipMenu($event, row.meta, row.isGroup)"
       >
-        <v-icon start size="18">mdi-{{ category.icon || 'tag-multiple-outline' }}</v-icon>
-        <span>{{ category.name }}</span>
+        <v-icon start size="18">mdi-{{ row.meta.icon || (row.isGroup ? 'folder-outline' : 'tag-multiple-outline') }}</v-icon>
+        <span>{{ row.meta.name }}</span>
         <v-icon
-          v-if="Number(category.id) === defaultCategoryId"
+          v-if="Number(row.meta.id) === defaultCategoryId"
           end
           size="16"
           color="amber-darken-2"
@@ -58,6 +66,10 @@
         </v-icon>
       </v-chip>
     </v-chip-group>
+
+    <div class="text-caption text-medium-emphasis mb-5">
+      {{ t('all_tags.nest_categories_hint') }}
+    </div>
 
     <SettingsDefaultTagCategory />
 
@@ -124,6 +136,12 @@ import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
 import {typedApi} from '@/services/typedApi'
 import {setNotification} from '@/services/notificationService'
+import {getApiErrorMessage} from '@/types/vue'
+import {
+  canNestCategoryUnder,
+  flattenTagCategories,
+  isValidCategoryParent,
+} from '@/utils/tagCategoryTree'
 import type {ContextMenuEntry, Meta} from '@/types/stores'
 
 type EditTab = 'basics' | 'where' | 'appearance' | 'capabilities' | 'from-path'
@@ -150,6 +168,18 @@ const tagCategories = computed(() =>
     ['asc', 'asc', 'asc'],
   ),
 )
+
+const categoryTree = computed(() => flattenTagCategories(tagCategories.value))
+
+const tagCountByMetaId = computed(() => {
+  const counts: Record<number, number> = {}
+  for (const tag of appStore.tags || []) {
+    const metaId = Number(tag.metaId)
+    if (!Number.isFinite(metaId)) continue
+    counts[metaId] = (counts[metaId] || 0) + 1
+  }
+  return counts
+})
 
 const defaultCategoryId = computed(() =>
   getDefaultTagCategoryId(appStore.meta, settingsStore.defaultTagCategoryId),
@@ -300,7 +330,29 @@ const flagMenuItem = (
   }
 }
 
-const showCategoryChipMenu = (e: MouseEvent, category: Meta) => {
+const nestParentsFor = (category: Meta) =>
+  tagCategories.value.filter((parent) =>
+    isValidCategoryParent(Number(category.id), Number(parent.id), tagCategories.value)
+    && canNestCategoryUnder(parent, tagCategories.value, tagCountByMetaId.value[Number(parent.id)] || 0),
+  )
+
+const reparentCategory = async (category: Meta, parentMetaId: number | null) => {
+  if (!category?.id) return
+  try {
+    await typedApi.updateMeta(category.id, parentMetaId == null ? {parentMetaId: undefined} : {parentMetaId})
+    await reloadMetaCatalog()
+  } catch (error) {
+    console.error('Error nesting category:', error)
+    setNotification({
+      type: 'error',
+      title: t('context_menu.category_reparent_failed'),
+      text: getApiErrorMessage(error, t('context_menu.category_reparent_failed')),
+    })
+  }
+}
+
+const showCategoryChipMenu = (e: MouseEvent, category: Meta, isGroup = false) => {
+  const nestParents = nestParentsFor(category)
   const content: ContextMenuEntry[] = [
     {
       name: t('common.edit'),
@@ -316,14 +368,46 @@ const showCategoryChipMenu = (e: MouseEvent, category: Meta) => {
         void duplicateCategory(category)
       },
     },
-    {
-      name: t('context_menu.open_page'),
-      type: 'item',
-      icon: 'open-in-app',
-      action: () => {
-        void router.push({path: '/meta', query: {metaId: category.id}})
-      },
-    },
+    ...(isGroup
+      ? []
+      : [{
+          name: t('context_menu.open_page'),
+          type: 'item' as const,
+          icon: 'open-in-app',
+          action: () => {
+            void router.push({path: '/meta', query: {metaId: category.id}})
+          },
+        }]),
+    ...(nestParents.length
+      ? [{
+          name: t('context_menu.make_child_category'),
+          type: 'menu' as const,
+          icon: 'file-tree',
+          menu: nestParents.map((parent) => ({
+            name: String(parent.name ?? ''),
+            type: 'item' as const,
+            icon: String(parent.icon || 'folder-outline').replace(/^mdi-/, ''),
+            action: () => {
+              void reparentCategory(category, Number(parent.id))
+            },
+          })),
+        }]
+      : [{
+          name: t('context_menu.make_child_category_need_empty'),
+          type: 'item' as const,
+          icon: 'file-tree',
+          disabled: true,
+        }]),
+    ...(category.parentMetaId
+      ? [{
+          name: t('context_menu.promote_category_to_root'),
+          type: 'item' as const,
+          icon: 'arrow-up-bold',
+          action: () => {
+            void reparentCategory(category, null)
+          },
+        }]
+      : []),
     {type: 'divider'},
     {
       name: category.hidden
@@ -393,6 +477,25 @@ const showCategoryChipMenu = (e: MouseEvent, category: Meta) => {
 </script>
 
 <style scoped>
+.settings-empty {
+  border-radius: 22px;
+  border: 1px dashed rgba(var(--v-theme-on-surface), 0.14);
+  background:
+    radial-gradient(80% 120% at 50% 0%, rgba(var(--v-theme-primary), 0.08), transparent 65%),
+    rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.settings-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
+}
+
 .settings-tag-categories__chips {
   margin: -4px;
 }

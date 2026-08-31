@@ -14,11 +14,15 @@ export function createMediaTypesInWatchedFoldersRepository(db: DrizzleClient) {
       const folderById = new Map(folderRows.map((row) => [row.id, toPublicWatchedFolder(row)]))
       const mediaTypeById = new Map(mediaTypeRows.map((row) => [row.id, row]))
 
-      return links.map((link) => ({
-        ...link,
-        mediaType: mediaTypeById.get(link.mediaTypeId) ?? null,
-        watchedFolder: folderById.get(link.folderId) ?? null,
-      }))
+      return links.flatMap((link) => {
+        const watchedFolder = folderById.get(link.folderId)
+        if (!watchedFolder) return []
+        return [{
+          ...link,
+          mediaType: mediaTypeById.get(link.mediaTypeId) ?? null,
+          watchedFolder,
+        }]
+      })
     },
 
     findOrCreate(folderId: number, mediaTypeId: number): {row: typeof mediaTypesInWatchedFolders.$inferSelect; created: boolean} {

@@ -106,6 +106,11 @@ const initViewOptions = () => {
       icon: 'view-dashboard',
       textKey: 'items.view.masonry',
     })
+    viewOptions.value.push({
+      val: 6,
+      icon: 'view-grid-outline',
+      textKey: 'items.view.squares',
+    })
   } else if (itemsType === 'tag') {
     viewOptions.value.push({
       val: 2,
@@ -116,6 +121,15 @@ const initViewOptions = () => {
       val: 4,
       icon: 'view-compact-outline',
       textKey: 'items.view.minimal',
+    })
+  }
+
+  // List view is available for every media type and the tag grid.
+  if (itemsType === 'media' || itemsType === 'tag') {
+    viewOptions.value.push({
+      val: 5,
+      icon: 'view-list',
+      textKey: 'items.view.list',
     })
   }
 

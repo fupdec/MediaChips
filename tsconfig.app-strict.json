@@ -3,6 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "noEmit": true,
+    "tsBuildInfoFile": ".cache/tsc/app-strict.tsbuildinfo",
     "rootDir": ".",
     "baseUrl": ".",
     "paths": {

@@ -1,8 +1,17 @@
 <template>
   <div
-    @click="jumpTo(mark.time)"
+    @click="selectable ? emit('toggleSelect', mark) : jumpTo(mark.time)"
     class="mark-item"
+    :class="{'mark-item--selectable': selectable, 'mark-item--selected': selected}"
+    :style="{'--mark-accent': getColor(mark)}"
   >
+    <v-checkbox-btn
+      v-if="selectable"
+      :model-value="selected"
+      class="mark-item__select"
+      @click.stop="emit('toggleSelect', mark)"
+    />
+
     <div class="mark-item__thumb-wrap">
       <v-img
         v-if="isThumbsLoaded"
@@ -20,32 +29,32 @@
         <span
           v-if="mark.type == 'meta'"
           class="mark-item__name"
+          v-tooltip="playerTooltip(markLabel)"
           v-html="mark['tag.name'] || mark.tag?.name"
         />
         <span
           v-else-if="mark.text"
           class="mark-item__name"
+          v-tooltip="playerTooltip(markLabel)"
           v-html="mark.text"
-          :title="mark.text"
         />
-        <span v-else class="mark-item__name" v-html="mark.name"/>
+        <span
+          v-else
+          class="mark-item__name"
+          v-tooltip="playerTooltip(markLabel)"
+          v-html="mark.name"
+        />
       </div>
-      <span class="mark-item__time">
-        {{ getDuration(mark.time) }}<template v-if="mark.end"> – {{ getDuration(mark.end) }}</template>
-      </span>
+      <div class="mark-item__meta">
+        <span class="mark-item__time">
+          {{ getDuration(mark.time) }}<template v-if="mark.end"> – {{ getDuration(mark.end) }}</template>
+        </span>
+      </div>
     </div>
 
-    <div class="mark-item__actions">
+    <div v-if="!selectable" class="mark-item__actions">
       <v-btn
-        @click.stop="edit(mark)"
-        class="mark-item__edit"
-        variant="text"
-        size="x-small"
-        icon
-      >
-        <v-icon size="small">mdi-pencil-outline</v-icon>
-      </v-btn>
-      <v-btn
+        v-tooltip="playerTooltip(t('common.delete'))"
         @click.stop="remove(mark)"
         class="mark-item__delete"
         variant="text"
@@ -60,16 +69,33 @@
 </template>
 
 <script setup lang="ts">
+import {computed} from 'vue'
+import {useI18n} from 'vue-i18n'
 import type {PlayerMark} from '@/types/player'
+import {playerTooltip} from '@/utils/playerOverlay'
 
-defineProps<{
+const props = defineProps<{
   mark: PlayerMark
   isThumbsLoaded?: boolean
   getIcon: (mark: PlayerMark) => string
   getColor: (mark: PlayerMark) => string
   getDuration: (time: number) => string
   jumpTo: (time: number) => void
-  edit: (mark: PlayerMark) => void
   remove: (mark: PlayerMark) => void
+  selectable?: boolean
+  selected?: boolean
 }>()
+
+const emit = defineEmits<{
+  toggleSelect: [mark: PlayerMark]
+}>()
+
+const {t} = useI18n()
+
+const markLabel = computed(() => {
+  if (props.mark.type == 'meta') {
+    return String(props.mark['tag.name'] || props.mark.tag?.name || '')
+  }
+  return String(props.mark.text || props.mark.name || '')
+})
 </script>

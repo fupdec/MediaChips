@@ -10,9 +10,10 @@ import {
 describe('filter schemas', () => {
   it('parses saved filters', () => {
     const filters = parseSavedFilters([
-      { id: 1, name: 'Favorites', filters: [] },
+      { id: 1, name: 'Favorites', filters: [], filtersJoin: 'or' },
     ])
     expect(filters[0]?.name).toBe('Favorites')
+    expect(filters[0]?.filtersJoin).toBe('or')
   })
 
   it('parses saved filter find-or-create hydrated tuple', () => {

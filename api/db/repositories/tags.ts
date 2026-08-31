@@ -1,17 +1,34 @@
-import { count, eq, inArray } from 'drizzle-orm'
+import { and, count, eq, inArray, isNull, or } from 'drizzle-orm'
 import type Database from 'better-sqlite3'
 import type { DrizzleClient } from '../client'
 import { tags } from '../schema/tags'
+import { tagsInMedia } from '../schema/tagsInMedia'
+import { tagsInTags } from '../schema/tagsInTag'
 import { nowIso } from '../utils/timestamps'
 import { mapChunks } from '../utils/chunk'
+
+const notDeleted = or(isNull(tags.deletedAt), eq(tags.deletedAt, ''))
 
 export type TagRow = typeof tags.$inferSelect
 export type TagInsert = typeof tags.$inferInsert
 
-/** Slim projection for GET /api/Tag bootstrap / chips catalog (drops oldId + timestamps). */
+/** Slim projection for GET /api/Tag bootstrap / chips catalog (drops oldId). */
 export type TagCatalogRow = Pick<
   TagRow,
-  'id' | 'metaId' | 'name' | 'synonyms' | 'rating' | 'favorite' | 'bookmark' | 'country' | 'color' | 'views'
+  | 'id'
+  | 'metaId'
+  | 'parentTagId'
+  | 'name'
+  | 'synonyms'
+  | 'rating'
+  | 'favorite'
+  | 'bookmark'
+  | 'country'
+  | 'color'
+  | 'views'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'viewedAt'
 >
 
 /** id/name/synonyms for marker title matching and similar lookups. */
@@ -28,6 +45,7 @@ const TAG_MUTABLE_COLUMNS = new Set([
   'views',
   'viewedAt',
   'metaId',
+  'parentTagId',
   'oldId',
 ])
 
@@ -40,6 +58,7 @@ function coerceTagField(key: string, value: unknown): unknown {
     case 'favorite':
       return value === true || value === 1 || value === '1'
     case 'metaId':
+    case 'parentTagId':
       return value == null || value === '' ? null : Number(value) || null
     case 'name':
       return value == null ? '' : String(value)
@@ -79,7 +98,7 @@ const TAG_ITEMS_QUERY = `${TAG_ITEMS_SELECT}
                            GROUP_CONCAT(valuesInTags.value || '^' || valuesInTags.metaId) tag_values
                     FROM valuesInTags
                     GROUP BY id) AS values_in_tags ON tags.id = values_in_tags.id
-WHERE tags.metaId = ?`
+WHERE tags.metaId = ? AND (tags.deletedAt IS NULL OR tags.deletedAt = '')`
 
 /** Page hydrate: scope GROUP_CONCAT subqueries to the requested tag ids. */
 function buildTagItemsQueryForIds(ids: number[]): {sql: string; params: number[]} {
@@ -95,7 +114,7 @@ function buildTagItemsQueryForIds(ids: number[]): {sql: string; params: number[]
                     FROM valuesInTags
                     WHERE valuesInTags.tagId IN (${placeholders})
                     GROUP BY id) AS values_in_tags ON tags.id = values_in_tags.id
-WHERE tags.metaId = ? AND tags.id IN (${placeholders})`
+WHERE tags.metaId = ? AND tags.id IN (${placeholders}) AND (tags.deletedAt IS NULL OR tags.deletedAt = '')`
   // Bind order: tagsInTags IN, valuesInTags IN, metaId, tags.id IN
   return {sql, params: [...ids, ...ids]}
 }
@@ -119,6 +138,7 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
           views: item.views ?? 0,
           viewedAt: item.viewedAt ?? null,
           metaId: item.metaId ?? null,
+          parentTagId: null,
           createdAt: timestamp,
           updatedAt: timestamp,
         }))
@@ -128,12 +148,12 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
     },
 
     findAllRaw(): TagRow[] {
-      return db.select().from(tags).all()
+      return db.select().from(tags).where(notDeleted).all()
     },
 
     /** Name-only projection for exclude-existing / lookup sets. */
     findAllNames(): Array<{name: string}> {
-      return db.select({name: tags.name}).from(tags).all()
+      return db.select({name: tags.name}).from(tags).where(notDeleted).all()
         .map((row) => ({name: String(row.name || '')}))
         .filter((row) => Boolean(row.name))
     },
@@ -144,13 +164,14 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
         id: tags.id,
         name: tags.name,
         synonyms: tags.synonyms,
-      }).from(tags).all()
+      }).from(tags).where(notDeleted).all()
     },
 
     findAllCatalog(): TagCatalogRow[] {
       return db.select({
         id: tags.id,
         metaId: tags.metaId,
+        parentTagId: tags.parentTagId,
         name: tags.name,
         synonyms: tags.synonyms,
         rating: tags.rating,
@@ -159,28 +180,47 @@ export function createTagsRepository(db: DrizzleClient, sqlite: Database.Databas
         country: tags.country,
         color: tags.color,
         views: tags.views,
-      }).from(tags).all()
+        createdAt: tags.createdAt,
+        updatedAt: tags.updatedAt,
+        viewedAt: tags.viewedAt,
+      }).from(tags).where(notDeleted).all()
     },
 
     findByMetaIds(metaIds: number[]): TagRow[] {
       if (!metaIds.length) return []
-      return db.select().from(tags).where(inArray(tags.metaId, metaIds)).all()
+      return db.select().from(tags).where(and(inArray(tags.metaId, metaIds), notDeleted)).all()
     },
 
     findOldIdMappings(): Array<{id: number; oldId: string | null}> {
-      return db.select({id: tags.id, oldId: tags.oldId}).from(tags).all()
+      return db.select({id: tags.id, oldId: tags.oldId}).from(tags).where(notDeleted).all()
     },
 
     findAllIds(): Array<{id: number}> {
-      return db.select({id: tags.id}).from(tags).all()
+      return db.select({id: tags.id}).from(tags).where(notDeleted).all()
     },
 
     findById(id: number): TagRow | undefined {
       return db.select().from(tags).where(eq(tags.id, id)).get()
     },
 
+    /** Assignment destinations for this tag: on media files and nested on other tags. */
+    countAssignments(tagId: number): {media: number; tags: number} {
+      const mediaRow = db.select({count: count()})
+        .from(tagsInMedia)
+        .where(eq(tagsInMedia.tagId, tagId))
+        .get()
+      const tagsRow = db.select({count: count()})
+        .from(tagsInTags)
+        .where(eq(tagsInTags.tagId, tagId))
+        .get()
+      return {
+        media: Number(mediaRow?.count ?? 0),
+        tags: Number(tagsRow?.count ?? 0),
+      }
+    },
+
     countAll(): number {
-      const row = db.select({count: count()}).from(tags).get()
+      const row = db.select({count: count()}).from(tags).where(notDeleted).get()
       return Number(row?.count ?? 0)
     },
 

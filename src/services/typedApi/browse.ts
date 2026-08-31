@@ -98,4 +98,38 @@ export const browseApi = {
       return {...res, data: roots}
     })
   },
+
+  deleteEntries(entries: {path: string; name: string}[]) {
+    return apiClient.post<
+      {deleted: string[]; failed: Array<{path: string; reason: string}>}
+    >(API_ROUTES.browseDeleteEntries, {entries}, {timeout: 15000})
+  },
+
+  copyEntries(entries: {path: string; name: string}[], destination: string) {
+    return apiClient.post<
+      {copied: string[]; failed: Array<{path: string; reason: string}>}
+    >(API_ROUTES.browseCopyEntries, {entries, destination}, {timeout: 30000})
+  },
+
+  moveEntries(entries: {path: string; name: string}[], destination: string) {
+    return apiClient.post<
+      {moved: string[]; failed: Array<{path: string; reason: string}>}
+    >(API_ROUTES.browseMoveEntries, {entries, destination}, {timeout: 30000})
+  },
+
+  createFolder(targetPath: string) {
+    return apiClient.post<{created: string}>(
+      API_ROUTES.browseCreateFolder,
+      {path: targetPath},
+      {timeout: 10000},
+    )
+  },
+
+  renameEntry(oldPath: string, newName: string) {
+    return apiClient.post<{renamed: string}>(
+      API_ROUTES.browseRenameEntry,
+      {path: oldPath, name: newName},
+      {timeout: 10000},
+    )
+  },
 }

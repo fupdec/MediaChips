@@ -6,6 +6,7 @@ import { getCurrentMediaType } from '@/utils/mediaType'
 import {
   BASE_MARK_TYPES,
   DEFAULT_BOOKMARK_ICON,
+  FAVORITE_MARK_ICON,
   TAG_MARK_TYPE,
   normalizeMarkTime,
   resolveMarkEditIcon,
@@ -47,6 +48,7 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     enrollmentQuality: { show: false, metaId: null as number | null },
     tagEditing: { show: false, tag: null as Tag | null, meta: null as Meta | null, assigned: null as AssignedMeta[] | null, values: null as ValueInTagEntry[] | null },
     tagMerge: { show: false, tags: [] as Tag[], meta: null as Meta | null },
+    tagReparent: { show: false, tag: null as Tag | null, meta: null as Meta | null },
     mediaMerge: { show: false, items: [] as MediaItem[], survivorId: null as number | null },
     duplicateReview: {
       show: false,
@@ -77,6 +79,7 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       color: '#e91e63',
       is_end_time_active: false,
       submitting: false,
+      formKey: 0,
     },
     error: { show: false, text: null as string | null },
     confirm: {
@@ -119,13 +122,51 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       meta: null as Meta | null,
     },
     mediaTrash: { show: false },
+    tagTrashConflict: {
+      show: false,
+      tags: [] as Array<{id: number; name: string; metaId?: number | null}>,
+      resolve: null as ((action: 'restore' | 'purge' | 'cancel') => void) | null,
+    },
+    videoConversion: { show: false, items: [] as MediaItem[] },
+    paywall: { show: false },
   }),
   actions: {
+    openPaywall() {
+      this.paywall.show = true
+    },
+    closePaywall() {
+      this.paywall.show = false
+    },
+    openVideoConversion(items: MediaItem[]) {
+      this.videoConversion.items = items.map((item) => ({...item}))
+      this.videoConversion.show = true
+    },
+    closeVideoConversion() {
+      this.videoConversion.show = false
+      this.videoConversion.items = []
+    },
     openMediaTrash() {
       this.mediaTrash.show = true
     },
     closeMediaTrash() {
       this.mediaTrash.show = false
+    },
+    promptTagTrashConflict(
+      tags: Array<{id: number; name: string; metaId?: number | null}>,
+    ): Promise<'restore' | 'purge' | 'cancel'> {
+      this.closeTagTrashConflict('cancel')
+      return new Promise((resolve) => {
+        this.tagTrashConflict.tags = tags
+        this.tagTrashConflict.resolve = resolve
+        this.tagTrashConflict.show = true
+      })
+    },
+    closeTagTrashConflict(action: 'restore' | 'purge' | 'cancel' = 'cancel') {
+      const resolve = this.tagTrashConflict.resolve
+      this.tagTrashConflict.show = false
+      this.tagTrashConflict.tags = []
+      this.tagTrashConflict.resolve = null
+      resolve?.(action)
     },
     editMedia(media: MediaItem | null, mediaType: MediaType | null = null) {
       const appStore = useAppStore()
@@ -214,6 +255,16 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.tagMerge.show = false
       this.tagMerge.tags = []
       this.tagMerge.meta = null
+    },
+    openTagReparent(tag: Tag, meta: Meta) {
+      this.tagReparent.tag = tag
+      this.tagReparent.meta = meta
+      this.tagReparent.show = true
+    },
+    closeTagReparent() {
+      this.tagReparent.show = false
+      this.tagReparent.tag = null
+      this.tagReparent.meta = null
     },
     openMediaMerge(items: MediaItem[], survivorId?: number | null) {
       this.mediaMerge.items = items
@@ -309,9 +360,10 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       const preset = BASE_MARK_TYPES.find((item) => item.value === normalizedType)
         || (normalizedType === TAG_MARK_TYPE.value ? TAG_MARK_TYPE : null)
 
+      this.markAdding.formKey += 1
       this.markAdding.editId = null
       this.markAdding.text = ''
-      this.markAdding.icon = DEFAULT_BOOKMARK_ICON
+      this.markAdding.icon = normalizedType === 'favorite' ? FAVORITE_MARK_ICON : DEFAULT_BOOKMARK_ICON
       this.markAdding.tagId = null
       this.markAdding.time = normalizeMarkTime(time)
       this.markAdding.type = normalizedType
@@ -344,6 +396,7 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       const end = mark.end == null ? null : normalizeMarkTime(mark.end)
       const metaId = Number(mark.tag?.metaId ?? mark.metaId ?? mark.meta?.id)
 
+      this.markAdding.formKey += 1
       this.markAdding.editId = editId
       this.markAdding.text = typeof mark.text === 'string' ? mark.text : ''
       this.markAdding.icon = resolveMarkEditIcon(mark)

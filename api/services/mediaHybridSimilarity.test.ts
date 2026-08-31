@@ -36,9 +36,9 @@ describe('findSimilarHybrid', () => {
       seedTileCount: 1,
       ids: [1, 2, 3, 4],
       hits: [
-        {id: 2, score: 0.9},
-        {id: 3, score: 0.8},
-        {id: 4, score: 0.7},
+        {id: 2, score: 0.9, tileIndex: null},
+        {id: 3, score: 0.8, tileIndex: null},
+        {id: 4, score: 0.7, tileIndex: null},
       ],
     })
     vi.mocked(findSimilarByTags).mockReturnValue({
@@ -102,10 +102,10 @@ describe('findSimilarHybrid', () => {
       seedTileCount: 1,
       ids: [1, 2, 3, 4, 5],
       hits: [
-        {id: 2, score: 0.95},
-        {id: 3, score: 0.9},
-        {id: 4, score: 0.2},
-        {id: 5, score: 0.15},
+        {id: 2, score: 0.95, tileIndex: null},
+        {id: 3, score: 0.9, tileIndex: null},
+        {id: 4, score: 0.2, tileIndex: null},
+        {id: 5, score: 0.15, tileIndex: null},
       ],
     })
     vi.mocked(findSimilarByTags).mockReturnValue({

@@ -425,7 +425,7 @@ import {isElectron as hasElectronBridge, showElectronOpenDialog} from '@/service
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import type {BackupEntry} from '@/types/settings'
-import {getErrorResponseData} from '@/types/vue'
+import {getApiErrorMessage, getErrorResponseData} from '@/types/vue'
 
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
@@ -620,6 +620,11 @@ async function restoreBackup() {
     dialogRestoreFinished.value = true
   } catch (error) {
     console.error('Failed to restore backup:', error)
+    setNotification({
+      type: 'error',
+      title: t('settings_labels.database.restore_backup'),
+      text: getApiErrorMessage(error, t('settings_labels.database.restore_backup')),
+    })
   } finally {
     dialogsStore.process.show = false
   }

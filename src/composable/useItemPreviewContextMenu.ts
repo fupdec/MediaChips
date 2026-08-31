@@ -83,6 +83,7 @@ export type ItemPreviewContextMenuOptions = {
   setNotification: (payload: {
     title: string
     text?: string
+    filePath?: string
     icon?: string
     type?: any
   }) => unknown
@@ -139,7 +140,7 @@ export function useItemPreviewContextMenu(options: ItemPreviewContextMenuOptions
       if (options.getStaticPreviewSubfolder() === 'grids') {
         options.loadThumb('grids', {bust: true})
       }
-      options.refreshThumb(media.id, {regenerate: true})
+      options.refreshThumb(media.id)
       options.syncMediaItem(media.id)
       void options.refreshGridPreviewIfNeeded?.()
       options.setNotification({
@@ -153,6 +154,7 @@ export function useItemPreviewContextMenu(options: ItemPreviewContextMenuOptions
       options.setNotification({
         title: options.translate('player.video_thumb_not_updated'),
         text: String(error),
+        filePath: media.path,
         icon: 'image',
         type: 'error',
       })

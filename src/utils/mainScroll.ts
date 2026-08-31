@@ -4,6 +4,19 @@ export function getMainScrollEl(): Element | null {
   return document.querySelector(MAIN_SCROLL_SELECTOR)
 }
 
+/** True when element content exceeds one viewport (vertical scroll is possible). */
+export function isElementVerticallyScrollable(
+  el: Element | null,
+  threshold = 1,
+): boolean {
+  if (!(el instanceof HTMLElement)) return false
+  return el.scrollHeight > el.clientHeight + threshold
+}
+
+export function isMainScrollOverflowing(threshold = 1): boolean {
+  return isElementVerticallyScrollable(getMainScrollEl(), threshold)
+}
+
 interface ScrollMainToOptions {
   top?: number
   behavior?: ScrollBehavior

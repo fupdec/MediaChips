@@ -3,8 +3,10 @@ import {
   BOOKMARK_ICON_PRESETS,
   CHAPTER_MARK_ICON,
   DEFAULT_BOOKMARK_ICON,
+  FAVORITE_MARK_ICON,
   MARK_FILTER_CHAPTER,
   isChapterMark,
+  isFavoriteMarkIcon,
   normalizeMarkIcon,
 } from '@shared/markIcons'
 
@@ -12,14 +14,30 @@ export {
   BOOKMARK_ICON_PRESETS,
   CHAPTER_MARK_ICON,
   DEFAULT_BOOKMARK_ICON,
+  FAVORITE_MARK_ICON,
   MARK_FILTER_CHAPTER,
   isChapterMark,
+  isFavoriteMarkIcon,
   normalizeMarkIcon,
 }
 
+export const FAVORITE_MARK_TYPE = {
+  value: 'favorite',
+  textKey: 'meta.default_names.favorite',
+  icon: FAVORITE_MARK_ICON,
+  color: '#e91e63',
+} as const
+
+export const BOOKMARK_MARK_TYPE = {
+  value: 'bookmark',
+  textKey: 'meta.default_names.bookmark',
+  icon: DEFAULT_BOOKMARK_ICON,
+  color: '#f44336',
+} as const
+
 export const BASE_MARK_TYPES = [
-  { value: 'favorite', textKey: 'meta.default_names.favorite', icon: 'heart', color: '#e91e63' },
-  { value: 'bookmark', textKey: 'meta.default_names.bookmark', icon: DEFAULT_BOOKMARK_ICON, color: '#f44336' },
+  FAVORITE_MARK_TYPE,
+  BOOKMARK_MARK_TYPE,
 ] as const
 
 export const TAG_MARK_TYPE = {
@@ -30,6 +48,12 @@ export const TAG_MARK_TYPE = {
 } as const
 
 export const isTagMarkType = (type: string): boolean => type === 'tag'
+
+export const isFavoriteMarkType = (type: string): boolean => type === 'favorite'
+
+export const isNoteMarkType = (type: string): boolean => (
+  type === 'bookmark' || type === 'favorite' || type === 'scene'
+)
 
 /** UI mode that needs a tag picker (single Tag chip, not per-category). */
 export const isMetaMarkType = (type: string): boolean => isTagMarkType(type)
@@ -49,7 +73,7 @@ export function getAssignedArrayMetas(assigned: AssignedMetaItem[] = []) {
 
 export function buildMarkTypes(_assigned: AssignedMetaItem[] = []) {
   void _assigned
-  return [...BASE_MARK_TYPES, TAG_MARK_TYPE]
+  return [BOOKMARK_MARK_TYPE, TAG_MARK_TYPE]
 }
 
 export function findAssignedMeta(assigned: AssignedMetaItem[] | null | undefined, type: unknown) {
@@ -108,15 +132,23 @@ export function buildMarkPayload({
     mark.icon = null
   } else {
     mark.tagId = null
-    if (adding.type === 'bookmark' || adding.type === 'scene') {
-      mark.type = 'bookmark'
-      mark.text = typeof data.text === 'string' ? data.text : null
-      const iconFallback = adding.type === 'scene' ? CHAPTER_MARK_ICON : DEFAULT_BOOKMARK_ICON
-      mark.icon = normalizeMarkIcon(iconFromData, iconFallback)
-    } else if (adding.type === 'favorite') {
-      mark.type = 'favorite'
-      mark.text = null
-      mark.icon = null
+    if (adding.type === 'bookmark' || adding.type === 'scene' || adding.type === 'favorite') {
+      const noteText = typeof data.text === 'string' ? data.text.trim() : ''
+      mark.text = noteText || null
+      if (adding.type === 'scene') {
+        mark.type = 'bookmark'
+        mark.icon = CHAPTER_MARK_ICON
+      } else {
+        const iconFallback = adding.type === 'favorite' ? FAVORITE_MARK_ICON : DEFAULT_BOOKMARK_ICON
+        const icon = normalizeMarkIcon(iconFromData, iconFallback)
+        if (adding.type === 'favorite' || isFavoriteMarkIcon(icon)) {
+          mark.type = 'favorite'
+          mark.icon = FAVORITE_MARK_ICON
+        } else {
+          mark.type = 'bookmark'
+          mark.icon = icon
+        }
+      }
     } else if (isTagMarkType(String(adding.type))) {
       // Incomplete tag mark — keep type tag so caller validation can catch it.
       mark.type = 'tag'
@@ -149,13 +181,24 @@ export function resolveMarkEditType(mark: {
   return type
 }
 
+export function applyNoteIcon(iconName: string) {
+  const icon = normalizeMarkIcon(iconName, DEFAULT_BOOKMARK_ICON)
+  if (isFavoriteMarkIcon(icon)) {
+    return {type: 'favorite' as const, icon: FAVORITE_MARK_ICON, color: FAVORITE_MARK_TYPE.color}
+  }
+  if (icon === CHAPTER_MARK_ICON) {
+    return {type: 'bookmark' as const, icon: CHAPTER_MARK_ICON, color: '#26a69a'}
+  }
+  return {type: 'bookmark' as const, icon, color: BOOKMARK_MARK_TYPE.color}
+}
+
 export function resolveMarkEditIcon(mark: {
   type?: string | null
   icon?: string | null
 }): string {
-  if (String(mark.type || '').toLowerCase() === 'scene') {
-    return CHAPTER_MARK_ICON
-  }
+  const type = String(mark.type || '').toLowerCase()
+  if (type === 'favorite' || isFavoriteMarkIcon(mark.icon)) return FAVORITE_MARK_ICON
+  if (type === 'scene') return CHAPTER_MARK_ICON
   if (isChapterMark(mark)) return CHAPTER_MARK_ICON
   return normalizeMarkIcon(mark.icon, DEFAULT_BOOKMARK_ICON)
 }

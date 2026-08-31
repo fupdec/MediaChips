@@ -124,7 +124,7 @@ interface MediaAddingStore {
   }
 }
 
-export function startDroppedMediaAdding({
+export async function startDroppedMediaAdding({
   paths,
   mediaTypeId,
   mediaTypes,
@@ -136,8 +136,11 @@ export function startDroppedMediaAdding({
   mediaTypes?: MediaType[] | null
   tasksStore: MediaAddingStore
   eventBus: EventBusLike
-}): boolean {
+}): Promise<boolean> {
   if (!paths.length) return false
+
+  const {useFreeLibraryGate} = await import('@/composable/useFreeLibraryGate')
+  if (!(await useFreeLibraryGate().ensureCanImportMedia())) return false
 
   const { files, directories } = partitionDroppedPaths(paths, mediaTypes)
   const pathsForTypeInference = files.length ? files : paths

@@ -11,6 +11,47 @@ export const APP_MENU_LOCALES = [
 
 export type AppMenuLocale = (typeof APP_MENU_LOCALES)[number]
 
+export const APP_MENU_LOCALE_NATIVE_NAMES: Record<AppMenuLocale, string> = {
+  en: 'English',
+  de: 'Deutsch',
+  fr: 'Français',
+  ja: '日本語',
+  pt: 'Português',
+  es: 'Español',
+  cn: '中文',
+  ru: 'Русский',
+}
+
+export const APP_MENU_GAP_SIZE_LABELS: Record<'xs' | 's' | 'm' | 'l' | 'xl', string> = {
+  xs: 'XS',
+  s: 'S',
+  m: 'M',
+  l: 'L',
+  xl: 'XL',
+}
+
+type AppMenuSettingLabels = {
+  theme: string
+  themeSystem: string
+  themeLight: string
+  themeDark: string
+  language: string
+  gapSize: string
+  sfwMode: string
+  navigation: string
+  navBottomBar: string
+  navPlaylists: string
+  navMarkers: string
+  navTrash: string
+  showSidebar: string
+  showInspector: string
+  playback: string
+  systemPlayer: string
+  separatePlayerWindow: string
+  previewSound: string
+  minimizeToTray: string
+}
+
 export type AppMenuLabels = {
   menuFile: string
   menuEdit: string
@@ -50,9 +91,11 @@ export type AppMenuLabels = {
   toggleDevTools: string
   about: string
   aboutMediaChips: string
-}
+} & AppMenuSettingLabels
 
-const STRINGS: Record<AppMenuLocale, AppMenuLabels> = {
+type AppMenuChromeLabels = Omit<AppMenuLabels, keyof AppMenuSettingLabels>
+
+const STRINGS: Record<AppMenuLocale, AppMenuChromeLabels> = {
   en: {
     menuFile: "File",
     menuEdit: "Edit",
@@ -375,6 +418,177 @@ const STRINGS: Record<AppMenuLocale, AppMenuLabels> = {
   },
 }
 
+const SETTING_STRINGS: Record<AppMenuLocale, AppMenuSettingLabels> = {
+  en: {
+    theme: 'Theme',
+    themeSystem: 'System',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    language: 'Language',
+    gapSize: 'Gap Size',
+    sfwMode: 'SFW Mode',
+    navigation: 'Navigation',
+    navBottomBar: 'Bottom Bar',
+    navPlaylists: 'Playlists',
+    navMarkers: 'Markers',
+    navTrash: 'Trash',
+    showSidebar: 'Sidebar',
+    showInspector: 'Inspector',
+    playback: 'Playback',
+    systemPlayer: 'Open in System Player',
+    separatePlayerWindow: 'Separate Player Window',
+    previewSound: 'Sound on Video Preview',
+    minimizeToTray: 'Minimize to Tray',
+  },
+  ru: {
+    theme: 'Тема',
+    themeSystem: 'Системная',
+    themeLight: 'Светлая',
+    themeDark: 'Тёмная',
+    language: 'Язык',
+    gapSize: 'Интервал',
+    sfwMode: 'Режим SFW',
+    navigation: 'Навигация',
+    navBottomBar: 'Нижняя панель',
+    navPlaylists: 'Плейлисты',
+    navMarkers: 'Маркеры',
+    navTrash: 'Корзина',
+    showSidebar: 'Боковая панель',
+    showInspector: 'Инспектор',
+    playback: 'Воспроизведение',
+    systemPlayer: 'Открывать в системном плеере',
+    separatePlayerWindow: 'Плеер в отдельном окне',
+    previewSound: 'Звук в превью видео',
+    minimizeToTray: 'Сворачивать в трей',
+  },
+  de: {
+    theme: 'Thema',
+    themeSystem: 'System',
+    themeLight: 'Hell',
+    themeDark: 'Dunkel',
+    language: 'Sprache',
+    gapSize: 'Abstand',
+    sfwMode: 'SFW-Modus',
+    navigation: 'Navigation',
+    navBottomBar: 'Untere Leiste',
+    navPlaylists: 'Playlists',
+    navMarkers: 'Markierungen',
+    navTrash: 'Papierkorb',
+    showSidebar: 'Seitenleiste',
+    showInspector: 'Inspektor',
+    playback: 'Wiedergabe',
+    systemPlayer: 'Im Systemplayer öffnen',
+    separatePlayerWindow: 'Separates Player-Fenster',
+    previewSound: 'Ton in der Videovorschau',
+    minimizeToTray: 'In den Infobereich minimieren',
+  },
+  es: {
+    theme: 'Tema',
+    themeSystem: 'Sistema',
+    themeLight: 'Claro',
+    themeDark: 'Oscuro',
+    language: 'Idioma',
+    gapSize: 'Espaciado',
+    sfwMode: 'Modo SFW',
+    navigation: 'Navegación',
+    navBottomBar: 'Barra inferior',
+    navPlaylists: 'Listas de reproducción',
+    navMarkers: 'Marcadores',
+    navTrash: 'Papelera',
+    showSidebar: 'Barra lateral',
+    showInspector: 'Inspector',
+    playback: 'Reproducción',
+    systemPlayer: 'Abrir en el reproductor del sistema',
+    separatePlayerWindow: 'Ventana de reproductor independiente',
+    previewSound: 'Sonido en la vista previa',
+    minimizeToTray: 'Minimizar a la bandeja',
+  },
+  fr: {
+    theme: 'Thème',
+    themeSystem: 'Système',
+    themeLight: 'Clair',
+    themeDark: 'Sombre',
+    language: 'Langue',
+    gapSize: 'Espacement',
+    sfwMode: 'Mode SFW',
+    navigation: 'Navigation',
+    navBottomBar: 'Barre inférieure',
+    navPlaylists: 'Playlists',
+    navMarkers: 'Marqueurs',
+    navTrash: 'Corbeille',
+    showSidebar: 'Barre latérale',
+    showInspector: 'Inspecteur',
+    playback: 'Lecture',
+    systemPlayer: 'Ouvrir dans le lecteur système',
+    separatePlayerWindow: 'Fenêtre de lecteur séparée',
+    previewSound: 'Son de l’aperçu vidéo',
+    minimizeToTray: 'Réduire dans la barre des tâches',
+  },
+  ja: {
+    theme: 'テーマ',
+    themeSystem: 'システム',
+    themeLight: 'ライト',
+    themeDark: 'ダーク',
+    language: '言語',
+    gapSize: '間隔',
+    sfwMode: 'SFWモード',
+    navigation: 'ナビゲーション',
+    navBottomBar: 'ボトムバー',
+    navPlaylists: 'プレイリスト',
+    navMarkers: 'マーカー',
+    navTrash: 'ゴミ箱',
+    showSidebar: 'サイドバー',
+    showInspector: 'インスペクター',
+    playback: '再生',
+    systemPlayer: 'システムプレーヤーで開く',
+    separatePlayerWindow: '別ウィンドウで再生',
+    previewSound: 'プレビューの音声',
+    minimizeToTray: 'トレイに最小化',
+  },
+  pt: {
+    theme: 'Tema',
+    themeSystem: 'Sistema',
+    themeLight: 'Claro',
+    themeDark: 'Escuro',
+    language: 'Idioma',
+    gapSize: 'Espaçamento',
+    sfwMode: 'Modo SFW',
+    navigation: 'Navegação',
+    navBottomBar: 'Barra inferior',
+    navPlaylists: 'Playlists',
+    navMarkers: 'Marcadores',
+    navTrash: 'Lixeira',
+    showSidebar: 'Barra lateral',
+    showInspector: 'Inspetor',
+    playback: 'Reprodução',
+    systemPlayer: 'Abrir no player do sistema',
+    separatePlayerWindow: 'Janela de player separada',
+    previewSound: 'Som na prévia do vídeo',
+    minimizeToTray: 'Minimizar para a bandeja',
+  },
+  cn: {
+    theme: '主题',
+    themeSystem: '跟随系统',
+    themeLight: '浅色',
+    themeDark: '深色',
+    language: '语言',
+    gapSize: '间距',
+    sfwMode: 'SFW 模式',
+    navigation: '导航',
+    navBottomBar: '底栏',
+    navPlaylists: '播放列表',
+    navMarkers: '标记',
+    navTrash: '回收站',
+    showSidebar: '侧边栏',
+    showInspector: '检查器',
+    playback: '播放',
+    systemPlayer: '用系统播放器打开',
+    separatePlayerWindow: '独立播放器窗口',
+    previewSound: '预览声音',
+    minimizeToTray: '最小化到托盘',
+  },
+}
+
 export function normalizeAppMenuLocale(value: unknown): AppMenuLocale {
   const code = String(value || 'en')
   return (APP_MENU_LOCALES as readonly string[]).includes(code)
@@ -383,5 +597,9 @@ export function normalizeAppMenuLocale(value: unknown): AppMenuLocale {
 }
 
 export function getAppMenuLabels(locale: unknown): AppMenuLabels {
-  return STRINGS[normalizeAppMenuLocale(locale)]
+  const code = normalizeAppMenuLocale(locale)
+  return {
+    ...STRINGS[code],
+    ...SETTING_STRINGS[code],
+  }
 }

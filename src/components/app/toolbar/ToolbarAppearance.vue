@@ -58,6 +58,17 @@
         <span class="toolbar-appearance__deck-label">{{ t('items.view_type') }}</span>
         <ItemsView dense/>
       </div>
+
+      <div class="toolbar-appearance__deck-group toolbar-appearance__deck-group--edit-pinned">
+        <v-btn
+          color="primary"
+          variant="tonal"
+          size="small"
+          prepend-icon="mdi-pencil"
+          :text="t('meta.settings.pinned_meta_short')"
+          @click="dialogEditingPinnedMeta = true"
+        />
+      </div>
     </div>
 
     <!-- Classic / standalone card layout -->
@@ -75,7 +86,7 @@
           rounded="xl"
           class="toolbar-appearance__edit-btn"
         >
-          <v-icon start>mdi-pencil-outline</v-icon>
+          <v-icon start>mdi-card-bulleted-settings</v-icon>
           {{ t('meta.settings.edit_pinned_meta') }}
         </v-btn>
       </div>
@@ -277,6 +288,7 @@ const closePinnedMetaDialog = () => {
     gap: 12px 14px;
     padding: 10px 14px;
     background: rgba(var(--v-theme-primary), 0.03);
+    position: relative;
   }
 
   &__deck-group {
@@ -288,7 +300,7 @@ const closePinnedMetaDialog = () => {
 
     & + & {
       padding-left: 14px;
-      border-left: 1px solid rgba(var(--v-theme-primary), 0.12);
+      border-left: 1px solid rgba(var(--v-theme-primary), 0.22);
     }
 
     &--view {
@@ -313,7 +325,7 @@ const closePinnedMetaDialog = () => {
     padding: 2px;
     border-radius: 999px;
     background: rgba(var(--v-theme-surface), 0.9);
-    border: 1px solid rgba(var(--v-theme-primary), 0.12);
+    border: 1px solid rgba(var(--v-theme-primary), 0.22);
   }
 
   &__deck-opt {

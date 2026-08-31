@@ -113,9 +113,10 @@ describe('importPathAutoTag', () => {
 
   it('accept-all creates missing names then re-parses to assign', async () => {
     const result = await acceptSuggestedTagsAndAssign(['BrandNew', 'Existing'], [101])
-    expect(createTags).toHaveBeenCalledWith([
-      {name: 'BrandNew', metaId: 10},
-    ])
+    expect(createTags).toHaveBeenCalledWith(
+      [{name: 'BrandNew', metaId: 10}],
+      {onTrashNameConflict: 'create'},
+    )
     expect(applyParseLibraryTags).toHaveBeenCalled()
     expect(result.createdTags).toBe(1)
     expect(result.createdNames).toEqual(['BrandNew'])

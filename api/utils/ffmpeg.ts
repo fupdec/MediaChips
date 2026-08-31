@@ -1,10 +1,13 @@
 import { spawn } from 'child_process'
+import fs from 'fs'
 import {
   runWithFfmpegLimit,
   runWithFfprobeLimit,
   runWithRemuxLimit,
+  runWithConversionLimit,
 } from '../services/mediaPostProcessQueue'
 import { getFfmpegPath, getFfprobePath } from './ffmpegPaths'
+import { writeFileAtomically } from '../services/safeFileReplace'
 import {
   acceptKeyframeHit,
   isUsableDuration,
@@ -22,26 +25,103 @@ export {
   resolveThumbnailSeekSeconds,
 } from './ffprobeMath'
 
-function runProcess(binary: string, args: string[]): Promise<{stdout: string; stderr: string}> {
+export type ConversionProgressDetails = {
+  mediaSeconds: number
+  speed?: number
+  etaSeconds?: number
+}
+
+type RunProcessOptions = {
+  signal?: AbortSignal
+  duration?: number
+  onProgress?: (progress: number, details?: ConversionProgressDetails) => void
+}
+
+/** FFmpeg's out_time_ms field is historically expressed in microseconds. */
+export function parseFfmpegProgressTime(line: string): number | null {
+  const match = line.match(/^out_time_(?:us|ms)=(\d+)/)
+  if (match) return Number(match[1]) / 1_000_000
+  const timestamp = line.match(/^out_time=(\d+):(\d+):(\d+(?:\.\d+)?)/)
+  if (timestamp) return Number(timestamp[1]) * 3600 + Number(timestamp[2]) * 60 + Number(timestamp[3])
+  return null
+}
+
+function runProcess(binary: string, args: string[], options: RunProcessOptions = {}): Promise<{stdout: string; stderr: string}> {
   return new Promise((resolve, reject) => {
     const proc = spawn(binary, args, {stdio: ['ignore', 'pipe', 'pipe']})
     let stdout = ''
     let stderr = ''
+    let progressBuffer = ''
+    let settled = false
+    let aborted = false
+    let killTimer: ReturnType<typeof setTimeout> | undefined
+    let lastMediaSeconds = 0
+    const startedAt = Date.now()
+
+    const finishReject = (error: Error) => {
+      if (settled) return
+      settled = true
+      if (killTimer) clearTimeout(killTimer)
+      reject(error)
+    }
+    const abort = () => {
+      if (settled || aborted) return
+      aborted = true
+      proc.kill('SIGTERM')
+      killTimer = setTimeout(() => {
+        if (!settled) proc.kill('SIGKILL')
+      }, 2_000)
+    }
+
+    if (options.signal?.aborted) {
+      abort()
+      return
+    }
+    options.signal?.addEventListener('abort', abort, {once: true})
 
     proc.stdout?.on('data', (chunk: Buffer | string) => {
       stdout += chunk.toString()
     })
     proc.stderr?.on('data', (chunk: Buffer | string) => {
-      stderr += chunk.toString()
+      const text = chunk.toString()
+      stderr += text
+      progressBuffer += text
+      const lines = progressBuffer.split(/\r?\n/)
+      progressBuffer = lines.pop() || ''
+      let mediaSeconds = lastMediaSeconds
+      let speed: number | undefined
+      for (const line of lines) {
+        const parsedTime = parseFfmpegProgressTime(line)
+        if (parsedTime != null) mediaSeconds = parsedTime
+        const speedMatch = line.match(/^speed=([0-9.]+)x/)
+        if (speedMatch) speed = Number(speedMatch[1])
+      }
+      if (mediaSeconds > lastMediaSeconds && options.duration && options.duration > 0) {
+        lastMediaSeconds = mediaSeconds
+        const measuredSpeed = speed && speed > 0 ? speed : (mediaSeconds / Math.max(0.001, (Date.now() - startedAt) / 1000))
+        const etaSeconds = measuredSpeed > 0 ? Math.max(0, (options.duration - mediaSeconds) / measuredSpeed) : undefined
+        options.onProgress?.(Math.max(0, Math.min(98, mediaSeconds / options.duration * 100)), {mediaSeconds, speed: measuredSpeed, etaSeconds})
+      }
     })
-    proc.on('error', reject)
+    proc.on('error', (error) => finishReject(error))
     proc.on('close', (code: number | null) => {
+      options.signal?.removeEventListener('abort', abort)
+      if (settled) return
+      settled = true
+      if (killTimer) clearTimeout(killTimer)
+      if (aborted) {
+        reject(new Error('Conversion cancelled'))
+        return
+      }
       if (code === 0) {
+        options.onProgress?.(100)
         resolve({stdout, stderr})
         return
       }
-
-      reject(new Error(stderr.trim() || `${binary} exited with code ${code}`))
+      const lines = stderr.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+      const meaningful = lines.filter((line) => !line.startsWith('frame=') && !line.includes('out_time_') && !line.startsWith('progress='))
+      const detail = meaningful.slice(-8).join('\n') || `${binary} exited with code ${code}`
+      reject(new Error(detail))
     })
   })
 }
@@ -198,13 +278,97 @@ async function ffprobePlayability(filePath: string) {
   })
 }
 
-async function runFfmpeg(args: string[]) {
-  return runWithFfmpegLimit(() => runProcess(getFfmpegPath(), args))
+async function runFfmpeg(args: string[], options: RunProcessOptions = {}) {
+  return runWithFfmpegLimit(() => runProcess(getFfmpegPath(), args, options))
 }
 
 /** Progressive remux / background copy — must not block live playback ffmpeg. */
-async function runFfmpegBackground(args: string[]) {
-  return runWithRemuxLimit(() => runProcess(getFfmpegPath(), args))
+async function runFfmpegBackground(args: string[], options: RunProcessOptions = {}) {
+  return runWithRemuxLimit(() => runProcess(getFfmpegPath(), args, options))
+}
+
+function isFaststartContainer(filePath: string): boolean {
+  return /\.(mp4|m4v|mov)$/i.test(filePath)
+}
+
+export function buildTrimCopyArgs(
+  input: string,
+  output: string,
+  startSeconds: number,
+  durationSeconds: number,
+): string[] {
+  const args = [
+    '-y',
+    '-ss', String(startSeconds),
+    '-i', input,
+    '-t', String(durationSeconds),
+    '-c', 'copy',
+    '-avoid_negative_ts', 'make_zero',
+    '-progress', 'pipe:2',
+    '-nostats',
+  ]
+  if (isFaststartContainer(output)) {
+    args.push('-movflags', '+faststart')
+  }
+  args.push(output)
+  return args
+}
+
+export function buildTrimEncodeArgs(
+  input: string,
+  output: string,
+  startSeconds: number,
+  durationSeconds: number,
+): string[] {
+  return [
+    '-y',
+    '-ss', String(startSeconds),
+    '-i', input,
+    '-t', String(durationSeconds),
+    '-c:v', 'libx264',
+    '-preset', 'veryfast',
+    '-crf', '23',
+    '-c:a', 'aac',
+    '-b:a', '192k',
+    '-movflags', '+faststart',
+    '-progress', 'pipe:2',
+    '-nostats',
+    output,
+  ]
+}
+
+export async function trimVideoFile(input: string, output: string, options: {
+  startSeconds: number
+  durationSeconds: number
+  onProgress?: (progress: number, details?: ConversionProgressDetails) => void
+  signal?: AbortSignal
+}): Promise<{outputPath: string; fallback: boolean}> {
+  const start = Math.max(0, Number(options.startSeconds) || 0)
+  const duration = Math.max(0.05, Number(options.durationSeconds) || 0)
+  const runOptions: RunProcessOptions = {
+    signal: options.signal,
+    duration,
+    onProgress: options.onProgress,
+  }
+
+  try {
+    await runFfmpegBackground(buildTrimCopyArgs(input, output, start, duration), runOptions)
+    return {outputPath: output, fallback: false}
+  } catch (error) {
+    if (options.signal?.aborted) throw error
+    if (fs.existsSync(output)) {
+      try { fs.unlinkSync(output) } catch { /* ignore partial copy */ }
+    }
+    const encodeOutput = isFaststartContainer(output)
+      ? output
+      : `${output.replace(/\.[^.]+$/, '')}.mp4`
+    await runWithConversionLimit(() => runProcess(
+      getFfmpegPath(),
+      buildTrimEncodeArgs(input, encodeOutput, start, duration),
+      runOptions,
+    ))
+    return {outputPath: encodeOutput, fallback: true}
+  }
 }
 
 const SINGLE_IMAGE_EXT = /\.(jpe?g|png|webp|bmp|gif)$/i
@@ -233,25 +397,26 @@ async function extractVideoFrame({
   vf?: string
   jpegQuality?: number
 }) {
-  const args: string[] = []
+  return writeFileAtomically(output, async (tempPath) => {
+    const args: string[] = []
 
-  if (timestamp) {
-    args.push('-ss', timestamp)
-  }
+    if (timestamp) {
+      args.push('-ss', timestamp)
+    }
 
-  args.push('-i', input, '-frames:v', '1')
+    args.push('-i', input, '-frames:v', '1')
 
-  if (vf) {
-    args.push('-vf', vf)
-  }
+    if (vf) {
+      args.push('-vf', vf)
+    }
 
-  if (jpegQuality != null && /\.jpe?g$/i.test(output)) {
-    args.push('-q:v', String(jpegQuality))
-  }
+    if (jpegQuality != null && /\.jpe?g$/i.test(tempPath)) {
+      args.push('-q:v', String(jpegQuality))
+    }
 
-  pushSingleImageOutput(args, output)
-  await runFfmpeg(args)
-  return output
+    pushSingleImageOutput(args, tempPath)
+    await runFfmpeg(args)
+  })
 }
 
 async function extractVideoThumbnail({
@@ -277,24 +442,25 @@ async function extractVideoThumbnail({
     // Skip the common all-black first frame when metadata is unavailable.
   }
 
-  const args = [
-    '-ss',
-    String(seekSeconds),
-    '-i',
-    input,
-    '-vf',
-    `scale=-1:${height}`,
-    '-frames:v',
-    '1',
-  ]
+  return writeFileAtomically(outputPath, async (tempPath) => {
+    const args = [
+      '-ss',
+      String(seekSeconds),
+      '-i',
+      input,
+      '-vf',
+      `scale=-1:${height}`,
+      '-frames:v',
+      '1',
+    ]
 
-  if (jpegQuality != null && /\.jpe?g$/i.test(outputPath)) {
-    args.push('-q:v', String(jpegQuality))
-  }
+    if (jpegQuality != null && /\.jpe?g$/i.test(tempPath)) {
+      args.push('-q:v', String(jpegQuality))
+    }
 
-  pushSingleImageOutput(args, outputPath)
-  await runFfmpeg(args)
-  return outputPath
+    pushSingleImageOutput(args, tempPath)
+    await runFfmpeg(args)
+  })
 }
 
 /** Extract embedded album art / attached picture as a JPEG cover thumb. */
@@ -309,22 +475,23 @@ async function extractAudioCoverArt({
   height?: number
   jpegQuality?: number
 }) {
-  const args = [
-    '-i',
-    input,
-    '-an',
-    '-map',
-    '0:v:0',
-    '-vf',
-    `scale=-1:${height}`,
-    '-frames:v',
-    '1',
-    '-q:v',
-    String(jpegQuality),
-  ]
-  pushSingleImageOutput(args, outputPath)
-  await runFfmpeg(args)
-  return outputPath
+  return writeFileAtomically(outputPath, async (tempPath) => {
+    const args = [
+      '-i',
+      input,
+      '-an',
+      '-map',
+      '0:v:0',
+      '-vf',
+      `scale=-1:${height}`,
+      '-frames:v',
+      '1',
+      '-q:v',
+      String(jpegQuality),
+    ]
+    pushSingleImageOutput(args, tempPath)
+    await runFfmpeg(args)
+  })
 }
 
 async function combineVideoFrames({
@@ -340,20 +507,22 @@ async function combineVideoFrames({
   mapLabel?: string
   jpegQuality?: number
 }) {
-  const args = ['-y']
+  await writeFileAtomically(output, async (tempPath) => {
+    const args = ['-y']
 
-  for (const input of inputs) {
-    args.push('-i', input)
-  }
+    for (const input of inputs) {
+      args.push('-i', input)
+    }
 
-  args.push('-filter_complex', filterComplex, '-map', mapLabel)
+    args.push('-filter_complex', filterComplex, '-map', mapLabel)
 
-  if (jpegQuality != null && /\.jpe?g$/i.test(output)) {
-    args.push('-q:v', String(jpegQuality))
-  }
+    if (jpegQuality != null && /\.jpe?g$/i.test(tempPath)) {
+      args.push('-q:v', String(jpegQuality))
+    }
 
-  pushSingleImageOutput(args, output, {overwrite: false})
-  await runFfmpeg(args)
+    pushSingleImageOutput(args, tempPath, {overwrite: false})
+    await runFfmpeg(args)
+  })
 }
 
 async function cutVideoSegment({
@@ -442,6 +611,85 @@ async function concatVideoSegments({
     ])
     return outputPath
   }
+}
+
+
+export type ConversionResolution = 'original' | 2160 | 1080 | 720 | 480
+export type ConversionQuality = 'economy' | 'balanced' | 'quality'
+export type ConversionCodec = 'hevc' | 'h264'
+
+const QUALITY_OPTIONS: Record<ConversionQuality, {crf: number; preset: string; hardwareQuality: number}> = {
+  economy: {crf: 28, preset: 'veryfast', hardwareQuality: 70},
+  balanced: {crf: 24, preset: 'fast', hardwareQuality: 55},
+  quality: {crf: 20, preset: 'medium', hardwareQuality: 40},
+}
+
+/** Hardware encoding is opt-in because availability varies by OS, GPU, driver, and FFmpeg build. */
+export function shouldUseHardwareVideoEncoder(): boolean {
+  return process.env.MEDIA_CHIPS_USE_HARDWARE_VIDEO_ENCODING === '1'
+}
+
+export function resolveConversionVideoEncoder(codec: ConversionCodec): 'libx265' | 'libx264' | 'hevc_videotoolbox' | 'h264_videotoolbox' {
+  if (shouldUseHardwareVideoEncoder() && process.platform === 'darwin') {
+    return codec === 'hevc' ? 'hevc_videotoolbox' : 'h264_videotoolbox'
+  }
+  return codec === 'hevc' ? 'libx265' : 'libx264'
+}
+
+/** Builds a capped scale expression. It never enlarges a source video. */
+export function buildConversionScale(resolution: ConversionResolution): string | null {
+  if (resolution === 'original') return null
+  const height = Number(resolution)
+  if (![2160, 1080, 720, 480].includes(height)) throw new Error('Unsupported conversion resolution')
+  return `scale=-2:min(${height}\\,ih):force_original_aspect_ratio=decrease`
+}
+
+export function buildConversionArgs(input: string, output: string, options: {
+  codec: ConversionCodec
+  resolution: ConversionResolution
+  quality: ConversionQuality
+  duration?: number
+}): string[] {
+  const profile = QUALITY_OPTIONS[options.quality]
+  if (!profile) throw new Error('Unsupported conversion quality')
+  const args = ['-hide_banner', '-y']
+  if (options.duration != null) args.push('-t', String(Math.max(0.1, options.duration)))
+  args.push('-progress', 'pipe:2', '-nostats', '-i', input, '-map', '0:v:0', '-map', '0:a?', '-sn', '-dn')
+  const scale = buildConversionScale(options.resolution)
+  if (scale) args.push('-vf', scale)
+  const encoder = resolveConversionVideoEncoder(options.codec)
+  args.push('-c:v', encoder)
+  if (encoder.endsWith('videotoolbox')) {
+    args.push('-q:v', String(profile.hardwareQuality))
+    if (options.codec === 'h264') args.push('-profile:v', 'high')
+    if (options.codec === 'hevc') args.push('-tag:v', 'hvc1')
+  } else {
+    args.push('-preset', profile.preset, '-crf', String(profile.crf))
+  }
+  args.push('-pix_fmt', 'yuv420p')
+  args.push('-c:a', 'aac', '-profile:a', 'aac_low', '-b:a', '128k', '-movflags', '+faststart', '-f', 'mp4', output)
+  return args
+}
+
+export async function convertVideoFile(input: string, output: string, options: {
+  codec: ConversionCodec
+  resolution: ConversionResolution
+  quality: ConversionQuality
+  duration?: number
+  onProgress?: (progress: number, details?: ConversionProgressDetails) => void
+  signal?: AbortSignal
+}): Promise<string> {
+  if (options.signal?.aborted) throw new Error('Conversion cancelled')
+  return runWithConversionLimit(async () => {
+    const args = buildConversionArgs(input, output, options)
+    await runFfmpeg(args, {
+      signal: options.signal,
+      duration: options.duration,
+      onProgress: options.onProgress,
+    })
+    if (options.signal?.aborted) throw new Error('Conversion cancelled')
+    return output
+  })
 }
 
 export {

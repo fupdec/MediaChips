@@ -83,6 +83,11 @@ export const MediaCountWithTagSchema = z.object({
   count: z.number(),
 }).passthrough()
 
+export const TagAssignmentCountsSchema = z.object({
+  media: z.number(),
+  tags: z.number(),
+}).passthrough()
+
 export const MarkClipItemSchema = z.object({
   id: z.number(),
   markId: z.number(),

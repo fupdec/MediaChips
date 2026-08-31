@@ -265,7 +265,8 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
     filters,
     sortBy,
     direction,
-    includeGroupingJoin: groupingActive && groupSlimNeedsMetadataJoin(groupBy, sortBy),
+    includeGroupingJoin: (groupingActive && groupSlimNeedsMetadataJoin(groupBy, sortBy))
+      || includeNavigation,
   })
 
   const pageLimit = resolvePageLimit(limit)
@@ -636,44 +637,60 @@ async function getFilteredMediaSummary(db: ApiDb, options: MediaLoadOptions = {}
   }
 }
 
+function shapeFilteredIdsResult(
+  idRows: AnyRecord[],
+  totals: AnyRecord | undefined,
+  includeNavigation: boolean,
+) {
+  const ids = idRows.map((row) => row.id)
+  return {
+    ids,
+    totalFiltered: Number(totals?.totalFiltered) || ids.length,
+    totalFilesize: Number(totals?.totalFilesize) || 0,
+    ...(includeNavigation ? {navigation: idRows.map(toNavigationItem)} : {}),
+  }
+}
+
+async function loadFilteredIdsLegacy(
+  db: ApiDb,
+  options: MediaLoadOptions,
+  fallbackReason: string,
+) {
+  const includeNavigation = options.includeNavigation === true
+  const result = await loadMediaItemsLegacy(db, {
+    ...options,
+    limit: null,
+    includeNavigation,
+  }, fallbackReason)
+
+  const idsResult = buildFilteredIdsFromListResult(result)
+  if (!includeNavigation) return idsResult
+  return {
+    ...idsResult,
+    navigation: result.navigation || result.items.map(toNavigationItem),
+  }
+}
+
 async function loadFilteredMediaIds(db: ApiDb, options: MediaLoadOptions = {}) {
+  const includeNavigation = options.includeNavigation === true
   const fallbackReason = getMediaFilterSqlFallbackReason({
     mediaTypeId: options.mediaTypeId,
     filters: options.filters,
+    filtersJoin: options.filtersJoin,
     find_duplicates: options.find_duplicates,
     duplicates_by: options.duplicates_by,
   })
 
   if (fallbackReason) {
-    const result = await loadMediaItemsLegacy(db, {
-      ...options,
-      limit: null,
-      includeNavigation: false,
-    }, fallbackReason)
-
-    return buildFilteredIdsFromListResult(result)
+    return loadFilteredIdsLegacy(db, options, fallbackReason)
   }
 
-  const {
-    mediaTypeId,
-    filters = [],
-  } = options
-
   const filterQuery = await resolveMediaListFilterQuery(db, {
-    mediaTypeId,
-    filters,
+    ...options,
     ids: [],
-    find_duplicates: options.find_duplicates,
-    duplicates_by: options.duplicates_by,
   })
   if (!filterQuery.ok) {
-    const result = await loadMediaItemsLegacy(db, {
-      ...options,
-      limit: null,
-      includeNavigation: false,
-    }, filterQuery.reason)
-
-    return buildFilteredIdsFromListResult(result)
+    return loadFilteredIdsLegacy(db, options, filterQuery.reason)
   }
 
   const {whereSql, joinSql = '', needsDistinct = false, replacements} = filterQuery
@@ -693,23 +710,31 @@ async function loadFilteredMediaIds(db: ApiDb, options: MediaLoadOptions = {}) {
     filters: options.filters || [],
     sortBy,
     direction: options.direction,
+    includeGroupingJoin: includeNavigation,
   })
+
+  const rowSelect = includeNavigation
+    ? (needsDistinct
+      ? getNavigationSelect().replace(/^SELECT/, 'SELECT DISTINCT')
+      : getNavigationSelect())
+    : idSelect
+
+  const idRowsPromise = queryAllAsync(db, `${rowSelect}
+      ${fromForSort}
+      ${whereClause}
+      ORDER BY ${sortExpr} ${sortDir}`, replacements)
+
+  if (options.skipTotals) {
+    const idRows = await idRowsPromise
+    return shapeFilteredIdsResult(idRows, {totalFiltered: idRows.length}, includeNavigation)
+  }
 
   const [countRows, idRows] = await Promise.all([
     queryAllAsync(db, buildFilteredTotalsSql(fromForCount, whereClause, needsDistinct), replacements),
-    queryAllAsync(db, `${idSelect}
-      ${fromForSort}
-      ${whereClause}
-      ORDER BY ${sortExpr} ${sortDir}`, replacements),
+    idRowsPromise,
   ])
 
-  const totals = countRows[0] || {}
-
-  return {
-    ids: idRows.map((row: AnyRecord) => row.id),
-    totalFiltered: Number(totals.totalFiltered) || 0,
-    totalFilesize: Number(totals.totalFilesize) || 0,
-  }
+  return shapeFilteredIdsResult(idRows, countRows[0], includeNavigation)
 }
 
 async function loadMediaBasicsByIds(db: ApiDb, ids: MediaId[] = []) {

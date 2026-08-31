@@ -2,50 +2,20 @@
  * @vitest-environment node
  */
 import {afterEach, describe, expect, it} from 'vitest'
-import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
-import {applySqlitePragmas} from '../db/pragmas'
+import {createTestDb as createSharedTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import type {ApiDb} from '../types/db'
 import {suggestTagsFromSimilarForMedia} from './suggestTagsFromSimilar'
 
+let lastDbPath: string | undefined
+
 function createTestDb(): ApiDb {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
+  const {sqlite, drizzle, dbPath} = createSharedTestDb('suggest-tags-from-similar')
+  lastDbPath = dbPath
   sqlite.exec(`
-    CREATE TABLE mediaTypes (
-      id INTEGER PRIMARY KEY,
-      type TEXT NOT NULL
-    );
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      path TEXT NOT NULL UNIQUE,
-      filesize INTEGER NOT NULL DEFAULT 0,
-      visualHash TEXT,
-      visualHashTiles TEXT,
-      mediaTypeId INTEGER,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE tags (
-      id INTEGER PRIMARY KEY,
-      name TEXT,
-      color TEXT,
-      metaId INTEGER
-    );
-    CREATE TABLE tagsInMedia (
-      mediaId INTEGER NOT NULL,
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL,
-      PRIMARY KEY (mediaId, tagId, metaId)
-    );
-    INSERT INTO mediaTypes (id, type) VALUES (1, 'video');
+    INSERT INTO mediaTypes (id, type, createdAt, updatedAt) VALUES (1, 'video', '2026-01-01', '2026-01-01');
   `)
 
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite),
-    path: ':memory:',
-  } as ApiDb
+  return {sqlite, drizzle, path: dbPath} as ApiDb
 }
 
 function insertMedia(
@@ -75,7 +45,7 @@ describe('suggestTagsFromSimilarForMedia', () => {
   let db: ApiDb
 
   afterEach(() => {
-    db?.sqlite?.close()
+    if (db?.sqlite && lastDbPath) closeTestDb({sqlite: db.sqlite, dbPath: lastDbPath})
   })
 
   it('ranks neighbor tags and excludes tags already on the seed', () => {
@@ -99,10 +69,10 @@ describe('suggestTagsFromSimilarForMedia', () => {
       visualHashTiles: 'fffffffffffffffd:fffffffffffffffd',
     })
     db.sqlite.prepare(`
-      INSERT INTO tags (id, name, color, metaId) VALUES
-        (10, 'Lara', NULL, 5),
-        (11, 'Studio', NULL, 5),
-        (12, 'Owned', NULL, 5)
+      INSERT INTO tags (id, name, color, metaId, createdAt, updatedAt) VALUES
+        (10, 'Lara', NULL, 5, '2026-01-01', '2026-01-01'),
+        (11, 'Studio', NULL, 5, '2026-01-01', '2026-01-01'),
+        (12, 'Owned', NULL, 5, '2026-01-01', '2026-01-01')
     `).run()
     db.sqlite.prepare(`
       INSERT INTO tagsInMedia (mediaId, tagId, metaId) VALUES
@@ -137,7 +107,7 @@ describe('suggestTagsFromSimilarForMedia', () => {
       visualHashTiles: 'fffffffffffffffe:fffffffffffffffe',
     })
     db.sqlite.prepare(`
-      INSERT INTO tags (id, name, color, metaId) VALUES (10, 'Lara', NULL, 5)
+      INSERT INTO tags (id, name, color, metaId, createdAt, updatedAt) VALUES (10, 'Lara', NULL, 5, '2026-01-01', '2026-01-01')
     `).run()
     db.sqlite.prepare(`
       INSERT INTO tagsInMedia (mediaId, tagId, metaId) VALUES (2, 10, 5)

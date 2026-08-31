@@ -360,15 +360,21 @@ function deleteMedia() {
   const currentMedia = media.value
   if (!currentMedia || !dialogsStore?.confirm) return
 
+  dialogsStore.confirm.checkBox = false
+  dialogsStore.confirm.checkBox2 = false
+  dialogsStore.confirm.checkBox2RequiresPrimary = true
+  dialogsStore.confirm.checkBoxText = t('actions.delete_permanently')
+  dialogsStore.confirm.checkBox2Text = t('actions.also_delete_files')
+  dialogsStore.confirm.text = t('media.move_to_trash_confirm')
   dialogsStore.confirm.show = true
-  dialogsStore.confirm.checkBoxText = t('actions.also_delete_files')
-  dialogsStore.confirm.text = t('media.delete_from_app_confirm')
   dialogsStore.confirm.action = async () => {
-    const is_checked = dialogsStore.confirm.checkBox
+    const permanent = Boolean(dialogsStore.confirm.checkBox)
+    const withFile = Boolean(dialogsStore.confirm.checkBox2)
     await typedApi.deleteMediaOne({
       type: getMediaDeleteAssetFolder(currentMediaType.value),
       id: currentMedia.id,
-      with_file: is_checked,
+      permanent,
+      with_file: withFile,
       path: currentMedia.path,
     })
 

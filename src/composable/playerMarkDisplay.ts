@@ -2,13 +2,14 @@ import type { MarkDisplayVariant, PlayerMark } from '@/types/player'
 import {
   CHAPTER_MARK_ICON,
   DEFAULT_BOOKMARK_ICON,
+  FAVORITE_MARK_ICON,
   MARK_FILTER_CHAPTER,
   isChapterMark,
   normalizeMarkIcon,
 } from '@shared/markIcons'
 
 export function getMarkIcon(mark: PlayerMark, { variant = 'list' }: { variant?: MarkDisplayVariant } = {}) {
-  if (mark.type === 'favorite') return 'heart'
+  if (mark.type === 'favorite') return FAVORITE_MARK_ICON
   if (mark.type === 'meta') {
     if (variant === 'timeline') return 'tooltip'
     return mark.meta?.icon || mark['tag.icon'] || 'tag'

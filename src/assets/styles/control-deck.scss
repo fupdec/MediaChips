@@ -1,0 +1,382 @@
+/* Shared sticky control deck — used by media/tags, folders, markers, playlists. */
+
+.items-page-header {
+  row-gap: 12px;
+
+  &__icon {
+    font-size: 32px !important;
+    width: 32px !important;
+    height: 32px !important;
+    margin-inline-end: 8px;
+
+    @media (min-width: 960px) {
+      font-size: 42px !important;
+      width: 42px !important;
+      height: 42px !important;
+    }
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 12px;
+    line-height: 1.2;
+  }
+
+  &__heading {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  &__name {
+    font-weight: 600;
+  }
+
+  &__badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  &__meta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: rgba(var(--v-theme-primary), 0.12);
+    color: rgb(var(--v-theme-primary));
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    opacity: 1;
+  }
+
+  &--deck {
+    .items-page-header__icon {
+      font-size: 22px !important;
+      width: 22px !important;
+      height: 22px !important;
+      margin-inline-end: 6px;
+    }
+
+    .items-page-header__name {
+      font-size: 1.125rem;
+      line-height: 1.3;
+    }
+  }
+}
+
+.items-layout-container.v-container {
+  padding-top: 8px;
+}
+
+.items-control-deck-sentinel {
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+.items-control-deck {
+  width: 100%;
+
+  &--browser {
+    --deck-pad-x: 14px;
+    --deck-gap: 10px;
+    --deck-radius: 16px;
+    --deck-control-h: 40px;
+    --deck-sticky-top: 8px;
+
+    position: sticky;
+    top: var(--deck-sticky-top);
+    /*
+      Above item cards and context-menu spotlight (900),
+      below app bar / side chrome (~1000+).
+    */
+    z-index: 950;
+    margin-top: 0;
+    margin-bottom: 16px;
+    /* Opaque page bg under rounded surface — do not use overflow:hidden here
+       or the stuck elevation shadow gets clipped and the deck blends in. */
+    background: rgb(var(--v-theme-background));
+    border-radius: var(--deck-radius, 16px);
+    isolation: isolate;
+
+    &.items-control-deck--static {
+      position: static;
+      top: auto;
+      z-index: auto;
+      isolation: auto;
+    }
+
+    @media (max-width: 959px) {
+      --deck-pad-x: 12px;
+      --deck-gap: 8px;
+      --deck-control-h: 36px;
+    }
+  }
+
+  &__surface--card {
+    border: 1px solid rgba(var(--v-theme-primary), 0.16);
+    border-radius: var(--deck-radius, 16px);
+    background: rgb(var(--v-theme-surface));
+    box-shadow:
+      0 1px 0 rgba(var(--v-theme-primary), 0.04),
+      0 8px 22px -16px rgba(0, 0, 0, 0.22);
+    overflow: hidden;
+    transition: box-shadow 180ms ease, border-color 180ms ease;
+  }
+
+  &--stuck &__surface--card {
+    border-color: rgba(var(--v-theme-primary), 0.28);
+    box-shadow:
+      0 0 0 1px rgba(var(--v-theme-primary), 0.08),
+      0 1px 0 rgba(var(--v-theme-on-surface), 0.06),
+      0 10px 28px -10px rgba(0, 0, 0, 0.38),
+      0 4px 14px -6px rgba(0, 0, 0, 0.22);
+  }
+
+  &__header {
+    position: relative;
+    padding: 10px var(--deck-pad-x);
+    margin: 0;
+    min-height: 52px;
+    min-width: 0;
+
+    @media (max-width: 959px) {
+      padding: 8px 10px;
+      min-height: var(--deck-control-h);
+      gap: 8px !important;
+
+      .items-page-header__title {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      .items-page-header__badges {
+        display: none;
+      }
+    }
+  }
+
+  &__sticky-pin {
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: rgba(var(--v-theme-on-surface), 0.36);
+    cursor: pointer;
+    transition:
+      color 160ms ease,
+      background-color 160ms ease;
+
+    &:hover {
+      color: rgb(var(--v-theme-primary));
+      background: rgba(var(--v-theme-primary), 0.08);
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba(var(--v-theme-primary), 0.45);
+      outline-offset: -2px;
+    }
+
+    &--active {
+      color: rgb(var(--v-theme-primary));
+    }
+  }
+
+  &__sticky-pin-glyph {
+    display: inline-flex;
+    transform: rotate(42deg) translate(0.5px, -0.5px);
+    transform-origin: center 60%;
+    opacity: 0.9;
+    transition: transform 180ms cubic-bezier(0.33, 1, 0.68, 1), opacity 160ms ease;
+
+    .items-control-deck__sticky-pin--active & {
+      transform: rotate(0deg) translate(0, 0.5px);
+      opacity: 1;
+    }
+
+    .items-control-deck__sticky-pin:hover & {
+      opacity: 1;
+    }
+  }
+
+  &__section {
+    border-top: 1px solid rgba(var(--v-theme-primary), 0.18);
+  }
+
+  &__appearance {
+    min-width: 0;
+    position: relative;
+  }
+
+  &__appearance-close {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    z-index: 2;
+  }
+
+  &__filters-host {
+    min-width: 0;
+  }
+
+  &__field {
+    margin-inline: 0 !important;
+    flex: 0 0 auto;
+    font-size: 0.8125rem;
+    line-height: 1.25;
+
+    .v-field {
+      --v-input-control-height: var(--deck-control-h);
+      font-size: 0.8125rem;
+    }
+
+    .v-field__input {
+      min-height: var(--deck-control-h) !important;
+      max-height: var(--deck-control-h);
+      font-size: 0.8125rem !important;
+      line-height: 1.25 !important;
+      flex-wrap: nowrap;
+      overflow: hidden;
+      align-items: center;
+    }
+
+    .v-autocomplete__selection,
+    .v-autocomplete__selection-text,
+    .v-autocomplete__selection .pl-2,
+    .v-select__selection,
+    .v-select__selection-text,
+    .v-select__selection .pl-2 {
+      max-width: 100%;
+      overflow: hidden;
+      white-space: nowrap !important;
+      text-overflow: ellipsis;
+      font-size: 0.8125rem !important;
+      line-height: 1.25 !important;
+    }
+
+    .v-label {
+      font-size: 0.75rem;
+    }
+
+    .v-input--density-compact {
+      --v-input-padding-top: 0;
+    }
+  }
+
+  &__sort {
+    width: 260px;
+    min-width: 240px;
+    max-width: 280px;
+
+    .v-field {
+      --v-input-control-height: var(--deck-control-h);
+      font-size: 0.75rem;
+    }
+
+    .v-field__input {
+      min-height: var(--deck-control-h) !important;
+      max-height: var(--deck-control-h);
+      font-size: 0.75rem !important;
+      line-height: 1.2 !important;
+    }
+
+    .v-autocomplete__selection,
+    .v-autocomplete__selection-text,
+    .v-select__selection,
+    .v-select__selection-text {
+      font-size: 0.75rem !important;
+      line-height: 1.2 !important;
+    }
+
+    .v-input__prepend .v-btn {
+      width: var(--deck-control-h) !important;
+      height: var(--deck-control-h) !important;
+    }
+
+    @media (max-width: 959px) {
+      width: min(100%, 280px);
+      min-width: 0;
+      flex: 1 1 160px;
+    }
+  }
+
+  &__group-by {
+    width: 190px;
+    min-width: 170px;
+    max-width: 200px;
+
+    .v-field {
+      --v-input-control-height: var(--deck-control-h);
+      font-size: 0.75rem;
+    }
+
+    .v-field__input {
+      min-height: var(--deck-control-h) !important;
+      max-height: var(--deck-control-h);
+      font-size: 0.75rem !important;
+      line-height: 1.2 !important;
+    }
+
+    .v-autocomplete__selection,
+    .v-autocomplete__selection-text,
+    .v-select__selection,
+    .v-select__selection-text {
+      font-size: 0.75rem !important;
+      line-height: 1.2 !important;
+    }
+
+    @media (max-width: 959px) {
+      width: min(100%, 200px);
+      min-width: 0;
+      flex: 1 1 140px;
+    }
+  }
+
+  &__controls {
+    flex: 0 1 auto;
+    justify-content: flex-end;
+    align-items: center;
+    min-height: var(--deck-control-h);
+    min-width: 0;
+
+    .v-btn--icon.v-btn--size-small {
+      width: var(--deck-control-h);
+      height: var(--deck-control-h);
+    }
+
+    @media (max-width: 959px) {
+      flex: 0 0 auto;
+      justify-content: flex-end;
+      flex-wrap: nowrap;
+    }
+  }
+
+  &__sort-icon,
+  &__group-by-icon {
+    flex: 0 0 auto;
+  }
+}
+
+.items-filters-top-host {
+  width: 100%;
+}

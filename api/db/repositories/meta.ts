@@ -12,7 +12,7 @@ export type MetaRow = typeof meta.$inferSelect
 export type MetaInsert = typeof meta.$inferInsert
 
 const META_COLUMNS = new Set([
-  'type', 'name', 'icon', 'hint', 'order', 'views', 'oldId',
+  'type', 'name', 'icon', 'hint', 'order', 'views', 'oldId', 'parentMetaId',
   'synonyms', 'hidden', 'nested', 'marks', 'bookmark', 'parser',
   'pathRegex', 'pathRegexReplace', 'pathRegexCreateTags', 'pathRegexEnabled',
   'country', 'career',

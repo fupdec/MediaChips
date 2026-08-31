@@ -72,6 +72,9 @@ export function usePlayerMark(
   }
 
   const edit = () => {
+    playerStore.studioMode = true
+    playerStore.marksVisible = true
+    if (props.mark.id != null) playerStore.selectedMarkId = props.mark.id
     dialogsStore.openMarkEditing(props.mark)
   }
 

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, ref} from 'vue'
+import {useRoute} from 'vue-router'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
+import {isLibraryNavLinkActive} from '@/utils/libraryNavActive'
 
 const CONTENT_HEIGHT = 56
 
@@ -12,21 +14,32 @@ const safeAreaBottom = ref(0)
 
 const {mobile} = useDisplay()
 const {t} = useI18n()
+const route = useRoute()
+
+function linkActive(link: {to: string; exact?: boolean}): boolean {
+  return isLibraryNavLinkActive(link, route)
+}
 
 const {
   mediaTypesHidden,
-  metaVisible,
-  metaHidden,
+  metaVisibleLeaves,
+  metaHiddenLeaves,
   libraryLinks,
   settingsLink,
   allTagsLink,
+  trashLink,
+  showTrash,
   showInbox,
   inboxBadgeCount,
   inboxLostCount,
   watcherBusy,
   openInbox,
+  openTrash,
+  metaLink,
   metaPath,
 } = useLibraryNavItems()
+
+const metaVisibleLinks = computed(() => metaVisibleLeaves.value.map((item) => metaLink(item)))
 
 function readSafeAreaBottom() {
   if (typeof document === 'undefined') return 0
@@ -65,7 +78,7 @@ onUnmounted(() => {
     :mode="mobile ? undefined : 'shift'"
     density="default"
     :height="navHeight"
-    elevation="8"
+    elevation="0"
     border
     class="bottom-menu"
     :class="{'bottom-menu--mobile': mobile}"
@@ -82,6 +95,7 @@ onUnmounted(() => {
           v-bind="props"
           :to="link.to"
           :exact="link.exact"
+          :active="linkActive(link)"
           :aria-label="link.title"
           :title="link.title"
           draggable="false"
@@ -105,6 +119,7 @@ onUnmounted(() => {
           v-bind="props"
           :to="allTagsLink.to"
           :exact="allTagsLink.exact"
+          :active="linkActive(allTagsLink)"
           :aria-label="allTagsLink.title"
           :title="allTagsLink.title"
           draggable="false"
@@ -119,8 +134,8 @@ onUnmounted(() => {
     </v-tooltip>
 
     <v-tooltip
-      v-for="item in metaVisible"
-      :key="item.id"
+      v-for="link in metaVisibleLinks"
+      :key="link.key"
       location="top"
       :disabled="mobile"
       open-on-hover
@@ -128,23 +143,24 @@ onUnmounted(() => {
       <template #activator="{ props }">
         <v-btn
           v-bind="props"
-          :to="metaPath(item.id)"
-          :aria-label="item.name"
-          :title="item.name"
+          :to="link.to"
+          :exact="link.exact"
+          :active="linkActive(link)"
+          :aria-label="link.title"
+          :title="link.title"
           draggable="false"
           variant="text"
           color="primary"
-          exact
         >
-          <v-icon>{{ `mdi-${item.icon}` }}</v-icon>
-          <span>{{ item.name }}</span>
+          <v-icon>{{ link.icon }}</v-icon>
+          <span>{{ link.title }}</span>
         </v-btn>
       </template>
-      {{ item.name }}
+      {{ link.title }}
     </v-tooltip>
 
     <v-menu
-      v-if="mediaTypesHidden.length || metaHidden.length"
+      v-if="mediaTypesHidden.length || metaHiddenLeaves.length"
       v-model="hiddenMetaMenu"
       location="top"
     >
@@ -152,6 +168,7 @@ onUnmounted(() => {
         <div class="folder-wrapper">
           <v-btn
             v-bind="props"
+            :active="false"
             @click.prevent
             class="folder btn-hidden"
             variant="text"
@@ -165,7 +182,7 @@ onUnmounted(() => {
 
       <v-list density="compact">
         <v-list-item
-          v-for="item in metaHidden"
+          v-for="item in metaHiddenLeaves"
           :key="item.id"
           :to="metaPath(item.id)"
           color="primary"
@@ -193,6 +210,7 @@ onUnmounted(() => {
         <v-btn
           v-bind="props"
           :to="settingsLink.to"
+          :active="linkActive(settingsLink)"
           :aria-label="settingsLink.title"
           :title="settingsLink.title"
           draggable="false"
@@ -204,6 +222,30 @@ onUnmounted(() => {
         </v-btn>
       </template>
       {{ settingsLink.title }}
+    </v-tooltip>
+
+    <v-tooltip
+      v-if="showTrash"
+      location="top"
+      :disabled="mobile"
+      open-on-hover
+    >
+      <template #activator="{ props }">
+        <v-btn
+          v-bind="props"
+          :active="false"
+          :aria-label="trashLink.title"
+          :title="trashLink.title"
+          draggable="false"
+          color="primary"
+          variant="text"
+          @click="openTrash()"
+        >
+          <v-icon>{{ trashLink.icon }}</v-icon>
+          <span>{{ trashLink.title }}</span>
+        </v-btn>
+      </template>
+      {{ trashLink.title }}
     </v-tooltip>
 
     <v-tooltip
@@ -220,7 +262,7 @@ onUnmounted(() => {
         >
           <v-btn
             v-bind="props"
-            class="v-btn--selected v-btn--active"
+            :active="false"
             variant="text"
             :disabled="watcherBusy"
             :aria-label="t('media_inbox.nav')"
@@ -292,7 +334,8 @@ onUnmounted(() => {
   opacity: 1;
 }
 
-.bottom-menu .v-btn.v-btn--selected,
+/* Highlight only route-driven :active — not Vuetify group --selected
+   (inbox / more / trash can become selected on click without being a page). */
 .bottom-menu .v-btn.v-btn--active {
   color: rgb(var(--v-theme-primary)) !important;
 }
@@ -314,11 +357,31 @@ onUnmounted(() => {
 
 .folder-wrapper {
   height: 100%;
+  // Vuetify sizes bottom-nav buttons via a direct-child selector
+  // (.v-bottom-navigation__content > .v-btn { height: 100% }). Wrapping the
+  // button in this extra div makes it a grandchild, so it misses that rule
+  // and falls back to the generic stacked-button default (72px) instead of
+  // matching its 56px siblings — that height mismatch, not centering, was
+  // why the icon looked off. Reapply it explicitly here.
+  .v-btn {
+    height: 100%;
+  }
   .v-btn__overlay,
   .v-btn__underlay {
     display: none;
   }
   .v-btn__content {
+    // This button shows only an icon, no label below it, so the true
+    // vertical center of the button IS the center of the icon — unlike
+    // siblings, which reserve space below the icon for a label and are
+    // therefore off-center by design. Pull content out of the stacked
+    // grid (which sizes the "content" row to the icon alone) and center
+    // it against the full button box instead.
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     transform: none !important;
   }
 }

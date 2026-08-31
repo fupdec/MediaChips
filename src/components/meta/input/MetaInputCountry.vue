@@ -9,12 +9,14 @@
     :disabled="disabled"
     :prepend-icon="showIcons && !purpose ? 'mdi-flag' : undefined"
     :label="fieldLabel"
+    :placeholder="fieldPlaceholder"
+    :persistent-placeholder="Boolean(fieldPlaceholder)"
     :hide-details="fieldHideDetails"
     :rounded="view.rounded"
     :variant="fieldVariant"
     :density="fieldDensity"
     :append-icon="undefined"
-    :menu-props="{zIndex: 2800}"
+    :menu-props="countryMenuProps"
     item-text="name"
     item-value="name"
     ref="field"
@@ -28,7 +30,7 @@
     <template v-slot:chip="{ item }">
       <v-chip
         @click:close="remove(item)"
-        :class="purpose === 'filter' ? 'pl-0 ma-0 filter-form-chip' : 'pl-0 ma-1'"
+        :class="purpose === 'filter' ? 'pl-0 ma-0 filter-form-chip' : 'pl-0 country-field-chip'"
         label
         :size="purpose === 'filter' ? 'x-small' : 'small'"
         closable
@@ -39,13 +41,23 @@
       </v-chip>
     </template>
 
-    <template v-slot:item="{ props, item }">
-      <v-list-item v-bind="props" density="compact">
-        <template v-slot:prepend>
-          <country-flag :country="item.raw.code" size="normal" class="lang-flag  mr-1"/>
-        </template>
-        <template v-slot:title>
-          {{ item.raw.name }}
+    <template v-slot:item="{ props: itemProps, item }">
+      <v-list-item
+        v-bind="itemProps"
+        density="compact"
+        class="country-dropdown__item"
+      >
+        <template #title>
+          <span class="country-dropdown__row">
+            <span class="country-dropdown__flag">
+              <country-flag
+                :country="item.raw.code"
+                size="small"
+                class="lang-flag"
+              />
+            </span>
+            <span>{{ item.raw.name }}</span>
+          </span>
         </template>
       </v-list-item>
     </template>
@@ -55,6 +67,7 @@
 <script setup lang="ts">
 import {ref, computed, onMounted, watch, useAttrs} from 'vue'
 import {foundByChars} from '@/services/formatUtils'
+import {useI18n} from 'vue-i18n'
 import {useSettingsStore} from '@/stores/settings'
 import CountryFlag from '@/components/ui/CountryFlagLazy.vue'
 import Countries from '@/assets/Countries'
@@ -79,6 +92,7 @@ const emit = defineEmits<{
 }>()
 
 const settingsStore = useSettingsStore()
+const {t} = useI18n()
 
 interface AutocompleteFieldInstance {
   lazySearch?: string | null
@@ -113,9 +127,28 @@ const fieldDensity = computed(() => {
   return view.value.dense ? 'compact' : 'default'
 })
 
+const countryMenuProps = computed(() => {
+  const extra = (attrs.menuProps || attrs['menu-props']) as Record<string, unknown> | undefined
+  const extraClass = typeof extra?.contentClass === 'string' ? extra.contentClass : ''
+  return {
+    zIndex: 2800,
+    maxHeight: 400,
+    ...extra,
+    contentClass: ['custom-list', 'ac-dropdown', 'country-dropdown', extraClass].filter(Boolean).join(' '),
+  }
+})
+
 const fieldLabel = computed(() => {
-  if (typeof attrs.label === 'string') return attrs.label
-  return props.purpose === 'filter' ? '' : 'Country'
+  if (props.purpose === 'filter') return ''
+  const fromAttrs = attrs.label
+  if (typeof fromAttrs === 'string') return fromAttrs || undefined
+  if (typeof attrs.placeholder === 'string' && attrs.placeholder) return undefined
+  return t('meta.default_names.country')
+})
+
+const fieldPlaceholder = computed(() => {
+  if (typeof attrs.placeholder === 'string' && attrs.placeholder) return attrs.placeholder
+  return undefined
 })
 
 const fieldVariant = computed(() => {
@@ -205,7 +238,25 @@ defineExpose({
 
 <style scoped>
 .lang-flag {
-  display: inline-block;
-  vertical-align: middle;
+  display: block;
+  line-height: 0;
+}
+
+.country-dropdown__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 25px;
+}
+
+.country-dropdown__flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 17px;
+  overflow: hidden;
+  flex-shrink: 0;
+  line-height: 0;
 }
 </style>

@@ -17,6 +17,7 @@
     :hide-no-data="purpose === 'filter' ? false : !search"
     hide-selected
     multiple
+    auto-select-first
     :autofocus="autofocus"
     :class="{'meta-input-array--filter': purpose === 'filter'}"
     @update:menu="onMenuUpdate"
@@ -86,7 +87,7 @@
           v-if="index < filterCollapsedVisible"
           @click:close="removeTag(item.value)"
           @mouseover.stop="showHoverImage($event, meta.id, Number(item.value), 'tag', {
-            label: item.raw?.name || item.title,
+            label: selectionLabel(item),
             imageAspectRatio: meta.imageAspectRatio,
           })"
           @mouseleave.stop="hideHoverImage"
@@ -100,7 +101,7 @@
           :class="item.raw ? chipClassFor(item.raw) : undefined"
           size="x-small"
         >
-          <span>{{ item.raw?.name || item.title || findTagName(item.value) }}</span>
+          <span>{{ selectionLabel(item) }}</span>
         </v-chip>
         <v-chip
           v-else-if="index === filterCollapsedVisible && selectedCount > filterCollapsedVisible"
@@ -116,36 +117,25 @@
 
       <template v-else>
         <v-chip
-          v-if="item.raw"
           @click:close="removeTag(item.value)"
           @mouseover.stop="showHoverImage($event, meta.id, Number(item.value), 'tag', {
-            label: item.raw?.name || item.title,
+            label: selectionLabel(item),
             imageAspectRatio: meta.imageAspectRatio,
           })"
           @mouseleave.stop="hideHoverImage"
           :label="meta?.chipLabel"
           :variant="chipVariant"
-          :color="chipColorFor(item.raw)"
-          :style="chipStyleFor(item.raw)"
+          :color="item.raw ? chipColorFor(item.raw) : undefined"
+          :style="item.raw ? chipStyleFor(item.raw) : undefined"
           closable
           close-icon="mdi-close"
           :class="[
             purpose === 'bulk' ? 'ma-0 filter-form-chip' : 'editing-tag-chip',
-            chipClassFor(item.raw),
+            item.raw ? chipClassFor(item.raw) : undefined,
           ]"
           :size="purpose === 'bulk' ? 'x-small' : 'small'"
         >
-          <span>{{ item.raw.name || item.title }}</span>
-        </v-chip>
-        <v-chip
-          v-else
-          @click:close="removeTag(item.value)"
-          :class="purpose === 'bulk' ? 'ma-0 filter-form-chip' : 'editing-tag-chip'"
-          closable
-          close-icon="mdi-close"
-          :size="purpose === 'bulk' ? 'x-small' : 'small'"
-        >
-          <span>{{ findTagName(item.value) }}</span>
+          <span>{{ selectionLabel(item) }}</span>
         </v-chip>
       </template>
     </template>
@@ -164,15 +154,15 @@
         <!-- Убираем v-list-item-title и используем свой контент -->
         <template v-slot:title>
           <div class="d-flex align-center flex-grow-1">
-            <div class="d-flex align-center mr-2">
-              <span v-if="meta.favorite">
-                <v-icon v-if="item.raw.favorite" color="pink" size="small" class="mr-1">
+            <div class="d-flex align-center meta-input-array__row-icons">
+              <span v-if="meta.favorite" class="meta-input-array__heart">
+                <v-icon v-if="item.raw.favorite" color="pink" size="14">
                   mdi-heart
                 </v-icon>
-                <v-icon v-else size="small" class="mr-1">mdi-heart-outline</v-icon>
+                <v-icon v-else size="14">mdi-heart-outline</v-icon>
               </span>
               <span v-if="meta.color">
-                <v-icon :color="chipColorFor(item.raw) || ''" size="14" class="mr-1">mdi-circle</v-icon>
+                <v-icon :color="chipColorFor(item.raw) || ''" size="14">mdi-circle</v-icon>
               </span>
             </div>
             <div class="d-flex align-baseline">
@@ -275,7 +265,6 @@ import {ref, computed, onMounted, onUnmounted, watch, nextTick, useAttrs} from '
 import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
-import orderBy from 'lodash/orderBy'
 import {useAutocompleteMenuInfiniteScroll} from '@/composable/useAutocompleteMenuInfiniteScroll'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
@@ -284,6 +273,7 @@ import {getApiErrorMessage} from '@/types/vue'
 import {useEventBus} from "@/utils/eventBus"
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {onTagsCatalogChanged, reloadTagsCatalog} from '@/composable/appCatalogs'
+import {createTagsInteractive} from '@/composable/createTagsInteractive'
 import {
   foundByChars,
   getTagChipTextColor,
@@ -294,7 +284,10 @@ import {resolveTagChipColor} from '@shared/tagChipColor'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {debounce} from '@/utils/debounce'
+import {sortTagsByCategoryPreference} from '@/utils/metaSort'
 import type { ArrayMeta, TagListItem } from '@/types/metaInput'
+
+defineOptions({inheritAttrs: false})
 
 const attrs = useAttrs()
 
@@ -310,7 +303,7 @@ const props = withDefaults(defineProps<{
   cond: null,
   autofocus: false,
   menuProps: () => ({
-    contentClass: 'custom-list',
+    contentClass: 'custom-list ac-dropdown meta-input-array-list',
     zIndex: 2800,
   }),
 })
@@ -353,7 +346,7 @@ const {
   loadMore: () => loadMoreTags(),
   baseContentClass: computed(() => {
     const fromProps = props.menuProps?.contentClass
-    return typeof fromProps === 'string' ? fromProps : 'custom-list'
+    return typeof fromProps === 'string' ? fromProps : 'custom-list ac-dropdown'
   }),
 })
 
@@ -385,6 +378,26 @@ const sortBy = computed(() => [
     value: "favorite",
   },
   {
+    title: t("meta.sorting.assignments"),
+    icon: "link-variant",
+    value: "mediaCount",
+  },
+  {
+    title: t("meta.sorting.video_count"),
+    icon: "video-outline",
+    value: "videoCount",
+  },
+  {
+    title: t("meta.sorting.image_count"),
+    icon: "image-outline",
+    value: "imageCount",
+  },
+  {
+    title: t("meta.sorting.tag_count"),
+    icon: "tag-multiple-outline",
+    value: "tagCount",
+  },
+  {
     title: t("meta.sorting.date_added"),
     icon: "calendar",
     value: "createdAt",
@@ -402,6 +415,7 @@ const showIcons = computed(() =>
 )
 
 const fieldLabel = computed(() => {
+  if (props.purpose === 'filter' || attrs.label === false) return undefined
   if (typeof attrs.label === 'string') return attrs.label
   return meta.value?.name ?? ''
 })
@@ -533,6 +547,14 @@ const findTagName = (tagId: number | string) => {
   return storeTag?.name ?? String(tagId)
 }
 
+const selectionLabel = (item: {raw?: TagListItem | null; title?: string; value?: number | string}) => {
+  const fromRaw = item.raw?.name
+  if (fromRaw) return fromRaw
+  const fromTitle = item.title
+  if (fromTitle && !/^\d+$/.test(String(fromTitle))) return String(fromTitle)
+  return findTagName(item.value ?? '')
+}
+
 const mergeTagLists = (...lists: TagListItem[][]) => {
   const byId = new Map<number, TagListItem>()
   for (const list of lists) {
@@ -541,6 +563,55 @@ const mergeTagLists = (...lists: TagListItem[][]) => {
     }
   }
   return [...byId.values()]
+}
+
+const hydrateSelectedTags = async (ids: number[]) => {
+  if (!props.metaId || !ids.length) return
+
+  const missing = ids.filter((id) =>
+    !listTags.value.some((tag) => Number(tag.id) === id),
+  )
+  if (!missing.length) return
+
+  const fromStore = missing
+    .map((id) => {
+      const storeTag = appStore.getTagById(id) as TagListItem | undefined
+      if (!storeTag?.name) return null
+      return {
+        id,
+        name: storeTag.name,
+        favorite: Number(storeTag.favorite) || 0,
+        color: storeTag.color,
+        synonyms: storeTag.synonyms,
+        createdAt: storeTag.createdAt,
+        updatedAt: storeTag.updatedAt,
+      } as TagListItem
+    })
+    .filter((tag): tag is TagListItem => tag != null)
+
+  if (fromStore.length) {
+    listTags.value = mergeTagLists(listTags.value, fromStore)
+  }
+
+  const stillMissing = missing.filter((id) =>
+    !listTags.value.some((tag) => Number(tag.id) === id),
+  )
+  if (!stillMissing.length) return
+
+  try {
+    const selectedRes = await typedApi.postTagItems({
+      metaId: props.metaId,
+      ids: stillMissing,
+      filters: [],
+      skipTotals: true,
+    })
+    const items = (selectedRes.data.items ?? []) as TagListItem[]
+    if (items.length) {
+      listTags.value = mergeTagLists(listTags.value, items)
+    }
+  } catch (error) {
+    console.error(error)
+  }
 }
 
 const getTags = async (
@@ -675,11 +746,11 @@ const changeSortBy = async (param: string) => {
 }
 
 const sortTags = (tags: TagListItem[]) => {
-  const sortByParam = meta.value?.sortBy || 'createdAt'
-  const sortDir = (meta.value?.sortDir || 'asc') as 'asc' | 'desc'
-
-  const sorted = orderBy(tags, ['name'], ['asc'])
-  return orderBy(sorted, [sortByParam], [sortDir])
+  return sortTagsByCategoryPreference(
+    tags,
+    meta.value?.sortBy || 'createdAt',
+    meta.value?.sortDir || 'asc',
+  )
 }
 
 const resolveSelectedTag = (tagId: number): TagListItem => {
@@ -739,13 +810,14 @@ const create = async () => {
   }
 
   try {
-    const res = await typedApi.createTags([{
+    const created = await createTagsInteractive([{
       name: searchText,
       metaId: props.metaId,
     }])
+    if (!created?.[0]?.id) return
 
     search.value = ''
-    let newVal = [res.data[0].id]
+    let newVal = [created[0].id]
 
     if (Array.isArray(val.value)) {
       newVal = [...normalizeIds(val.value), ...newVal]
@@ -781,14 +853,25 @@ const create = async () => {
 
 const onEnter = (event: KeyboardEvent) => {
   const searchText = search.value?.trim()
-  const isExists = listTags.value.some(
-    (i) => i.name.toLowerCase() === searchText?.toLowerCase()
+  if (!searchText) return
+
+  const lower = searchText.toLowerCase()
+  const exact = listTags.value.find((tag) => tag.name.toLowerCase() === lower)
+  const mode = resolveTagAutocompleteSearchMode(settingsStore.typingFiltersDefault)
+  const match = exact ?? listTags.value.find((tag) =>
+    matchesTagAutocomplete(tag, searchText, mode),
   )
 
-  if (searchText && !isExists) {
+  if (match?.id != null) {
     event.preventDefault()
-    create()
+    const next = [...normalizeIds(val.value), Number(match.id)]
+    setVal(next)
+    search.value = ''
+    return
   }
+
+  event.preventDefault()
+  create()
 }
 const setVal = (newVal: unknown, options: {allowClear?: boolean} = {}) => {
   const normalized = [...new Set(normalizeIds(newVal))]
@@ -900,7 +983,15 @@ defineExpose({focus: focusField})
 
 // Watchers
 watch(() => props.modelValue, (newVal: number[] | number | undefined) => {
-  val.value = normalizeIds(newVal)
+  const next = normalizeIds(newVal)
+  val.value = next
+  void hydrateSelectedTags(next)
+})
+
+watch(() => props.metaId, async (metaId) => {
+  if (!metaId) return
+  await getMeta()
+  await getTags(search.value)
 })
 
 watch(search, (query) => {
@@ -913,6 +1004,28 @@ watch(search, (query) => {
   display: flex;
   align-items: center;
   width: 100%;
+}
+
+.meta-input-array__row-icons {
+  gap: 2px;
+  margin-right: 14px;
+}
+
+.meta-input-array__heart {
+  margin-right: 6px;
+}
+
+:deep(.meta-input-array-list .list-item) {
+  padding: 0 4px !important;
+}
+
+:deep(.meta-input-array-list .v-list-item) {
+  min-height: 12px !important;
+  font-size: 0.24em !important;
+}
+
+:deep(.meta-input-array-list .v-list-item__spacer) {
+  width: 4px !important;
 }
 
 .meta-input-array__sort-btn {

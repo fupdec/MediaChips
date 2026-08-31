@@ -1,11 +1,14 @@
 <template>
   <div
     ref="itemRootRef"
-    :disabled="!reg && x > 14"
-    :draggable="isMediaDragEnabled"
+    :draggable="isCardDragEnabled"
     @contextmenu.stop="showContextMenu"
     @mousedown="onItemMouseDown"
-    @dragstart="onMediaDragStart"
+    @dragstart="onCardDragStart"
+    @dragend="onCardDragEnd"
+    @dragover="onMediaTagDragOver"
+    @dragleave="onMediaTagDragLeave"
+    @drop="onMediaTagDrop"
     :class="[
       {favorite: is_favorite_active && item.favorite},
       {'big-preview': big_preview},
@@ -15,11 +18,13 @@
       {'item--inspector-focused': isInspectorFocused},
       {'item--keyboard-cursor': isKeyboardCursor},
       {'item--context-target': is_context_target},
+      {'item--tag-drop-target': isTagDropTarget},
       `item__size-${itemsStore.size}`,
       `item-view-${itemsStore.view}`,
     ]"
     class="item"
     :data-item-id="item.id"
+    :style="itemRootStyle"
   >
     <v-card
       v-if="showCardView"
@@ -60,22 +65,19 @@
         />
 
         <ItemRating
-          v-if="!isImageOnlyView && settingsStore.ratingAndFavoriteInCard != '1' && is_rating_active"
+          v-if="!isImageOnlyView && !isListView && settingsStore.ratingAndFavoriteInCard != '1' && is_rating_active"
           :item="item"
           :type="type"
         ></ItemRating>
         <ItemFavorite
-          v-if="!isImageOnlyView && settingsStore.ratingAndFavoriteInCard != '1' && is_favorite_active"
+          v-if="!isImageOnlyView && !isListView && settingsStore.ratingAndFavoriteInCard != '1' && is_favorite_active"
           :item="item"
           :type="type"
         ></ItemFavorite>
-        <div v-if="!reg && x > 14"
-             class="reg-block"
-             v-html="'App not registered'"/>
       </div>
 
       <div
-        v-if="isMasonryImage && showPreview"
+        v-if="isMasonryOrSquaresImage && showPreview"
         class="masonry-meta-overlay"
         @click.stop="handleCardActivate"
         @dblclick.stop="editItem"
@@ -103,9 +105,9 @@
 
         <div
           class="masonry-meta-overlay__title"
-          :title="item.name"
+          :title="cardTitle"
         >
-          {{ item.name }}
+          {{ cardTitle }}
         </div>
 
         <ItemPinnedMeta
@@ -123,13 +125,13 @@
       />
 
       <div
-        v-if="!isImageOnlyView && !(type === 'media' && isImageMedia && itemsStore.view == 3)"
+        v-if="!isImageOnlyView && !(type === 'media' && isImageMedia && (itemsStore.view == 3 || itemsStore.view == 6))"
         @click="handleCardActivate"
         @dblclick="editItem"
         v-ripple="{ class: `text-primary` }"
         class="description"
       >
-        <div v-if="settingsStore.ratingAndFavoriteInCard == '1' && (is_rating_active || is_favorite_active)"
+        <div v-if="!isListView && settingsStore.ratingAndFavoriteInCard == '1' && (is_rating_active || is_favorite_active)"
              @click.stop
              class="rating-favorite-in-description">
           <div class="rating-favorite-in-description__left">
@@ -147,8 +149,10 @@
           v-if="!(itemsStore.view == 2 && type === 'media' && isVideoMedia)"
           class="item-title"
         >
-          <span v-text="item.name"
-                :title="item.name"/>
+          <span
+            v-text="cardTitle"
+            :title="cardTitle"
+          />
         </div>
         <div
           v-if="meta?.synonyms && item.synonyms"
@@ -164,6 +168,19 @@
         />
       </div>
 
+      <div
+        v-if="isListView && (is_rating_active || is_favorite_active)"
+        @click.stop
+        class="list-rating-favorite"
+      >
+        <ItemRating v-if="is_rating_active"
+                    :item="item"
+                    :type="type"></ItemRating>
+        <ItemFavorite v-if="is_favorite_active"
+                      :item="item"
+                      :type="type"></ItemFavorite>
+      </div>
+
       <v-icon
         v-if="!isImageOnlyView && item.bookmark"
         :title="item.bookmark"
@@ -176,6 +193,7 @@
              class="item-menu-btn"
              size="small"
              variant="text"
+             :ripple="false"
              icon>
         <v-icon size="x-large"
                 icon="mdi-dots-vertical"></v-icon>
@@ -205,8 +223,7 @@
       :color="tagChipColor"
       :style="tagChipStyle"
       :size="getChipSize"
-      :label="meta?.chipLabel === true"
-      :rounded="meta?.chipLabel === true ? false : 'pill'"
+      rounded="pill"
       :class="['tag-chip-view', tagChipClass]"
     >
       <ItemPreviewTag v-if="tagItem && showPreview"
@@ -246,6 +263,7 @@
 <script setup lang="ts">
 import {ref, computed, watch, onMounted, onBeforeUnmount} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useRoute} from 'vue-router'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
@@ -260,8 +278,8 @@ import ItemRating from '@/components/items/ItemRating.vue'
 import ItemFavorite from '@/components/items/ItemFavorite.vue'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {useLazyInView} from '@/composable/useLazyInView'
-import {useBrowserLayout} from '@/composable/useBrowserLayout'
-import {isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType, getMediaDeleteAssetFolder} from '@/utils/mediaType'
+import {useBrowserLayout, isInspectorRoute} from '@/composable/useBrowserLayout'
+import {isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType, getMediaDeleteAssetFolder, findMediaTypeById} from '@/utils/mediaType'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {getTagChipTextStyle, hexToRgba} from '@/services/formatUtils'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
@@ -276,6 +294,18 @@ import {
   startNativeMediaDragOut,
 } from '@/utils/mediaDragOut'
 import {buildMediaDragGhostDataUrl} from '@/utils/mediaDragGhost'
+import {
+  clearMediaTagDrag,
+  isMediaTagDragActive,
+  isMediaTagDragEvent,
+  onMediaTagDragChange,
+  readMediaTagDragPayload,
+} from '@/utils/mediaTagDrag'
+import {useMediaTagTransfer} from '@/composable/useMediaTagTransfer'
+import {useSessionFocusActions} from '@/composable/useSessionFocusActions'
+import {writeSessionFocusTagsDrag} from '@/utils/sessionFocusDrag'
+import {normalizeSessionFocusTag} from '@/stores/sessionFocus'
+import {setNotification} from '@/services/notificationService'
 import {isMediaPageItem, isTagPageItem} from '@/utils/pageItem'
 import {markItemHidden, markItemVisible} from '@/utils/visibleItemsWindow'
 import {bumpMountedItems} from '@/utils/galleryPerfCounters'
@@ -298,11 +328,14 @@ const props = withDefaults(defineProps<{
    * waiting on IntersectionObserver (avoids blank posters after scrollbar seeks).
    */
   eagerPreview?: boolean
+  /** Prefer filesystem basename over library title (folder browse). */
+  preferFilename?: boolean
 }>(), {
   reg: true,
   x: 0,
   type: 'media',
   eagerPreview: false,
+  preferFilename: false,
 })
 
 const emit = defineEmits<{
@@ -319,8 +352,15 @@ const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
 const appStore = useAppStore()
 const contextMenuStore = useContextMenu()
+const {transferTagToMedia} = useMediaTagTransfer()
+const {applyTagToItem} = useSessionFocusActions()
 const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
+const route = useRoute()
 const {t} = useI18n()
+
+const inspectorClickMode = computed(() =>
+  browserLayoutActive.value && isInspectorRoute(route.path),
+)
 
 const contextMenu = computed(() => contextMenuStore)
 
@@ -328,28 +368,50 @@ const is_file_exists = ref(true)
 const big_preview = ref(false)
 const itemRootRef = ref<HTMLElement | null>(null)
 const checkedFilePath = ref<string | null>(null)
+const isTagDropTarget = ref(false)
+const mediaTagDragActive = ref(isMediaTagDragActive())
 const { isInView, wasInView } = useLazyInView(itemRootRef, { rootMargin: '400px 0px' })
+
+let unsubscribeMediaTagDrag: (() => void) | null = onMediaTagDragChange((active) => {
+  mediaTagDragActive.value = active
+  if (!active) isTagDropTarget.value = false
+})
 
 const showPreview = computed(() => props.eagerPreview || isInView.value)
 
-const isVideoMedia = computed(() => isVideoMediaType(props.mediaType ?? undefined))
-const isImageMedia = computed(() => isImageMediaType(props.mediaType ?? undefined))
-const isAudioMedia = computed(() => isAudioMediaType(props.mediaType ?? undefined))
-const isTextMedia = computed(() => isTextMediaType(props.mediaType ?? undefined))
+const resolvedMediaType = computed(() => {
+  if (props.mediaType) return props.mediaType
+  if (props.type !== 'media') return null
+  return findMediaTypeById(appStore.mediaTypes, (props.item as MediaItem).mediaTypeId)
+})
+
+const isVideoMedia = computed(() => isVideoMediaType(resolvedMediaType.value))
+const isImageMedia = computed(() => isImageMediaType(resolvedMediaType.value))
+const isAudioMedia = computed(() => isAudioMediaType(resolvedMediaType.value))
+const isTextMedia = computed(() => isTextMediaType(resolvedMediaType.value))
 
 const isImageOnlyView = computed(() => isImageOnlyItemsView(itemsStore.view))
 
-const isMasonryImage = computed(() =>
+const isListView = computed(() => Number(itemsStore.view) === 5)
+
+const isMasonryOrSquaresImage = computed(() =>
   props.type === 'media'
   && isImageMedia.value
-  && Number(itemsStore.view) === 3
+  && (Number(itemsStore.view) === 3 || Number(itemsStore.view) === 6)
+)
+
+const isSquaresGrid = computed(() =>
+  props.type === 'media'
+  && isImageMedia.value
+  && Number(itemsStore.view) === 6
 )
 
 const showCardView = computed(() => {
   const view = Number(itemsStore.view)
   if (view === 1 || isImageOnlyView.value) return true
   if (view === 2 && props.type === 'media' && isVideoMedia.value) return true
-  if (view === 3 && props.type === 'media' && isImageMedia.value) return true
+  if ((view === 3 || view === 6) && props.type === 'media' && isImageMedia.value) return true
+  if (view === 5 && (props.type === 'media' || props.type === 'tag')) return true
   return false
 })
 
@@ -370,6 +432,12 @@ const minimalFilename = computed(() => {
   return props.item.name || ''
 })
 
+const cardTitle = computed(() =>
+  props.preferFilename && props.type === 'media'
+    ? minimalFilename.value
+    : (props.item.name || ''),
+)
+
 const tagMetaId = computed((): number | null => {
   if (props.meta?.id) return props.meta.id
   const metaId = tagItem.value?.metaId
@@ -377,6 +445,16 @@ const tagMetaId = computed((): number | null => {
 })
 
 const previewMeta = computed((): Meta => props.meta ?? { id: 0 })
+
+const tagPreviewAspectStyle = computed(() => {
+  if (props.type !== 'tag') return undefined
+  const ratio = Number(previewMeta.value.imageAspectRatio)
+  return {
+    '--tag-preview-aspect': String(ratio > 0 ? ratio : 1),
+  }
+})
+
+const itemRootStyle = computed(() => tagPreviewAspectStyle.value)
 
 type ChipVariant = import('@/utils/chipVariant').ChipVariant
 
@@ -414,6 +492,14 @@ const isMediaDragEnabled = computed(() => (
   && Boolean(mediaItem.value?.path)
   && is_file_exists.value !== false
 ))
+
+const isTagCardDragEnabled = computed(() => (
+  props.type === 'tag'
+  && Number(props.item.id) > 0
+  && Number(tagMetaId.value) > 0
+))
+
+const isCardDragEnabled = computed(() => isMediaDragEnabled.value || isTagCardDragEnabled.value)
 
 /** Suppress the synthetic click that fires when a native drag ends over the card. */
 let suppressEditClicks = false
@@ -489,6 +575,33 @@ function armEditClickSuppress() {
   window.addEventListener('mouseup', suppressEditMouseUpListener, true)
 }
 
+const onTagCardDragStart = (event: DragEvent) => {
+  const tag = normalizeSessionFocusTag({
+    tagId: Number(props.item.id),
+    metaId: Number(tagMetaId.value),
+    name: String(props.item.name || ''),
+    icon: props.meta?.icon ? String(props.meta.icon) : null,
+    color: props.item.color ? String(props.item.color) : null,
+  })
+  if (!tag) {
+    event.preventDefault()
+    return
+  }
+  writeSessionFocusTagsDrag(event, [tag])
+}
+
+const onCardDragStart = (event: DragEvent) => {
+  if (props.type === 'tag') {
+    onTagCardDragStart(event)
+    return
+  }
+  onMediaDragStart(event)
+}
+
+const onCardDragEnd = () => {
+  if (props.type === 'tag') clearMediaTagDrag()
+}
+
 const onMediaDragStart = (event: DragEvent) => {
   // Suppress drop-in overlay immediately — dragenter can race with this handler.
   // On macOS startDrag returns early; keep this flag until mouseup/blur.
@@ -522,7 +635,7 @@ const onMediaDragStart = (event: DragEvent) => {
 
   // Hand off to Electron native file drag; do not use HTML5 Files transfer.
   event.preventDefault()
-  const folder = getMediaDeleteAssetFolder(props.mediaType ?? undefined) || 'videos'
+  const folder = getMediaDeleteAssetFolder(resolvedMediaType.value ?? undefined) || 'videos'
   const thumbPath = appStore.mediaPath
     ? path.join(appStore.mediaPath, folder, 'thumbs', `${mediaItem.value.id}.jpg`)
     : null
@@ -541,8 +654,98 @@ const onMediaDragStart = (event: DragEvent) => {
   })
 }
 
+const canAcceptMediaTagDrop = (event: DragEvent): boolean => {
+  if (!mediaTagDragActive.value && !isMediaTagDragEvent(event)) return false
+  if (props.type === 'media' && mediaItem.value) return true
+  if (props.type === 'tag' && tagItem.value) return true
+  return false
+}
+
+const onMediaTagDragOver = (event: DragEvent) => {
+  if (!canAcceptMediaTagDrop(event)) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = props.type === 'tag' || !event.shiftKey ? 'copy' : 'move'
+  }
+  isTagDropTarget.value = true
+}
+
+const onMediaTagDragLeave = (event: DragEvent) => {
+  if (!isTagDropTarget.value) return
+  const next = event.relatedTarget
+  if (next instanceof Node && itemRootRef.value?.contains(next)) return
+  isTagDropTarget.value = false
+}
+
+const onMediaTagDrop = async (event: DragEvent) => {
+  if (!canAcceptMediaTagDrop(event)) return
+  event.preventDefault()
+  event.stopPropagation()
+  isTagDropTarget.value = false
+
+  const payload = readMediaTagDragPayload(event)
+  clearMediaTagDrag()
+  if (!payload) return
+
+  if (props.type === 'tag' && tagItem.value) {
+    if (Number(payload.tagId) === Number(tagItem.value.id)) return
+    const alreadyHad = (tagItem.value.tags || []).some((entry) => Number(entry.tagId) === Number(payload.tagId))
+    if (alreadyHad) {
+      setNotification({
+        type: 'info',
+        text: t('items.tag_already_on_card', {name: payload.name || ''}),
+      })
+      return
+    }
+    const ok = await applyTagToItem({
+      tagId: payload.tagId,
+      metaId: payload.metaId,
+      name: payload.name || '',
+      icon: payload.icon ?? null,
+      color: payload.color ?? null,
+    }, tagItem.value.id, 'tag')
+    setNotification({
+      type: ok ? 'success' : 'error',
+      text: ok
+        ? t('items.tag_copied', {name: payload.name || ''})
+        : t('items.tag_transfer_failed'),
+    })
+    return
+  }
+
+  if (!mediaItem.value) return
+
+  const mode = event.shiftKey && Number(payload.sourceMediaId) > 0 ? 'move' : 'copy'
+  const result = await transferTagToMedia(payload, mediaItem.value.id, mode)
+  if (result.ok) {
+    setNotification({
+      type: 'success',
+      text: mode === 'move'
+        ? t('items.tag_moved', {name: payload.name || ''})
+        : t('items.tag_copied', {name: payload.name || ''}),
+      filePath: mediaItem.value.path,
+    })
+    return
+  }
+  if (result.reason === 'already_had') {
+    setNotification({
+      type: 'info',
+      text: t('items.tag_already_on_card', {name: payload.name || ''}),
+      filePath: mediaItem.value.path,
+    })
+    return
+  }
+  if (result.reason === 'same_card') return
+  setNotification({
+    type: 'error',
+    text: t('items.tag_transfer_failed'),
+    filePath: mediaItem.value.path,
+  })
+}
+
 const isInspectorFocused = computed(() =>
-  browserLayoutActive.value
+  inspectorClickMode.value
   && !itemsStore.isSelect
   && itemsStore.selection.length === 1
   && is_selected.value,
@@ -619,7 +822,7 @@ const onItemMouseDown = (event: MouseEvent) => {
 const editItem = () => {
   if (suppressEditClicks) return
   if (isMediaPageItem(props.item, props.type)) {
-    dialogsStore.editMedia(props.item, props.mediaType ?? undefined)
+    dialogsStore.editMedia(props.item, resolvedMediaType.value ?? undefined)
   } else if (isTagPageItem(props.item, props.type) && props.meta) {
     dialogsStore.editTag(props.item, props.meta)
   }
@@ -631,7 +834,7 @@ const handleCardActivate = (e?: MouseEvent) => {
     return
   }
 
-  if (browserLayoutActive.value) {
+  if (inspectorClickMode.value) {
     if (e && (e.ctrlKey || e.metaKey || e.shiftKey)) {
       itemsStore.toggleSelect(e, props.item)
       return
@@ -691,6 +894,8 @@ onBeforeUnmount(() => {
   bumpMountedItems(-1)
   markItemHidden(Number(props.item.id))
   clearEditClickSuppress()
+  unsubscribeMediaTagDrag?.()
+  unsubscribeMediaTagDrag = null
 })
 
 watch(

@@ -23,7 +23,7 @@
 
   <WidgetLazyMount
     v-else-if="widgetId === 'createdCalendar'"
-    min-height="320px"
+    min-height="440px"
   >
     <WidgetCreatedCalendar/>
   </WidgetLazyMount>
@@ -45,6 +45,7 @@
       icon="mdi-inbox-arrow-down"
       :items="inbox"
       :loading="homeMediaLoading"
+      :hint="t('home.widgets.inbox_hint')"
       variant="inbox"
       @open="onOpenMedia"
       @view-all="onOpenInboxList"
@@ -128,6 +129,13 @@
   >
     <WidgetTopTags :limit="limits?.topTags ?? 10"/>
   </WidgetLazyMount>
+
+  <WidgetLazyMount
+    v-else-if="widgetId === 'tagSpotlight'"
+    min-height="420px"
+  >
+    <WidgetTagSpotlight/>
+  </WidgetLazyMount>
 </template>
 
 <script setup lang="ts">
@@ -146,6 +154,7 @@ import type {HomeWidgetLimits} from '@/types/widgets'
 import type {MediaItem} from '@/types/stores'
 
 const WidgetTopTags = defineAsyncComponent(() => import('@/components/widgets/WidgetTopTags.vue'))
+const WidgetTagSpotlight = defineAsyncComponent(() => import('@/components/widgets/WidgetTagSpotlight.vue'))
 const WidgetRandomMarkers = defineAsyncComponent(() => import('@/components/widgets/WidgetRandomMarkers.vue'))
 const WidgetHealthAlerts = defineAsyncComponent(() => import('@/components/widgets/WidgetHealthAlerts.vue'))
 const WidgetHomeSimilar = defineAsyncComponent(() => import('@/components/widgets/WidgetHomeSimilar.vue'))

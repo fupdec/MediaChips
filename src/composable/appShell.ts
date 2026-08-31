@@ -3,7 +3,7 @@ import type { OpenTagsAddWithNamesEvent } from '../../shared/api/responses'
 export type AppShellHandlers = {
   showDocumentation: (id: string) => void
   showGlobalSearch: () => void
-  showAddMediaDialog: () => void
+  showAddMediaDialog: (options?: {paths?: string; browsePath?: string}) => void
   showKeyboardShortcuts: () => void
   showCommandPalette: () => void
   toggleCommandPalette: () => void
@@ -27,7 +27,7 @@ export function useAppShell(): AppShellHandlers {
   return {
     showDocumentation: (id) => handlers.showDocumentation?.(id),
     showGlobalSearch: () => handlers.showGlobalSearch?.(),
-    showAddMediaDialog: () => handlers.showAddMediaDialog?.(),
+    showAddMediaDialog: (options) => handlers.showAddMediaDialog?.(options),
     showKeyboardShortcuts: () => handlers.showKeyboardShortcuts?.(),
     showCommandPalette: () => handlers.showCommandPalette?.(),
     toggleCommandPalette: () => handlers.toggleCommandPalette?.(),

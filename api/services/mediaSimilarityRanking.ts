@@ -10,6 +10,8 @@ export type MediaSimilaritySignalHit = {
   id: number
   /** Optional raw score for this signal (0..1 when known). */
   score?: number
+  /** CLIP: matching 3×3 grid tile when the neighbor was encoded from a grid. */
+  tileIndex?: number | null
 }
 
 export type MediaSimilarityHit = {
@@ -17,6 +19,7 @@ export type MediaSimilarityHit = {
   /** Fused ranking score (RRF). */
   score: number
   signals: Partial<Record<MediaSimilaritySignal, number>>
+  tileIndex?: number | null
 }
 
 export type MediaSimilarityList = {
@@ -82,6 +85,10 @@ export function mergeMediaSimilarityLists(
       existing.score += rrf
       if (hit.score != null && Number.isFinite(hit.score)) {
         existing.signals[list.signal] = Number(hit.score)
+      }
+      if (list.signal === 'clip' && existing.tileIndex == null && hit.tileIndex != null) {
+        const tile = Math.floor(Number(hit.tileIndex))
+        if (Number.isFinite(tile) && tile >= 0) existing.tileIndex = tile
       }
       byId.set(id, existing)
     })

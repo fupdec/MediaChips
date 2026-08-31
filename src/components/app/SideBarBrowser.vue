@@ -137,6 +137,29 @@
         <span>{{ settingsLink.title }}</span>
       </v-tooltip>
 
+      <v-tooltip
+        v-if="showTrash"
+        location="end"
+      >
+        <template #activator="{ props: tipProps }">
+          <v-btn
+            v-bind="tipProps"
+            icon
+            variant="text"
+            size="small"
+            class="sidebar-browser__rail-btn"
+            :aria-label="trashLink.title"
+            @click="openTrash()"
+          >
+            <v-icon
+              size="20"
+              :icon="trashLink.icon"
+            />
+          </v-btn>
+        </template>
+        <span>{{ trashLink.title }}</span>
+      </v-tooltip>
+
       <template v-if="showInbox">
         <div class="sidebar-browser__rail-divider" />
 
@@ -188,104 +211,192 @@
         >
           <div class="sidebar-section sidebar-section--actions sidebar-section--library">
             <span class="sidebar-section__label">{{ t('navigation.section_library') }}</span>
-            <v-btn
-              icon
-              size="x-small"
-              variant="text"
-              :aria-label="t('browser_layout.collapse_sidebar')"
-              @click="toggleCollapsed"
-            >
-              <v-tooltip activator="parent" location="bottom">
-                <span class="d-inline-flex align-center ga-2">
-                  <span>{{ t('browser_layout.collapse_sidebar') }}</span>
-                  <v-hotkey keys="b" variant="flat"/>
-                </span>
-              </v-tooltip>
-              <v-icon size="16">mdi-chevron-left</v-icon>
-            </v-btn>
+            <div class="sidebar-section__actions">
+              <v-btn
+                icon
+                size="x-small"
+                data-feature-hint="edit-library-nav"
+                :variant="libraryEditMode ? 'flat' : 'text'"
+                :color="libraryEditMode ? 'primary' : undefined"
+                :aria-label="libraryEditMode
+                  ? t('navigation.done_editing_menu')
+                  : t('navigation.edit_menu_items')"
+                @click="libraryEditMode = !libraryEditMode"
+              >
+                <v-tooltip activator="parent" location="bottom">
+                  {{ libraryEditMode
+                    ? t('navigation.done_editing_menu')
+                    : t('navigation.edit_menu_items') }}
+                </v-tooltip>
+                <v-icon size="16">
+                  {{ libraryEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
+                </v-icon>
+              </v-btn>
+              <v-btn
+                icon
+                size="x-small"
+                variant="text"
+                :aria-label="t('browser_layout.collapse_sidebar')"
+                @click="toggleCollapsed"
+              >
+                <v-tooltip activator="parent" location="bottom">
+                  <span class="d-inline-flex align-center ga-2">
+                    <span>{{ t('browser_layout.collapse_sidebar') }}</span>
+                    <v-hotkey keys="b" variant="flat"/>
+                  </span>
+                </v-tooltip>
+                <v-icon size="16">mdi-chevron-left</v-icon>
+              </v-btn>
+            </div>
           </div>
 
-          <v-list-item
-            v-for="link in libraryLinks"
-            :key="link.key"
-            :to="link.to"
-            :prepend-icon="link.icon"
-            :title="link.title"
-            :exact="link.exact"
-            color="primary"
-            link
+          <Draggable
+            v-model="libraryEditRows"
+            item-key="key"
+            handle=".sidebar-browser__library-drag"
+            :animation="200"
+            ghost-class="sidebar-browser__library-ghost"
+            :disabled="!libraryEditMode"
+            @start="libraryDragging = true"
+            @end="onLibraryReorderEnd"
           >
-            <template
-              v-if="navCount(link.key) != null"
-              #append
-            >
-              <span class="sidebar-browser__nav-count">{{ navCount(link.key) }}</span>
+            <template #item="{element: link}">
+              <v-list-item
+                v-show="libraryEditMode || !link.hidden"
+                :to="libraryEditMode ? undefined : link.to"
+                :title="link.title"
+                :exact="link.exact"
+                :active="!libraryEditMode && isNavLinkActive(link)"
+                :ripple="!libraryEditMode"
+                color="primary"
+                :link="!libraryEditMode"
+                class="sidebar-browser__library-item"
+                :class="{
+                  'sidebar-browser__library-item--editing': libraryEditMode,
+                  'sidebar-browser__library-item--hidden': link.hidden,
+                }"
+              >
+                <template #prepend>
+                  <v-icon
+                    v-if="libraryEditMode"
+                    size="16"
+                    class="sidebar-browser__library-drag text-medium-emphasis"
+                    :aria-label="t('navigation.reorder_library_item')"
+                  >
+                    mdi-drag-vertical
+                  </v-icon>
+                  <v-icon
+                    :icon="link.icon"
+                    size="24"
+                  />
+                </template>
+                <template
+                  v-if="!libraryEditMode && navCount(link.key) != null"
+                  #append
+                >
+                  <span class="sidebar-browser__nav-count">{{ navCount(link.key) }}</span>
+                </template>
+                <template
+                  v-else-if="libraryEditMode"
+                  #append
+                >
+                  <v-btn
+                    icon
+                    size="x-small"
+                    variant="text"
+                    :aria-label="link.hidden
+                      ? t('meta.settings.show_in_navigation')
+                      : t('meta.settings.hide_in_navigation')"
+                    :disabled="togglingLibraryKey === link.key"
+                    @click.stop="onToggleLibraryHidden(link.key)"
+                  >
+                    <v-icon size="16">
+                      {{ link.hidden ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
+                    </v-icon>
+                  </v-btn>
+                </template>
+              </v-list-item>
             </template>
-          </v-list-item>
-
-          <template v-if="metaArray.length">
-            <div class="sidebar-section sidebar-section--actions sidebar-section--tags">
-              <span class="sidebar-section__label">{{ t('navigation.section_tags') }}</span>
-              <div class="sidebar-section__actions">
-                <v-btn
-                  icon
-                  size="x-small"
-                  variant="text"
-                  :aria-label="tagsAllExpanded
-                    ? t('browser_layout.collapse_all_categories')
-                    : t('browser_layout.expand_all_categories')"
-                  :title="tagsAllExpanded
-                    ? t('browser_layout.collapse_all_categories')
-                    : t('browser_layout.expand_all_categories')"
-                  @click="toggleAllTagCategories"
-                >
-                  <v-icon size="16">
-                    {{ tagsAllExpanded ? 'mdi-unfold-less-horizontal' : 'mdi-unfold-more-horizontal' }}
-                  </v-icon>
-                </v-btn>
-                <v-btn
-                  icon
-                  size="x-small"
-                  :variant="tagsEditMode ? 'flat' : 'text'"
-                  :color="tagsEditMode ? 'primary' : undefined"
-                  :aria-label="tagsEditMode
-                    ? t('all_tags.done_editing_categories')
-                    : t('all_tags.edit_categories')"
-                  :title="tagsEditMode
-                    ? t('all_tags.done_editing_categories')
-                    : t('all_tags.edit_categories')"
-                  @click="tagsEditMode = !tagsEditMode"
-                >
-                  <v-icon size="16">
-                    {{ tagsEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
-                  </v-icon>
-                </v-btn>
-                <v-btn
-                  icon
-                  size="x-small"
-                  :to="allTagsLink.to"
-                  :exact="allTagsLink.exact"
-                  :variant="isAllTagsActive ? 'flat' : 'text'"
-                  :color="isAllTagsActive ? 'primary' : undefined"
-                  :aria-label="allTagsLink.title"
-                  :title="allTagsLink.title"
-                >
-                  <v-icon size="16">{{ allTagsLink.icon }}</v-icon>
-                </v-btn>
-              </div>
-            </div>
-          </template>
+          </Draggable>
         </v-list>
 
-        <div
-          v-if="metaArray.length"
-          class="sidebar-browser__tags-panel"
-        >
-          <SidebarTagsBrowser
-            ref="tagsBrowserRef"
-            :edit-mode="tagsEditMode"
-            @all-expanded-change="tagsAllExpanded = $event"
-          />
+        <div class="sidebar-browser__tags">
+          <div class="sidebar-section sidebar-section--actions sidebar-section--tags">
+            <span class="sidebar-section__label">{{ t('navigation.section_tags') }}</span>
+            <div class="sidebar-section__actions">
+              <v-btn
+                icon
+                size="x-small"
+                variant="text"
+                :aria-label="tagsAllExpanded
+                  ? t('browser_layout.collapse_all_categories')
+                  : t('browser_layout.expand_all_categories')"
+                @click="toggleAllTagCategories"
+              >
+                <v-tooltip activator="parent" location="bottom">
+                  {{ tagsAllExpanded
+                    ? t('browser_layout.collapse_all_categories')
+                    : t('browser_layout.expand_all_categories') }}
+                </v-tooltip>
+                <v-icon size="16">
+                  {{ tagsAllExpanded ? 'mdi-unfold-less-horizontal' : 'mdi-unfold-more-horizontal' }}
+                </v-icon>
+              </v-btn>
+              <v-btn
+                icon
+                size="x-small"
+                :variant="tagsEditMode ? 'flat' : 'text'"
+                :color="tagsEditMode ? 'primary' : undefined"
+                :aria-label="tagsEditMode
+                  ? t('navigation.done_editing_menu')
+                  : t('navigation.edit_menu_items')"
+                @click="tagsEditMode = !tagsEditMode"
+              >
+                <v-tooltip activator="parent" location="bottom">
+                  {{ tagsEditMode
+                    ? t('navigation.done_editing_menu')
+                    : t('navigation.edit_menu_items') }}
+                </v-tooltip>
+                <v-icon size="16">
+                  {{ tagsEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}
+                </v-icon>
+              </v-btn>
+              <v-btn
+                icon
+                size="x-small"
+                variant="text"
+                :aria-label="t('all_tags.add_category')"
+                @click="openCreateCategoryFromSidebar"
+              >
+                <v-tooltip activator="parent" location="bottom">
+                  {{ t('all_tags.add_category') }}
+                </v-tooltip>
+                <v-icon size="16">mdi-plus</v-icon>
+              </v-btn>
+              <v-btn
+                icon
+                size="x-small"
+                :to="allTagsLink.to"
+                :exact="allTagsLink.exact"
+                :variant="isAllTagsActive ? 'flat' : 'text'"
+                :color="isAllTagsActive ? 'primary' : undefined"
+                :aria-label="allTagsLink.title"
+              >
+                <v-tooltip activator="parent" location="bottom">
+                  {{ allTagsLink.title }}
+                </v-tooltip>
+                <v-icon size="16">{{ allTagsLink.icon }}</v-icon>
+              </v-btn>
+            </div>
+          </div>
+
+          <div class="sidebar-browser__tags-panel">
+            <SidebarTagsBrowser
+              ref="tagsBrowserRef"
+              :edit-mode="tagsEditMode"
+              @all-expanded-change="tagsAllExpanded = $event"
+            />
+          </div>
         </div>
 
         <v-list
@@ -301,8 +412,16 @@
             :to="settingsLink.to"
             :prepend-icon="settingsLink.icon"
             :title="settingsLink.title"
+            :active="isSettingsActive"
             color="primary"
             link
+          />
+
+          <v-list-item
+            v-if="showTrash"
+            :prepend-icon="trashLink.icon"
+            :title="trashLink.title"
+            @click="openTrash()"
           />
 
           <v-list-item
@@ -342,7 +461,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, defineAsyncComponent, onMounted, ref, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
@@ -350,15 +469,27 @@ import {useItemsStore} from '@/stores/items'
 import {useMarksStore} from '@/stores/marks'
 import {useSettingsStore} from '@/stores/settings'
 import {setOption} from '@/services/settingsService'
-import {useLibraryNavItems, type LibraryNavLink} from '@/composable/useLibraryNavItems'
+import {
+  useLibraryNavItems,
+  type LibraryNavEditItem,
+  type LibraryNavLink,
+} from '@/composable/useLibraryNavItems'
+import {isLibraryNavLinkActive} from '@/utils/libraryNavActive'
 import {typedApi} from '@/services/typedApi'
 import SidebarTagsBrowser from '@/components/app/SidebarTagsBrowser.vue'
 
+const Draggable = defineAsyncComponent(() => import('vuedraggable'))
+
 const tagsEditMode = ref(false)
+const libraryEditMode = ref(false)
+const libraryDragging = ref(false)
+const libraryEditRows = ref<LibraryNavEditItem[]>([])
+const togglingLibraryKey = ref<string | null>(null)
 const tagsAllExpanded = ref(true)
 const inboxHovered = ref(false)
 const tagsBrowserRef = ref<{
   toggleAllCategories: () => void
+  openCreateCategory: () => void
 } | null>(null)
 const baseNavCounts = ref<Record<string, number>>({})
 /** Filtered media-type counts kept after leaving /media until filters are cleared. */
@@ -382,43 +513,80 @@ function toggleCollapsed(): void {
 }
 
 function isNavLinkActive(link: LibraryNavLink): boolean {
-  const targetPath = link.to.split('?')[0]
-  const targetQuery = new URL(link.to, 'http://local').searchParams
-
-  if (route.path !== targetPath) return false
-  if (!link.to.includes('?')) return link.exact ? route.path === targetPath : true
-
-  for (const [key, value] of targetQuery.entries()) {
-    if (String(route.query[key] ?? '') !== value) return false
-  }
-  return true
+  return isLibraryNavLinkActive(link, route)
 }
 
 const isSettingsActive = computed(() => route.path.startsWith('/settings'))
 
 const {
   metaArray,
-  metaVisible,
+  metaVisibleLeaves,
   mediaTypes,
   libraryLinks,
+  libraryEditItems,
   settingsLink,
   allTagsLink,
+  trashLink,
   metaLink,
+  showTrash,
   showInbox,
   inboxBadgeCount,
   inboxLostCount,
   watcherBusy,
   openInbox,
+  openTrash,
+  setLibraryNavOrder,
+  toggleLibraryNavHidden,
 } = useLibraryNavItems()
 
 const metaCategoryLinks = computed(() =>
-  metaVisible.value.map((meta) => metaLink(meta)),
+  metaVisibleLeaves.value.map((meta) => metaLink(meta)),
 )
+
+function libraryEditItemsEqual(a: LibraryNavEditItem[], b: LibraryNavEditItem[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].key !== b[i].key) return false
+    if (a[i].hidden !== b[i].hidden) return false
+    if (a[i].title !== b[i].title) return false
+    if (a[i].icon !== b[i].icon) return false
+  }
+  return true
+}
+
+watch(
+  libraryEditItems,
+  (items) => {
+    if (libraryDragging.value) return
+    if (libraryEditItemsEqual(libraryEditRows.value, items)) return
+    libraryEditRows.value = items.map((item) => ({...item}))
+  },
+  {immediate: true},
+)
+
+async function onLibraryReorderEnd(): Promise<void> {
+  libraryDragging.value = false
+  await setLibraryNavOrder(libraryEditRows.value.map((item) => item.key))
+}
+
+async function onToggleLibraryHidden(key: string): Promise<void> {
+  if (togglingLibraryKey.value === key) return
+  togglingLibraryKey.value = key
+  try {
+    await toggleLibraryNavHidden(key)
+  } finally {
+    togglingLibraryKey.value = null
+  }
+}
 
 const isAllTagsActive = computed(() => route.path === '/tags')
 
 function toggleAllTagCategories() {
   tagsBrowserRef.value?.toggleAllCategories()
+}
+
+function openCreateCategoryFromSidebar() {
+  tagsBrowserRef.value?.openCreateCategory()
 }
 
 const activeMediaTypeKey = computed(() => {
@@ -620,7 +788,7 @@ watch(
   }
 
   :deep(.sidebar-browser__nav) {
-    padding-bottom: 0;
+    padding-bottom: 12px;
   }
 }
 
@@ -674,22 +842,47 @@ watch(
 }
 
 .sidebar-section {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-transform: none;
   height: 28px;
   min-height: 28px;
   padding-inline: 16px;
-  opacity: 0.55;
+  opacity: 0.65;
 }
 
 .sidebar-section--library {
   margin-top: 4px;
 }
 
-.sidebar-section--tags {
-  margin-top: 12px;
+.sidebar-browser__library-item--hidden {
+  opacity: 0.55;
+}
+
+.sidebar-browser__library-item--editing {
+  :deep(.v-list-item__prepend) {
+    width: auto;
+    column-gap: 2px;
+  }
+
+  :deep(.v-list-item__spacer) {
+    width: 8px;
+  }
+
+  :deep(.v-list-item__append) {
+    margin-inline-start: 4px;
+  }
+}
+
+.sidebar-browser__library-drag {
+  flex-shrink: 0;
+  cursor: grab;
+  margin-inline-end: 2px;
+}
+
+.sidebar-browser__library-ghost {
+  opacity: 0.55;
 }
 
 .sidebar-section--actions {
@@ -718,7 +911,7 @@ watch(
 }
 
 .sidebar-browser__tags-panel {
-  margin: 2px 0 4px;
+  margin: 0 0 4px;
   padding-inline: 8px;
 }
 

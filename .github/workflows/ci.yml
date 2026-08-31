@@ -8,9 +8,130 @@ on:
   pull_request:
 
 jobs:
-  build:
+  typecheck:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Each tsc/vue-tsc invocation below has its own .tsbuildinfo (distinct
+      # from the ones scripts/compile.mjs uses for real emit, so the two
+      # never invalidate each other), restored/saved here so unchanged files
+      # are skipped on the next run instead of re-parsed from scratch —
+      # vue-tsc alone measured ~21s cold vs ~7s warm locally.
+      - name: Cache TypeScript incremental build info
+        uses: actions/cache@v4
+        with:
+          path: .cache/tsc
+          key: tsbuildinfo-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            tsbuildinfo-${{ github.ref }}-
+            tsbuildinfo-
+
+      # Independent invocations run concurrently — each has its own
+      # incremental cache above, so there's no correctness reason to
+      # serialize them.
+      - name: Type-check (parallel)
+        run: |
+          set -uo pipefail
+          pids=()
+          npx vue-tsc --noEmit & pids+=($!)
+          npx tsc -p tsconfig.shared.json & pids+=($!)
+          npx tsc -p tsconfig.node.json --noEmit & pids+=($!)
+          npx tsc -p tsconfig.electron-strict.json & pids+=($!)
+          npx tsc -p tsconfig.main-strict.json & pids+=($!)
+          npx tsc -p tsconfig.app-strict.json & pids+=($!)
+          npx tsc -p tsconfig.api-strict.json & pids+=($!)
+          npx tsc -p tsconfig.scripts-strict.json & pids+=($!)
+
+          status=0
+          for pid in "${pids[@]}"; do
+            wait "$pid" || status=1
+          done
+          exit $status
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npx eslint .
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test with coverage
+        run: |
+          npm rebuild better-sqlite3
+          npx vitest run --coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install chromium --with-deps
+
+      # e2e-server.mjs builds the frontend and prepares the backend itself.
+      - name: E2E smoke tests
+        run: npm run test:e2e
+        env:
+          CI: true
+
+  pack:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,48 +151,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type-check
-        run: |
-          npx vue-tsc --noEmit
-          npx tsc -p tsconfig.shared.json
-          npx tsc -p tsconfig.node.json --noEmit
-          npx tsc -p tsconfig.electron-strict.json
-          npx tsc -p tsconfig.main-strict.json
-          npx tsc -p tsconfig.app-strict.json
-          npx tsc -p tsconfig.api-strict.json
-          npx tsc -p tsconfig.scripts.json --noEmit
-
-      - name: Lint
-        run: npx eslint .
-
-      # Pack and daily DX both run from .backend-build (no api/app/shared copy-back).
-      - name: Build backend and Electron artifacts
-        run: node scripts/compile.mjs artifacts
-
-      - name: Build frontend
-        run: npm run build:app
-
-      - name: Test with coverage
-        run: |
-          npm rebuild better-sqlite3
-          npx vitest run --coverage
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 14
-
-      - name: Install Playwright browser
-        run: npx playwright install chromium --with-deps
-
-      - name: E2E smoke tests
-        run: npm run test:e2e
-        env:
-          CI: true
-          SKIP_E2E_BUILD: 1
-
+      # dist.mjs compiles backend + Electron artifacts and builds the frontend itself.
       - name: Build unpacked Linux app
         run: npm run pack
         env:

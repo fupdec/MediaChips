@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { mediaTypes } from '../schema/mediaTypes'
+import { mediaTypesInWatchedFolders } from '../schema/watchedFolders'
 import { nowIso } from '../utils/timestamps'
 
 export type MediaTypeRow = typeof mediaTypes.$inferSelect
@@ -49,7 +50,12 @@ export function createMediaTypesRepository(db: DrizzleClient) {
     },
 
     deleteById(id: number): void {
-      db.delete(mediaTypes).where(eq(mediaTypes.id, id)).run()
+      db.transaction((tx) => {
+        tx.delete(mediaTypesInWatchedFolders)
+          .where(eq(mediaTypesInWatchedFolders.mediaTypeId, id))
+          .run()
+        tx.delete(mediaTypes).where(eq(mediaTypes.id, id)).run()
+      })
     },
   }
 }

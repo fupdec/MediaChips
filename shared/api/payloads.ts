@@ -21,6 +21,16 @@ export interface AddMediaPayload {
   [key: string]: unknown
 }
 
+export interface AddMediaBulkPayload {
+  mode?: 'lite'
+  type: string | number | MediaType
+  files?: string[]
+  roots?: string[]
+  excluded?: string[]
+  expandZips?: boolean
+  [key: string]: unknown
+}
+
 export interface MediaTypeWritePayload {
   name?: string
   extensions?: string
@@ -34,6 +44,7 @@ export interface MediaTypeWritePayload {
 export interface CreateTagPayload {
   name: string
   metaId?: number
+  parentTagId?: number | null
   color?: string
   synonyms?: string
   [key: string]: unknown
@@ -88,6 +99,12 @@ export type CreateTagsInMediaOnePayload = {
   path?: string
   data?: ParsePathTagEntry
   [key: string]: unknown
+}
+
+export type CreateTagsInTagOnePayload = {
+  parentTagId: number
+  tagId: number
+  metaId: number
 }
 
 export interface FilterTagsPayload {
@@ -249,6 +266,8 @@ export interface CreateSavedFilterPayload {
   size?: number | null
   view?: number | null
   groupBy?: string | null
+  filtersJoin?: 'and' | 'or' | null
+  icon?: string | null
   [key: string]: unknown
 }
 
@@ -360,4 +379,104 @@ export interface SqlQueryPayload {
   mediaTypeId?: number
   metaId?: number
   [key: string]: unknown
+}
+
+export type ConversionCodec = 'auto' | 'hevc' | 'h264'
+export type ConversionResolution = 'original' | 2160 | 1080 | 720 | 480
+export type ConversionQuality = 'economy' | 'balanced' | 'quality'
+export interface TestVideoSegmentPayload {
+  id: number
+  path: string
+  destination: string
+}
+
+export interface TestVideoSegmentResponse {
+  outputPath: string
+  durationSeconds: number
+}
+
+export interface TrimVideoPayload {
+  id: number
+  path: string
+  startSeconds: number
+  endSeconds: number
+}
+
+export interface TrimVideoJobResponse {
+  id: string
+  status: string
+  mediaId: number
+  originalPath: string
+  outputPath?: string
+  startSeconds: number
+  endSeconds: number
+  progress: number
+  fallback?: boolean
+  error?: string
+  createdAt: number
+}
+
+export interface TrimVideoDeleteOriginalPayload {
+  id: number
+  originalPath: string
+  trimmedPath: string
+}
+
+export interface TrimVideoDeleteOriginalResponse {
+  id: number
+  path: string
+  basename: string
+  name: string
+  ext: string
+  duration?: number
+  filesize?: number
+}
+
+export interface ConvertVideosPayload {
+  items: Array<{id: number; path: string}>
+  options: {
+    codec: ConversionCodec
+    resolution: ConversionResolution
+    quality: ConversionQuality
+    destination: string
+    deleteOriginal?: boolean
+  }
+}
+export interface ConversionJobResponse {
+  id: string
+  status: string
+  createdAt: number
+  items: Array<{id: number; path: string; status: string; progress: number; etaSeconds?: number; speed?: number; estimatedSizeBytes?: number; outputSizeBytes?: number; outputPath?: string; codec?: 'hevc' | 'h264'; fallback?: boolean; error?: string; warning?: string}>
+}
+
+export interface LibraryResetMediaPayload {
+  mediaTypeId: number | 'all'
+  permanent?: boolean
+  withFile?: boolean
+}
+
+export interface LibraryResetTagsPayload {
+  metaId: number | 'all'
+  permanent?: boolean
+}
+
+export interface LibraryResetCounts {
+  mediaByType: Record<number, number>
+  mediaTotal: number
+  tagsByMeta: Record<number, number>
+  tagsTotal: number
+}
+
+export interface LibraryResetStreamEvent {
+  type: 'progress' | 'complete' | 'error'
+  processed?: number
+  total?: number
+  deleted?: number
+  failed?: number
+  mediaDeleted?: number
+  tagsDeleted?: number
+  metaDeleted?: number
+  current?: string
+  message?: string
+  stopped?: boolean
 }

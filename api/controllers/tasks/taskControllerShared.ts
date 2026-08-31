@@ -19,6 +19,7 @@ import {
   type GeneratedMediaFolderKey,
 } from '../../../shared/generatedMediaFolders'
 import { VIDEO_THUMB_HEIGHT, VIDEO_THUMB_JPEG_QUALITY, VIDEO_MARK_HEIGHT, VIDEO_MARK_JPEG_QUALITY } from '../../../shared/videoPreview'
+import { formatMarkTimestamp } from '../../../shared/markTimestamp'
 import {parseBooleanSetting} from '../../utils/parseBooleanSetting'
 import { createStreamAbortSignal } from './ndjsonStreamRunner'
 
@@ -92,7 +93,7 @@ export default function createTaskControllerShared(db: ApiDb) {
     const normalizedSeekRatio = Number.isFinite(seekRatio)
       ? Math.min(Math.max(Number(seekRatio), 0), 1)
       : 0.5
-    // ffmpeg/ffprobe concurrency is enforced inside api/utils/ffmpeg.
+
     return withTimeout(
       extractVideoThumbnail({
         input: pathToFile,
@@ -127,6 +128,20 @@ export default function createTaskControllerShared(db: ApiDb) {
     }
   }
 
+  const formatThumbSeekTimestamp = (timestamp: unknown): string | undefined => {
+    if (timestamp == null || timestamp === '') {
+      return undefined
+    }
+
+    const asNumber = Number(timestamp)
+    if (Number.isFinite(asNumber)) {
+      return formatMarkTimestamp(asNumber)
+    }
+
+    const asString = String(timestamp).trim()
+    return asString || undefined
+  }
+
   const createThumbCustom = (
     timestamp: unknown,
     inputPath: string,
@@ -137,7 +152,7 @@ export default function createTaskControllerShared(db: ApiDb) {
     return extractVideoFrame({
       input: inputPath,
       output: outputPath,
-      timestamp: timestamp != null ? String(timestamp) : undefined,
+      timestamp: formatThumbSeekTimestamp(timestamp),
       vf: `scale=-1:${height}`,
       jpegQuality,
     })

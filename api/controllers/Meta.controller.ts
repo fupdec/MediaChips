@@ -19,6 +19,11 @@ import {
   previewChipRecipe,
 } from '../services/chipRecipe'
 import { validatePathRegex } from '../../shared/pathParser/regexMeta'
+import {
+  assertNewMetaParent,
+  parseOptionalParentId,
+  reparentMeta,
+} from '../services/tagCategoryTree'
 import fs from 'fs'
 import path from 'path'
 
@@ -41,6 +46,15 @@ export default function (db: ApiDb) {
       const pathRegexError = validateMetaPathRegex(body)
       if (pathRegexError) {
         return sendBadRequest(res, pathRegexError)
+      }
+      const parentMetaId = Object.prototype.hasOwnProperty.call(body, 'parentMetaId')
+        ? parseOptionalParentId(body.parentMetaId)
+        : undefined
+      if (parentMetaId) {
+        db.drizzle.transaction((tx) => {
+          assertNewMetaParent(tx, parentMetaId)
+        })
+        body.parentMetaId = parentMetaId
       }
       const data = metaRepo.create(body as Record<string, unknown>)
 
@@ -91,6 +105,13 @@ export default function (db: ApiDb) {
         return sendBadRequest(res, pathRegexError)
       }
       const metaId = parseInt(paramString(req.params.id), 10)
+      if (Object.prototype.hasOwnProperty.call(body, 'parentMetaId')) {
+        const parentMetaId = parseOptionalParentId(body.parentMetaId)
+        db.drizzle.transaction((tx) => {
+          reparentMeta(tx, metaId, parentMetaId ?? null)
+        })
+        delete body.parentMetaId
+      }
       const conversion = Object.prototype.hasOwnProperty.call(body, 'measurementUnit')
         ? applyMeasurementUnitChange(db.drizzle, metaId, body.measurementUnit)
         : null

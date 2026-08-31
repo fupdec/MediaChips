@@ -11,6 +11,7 @@ import {
   buildMediaFilterQuery,
   canUseSqlMediaLoader,
   getMediaFilterSqlFallbackReason,
+  getSortExpression,
   normalizeActiveFilters,
   resolveMediaFilterQuery,
 } from './mediaFilterSql'
@@ -366,5 +367,16 @@ describe('resolveMediaFilterQuery', () => {
 
     expect(canUseSqlMediaLoader(options)).toBe(true)
     expect(getMediaFilterSqlFallbackReason(options)).toBeNull()
+  })
+})
+
+describe('getSortExpression', () => {
+  it('sorts media by assigned tag count', () => {
+    for (const key of ['tagCount', 'numberOfTags', 'assignedTagCount'] as const) {
+      const expr = getSortExpression(key)
+      expect(expr).toContain('tagsInMedia')
+      expect(expr).toContain('mediaId')
+      expect(expr).toContain('COUNT(*)')
+    }
   })
 })

@@ -9,7 +9,7 @@
     :persistent="persistent"
     :retain-focus="true"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="dialogLocal = false"
         :header="header || t('settings_labels.database.select_folder')"
@@ -52,7 +52,7 @@
         </div>
 
         <MediaFolderBrowser
-          v-if="browsePath || places.length"
+          v-if="browsePath || places.length || (pathInput && folderPath.trim())"
           :base-url="appStore.localhost || ''"
           :path="browsePath"
           :selected-paths="pathInput ? [] : selectedPaths"
@@ -321,7 +321,24 @@ watch(dialogLocal, (open) => {
   isFolderExists.value = null
   if (props.pathInput) {
     folderPath.value = props.initialPath?.trim() || ''
+  } else {
+    // Mount the embedded browser immediately using the current destination;
+    // loading the places list must not leave the dialog visually empty.
+    browsePath.value = props.initialPath?.trim() || ''
   }
   void loadPlaces()
 })
+
+// The component is conditionally mounted with v-if, so initialize when already open too.
+if (dialogLocal.value) {
+  selectedPaths.value = []
+  placesLoaded.value = false
+  isFolderExists.value = null
+  if (props.pathInput) {
+    folderPath.value = props.initialPath?.trim() || ''
+  } else {
+    browsePath.value = props.initialPath?.trim() || ''
+  }
+  void loadPlaces()
+}
 </script>

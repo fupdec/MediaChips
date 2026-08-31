@@ -27,7 +27,7 @@
             v-model:menu="metaMenuOpen"
             :items="metas"
             :rules="[(v) => !!v || t('validation.meta_required')]"
-            item-title="name"
+            item-title="pickerTitle"
             item-value="id"
             :label="t('meta.fields.tags_category')"
             variant="outlined"
@@ -103,7 +103,7 @@
             </v-alert>
 
             <v-text-field
-              v-if="suggestions.length > 12"
+              v-if="suggestions.length"
               v-model="suggestionFilter"
               :label="t('meta.dialogs.filter_suggestions')"
               prepend-inner-icon="mdi-magnify"
@@ -115,29 +115,107 @@
               @click:clear="suggestionFilter = ''"
             />
 
-            <div class="suggestion-chips mb-3">
-              <v-chip
-                v-for="name in filteredSuggestions"
-                :key="name.toLowerCase()"
-                :color="suggestionChipColor(name)"
-                :variant="isSuggestionSelected(name) ? 'flat' : 'outlined'"
-                label
-                class="ma-1"
-                filter
-                :prepend-icon="suggestionChipIcon(name)"
-                :title="isExistingTag(name)
-                  ? t('meta.dialogs.suggestion_exists')
-                  : t('meta.dialogs.suggestion_new')"
-                @click="toggleSuggestion(name)"
+            <div v-if="suggestions.length" class="d-flex align-center ga-2 mb-3">
+              <span class="text-caption text-medium-emphasis">{{ t('meta.dialogs.pick_mode') }}:</span>
+              <v-btn-toggle
+                v-model="pickMode"
+                mandatory
+                rounded
+                variant="tonal"
+                color="primary"
+                density="compact"
               >
-                {{ name }}
-                <span
-                  v-if="isExistingTag(name)"
-                  class="suggestion-chips__badge text-caption ml-1"
-                >
-                  {{ t('meta.dialogs.suggestion_exists') }}
-                </span>
-              </v-chip>
+                <v-btn size="small" value="top">
+                  <v-icon icon="mdi-star-outline" start/>
+                  {{ t('meta.dialogs.pick_top') }}
+                </v-btn>
+                <v-btn size="small" value="random">
+                  <v-icon icon="mdi-shuffle-variant" start/>
+                  {{ t('meta.dialogs.pick_random') }}
+                </v-btn>
+              </v-btn-toggle>
+              <span class="text-caption text-medium-emphasis">
+                {{ filteredSuggestions.length }} / {{ Math.min(suggestions.length, MAX_VISIBLE) }}
+              </span>
+              <v-spacer/>
+              <v-btn
+                v-if="refreshCallback"
+                size="small"
+                rounded
+                variant="tonal"
+                color="primary"
+                :disabled="isRefreshing"
+                :loading="isRefreshing"
+                @click="doRefresh"
+              >
+                <v-icon icon="mdi-refresh" start/>
+                {{ t('meta.dialogs.refresh_suggestions') }}
+              </v-btn>
+            </div>
+
+            <div class="suggestion-list mb-3">
+              <v-virtual-scroll
+                :items="filteredSuggestions"
+                :height="filteredSuggestions.length > 20 ? 420 : Math.max(filteredSuggestions.length * 40, 80)"
+                item-height="40"
+              >
+                <template #default="{ item: itemKey, index }">
+                  <div class="suggestion-row" :class="{ 'suggestion-row--alt': index % 2 === 1 }">
+                    <v-checkbox
+                      :model-value="isSuggestionSelected(itemKey)"
+                      :color="isExistingTag(itemKey) ? 'secondary' : 'primary'"
+                      density="compact"
+                      hide-details
+                      class="suggestion-row__check flex-grow-0"
+                      @update:model-value="toggleSuggestion(itemKey)"
+                    />
+
+                    <v-text-field
+                      :model-value="suggestionEdits[itemKey] ?? itemKey"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                      single-line
+                      class="suggestion-row__input flex-grow-1"
+                      :class="{ 'suggestion-row__input--exists': isExistingTag(itemKey) }"
+                      @update:model-value="(v: string) => onEditSuggestion(itemKey, v)"
+                    />
+
+                    <v-btn
+                      v-if="!isExistingTag(itemKey)"
+                      size="small"
+                      rounded
+                      variant="tonal"
+                      color="primary"
+                      class="suggestion-row__add flex-grow-0 ml-1"
+                      :disabled="submitting"
+                      @click="addSingle(itemKey)"
+                    >
+                      <v-icon icon="mdi-plus" start/>
+                      {{ t('common.add') }}
+                    </v-btn>
+                    <span
+                      v-else
+                      class="suggestion-row__exists text-caption text-secondary ml-2 flex-grow-0"
+                    >
+                      {{ t('meta.dialogs.suggestion_exists') }}
+                    </span>
+
+                    <v-btn
+                      size="small"
+                      rounded
+                      variant="tonal"
+                      color="warning"
+                      class="suggestion-row__ban flex-grow-0 ml-1"
+                      :disabled="submitting"
+                      @click="banWord(itemKey)"
+                    >
+                      <v-icon icon="mdi-cancel" start/>
+                      {{ t('meta.dialogs.ban_word') }}
+                    </v-btn>
+                  </div>
+                </template>
+              </v-virtual-scroll>
               <div
                 v-if="suggestions.length && !filteredSuggestions.length"
                 class="text-caption text-medium-emphasis pa-2"
@@ -146,32 +224,54 @@
               </div>
             </div>
 
-            <div class="text-caption text-medium-emphasis mb-2">
-              {{ t('meta.fields.suggestion_chips_hint') }}
+            <div
+              v-if="banList.length"
+              class="d-flex justify-start mb-3"
+            >
+              <v-btn
+                size="small"
+                rounded
+                variant="tonal"
+                color="warning"
+                @click="showBanList = !showBanList"
+              >
+                <v-icon :icon="showBanList ? 'mdi-chevron-up' : 'mdi-block-helper'" start size="small"/>
+                {{ t('meta.dialogs.ban_list') }} ({{ banList.length }})
+              </v-btn>
             </div>
 
-            <v-expansion-panels variant="accordion" class="mb-0 tags-add-extra-names">
-              <v-expansion-panel rounded="lg">
-                <v-expansion-panel-title class="text-body-2">
-                  {{ t('meta.fields.add_more_names') }}
-                </v-expansion-panel-title>
-                <v-expansion-panel-text class="tags-add-extra-names__body">
-                  <v-textarea
-                    v-model="extraNames"
-                    :hint="t('meta.fields.several_names_hint')"
-                    :label="t('meta.fields.tag_names')"
-                    :rules="[optionalNameRules]"
-                    variant="outlined"
-                    color="primary"
-                    density="compact"
-                    validate-on="submit lazy"
-                    no-resize
-                    rows="4"
-                    class="tags-add-extra-names__textarea"
-                  />
-                </v-expansion-panel-text>
-              </v-expansion-panel>
-            </v-expansion-panels>
+            <!-- Ban list panel -->
+            <v-expand-transition>
+              <div v-if="showBanList && banList.length" class="suggestion-list mb-3">
+                <div class="d-flex align-center pa-2 ban-list-header">
+                  <span class="text-caption font-weight-medium text-warning">
+                    {{ t('meta.dialogs.banned_phrases') }} ({{ banList.length }})
+                  </span>
+                </div>
+                <v-virtual-scroll
+                  :items="banList"
+                  :height="Math.min(banList.length * 40, 200)"
+                  item-height="40"
+                >
+                  <template #default="{ item: banned, index }">
+                    <div class="suggestion-row" :class="{ 'suggestion-row--alt': index % 2 === 1 }">
+                      <span class="text-body-2 flex-grow-1 px-2 text-warning">{{ banned }}</span>
+                      <v-btn
+                        size="small"
+                        rounded
+                        variant="tonal"
+                        color="primary"
+                        class="flex-grow-0 mr-1"
+                        @click="unbanWord(banned)"
+                      >
+                        <v-icon icon="mdi-undo" start/>
+                        {{ t('meta.dialogs.unban_word') }}
+                      </v-btn>
+                    </div>
+                  </template>
+                </v-virtual-scroll>
+              </div>
+            </v-expand-transition>
           </template>
 
           <v-textarea
@@ -194,11 +294,10 @@
 </template>
 
 <script setup lang="ts">
-import {computed, nextTick, onMounted, onUnmounted, ref} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue'
 import type { PropType } from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
-import {typedApi} from '@/services/typedApi'
 import type { VForm } from 'vuetify/components'
 import type { OpenTagsAddWithNamesEvent } from '@shared/api/responses'
 
@@ -215,9 +314,13 @@ import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {registerAppShellHandler} from '@/composable/appShell'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
+import {createTagsInteractive} from '@/composable/createTagsInteractive'
+import {findTagByNameOrSynonymAnyCategory} from '@/utils/tagLookup'
 import {transformTextToArray, validateName} from '@/services/formatUtils'
 import {getDefaultTagCategoryId} from '@/services/ensureStarterMeta'
+import {leafCategoryOptions} from '@/utils/tagCategoryTree'
 import {acceptSuggestedTagsAndAssign} from '@/services/importPathAutoTag'
+import {setOption} from '@/services/settingsService'
 
 /* ---------------- INIT ---------------- */
 
@@ -246,12 +349,10 @@ const settingsStore = useSettingsStore()
 const notificationsStore = useNotificationsStore()
 const eventBus = useEventBus()
 const listSync = useItemsListSync()
-const tagsStore = app.tags
 
 /* ---------------- STATE ---------------- */
 
 const names = ref('')
-const extraNames = ref('')
 const dups = ref<string[]>([])
 const added = ref<string[]>([])
 const selectedMetaId = ref<number | null>(null)
@@ -261,8 +362,17 @@ const customTitle = ref<string | null>(null)
 const suggestions = ref<string[]>([])
 const selectedSuggestions = ref<string[]>([])
 const suggestionFilter = ref('')
+const pickMode = ref<'top' | 'random'>('top')
 const assignMediaIds = ref<number[]>([])
 const submitting = ref(false)
+const showBanList = ref(false)
+const isRefreshing = ref(false)
+
+/** Callback to re-fetch suggestions from the API. */
+const refreshCallback = ref<(() => Promise<string[]>) | null>(null)
+
+/** Original name → edited value (omitted when unchanged). */
+const suggestionEdits = reactive<Record<string, string>>({})
 
 const valid = ref(false)
 const dialogNames = ref(false)
@@ -284,7 +394,7 @@ const buttons = computed(() => [
 
 /* ---------------- COMPUTED ---------------- */
 
-const metas = computed(() => app.meta?.filter(i => i.type === 'array') || [])
+const metas = computed(() => leafCategoryOptions(app.meta || []))
 const fixedMetaId = computed(() => props.meta_id || (route.query.metaId ? Number(route.query.metaId) : null))
 
 const dialogTitle = computed(() => (
@@ -298,7 +408,8 @@ const dialogSubheader = computed(() => {
 
 const existingTagNames = computed(() => {
   const set = new Set<string>()
-  for (const tag of tagsStore || []) {
+  // Read from the store each time — a snapshot of `app.tags` would keep deleted names.
+  for (const tag of app.tags || []) {
     const name = String(tag?.name || '').trim().toLowerCase()
     if (name) set.add(name)
   }
@@ -318,20 +429,92 @@ const suggestionExistingCount = computed(() => (
   suggestions.value.length - suggestionNewCount.value
 ))
 
+const banList = computed<string[]>(() => {
+  try {
+    const raw = settingsStore.tagSuggestionBanList || '[]'
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean).sort() : []
+  } catch {
+    return []
+  }
+})
+
+const MAX_VISIBLE = 500
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const copy = [...arr]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
+}
+
 const filteredSuggestions = computed(() => {
   const query = String(suggestionFilter.value || '').trim().toLowerCase()
-  if (!query) return suggestions.value
-  return suggestions.value.filter((name) => name.toLowerCase().includes(query))
+  let pool = query
+    ? suggestions.value.filter((name) => name.toLowerCase().includes(query))
+    : [...suggestions.value]
+
+  if (pickMode.value === 'random') {
+    pool = shuffleArray(pool)
+  }
+  if (pool.length > MAX_VISIBLE) {
+    pool = pool.slice(0, MAX_VISIBLE)
+  }
+
+  return pool.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
 })
 
 const pendingNames = computed(() => {
   if (!reviewMode.value) return transformTextToArray(names.value)
-  const fromChips = selectedSuggestions.value
-  const fromExtra = transformTextToArray(extraNames.value)
-  return uniqueNames([...fromChips, ...fromExtra])
+  return selectedSuggestions.value.map((key) => resolveEditedName(key))
 })
 
-/* ---------------- METHODS ---------------- */
+/* ---------------- HELPERS ---------------- */
+
+function persistBanList(list: string[]) {
+  void setOption(JSON.stringify(list.filter(Boolean)), 'tagSuggestionBanList')
+}
+
+function banWord(word: string) {
+  if (banList.value.some((b) => b.toLowerCase() === word.toLowerCase())) return
+  const updated = [...banList.value, word]
+  persistBanList(updated)
+
+  suggestions.value = suggestions.value.filter((s) => s.toLowerCase() !== word.toLowerCase())
+  selectedSuggestions.value = selectedSuggestions.value.filter(
+    (s) => s.toLowerCase() !== word.toLowerCase(),
+  )
+  delete suggestionEdits[word]
+}
+
+function unbanWord(word: string) {
+  const updated = banList.value.filter((b) => b.toLowerCase() !== word.toLowerCase())
+  persistBanList(updated)
+}
+
+async function doRefresh() {
+  if (isRefreshing.value || !refreshCallback.value) return
+  isRefreshing.value = true
+  try {
+    const fresh = await refreshCallback.value()
+    if (fresh.length > 0) {
+      suggestions.value = fresh
+      selectedSuggestions.value = [...fresh]
+      suggestionFilter.value = ''
+    }
+  } catch {
+    // silently ignore
+  } finally {
+    isRefreshing.value = false
+  }
+}
+
+function resolveEditedName(original: string): string {
+  const edited = suggestionEdits[original]
+  return edited !== undefined && edited.trim() ? edited.trim() : original
+}
 
 function uniqueNames(list: string[]): string[] {
   const seen = new Set<string>()
@@ -356,18 +539,6 @@ function isSuggestionSelected(name: string): boolean {
   return selectedSuggestions.value.some((item) => item.toLowerCase() === key)
 }
 
-function suggestionChipIcon(name: string): string {
-  if (isExistingTag(name)) {
-    return isSuggestionSelected(name) ? 'mdi-tag-check' : 'mdi-tag-check-outline'
-  }
-  return isSuggestionSelected(name) ? 'mdi-check' : 'mdi-tag-plus-outline'
-}
-
-function suggestionChipColor(name: string): string | undefined {
-  if (!isSuggestionSelected(name)) return undefined
-  return isExistingTag(name) ? 'secondary' : 'primary'
-}
-
 function toggleSuggestion(name: string) {
   if (isSuggestionSelected(name)) {
     selectedSuggestions.value = selectedSuggestions.value.filter(
@@ -378,12 +549,102 @@ function toggleSuggestion(name: string) {
   selectedSuggestions.value = [...selectedSuggestions.value, name]
 }
 
+function onEditSuggestion(original: string, value: string) {
+  const trimmed = String(value ?? '').trim()
+  if (!trimmed || trimmed.toLowerCase() === original.toLowerCase()) {
+    delete suggestionEdits[original]
+  } else {
+    suggestionEdits[original] = trimmed
+  }
+}
+
 function selectAllSuggestions() {
   selectedSuggestions.value = [...suggestions.value]
 }
 
 function clearSuggestionSelection() {
   selectedSuggestions.value = []
+}
+
+async function addSingle(original: string) {
+  const name = resolveEditedName(original)
+  if (!name) return
+
+  const metaId = fixedMetaId.value
+    || selectedMetaId.value
+    || getDefaultTagCategoryId(app.meta, settingsStore.defaultTagCategoryId)
+  if (!metaId) {
+    await form.value?.validate()
+    return
+  }
+  selectedMetaId.value = metaId
+
+  const exists = findTagByNameOrSynonymAnyCategory(name, app.tags)
+  if (exists) {
+    notificationsStore.setNotification({
+      type: 'warning',
+      title: t('meta.dialogs.adding_tags'),
+      text: t('notifications_text.duplicates_list', {items: exists.name || name}),
+    })
+    return
+  }
+
+  submitting.value = true
+  try {
+    if (assignMediaIds.value.length > 0) {
+      const result = await acceptSuggestedTagsAndAssign([name], assignMediaIds.value)
+      notificationsStore.setNotification({
+        type: 'success',
+        title: customTitle.value || t('meta.dialogs.adding_tags_complete'),
+        text: t('media.adding.accept_all_suggested_tags_done', {
+          created: result.createdTags,
+          applied: result.applied,
+        }),
+      })
+      listSync.getItemsFromDb({ids: assignMediaIds.value, type: 'media'})
+      eventBus.emit('tagsAdd:completed', {
+        names: [name],
+        createdNames: result.createdNames,
+        mediaIds: assignMediaIds.value,
+        assigned: true,
+        applied: result.applied,
+      })
+    } else {
+      const created = await createTagsInteractive([{name, metaId}])
+      if (!created) return
+      notificationsStore.setNotification({
+        type: 'success',
+        title: t('meta.dialogs.adding_tags_complete'),
+        text: t('notifications_text.added_list', {items: name}),
+      })
+      void reloadTagsCatalog()
+      listSync.getItemsFromDb({ids: [], type: 'tag'})
+      eventBus.emit('tagsAdd:completed', {
+        names: [name],
+        createdNames: [name],
+        mediaIds: [],
+        assigned: false,
+        applied: 0,
+      })
+    }
+
+    suggestions.value = suggestions.value.filter((s) => s.toLowerCase() !== original.toLowerCase())
+    selectedSuggestions.value = selectedSuggestions.value.filter(
+      (s) => s.toLowerCase() !== original.toLowerCase(),
+    )
+    delete suggestionEdits[original]
+
+    if (!suggestions.value.length) closeDialog()
+  } catch (e) {
+    console.error(e)
+    notificationsStore.setNotification({
+      type: 'error',
+      title: t('meta.dialogs.adding_tags'),
+      text: String(e),
+    })
+  } finally {
+    submitting.value = false
+  }
 }
 
 async function add() {
@@ -401,27 +662,14 @@ async function add() {
       await form.value?.validate()
       return
     }
-    if (extraNames.value.trim()) {
-      const extraOk = optionalNameRules(extraNames.value)
-      if (extraOk !== true) {
-        notificationsStore.setNotification({
-          type: 'warning',
-          title: t('meta.dialogs.adding_tags'),
-          text: String(extraOk),
-        })
-        return
-      }
-    }
   }
 
   dups.value = []
   added.value = []
 
   arr.forEach(n => {
-    const exists = tagsStore.find(
-      i => i.name?.toLowerCase() === n.toLowerCase(),
-    )
-    if (exists) dups.value.push(n)
+    const exists = findTagByNameOrSynonymAnyCategory(n, app.tags)
+    if (exists) dups.value.push(exists.name || n)
     else added.value.push(n)
   })
 
@@ -463,12 +711,13 @@ async function add() {
         applied: result.applied,
       })
     } else if (added.value.length > 0) {
-      await typedApi.createTags(
+      const created = await createTagsInteractive(
         added.value.map(i => ({
           name: i,
           metaId,
         })),
       )
+      if (!created) return
 
       notificationsStore.setNotification({
         type: 'success',
@@ -524,6 +773,9 @@ function openDialog() {
   suggestions.value = []
   selectedSuggestions.value = []
   suggestionFilter.value = ''
+  pickMode.value = 'top'
+  showBanList.value = false
+  refreshCallback.value = null
   assignMediaIds.value = []
   selectedMetaId.value = resolveDefaultMetaId()
   dialogNames.value = true
@@ -552,21 +804,29 @@ function openWithNames(payload: OpenTagsAddWithNamesEvent | string[] | undefined
       : null
   ) || resolveDefaultMetaId() || null
 
+  refreshCallback.value = (
+    typeof normalized.refreshCallback === 'function'
+      ? normalized.refreshCallback as () => Promise<string[]>
+      : null
+  )
+
   suggestionFilter.value = ''
+  pickMode.value = 'top'
+  showBanList.value = false
+  for (const key of Object.keys(suggestionEdits)) {
+    delete suggestionEdits[key]
+  }
 
   if (unique.length > 0) {
     reviewMode.value = true
     suggestions.value = unique
     selectedSuggestions.value = [...unique]
     names.value = ''
-    // Keep manual textarea prefilled with the same list (edit/bulk paste), as before.
-    extraNames.value = unique.join('\n')
   } else {
     reviewMode.value = false
     suggestions.value = []
     selectedSuggestions.value = []
     names.value = ''
-    extraNames.value = ''
   }
 
   dialogNames.value = true
@@ -579,18 +839,23 @@ function closeDialog() {
 
 function resetForm() {
   names.value = ''
-  extraNames.value = ''
   dups.value = []
   added.value = []
   suggestions.value = []
   selectedSuggestions.value = []
   suggestionFilter.value = ''
+  pickMode.value = 'top'
+  showBanList.value = false
+  refreshCallback.value = null
   assignMediaIds.value = []
   reviewMode.value = false
   customTitle.value = null
   selectedMetaId.value = resolveDefaultMetaId()
   valid.value = false
   submitting.value = false
+  for (const key of Object.keys(suggestionEdits)) {
+    delete suggestionEdits[key]
+  }
 
   nextTick(() => {
     form.value?.resetValidation()
@@ -606,11 +871,6 @@ function nameRules(string: string) {
   }
 
   return true
-}
-
-function optionalNameRules(string: string) {
-  if (!String(string || '').trim()) return true
-  return nameRules(string)
 }
 
 const openTagsAddHandler = (payload: unknown) => (
@@ -630,35 +890,55 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.suggestion-chips {
-  max-height: 320px;
-  overflow: auto;
+.suggestion-list {
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 12px;
-  padding: 8px;
+  overflow: hidden;
 }
 
-.suggestion-chips__badge {
-  opacity: 0.8;
-  font-weight: 500;
-  text-transform: lowercase;
+.ban-list-header {
+  border-bottom: 1px solid rgba(var(--v-border-color), 0.4);
 }
 
-.tags-add-extra-names__body {
-  padding: 0 !important;
+.suggestion-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: 40px;
+  padding: 0 8px;
 }
 
-.tags-add-extra-names__body :deep(.v-expansion-panel-text__wrapper) {
-  padding: 0 12px 12px !important;
+.suggestion-row + .suggestion-row {
+  border-top: 1px solid rgba(var(--v-border-color), 0.4);
 }
 
-.tags-add-extra-names__textarea {
-  margin: 0 !important;
+.suggestion-row--alt {
+  background: rgba(var(--v-theme-on-surface), 0.03);
 }
 
-.tags-add-extra-names__textarea :deep(.v-input__details) {
-  padding-inline: 0;
-  min-height: 0;
-  padding-top: 4px;
+.suggestion-row__check {
+  margin-right: 4px;
+}
+
+.suggestion-row__input :deep(.v-field) {
+  font-size: 13px;
+}
+
+.suggestion-row__input :deep(.v-field__outline) {
+  --v-field-border-opacity: 0;
+}
+
+.suggestion-row__input--exists :deep(.v-field__input) {
+  color: rgba(var(--v-theme-secondary), 0.8);
+}
+
+.suggestion-row__exists {
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+.suggestion-row__add,
+.suggestion-row__ban {
+  flex-shrink: 0;
 }
 </style>

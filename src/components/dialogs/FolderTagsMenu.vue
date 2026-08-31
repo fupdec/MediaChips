@@ -155,6 +155,7 @@ import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
+import {leafCategoryOptions} from '@/utils/tagCategoryTree'
 import {useNotificationsStore} from '@/stores/notifications'
 
 type TagOption = {
@@ -194,7 +195,7 @@ const {t} = useI18n()
 const appStore = useAppStore()
 const notificationsStore = useNotificationsStore()
 
-const menuOpen = ref(false)
+const menuOpen = defineModel<boolean>('open', {default: false})
 const loading = ref(false)
 const saving = ref(false)
 const search = ref('')
@@ -207,10 +208,7 @@ function metaIconName(icon: unknown): string {
 }
 
 const arrayMetas = computed(() =>
-  appStore.meta
-    .filter((meta) => meta.type === 'array' && meta.id != null)
-    .slice()
-    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
+  leafCategoryOptions(appStore.meta || []),
 )
 
 const tagOptions = computed((): TagOption[] => {

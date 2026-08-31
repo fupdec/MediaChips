@@ -86,6 +86,24 @@ describe('buildPreviewContainerClasses', () => {
     })
     expect(classes['big-preview-size-half']).toBeUndefined()
   })
+
+  it('hides cinema chrome only in settled fullscreen', () => {
+    expect(buildPreviewContainerClasses({
+      ...base,
+      isFullscreenBigPreview: true,
+      chromeHidden: true,
+    })['video-preview-container--chrome-hidden']).toBe(true)
+    expect(buildPreviewContainerClasses({
+      ...base,
+      isFullscreenBigPreview: true,
+      isGridExpanding: true,
+      chromeHidden: true,
+    })['video-preview-container--chrome-hidden']).toBe(false)
+    expect(buildPreviewContainerClasses({
+      ...base,
+      chromeHidden: true,
+    })['video-preview-container--chrome-hidden']).toBe(false)
+  })
 })
 
 describe('progress helpers', () => {

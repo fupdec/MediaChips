@@ -6,27 +6,15 @@
     @update:model-value="dialogsStore.feedback = $event"
   >
     <v-card rounded="xl">
-      <v-card-title class="d-flex align-center px-6 py-4">
-        <v-icon
-          class="mr-2"
-          size="24"
-        >
-          mdi-message-text-outline
-        </v-icon>
-        {{ t('home.feedback_title') }}
-        <v-spacer/>
-        <v-btn
-          icon
-          variant="text"
-          @click="dialogsStore.feedback = false"
-        >
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
-      </v-card-title>
+      <DialogHeader
+        icon="message-text-outline"
+        :header="t('home.feedback_title')"
+        :buttons="headerButtons"
+        closable
+        @close="dialogsStore.feedback = false"
+      />
 
-      <v-divider/>
-
-      <v-card-text class="pa-6">
+      <v-card-text class="pa-4 pa-sm-6">
         <p class="mb-4 text-medium-emphasis">{{ t('home.feedback_hint') }}</p>
 
         <v-form @submit.prevent="sendFeedback">
@@ -41,6 +29,7 @@
                 :disabled="isFeedbackSending"
                 variant="outlined"
                 density="comfortable"
+                rounded="lg"
                 hide-details="auto"
               />
             </v-col>
@@ -56,6 +45,7 @@
                 type="email"
                 variant="outlined"
                 density="comfortable"
+                rounded="lg"
                 hide-details="auto"
               />
             </v-col>
@@ -68,6 +58,7 @@
             class="mt-4"
             variant="outlined"
             density="comfortable"
+            rounded="lg"
             hide-details="auto"
           />
 
@@ -78,6 +69,7 @@
             class="mt-4"
             variant="outlined"
             density="comfortable"
+            rounded="lg"
             rows="4"
             hide-details="auto"
           />
@@ -91,6 +83,7 @@
             class="mt-4"
             variant="outlined"
             density="comfortable"
+            rounded="lg"
             prepend-icon="mdi-camera-outline"
             multiple
             chips
@@ -100,7 +93,11 @@
           />
 
           <p class="text-caption text-medium-emphasis mt-4 mb-0">
-            {{ t('home.feedback_system_info', {version: store.appVersion, os: feedbackOs}) }}
+            {{ t('home.feedback_system_info', {
+              version: store.appVersion,
+              os: feedbackSystemInfo.os,
+              osVersion: feedbackOsVersionLabel,
+            }) }}
             <br>
             {{ t('home.feedback_system_info_privacy') }}
           </p>
@@ -108,7 +105,8 @@
           <v-alert
             v-if="feedbackError"
             type="error"
-            class="mt-4 rounded-xl"
+            class="mt-4"
+            rounded="xl"
             variant="tonal"
             density="comfortable"
           >
@@ -116,58 +114,48 @@
           </v-alert>
         </v-form>
       </v-card-text>
-
-      <v-divider/>
-
-      <v-card-actions class="px-6 py-4">
-        <v-spacer/>
-        <v-btn
-          rounded
-          variant="text"
-          @click="dialogsStore.feedback = false"
-        >
-          {{ t('common.cancel') }}
-        </v-btn>
-        <v-btn
-          color="primary"
-          rounded
-          :loading="isFeedbackSending"
-          :disabled="!isFeedbackValid || isFeedbackSending"
-          @click="sendFeedback"
-        >
-          <v-icon start>mdi-send</v-icon>
-          {{ t('home.feedback_send') }}
-        </v-btn>
-      </v-card-actions>
     </v-card>
   </v-dialog>
 </template>
 
 <script setup lang="ts">
-import {apiClient} from "@/services/apiClient"
-import {computed, reactive, ref, watch} from "vue"
+import {apiClient} from '@/services/apiClient'
+import {computed, reactive, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {useAppStore} from "@/stores/app"
-import {useDialogsStore} from "@/stores/dialogs"
-import {useNotificationsStore} from "@/stores/notifications"
+import {useAppStore} from '@/stores/app'
+import {useDialogsStore} from '@/stores/dialogs'
+import {useNotificationsStore} from '@/stores/notifications'
 import {getErrorResponseData} from '@/types/vue'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
 
 const store = useAppStore()
 const dialogsStore = useDialogsStore()
 const notificationsStore = useNotificationsStore()
 const {t} = useI18n()
 
-const feedbackApiUrl = import.meta.env.VITE_FEEDBACK_API_URL || "https://mediachips.app/api/feedback"
+const feedbackApiUrl = import.meta.env.VITE_FEEDBACK_API_URL || 'https://mediachips.app/api/feedback'
 const feedback = reactive({
-  name: "",
-  email: "",
-  subject: "",
-  message: "",
+  name: '',
+  email: '',
+  subject: '',
+  message: '',
   screenshots: [] as File[],
 })
 const isFeedbackSending = ref(false)
-const feedbackError = ref("")
+const feedbackError = ref('')
 const maxScreenshotFiles = 3
+
+const headerButtons = computed(() => [
+  {
+    icon: 'send',
+    text: t('home.feedback_send'),
+    color: 'primary',
+    disabled: !isFeedbackValid.value || isFeedbackSending.value,
+    function: () => {
+      void sendFeedback()
+    },
+  },
+])
 
 function applyFeedbackPreset() {
   const preset = dialogsStore.feedbackPreset
@@ -189,28 +177,45 @@ watch(
 )
 
 const maxScreenshotSize = 5 * 1024 * 1024
-const allowedScreenshotTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"]
+const allowedScreenshotTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 const platformLabels: Record<string, string> = {
-  darwin: "macOS",
-  win32: "Windows",
-  linux: "Linux",
+  darwin: 'macOS',
+  win32: 'Windows',
+  linux: 'Linux',
 }
 
-function getFeedbackOs() {
+function getFeedbackSystemInfo() {
   if (window.osAPI) {
-    const {platform, version, arch} = window.osAPI
-    const name = platformLabels[platform] || platform
-    return `${name} ${version} (${arch})`
+    const {platform, systemVersion, version, arch} = window.osAPI
+    return {
+      os: platformLabels[platform] || platform,
+      osVersion: systemVersion || '',
+      arch: arch || '',
+      legacyKernelVersion: version || '',
+    }
   }
 
-  const uaData = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData
-  return uaData?.platform || navigator.platform || "Unknown"
+  const uaData = (navigator as Navigator & {userAgentData?: {platform?: string}}).userAgentData
+  return {
+    os: uaData?.platform || navigator.platform || 'Unknown',
+    osVersion: '',
+    arch: '',
+    legacyKernelVersion: '',
+  }
 }
 
-const feedbackOs = computed(() => getFeedbackOs())
+const feedbackSystemInfo = computed(() => getFeedbackSystemInfo())
+
+const feedbackOsVersionLabel = computed(() => {
+  const {osVersion, arch, legacyKernelVersion} = feedbackSystemInfo.value
+  const version = osVersion || legacyKernelVersion
+  if (!version) return arch ? `(${arch})` : ''
+  return arch ? `${version} (${arch})` : version
+})
+
 const isFeedbackValid = computed(() => {
   const email = feedback.email.trim()
-  return feedback.name.trim() && /^\S+@\S+\.\S+$/.test(email) && feedback.message.trim()
+  return Boolean(feedback.name.trim() && /^\S+@\S+\.\S+$/.test(email) && feedback.message.trim())
 })
 
 function getScreenshotValidationError() {
@@ -230,10 +235,12 @@ function getScreenshotValidationError() {
     return t('home.feedback_screenshots_size_error')
   }
 
-  return ""
+  return ''
 }
 
 async function sendFeedback() {
+  if (isFeedbackSending.value) return
+
   if (!isFeedbackValid.value) {
     feedbackError.value = t('home.feedback_validation_error')
     return
@@ -246,27 +253,33 @@ async function sendFeedback() {
   }
 
   isFeedbackSending.value = true
-  feedbackError.value = ""
+  feedbackError.value = ''
 
   try {
     const formData = new FormData()
-    formData.append("name", feedback.name.trim())
-    formData.append("email", feedback.email.trim())
-    formData.append("subject", feedback.subject.trim())
-    formData.append("message", feedback.message.trim())
-    formData.append("appVersion", store.appVersion)
-    formData.append("os", feedbackOs.value)
+    formData.append('name', feedback.name.trim())
+    formData.append('email', feedback.email.trim())
+    formData.append('subject', feedback.subject.trim())
+    formData.append('message', feedback.message.trim())
+    formData.append('appVersion', store.appVersion)
+    formData.append('os', feedbackSystemInfo.value.os)
+    if (feedbackSystemInfo.value.osVersion) {
+      formData.append('osVersion', feedbackSystemInfo.value.osVersion)
+    }
+    if (feedbackSystemInfo.value.arch) {
+      formData.append('arch', feedbackSystemInfo.value.arch)
+    }
 
     for (const screenshot of feedback.screenshots || []) {
-      formData.append("screenshots[]", screenshot, screenshot.name)
+      formData.append('screenshots[]', screenshot, screenshot.name)
     }
 
     await apiClient.post(feedbackApiUrl, formData)
 
-    feedback.name = ""
-    feedback.email = ""
-    feedback.subject = ""
-    feedback.message = ""
+    feedback.name = ''
+    feedback.email = ''
+    feedback.subject = ''
+    feedback.message = ''
     feedback.screenshots = []
     dialogsStore.feedback = false
 

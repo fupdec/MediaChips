@@ -142,7 +142,10 @@ function buildTagFilterQuery(filters: FilterLike[] = [], options: TagFilterOptio
     return `:${key}`
   }
 
-  const baseClauses = ['tags.metaId = :metaId']
+  const baseClauses = [
+    'tags.metaId = :metaId',
+    "(tags.deletedAt IS NULL OR tags.deletedAt = '')",
+  ]
   const filterClauses: string[] = []
   const joins: string[] = []
   let joinIndex = 0
@@ -217,27 +220,96 @@ function getTagFromClause(joinSql: string = '') {
   return joinSql ? `FROM tags\n${joinSql}` : 'FROM tags'
 }
 
-function getTagSortExpression(sortBy: string, sortMetaType?: string | null) {
-  if (sortBy === 'shuffle') return 'RANDOM()'
-  if (sortBy === 'mediaCount' || sortBy === 'numberOfMedia') {
-    return `(SELECT COUNT(*) FROM tagsInMedia WHERE tagsInMedia.tagId = tags.id)`
+export type TagSortPlan = {
+  expression: string
+  /** 1:1 aggregate joins — safe with DISTINCT filter joins. Uses :metaId. */
+  joinSql: string
+}
+
+/**
+ * Pre-aggregate assignment counts with LEFT JOIN instead of correlated
+ * subqueries in ORDER BY (≈100× faster on large tag categories).
+ */
+function getTagSortPlan(sortBy: string, sortMetaType?: string | null): TagSortPlan {
+  if (sortBy === 'shuffle') {
+    return {expression: 'RANDOM()', joinSql: ''}
+  }
+
+  if (sortBy === 'mediaCount' || sortBy === 'numberOfMedia' || sortBy === 'assignmentCount') {
+    return {
+      expression: '(COALESCE(tag_sort_media_assign.cnt, 0) + COALESCE(tag_sort_tag_assign.cnt, 0))',
+      joinSql: `${descendantMediaCountJoinSql({
+        linkTable: 'tagsInMedia',
+        alias: 'tag_sort_media_assign',
+      })}
+LEFT JOIN (
+  SELECT tit.tagId AS id, COUNT(*) AS cnt
+  FROM tagsInTags tit
+  INNER JOIN tags scoped ON scoped.id = tit.tagId AND scoped.metaId = :metaId
+  GROUP BY tit.tagId
+) AS tag_sort_tag_assign ON tag_sort_tag_assign.id = tags.id`,
+    }
+  }
+
+  if (sortBy === 'videoCount' || sortBy === 'numberOfVideos') {
+    return {
+      expression: 'COALESCE(tag_sort_type_count.cnt, 0)',
+      joinSql: descendantMediaCountJoinSql({
+        linkTable: 'tagsInMedia',
+        alias: 'tag_sort_type_count',
+        extraJoins: `INNER JOIN media ON media.id = tagsInMedia.mediaId
+  INNER JOIN mediaTypes ON mediaTypes.id = media.mediaTypeId`,
+        extraWhere: `mediaTypes.type = 'video'`,
+      }),
+    }
+  }
+
+  if (sortBy === 'imageCount' || sortBy === 'numberOfImages') {
+    return {
+      expression: 'COALESCE(tag_sort_type_count.cnt, 0)',
+      joinSql: descendantMediaCountJoinSql({
+        linkTable: 'tagsInMedia',
+        alias: 'tag_sort_type_count',
+        extraJoins: `INNER JOIN media ON media.id = tagsInMedia.mediaId
+  INNER JOIN mediaTypes ON mediaTypes.id = media.mediaTypeId`,
+        extraWhere: `mediaTypes.type = 'image'`,
+      }),
+    }
+  }
+
+  if (sortBy === 'tagCount' || sortBy === 'numberOfTags' || sortBy === 'assignedTagCount') {
+    return {
+      expression: 'COALESCE(tag_sort_nested_count.cnt, 0)',
+      joinSql: `LEFT JOIN (
+  SELECT tit.parentTagId AS id, COUNT(*) AS cnt
+  FROM tagsInTags tit
+  INNER JOIN tags scoped ON scoped.id = tit.parentTagId AND scoped.metaId = :metaId
+  GROUP BY tit.parentTagId
+) AS tag_sort_nested_count ON tag_sort_nested_count.id = tags.id`,
+    }
   }
 
   const metaId = resolveMetaId(sortBy)
   if (metaId !== null && sortMetaType) {
-    return buildTagMetaSortExpression(metaId, sortMetaType)
+    return {expression: buildTagMetaSortExpression(metaId, sortMetaType), joinSql: ''}
   }
 
-  return SORT_COLUMNS[sortBy] || SORT_COLUMNS.id
+  return {expression: SORT_COLUMNS[sortBy] || SORT_COLUMNS.id, joinSql: ''}
+}
+
+function getTagSortExpression(sortBy: string, sortMetaType?: string | null) {
+  return getTagSortPlan(sortBy, sortMetaType).expression
 }
 
 import {buildTagIdSelect} from './filteredListSql'
+import {descendantMediaCountJoinSql} from './tagDescendantSql'
 
 export {
   buildTagFilterQuery,
   resolveTagFilterQuery,
   getTagFilterSqlFallbackReason,
   getTagFromClause,
+  getTagSortPlan,
   getTagSortExpression,
   buildTagIdSelect,
 }

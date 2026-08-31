@@ -8,7 +8,7 @@
     @update:model-value="onDialogToggle"
   >
     <template #default="{ isActive }">
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader
           @close="isActive.value = false"
           header="TMDB field mapping"
@@ -37,7 +37,7 @@
             <v-btn
               :loading="creatingFields"
               color="primary"
-              rounded
+              rounded="xl"
               size="small"
               variant="flat"
               prepend-icon="mdi-auto-fix"
@@ -47,7 +47,7 @@
             </v-btn>
           </div>
 
-          <v-card-subtitle class="mb-2">Pinned meta</v-card-subtitle>
+          <div class="text-subtitle-2 font-weight-medium mb-2">Pinned meta</div>
 
           <div v-if="pinnedMetasFree.length" class="d-flex flex-wrap">
             <div
@@ -92,7 +92,7 @@
 
           <v-divider class="my-4"/>
 
-          <v-card-subtitle class="mb-2">TMDB fields</v-card-subtitle>
+          <div class="text-subtitle-2 font-weight-medium mb-2">TMDB fields</div>
 
           <div class="d-flex flex-wrap">
             <div

@@ -86,6 +86,18 @@ describe('tagSuggesterPhrases', () => {
     expect(top).toContain('eva angelina')
     expect(top).toContain('other girl')
   })
+  it('does not emit zip tokens from archive paths', () => {
+    const paths = [
+      '/Volumes/pron/_photo/#DogFart/allie_foster.zip!/001.jpg',
+      '/Volumes/pron/_photo/#DogFart/allie_foster.zip!/002.jpg',
+    ].map((path) => ({path}))
+
+    const counts = countPathTokens(paths as never, {maxWords: 3})
+    const words = counts.map((c) => c.word)
+
+    expect(words).toContain('allie foster')
+    expect(words.some((w) => w === 'zip' || w.includes('zip'))).toBe(false)
+  })
 })
 
 function normalizeIncludes(word: string, needle: string) {

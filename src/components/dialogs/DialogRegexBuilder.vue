@@ -6,7 +6,7 @@
     width="640"
     :transition="false"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="dialogLocal = false"
         :header="header || t('regex_builder.dialog_title')"

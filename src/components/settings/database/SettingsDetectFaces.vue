@@ -508,6 +508,7 @@ import {
   MODEL_DOWNLOAD_SIZES_MB,
 } from '@/services/modelDownloadConsent'
 import type { Meta } from '@/types/stores'
+import {leafCategoryOptions} from '@/utils/tagCategoryTree'
 import {
   clampFaceDetectFramesPerVideoForm,
   clampFaceDetectMinScoreForm,
@@ -624,9 +625,7 @@ const matchStatusView = ref({
   matchedFaces: 0,
 })
 
-const arrayMetas = computed(() => (
-  (appStore.meta || []).filter((meta) => meta.type === 'array')
-))
+const arrayMetas = computed(() => leafCategoryOptions(appStore.meta || []))
 
 const busy = computed(() => Boolean(activeJob.value) || statusLoading.value || modelDownloading.value || embedDownloading.value)
 const modelReady = computed(() => ['downloaded', 'loaded'].includes(modelStatus.value))
@@ -808,7 +807,7 @@ const syncSelectedMetaFromSettings = () => {
     selectedPerformerMeta.value = arrayMetas.value.find((meta) => Number(meta.id) === configured) || null
     return
   }
-  selectedPerformerMeta.value = arrayMetas.value.find((meta) => Boolean(meta.scraper)) || null
+  selectedPerformerMeta.value = arrayMetas.value.find((meta) => Boolean((meta as Meta & {scraper?: unknown}).scraper)) || null
 }
 
 const onPerformerMetaChange = (meta: Meta | null) => {

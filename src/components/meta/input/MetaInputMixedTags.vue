@@ -10,12 +10,13 @@
     item-value="key"
     ref="field"
     :label="label === undefined ? t('meta.fields.mixed_tags_label') : label"
-    :placeholder="placeholder || t('meta.fields.mixed_tags_placeholder')"
+    :placeholder="placeholder === undefined ? t('meta.fields.mixed_tags_placeholder') : placeholder"
     :disabled="disabled"
     :hide-no-data="!search.trim()"
     hide-selected
     multiple
     no-filter
+    auto-select-first
     :menu-props="resolvedMenuProps"
     @update:menu="onMenuUpdate"
     @keydown.enter="onEnter"
@@ -24,7 +25,7 @@
     <template #no-data>
       <div
         v-if="search.trim() && createTargets.length"
-        class="pa-2 d-flex flex-column ga-1"
+        class="pa-1 d-flex flex-column ga-1"
       >
         <v-btn
           v-for="target in createTargets"
@@ -33,7 +34,8 @@
           :color="target.isDefault ? 'success' : undefined"
           :variant="target.isDefault ? 'flat' : 'tonal'"
           block
-          size="large"
+          size="small"
+          class="text-none"
         >
           <v-icon start>mdi-{{ target.icon }}</v-icon>
           <span class="text-truncate">
@@ -79,7 +81,7 @@
         :class="['editing-tag-chip', chipClassFor(item.raw)]"
         size="small"
       >
-        <span>{{ item.raw.name }}</span>
+        <span>{{ item.raw.name || findKeyLabel(item.value) }}</span>
       </v-chip>
       <v-chip
         v-else
@@ -98,7 +100,7 @@
         class="mixed-tags__category"
       >
         <v-icon
-          size="18"
+          size="14"
           class="mixed-tags__category-icon"
         >
           mdi-{{ item.raw.icon || 'tag-multiple-outline' }}
@@ -159,15 +161,15 @@
         <template #title>
           <div class="d-flex align-center flex-grow-1">
             <v-icon
-              size="14"
-              class="mr-2 text-medium-emphasis"
+              size="12"
+              class="mr-1 text-medium-emphasis"
             >
               mdi-{{ item.raw.metaIcon }}
             </v-icon>
             <v-icon
               v-if="item.raw.favorite"
               color="pink"
-              size="14"
+              size="12"
               class="mr-1"
             >
               mdi-heart
@@ -205,13 +207,14 @@ import {typedApi} from '@/services/typedApi'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
 import {onTagsCatalogChanged, reloadTagsCatalog} from '@/composable/appCatalogs'
+import {createTagsInteractive} from '@/composable/createTagsInteractive'
 import {useAutocompleteMenuInfiniteScroll} from '@/composable/useAutocompleteMenuInfiniteScroll'
 import {
   foundByChars,
   getTagChipTextColor,
   highlightChars,
 } from '@/services/formatUtils'
-import {resolveTagAutocompleteSearchMode} from '@shared/tagAutocompleteMatch'
+import {resolveTagAutocompleteSearchMode, matchesTagAutocomplete} from '@shared/tagAutocompleteMatch'
 import {resolveTagChipColor} from '@shared/tagChipColor'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
@@ -274,11 +277,9 @@ const props = withDefaults(defineProps<{
 }>(), {
   metaIds: () => [],
   modelValue: () => [],
-  placeholder: '',
   single: false,
   menuProps: () => ({
-    contentClass: 'custom-list mixed-tags-dropdown',
-    maxHeight: 360,
+    contentClass: 'custom-list ac-dropdown mixed-tags-dropdown',
     zIndex: 2800,
   }),
 })
@@ -322,9 +323,9 @@ const {
   loadMore: () => loadMoreNextCategory(),
   baseContentClass: computed(() => {
     const fromProps = props.menuProps?.contentClass
-    return typeof fromProps === 'string' ? fromProps : 'custom-list mixed-tags-dropdown'
+    return typeof fromProps === 'string' ? fromProps : 'custom-list ac-dropdown mixed-tags-dropdown'
   }),
-  maxHeight: 360,
+  maxHeight: 400,
 })
 
 const resolvedMenuProps = computed(() => ({
@@ -497,6 +498,62 @@ function findKeyLabel(key: string) {
   if (!parsed) return key
   const storeTag = appStore.getTagById(parsed.tagId)
   return storeTag?.name ?? key
+}
+
+async function hydrateSelectedKeys(keys: MixedTagKey[]) {
+  const missing = keys.filter((key) => !tagByKey.value.has(key))
+  if (!missing.length) return
+
+  const fromStore: TagOption[] = []
+  const byMeta = new Map<number, number[]>()
+
+  for (const key of missing) {
+    const parsed = parseKey(key)
+    if (!parsed) continue
+    const storeTag = appStore.getTagById(parsed.tagId) as TagListItem | undefined
+    if (storeTag?.name) {
+      const option = toTagOption(storeTag, parsed.metaId)
+      if (option) fromStore.push(option)
+      continue
+    }
+    const list = byMeta.get(parsed.metaId) || []
+    list.push(parsed.tagId)
+    byMeta.set(parsed.metaId, list)
+  }
+
+  if (fromStore.length) {
+    tagOptions.value = mergeOptions(tagOptions.value, fromStore)
+  }
+
+  if (!byMeta.size) return
+
+  try {
+    const selectedResults = await Promise.all(
+      [...byMeta.entries()].map(([metaId, ids]) =>
+        typedApi.postTagItems({
+          metaId,
+          ids,
+          filters: [],
+          skipTotals: true,
+        }).then((res) => ({
+          metaId,
+          items: (res.data.items ?? []) as TagListItem[],
+        })),
+      ),
+    )
+    const options: TagOption[] = []
+    for (const result of selectedResults) {
+      for (const tag of result.items) {
+        const option = toTagOption(tag, result.metaId)
+        if (option) options.push(option)
+      }
+    }
+    if (options.length) {
+      tagOptions.value = mergeOptions(tagOptions.value, options)
+    }
+  } catch (error) {
+    console.error(error)
+  }
 }
 
 function showHoverFor(tag: TagOption, event: MouseEvent) {
@@ -839,11 +896,11 @@ async function create(name?: string, metaId?: number) {
   }
 
   try {
-    const res = await typedApi.createTags([{
+    const createdTags = await createTagsInteractive([{
       name: searchText,
       metaId: targetMetaId,
     }])
-    const created = res.data?.[0]
+    const created = createdTags?.[0]
     const tagId = Number(created?.id)
     if (!tagId) return
 
@@ -870,13 +927,24 @@ function onEnter(event: KeyboardEvent) {
   const searchText = search.value?.trim()
   if (!searchText) return
 
-  const existsAnywhere = tagOptions.value.some(
-    (option) => option.name.toLowerCase() === searchText.toLowerCase(),
+  const lower = searchText.toLowerCase()
+  const exact = tagOptions.value.find((option) => option.name.toLowerCase() === lower)
+  const mode = resolveTagAutocompleteSearchMode(settingsStore.typingFiltersDefault)
+  const match = exact ?? tagOptions.value.find((option) =>
+    matchesTagAutocomplete(option, searchText, mode),
   )
-  if (!existsAnywhere) {
+
+  if (match) {
     event.preventDefault()
-    void create(searchText)
+    if (!normalizeKeys(val.value).includes(match.key)) {
+      setVal([...normalizeKeys(val.value), match.key])
+    }
+    search.value = ''
+    return
   }
+
+  event.preventDefault()
+  void create(searchText)
 }
 
 async function focusField() {
@@ -910,7 +978,9 @@ onUnmounted(() => {
 })
 
 watch(() => props.modelValue, (newVal) => {
-  val.value = normalizeKeys(newVal)
+  const next = normalizeKeys(newVal)
+  val.value = next
+  void hydrateSelectedKeys(next)
 })
 
 watch(() => props.metaIds?.join(','), () => {
@@ -935,20 +1005,20 @@ defineExpose({
 }
 
 .synonyms {
-  font-size: 0.85em;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-  margin-left: 0.35rem;
+  font-size: 0.72em;
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  margin-left: 0.25rem;
 }
 
 .mixed-tags__category {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 6px 8px 4px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  background: rgba(var(--v-theme-primary), 0.1);
-  border: 1px solid rgba(var(--v-theme-primary), 0.2);
+  gap: 6px;
+  margin: 2px 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(var(--v-theme-primary), 0.08);
+  border: 1px solid rgba(var(--v-theme-primary), 0.16);
   pointer-events: none;
   user-select: none;
 }
@@ -956,17 +1026,17 @@ defineExpose({
 .mixed-tags__category-icon {
   flex-shrink: 0;
   color: rgb(var(--v-theme-primary));
-  opacity: 0.95;
+  opacity: 0.9;
 }
 
 .mixed-tags__category-title {
   flex: 1;
   min-width: 0;
-  font-size: 0.72rem;
+  font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: rgba(var(--v-theme-on-surface), 0.85);
+  color: rgba(var(--v-theme-on-surface), 0.78);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -978,7 +1048,7 @@ defineExpose({
 }
 
 .mixed-tags__tag--zebra {
-  background: rgba(var(--v-theme-on-surface), 0.03);
+  background-color: rgba(var(--v-theme-on-surface), 0.03);
 }
 
 .mixed-tags__load-more-item {

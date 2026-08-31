@@ -1,4 +1,4 @@
-import { computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePlayerStore } from '@/stores/player'
 import { useEventBus } from '@/utils/eventBus'
@@ -16,10 +16,10 @@ interface PlaylistPlayPayload {
 
 interface UsePlayerPlaylistOptions {
   emit: (event: 'play', payload: PlaylistPlayPayload) => void
-  scrollerId?: string
+  scrollToIndex?: (index: number) => void
 }
 
-export function usePlayerPlaylist({ emit, scrollerId = 'scroller' }: UsePlayerPlaylistOptions) {
+export function usePlayerPlaylist({ emit, scrollToIndex }: UsePlayerPlaylistOptions) {
   const playerStore = usePlayerStore()
   const eventBus = useEventBus()
   const { t } = useI18n()
@@ -33,16 +33,12 @@ export function usePlayerPlaylist({ emit, scrollerId = 'scroller' }: UsePlayerPl
     total: player.value.playlist.length,
   }))
 
-  const scrollToNowPlaying = () => {
-    setTimeout(() => {
-      const scroller = document.getElementById(scrollerId)
-      if (!scroller) return
-
-      const item = scroller.children[player.value.nowPlaying]
-      if (item) {
-        item.scrollIntoView({ block: 'nearest' })
-      }
-    }, 0)
+  const scrollToNowPlaying = async () => {
+    if (!player.value.playlistVisible) return
+    await nextTick()
+    requestAnimationFrame(() => {
+      scrollToIndex?.(playerStore.nowPlaying)
+    })
   }
 
   const play = (index: number) => {
@@ -59,15 +55,11 @@ export function usePlayerPlaylist({ emit, scrollerId = 'scroller' }: UsePlayerPl
         index,
       )
       emit('play', { n: next, o: current })
-      if (player.value.playlistVisible) scrollToNowPlaying()
+      void scrollToNowPlaying()
       return
     }
 
     emit('play', { n: next, o: current })
-  }
-
-  const handleScrollToNowPlaying = () => {
-    scrollToNowPlaying()
   }
 
   watch(() => player.value.playlistMode, (mode, oldMode) => {
@@ -77,15 +69,15 @@ export function usePlayerPlaylist({ emit, scrollerId = 'scroller' }: UsePlayerPl
     playerStore.playlistShuffle = createShuffledPlaylistIndexes(player.value.playlist.length)
     const nextIndex = playerStore.playlistShuffle[0]
     emit('play', { n: player.value.playlist[nextIndex], o: current })
-    if (player.value.playlistVisible) scrollToNowPlaying()
+    void scrollToNowPlaying()
   }, { deep: true })
 
   onMounted(() => {
-    eventBus.on('scrollToNowPlaying', handleScrollToNowPlaying)
+    eventBus.on('scrollToNowPlaying', scrollToNowPlaying)
   })
 
   onBeforeUnmount(() => {
-    eventBus.off('scrollToNowPlaying', handleScrollToNowPlaying)
+    eventBus.off('scrollToNowPlaying', scrollToNowPlaying)
   })
 
   return {

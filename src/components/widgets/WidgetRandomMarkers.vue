@@ -1,5 +1,5 @@
 <template>
-  <section v-if="marks.length" class="widget-random-markers mb-6">
+  <section v-if="marks.length || loading" class="widget-random-markers mb-6">
     <div class="d-flex align-center justify-space-between mb-3">
       <div class="d-flex align-center text-h6">
         <v-icon class="mr-2" size="24">mdi-tooltip-outline</v-icon>
@@ -8,18 +8,20 @@
 
       <div class="d-flex align-center ga-1">
         <v-btn
+          v-tooltip:top="t('home.widgets.random_markers_refresh')"
           @click="loadMarks"
           :loading="loading"
           color="primary"
           icon
           size="small"
           variant="text"
-          :title="t('home.widgets.random_markers_refresh')"
+          :aria-label="t('home.widgets.random_markers_refresh')"
         >
           <v-icon>mdi-shuffle</v-icon>
         </v-btn>
 
         <v-btn
+          v-if="marks.length"
           to="/markers"
           color="primary"
           variant="text"
@@ -32,7 +34,10 @@
       </div>
     </div>
 
-    <div class="widget-random-markers__scroll">
+    <div
+      v-if="marks.length"
+      class="widget-random-markers__scroll"
+    >
       <div
         v-for="mark in marks"
         :key="mark.id"
@@ -40,6 +45,18 @@
       >
         <ItemMarker :mark="mark" plain-card/>
       </div>
+    </div>
+
+    <div
+      v-else
+      class="widget-random-markers__scroll"
+      aria-hidden="true"
+    >
+      <HomeCardSkeleton
+        v-for="index in 4"
+        :key="index"
+        variant="marker"
+      />
     </div>
   </section>
 </template>
@@ -49,6 +66,7 @@ import {onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import ItemMarker from '@/components/items/ItemMarker.vue'
+import HomeCardSkeleton from '@/components/widgets/HomeCardSkeleton.vue'
 import type { MarkItem } from '@/types/stores'
 
 const props = withDefaults(defineProps<{
@@ -60,7 +78,7 @@ const props = withDefaults(defineProps<{
 const {t} = useI18n()
 
 const marks = ref<MarkItem[]>([])
-const loading = ref(false)
+const loading = ref(true)
 
 async function loadMarks() {
   loading.value = true

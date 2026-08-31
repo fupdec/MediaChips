@@ -14,6 +14,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   const router = express.Router()
 
   router.post('/', validateBody(PageSettingCreateRequestSchema), PageSetting.create)
+  router.post('/find', validateBody(PageSettingCreateRequestSchema), PageSetting.find)
   router.get('/', validateQuery(PageSettingFindQuerySchema), PageSetting.findOne)
   router.put('/', validateBody(PageSettingUpdateRequestSchema), PageSetting.update)
 

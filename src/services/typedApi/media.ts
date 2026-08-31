@@ -33,15 +33,28 @@ import {
   parseMediaCountWithTag,
   parseMediaIdsResponse,
   parseMediaListResponse,
+  parseMediaFolderBrowseResponse,
   parseVideoMetadata,
 } from '@shared/schemas'
 import { validated } from './validate'
+
+export type MediaFolderBrowseRequest = {
+  path?: string | null
+  mediaTypeId?: number | null
+}
 
 export const mediaApi = {
   getMediaItems(body: ItemsListRequest) {
     return apiClient.post<MediaListResponseData>(API_ROUTES.mediaItems, body).then((res) => ({
       ...res,
       data: validated(parseMediaListResponse, res.data),
+    }))
+  },
+
+  folderBrowse(body: MediaFolderBrowseRequest = {}) {
+    return apiClient.post(API_ROUTES.mediaFolderBrowse, body).then((res) => ({
+      ...res,
+      data: validated(parseMediaFolderBrowseResponse, res.data),
     }))
   },
 
@@ -70,8 +83,38 @@ export const mediaApi = {
     }))
   },
 
-  deleteMark(id: number) {
-    return apiClient.delete(apiMark(id))
+  deleteMark(id: number, options: {permanent?: boolean} = {}) {
+    return apiClient.delete(apiMark(id), {
+      data: options.permanent ? {permanent: true} : undefined,
+      params: options.permanent ? {permanent: '1'} : undefined,
+    })
+  },
+
+  listMarkTrash(params?: {limit?: number}) {
+    return apiClient.get<{
+      items: Array<{
+        kind: 'mark'
+        id: number
+        name: string | null
+        deletedAt: string
+        metaId?: number | null
+        mediaId?: number | null
+      }>
+      count: number
+      retentionDays: number
+    }>(API_ROUTES.markTrashList, {params})
+  },
+
+  restoreMarkTrash(body: {ids: number[]}) {
+    return apiClient.post<{restoredIds: number[]}>(API_ROUTES.markTrashRestore, body)
+  },
+
+  purgeMarkTrash(body: {ids: number[]}) {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.markTrashPurge, body)
+  },
+
+  purgeExpiredMarkTrash() {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.markTrashPurgeExpired, {})
   },
 
   updateVideoMetadata(id: number, data: VideoMetadataUpdatePayload) {
@@ -201,6 +244,7 @@ export const mediaApi = {
         id: number
         score: number
         signals?: Partial<Record<'clip' | 'tags', number>>
+        tileIndex?: number | null
       }>
     }>(API_ROUTES.mediaSimilarHybrid, body)
   },

@@ -5,6 +5,7 @@ export const playlists = sqliteTable('playlists', {
   name: text('name'),
   favorite: integer('favorite', {mode: 'boolean'}).default(false),
   oldId: text('oldId'),
+  deletedAt: text('deletedAt'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 })

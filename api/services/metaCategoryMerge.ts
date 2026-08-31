@@ -21,6 +21,7 @@ import {deleteTagGeneratedAssets} from './localAssetCleanup'
 import {mergeTagsInCategoryTx} from './tagMerge'
 import {normalizeTagName} from './tagMoveToCategory'
 import {uniquePositiveIds} from '../utils/uniqueIds'
+import {metaHasActiveTags, metaHasChildCategories, reparentMetaChildrenTo} from './tagCategoryTree'
 import {
   orBooleanFlags,
   remapFilterRowTagLinksMetaId,
@@ -223,6 +224,26 @@ export async function mergeTagCategories(
 
     const survivor = metaRows.find((row) => row.id === survivorId)!
     const sources = metaRows.filter((row) => row.id !== survivorId)
+
+    const survivorIsGroup = metaHasChildCategories(tx, survivorId)
+    const survivorHasTags = metaHasActiveTags(tx, survivorId)
+    for (const source of sources) {
+      const sourceIsGroup = metaHasChildCategories(tx, source.id)
+      const sourceHasTags = metaHasActiveTags(tx, source.id)
+      if (survivorIsGroup && sourceHasTags) {
+        throw new MetaCategoryMergeError(
+          'Cannot merge a tag category into a group that does not hold tags',
+          409,
+        )
+      }
+      if (sourceIsGroup && survivorHasTags) {
+        throw new MetaCategoryMergeError(
+          'Cannot merge a group into a tag category that already has tags',
+          409,
+        )
+      }
+    }
+    reparentMetaChildrenTo(tx, sourceIds, survivorId)
 
     const migrated = {
       tags: 0,

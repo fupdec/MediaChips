@@ -71,7 +71,10 @@ export function softDeleteMedia(
   if (row.deletedAt) return true
 
   const originalPath = String(row.path || '')
-  const trashPath = buildTrashPath(id, row.basename || originalPath.split(/[\\/]/).pop())
+  const basename = row.basename == null || row.basename === ''
+    ? originalPath.split(/[\\/]/).pop()
+    : String(row.basename)
+  const trashPath = buildTrashPath(id, basename)
   const deletedAt = nowIso()
 
   db.sqlite.prepare(`

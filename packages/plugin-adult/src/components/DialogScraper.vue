@@ -6,7 +6,7 @@
     width="800"
     scrollable
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader @close="dialogsStore.scraper.show = false" :header="t('actions.scrape_info')" closable/>
 
       <v-card-text class="py-6">
@@ -22,7 +22,7 @@
               hide-details
               density="comfortable"
               variant="outlined"
-              rounded
+              rounded="lg"
               class="scraper-gender-select"
             />
 
@@ -36,7 +36,7 @@
               hide-details
               density="comfortable"
               variant="outlined"
-              rounded
+              rounded="lg"
               autofocus
               class="scraper-search-field flex-grow-1"
             />
@@ -56,17 +56,29 @@
 
         <v-row>
           <v-col cols="4" xs="4" sm="3" md="2" v-for="i in performers" :key="i.id">
-            <v-card @click="getInfo(i)" height="100%">
-              <v-img :src="i.face || getEmptyImg()"></v-img>
-              <v-card-title class="pa-2">
-                <div class="text-body-2">{{ i.name }}</div>
-              </v-card-title>
+            <v-card
+              @click="getInfo(i)"
+              height="100%"
+              variant="outlined"
+              rounded="xl"
+              class="scraper-result-card"
+            >
+              <v-img :src="i.face || getEmptyImg()" aspect-ratio="1" cover>
+                <template #placeholder>
+                  <div class="d-flex align-center justify-center fill-height">
+                    <v-icon size="36" color="medium-emphasis">mdi-account</v-icon>
+                  </div>
+                </template>
+              </v-img>
+              <div class="pa-2 text-body-2 text-truncate">
+                {{ i.name }}
+              </div>
             </v-card>
           </v-col>
         </v-row>
 
         <v-dialog v-model="dialogDataTransfer" max-width="1000px" scrollable>
-          <v-card>
+          <v-card rounded="xl">
             <DialogHeader
               @close="dialogDataTransfer = false"
               :header="t('scraper.data_transfer', {name: selected.name ?? ''})"
@@ -228,5 +240,15 @@ onMounted(() => {
 
 .scraper-search-field {
   min-width: 16rem;
+}
+
+.scraper-result-card {
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.scraper-result-card:hover {
+  border-color: rgb(var(--v-theme-primary));
 }
 </style>

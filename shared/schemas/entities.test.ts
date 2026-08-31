@@ -7,7 +7,7 @@ import {
   parseTags,
 } from '@shared/schemas'
 import { FilterObjectSchema } from '@shared/schemas/entities'
-import { ItemsListRequestSchema } from '@shared/schemas/requests'
+import { ItemsListRequestSchema, ConvertVideosRequestSchema, TrimVideoRequestSchema } from '@shared/schemas/requests'
 
 describe('shared schemas', () => {
   it('parses media types', () => {
@@ -93,6 +93,28 @@ describe('shared schemas', () => {
     expect(filter.lock).toBe(false)
   })
 
+  it('validates video conversion requests and coerces ids/resolution', () => {
+    const request = ConvertVideosRequestSchema.parse({
+      items: [{id: '7', path: '/videos/clip.mp4'}],
+      options: {codec: 'auto', resolution: 720, quality: 'balanced', destination: '/videos/out', deleteOriginal: false},
+    })
+    expect(request.items[0].id).toBe(7)
+    expect(request.options.resolution).toBe(720)
+    expect(() => ConvertVideosRequestSchema.parse({...request, options: {...request.options, codec: 'vp9'}})).toThrow()
+  })
+
+  it('validates video trim requests', () => {
+    const request = TrimVideoRequestSchema.parse({
+      id: '9',
+      path: '/videos/clip.mp4',
+      startSeconds: '12.5',
+      endSeconds: 40,
+    })
+    expect(request.id).toBe(9)
+    expect(request.startSeconds).toBe(12.5)
+    expect(() => TrimVideoRequestSchema.parse({id: 1, path: '', startSeconds: 0, endSeconds: 1})).toThrow()
+  })
+
   it('accepts items list requests with legacy filter values', () => {
     const payload = ItemsListRequestSchema.parse({
       mediaTypeId: '1',
@@ -117,5 +139,29 @@ describe('shared schemas', () => {
     expect(payload.filters?.[0]?.active).toBe(true)
     expect(payload.filters?.[0]?.metaId).toBeNull()
     expect(payload.find_duplicates).toBe(false)
+  })
+
+  it('accepts partial filter rows on list requests', () => {
+    const payload = ItemsListRequestSchema.parse({
+      mediaTypeId: 1,
+      limit: 5,
+      page: 1,
+      filters: [{
+        param: 'rating',
+        type: 'number',
+        cond: '>',
+        val: 4,
+        active: true,
+      }],
+      filtersJoin: 'or',
+    })
+    expect(payload.filters?.[0]).toMatchObject({
+      id: null,
+      note: null,
+      lock: false,
+      active: true,
+      param: 'rating',
+    })
+    expect(payload.filtersJoin).toBe('or')
   })
 })

@@ -1,5 +1,8 @@
 <template>
-  <div class="nested-tags">
+  <div
+    class="nested-tags"
+    :data-feature-hint="featureHintAttr"
+  >
 
     <!-- TAG PAGE -->
     <div v-if="tagPage" class="tag-page-params">
@@ -63,7 +66,11 @@
               :class="{
                 'nested-tag-chip-wrap--active': isNestedTagContextTarget(tag.id),
                 'nested-tag-chip-wrap--label': getMetaChipLabel(tag.meta),
+                'nested-tag-chip-wrap--draggable': canDragTag(tag),
               }"
+              :draggable="canDragTag(tag)"
+              @dragstart.stop="onTagDragStart($event, tag)"
+              @dragend="onTagDragEnd"
             >
               <v-chip
                 v-bind="getTagChipBind(tag)"
@@ -82,6 +89,7 @@
           <v-chip
             v-for="i in category.items"
             :key="`${i.name}_${item.id}`"
+            :title="formatMetaValue(i)"
           >{{ formatMetaValue(i) }}
           </v-chip>
         </div>
@@ -101,8 +109,8 @@
         :key="meta.name"
         class="category"
       >
-        <div class="category-name d-flex align-center ga-2">
-          <v-icon start>mdi-{{ meta.icon }}</v-icon>
+        <div class="category-name d-flex align-center ga-1">
+          <v-icon>mdi-{{ meta.icon }}</v-icon>
           {{ meta.text }}
         </div>
 
@@ -119,8 +127,8 @@
         :key="`${category.kind}_${category.metaId}_${item.id}`"
         class="category"
       >
-        <div class="category-name d-flex align-center ga-2">
-          <v-icon start>mdi-{{ category.kind === 'tags' ? category.items[0].meta.icon : category.items[0].icon }}</v-icon>
+        <div class="category-name d-flex align-center ga-1">
+          <v-icon>mdi-{{ category.kind === 'tags' ? category.items[0].meta.icon : category.items[0].icon }}</v-icon>
           {{ category.kind === 'tags' ? category.items[0].meta.name : category.items[0].name }}
         </div>
 
@@ -132,7 +140,11 @@
             :class="{
               'nested-tag-chip-wrap--active': isNestedTagContextTarget(tag.id),
               'nested-tag-chip-wrap--label': getMetaChipLabel(tag.meta),
+              'nested-tag-chip-wrap--draggable': canDragTag(tag),
             }"
+            :draggable="canDragTag(tag)"
+            @dragstart.stop="onTagDragStart($event, tag)"
+            @dragend="onTagDragEnd"
           >
             <v-chip
               v-bind="getTagChipBind(tag)"
@@ -149,6 +161,7 @@
           <v-chip
             v-for="i in category.items"
             :key="`${i.name}_${item.id}`"
+            :title="formatMetaValue(i)"
             :text="formatMetaValue(i)"
           ></v-chip>
         </template>
@@ -190,7 +203,11 @@
           :class="{
             'nested-tag-chip-wrap--active': isNestedTagContextTarget(entry.data.id),
             'nested-tag-chip-wrap--label': getMetaChipLabel(entry.data.meta),
+            'nested-tag-chip-wrap--draggable': canDragTag(entry.data),
           }"
+          :draggable="canDragTag(entry.data)"
+          @dragstart.stop="onTagDragStart($event, entry.data)"
+          @dragend="onTagDragEnd"
         >
           <v-chip
             v-bind="getTagChipBind(entry.data)"
@@ -206,6 +223,7 @@
         <v-chip
           v-else
           :prepend-icon="`mdi-${entry.data.icon}`"
+          :title="formatMetaValue(entry.data)"
           :text="formatMetaValue(entry.data)"
         ></v-chip>
       </template>
@@ -245,6 +263,8 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
 import {refreshPageTag} from '@/composable/pageTagLayoutRemount'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
+import {useSessionFocusActions} from '@/composable/useSessionFocusActions'
+import {useSessionFocusStore} from '@/stores/sessionFocus'
 import translate, {toLocale} from '@/utils/translate'
 import {toChipVariant, type ChipVariant} from '@/utils/chipVariant'
 import {resolveTagChipColor} from '@shared/tagChipColor'
@@ -255,6 +275,12 @@ import {getFilterObject, getTagChipTextColor} from '@/services/formatUtils'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {copyToClipboard} from '@/utils/copyToClipboard'
+import {getApiErrorMessage} from '@/types/vue'
+import {
+  clearMediaTagDrag,
+  writeMediaTagDragPayload,
+} from '@/utils/mediaTagDrag'
+import {writeSessionFocusTagsDrag} from '@/utils/sessionFocusDrag'
 import {
   formatMeasurementDisplay,
   normalizeMeasurementUnit,
@@ -308,13 +334,14 @@ const props = withDefaults(defineProps<{
 })
 
 const presetMetaProps: PresetMetaProps = {
-  type: props.type,
-  item: props.item,
-  isShowAll: props.isShowAll,
+  get type() { return props.type },
+  get item() { return props.item },
+  get isShowAll() { return props.isShowAll },
+  get showPreset() { return props.showPreset },
 }
 
 const {preset_meta: presetMetaSource} = usePresetMeta(presetMetaProps)
-const preset_meta = computed(() => (props.showPreset ? presetMetaSource.value : []))
+const preset_meta = computed(() => presetMetaSource.value)
 
 const settingsStore = useSettingsStore()
 const appStore = useAppStore()
@@ -325,8 +352,10 @@ const notificationsStore = useNotificationsStore()
 const scraperStore = useScraperStore()
 
 const eventBus = useEventBus()
-  const listSync = useItemsListSync()
+const listSync = useItemsListSync()
 const filtersController = useItemsFiltersController()
+const sessionFocusStore = useSessionFocusStore()
+const {toggleInTray} = useSessionFocusActions()
 
 const itemRating = computed((): number | undefined => {
   const rating = props.item.rating
@@ -340,6 +369,56 @@ const defaultMetaChipVariant = computed((): ChipVariant | undefined =>
 const getMetaChipLabel = (meta?: Meta): boolean | undefined => {
   const label = meta?.chipLabel
   return typeof label === 'boolean' ? label : undefined
+}
+
+const canDragTag = (tag: TagWithMeta): boolean => {
+  return !tag.fromFolder && Number(tag.id) > 0 && Number(tag.metaId) > 0
+    && (props.type === 'media' || props.type === 'tag')
+}
+
+const featureHintAttr = computed((): string | undefined => {
+  if (props.type !== 'media') return undefined
+  const hasDraggableTag = (props.tags || []).some((entry) => !entry.fromFolder && Number(entry.tagId) > 0)
+  return hasDraggableTag ? 'drag-tags' : undefined
+})
+
+const onTagDragStart = (event: DragEvent, tag: TagWithMeta): void => {
+  if (!canDragTag(tag)) {
+    event.preventDefault()
+    return
+  }
+  hideHoverImage()
+  const focusTag = {
+    tagId: Number(tag.id),
+    metaId: Number(tag.metaId),
+    name: String(tag.name || ''),
+    icon: tag.meta?.icon ? String(tag.meta.icon) : null,
+    color: tag.color ? String(tag.color) : null,
+  }
+  if (props.type === 'tag') {
+    const ok = writeSessionFocusTagsDrag(event, [focusTag])
+    if (!ok) event.preventDefault()
+    return
+  }
+  const ok = writeMediaTagDragPayload(event, {
+    tagId: focusTag.tagId,
+    metaId: focusTag.metaId,
+    sourceMediaId: Number(props.item.id),
+    name: focusTag.name,
+    icon: focusTag.icon,
+    color: focusTag.color,
+  })
+  if (!ok) {
+    event.preventDefault()
+    return
+  }
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
+}
+
+const onTagDragEnd = (): void => {
+  clearMediaTagDrag()
 }
 
 const isNestedTagContextTarget = (tagId: number): boolean => {
@@ -363,6 +442,9 @@ const getTagChipBind = (tag: TagWithMeta) => {
   const fromFolderTitle = tag.fromFolder
     ? translate('items.tag_from_folder', {}, locale)
     : undefined
+  const dragTitle = canDragTag(tag)
+    ? translate('items.drag_tag_hint', {}, locale)
+    : undefined
 
   return {
     variant,
@@ -370,7 +452,7 @@ const getTagChipBind = (tag: TagWithMeta) => {
     // Flat/elevated only — see getTagChipTextStyle.
     style: textColor ? {color: textColor} : undefined,
     label: getMetaChipLabel(tag.meta),
-    title: fromFolderTitle || tag.name || undefined,
+    title: fromFolderTitle || dragTitle || tag.name || undefined,
     size: active ? 'large' : undefined,
     filter: active || undefined,
     prependIcon: tag.fromFolder ? 'mdi-folder-outline' : undefined,
@@ -411,9 +493,10 @@ const assignmentRows = computed(() => {
   return itemsStore.sortedAssigned
 })
 
+/** Chip labels are single-line; keep newlines readable without wrapping the chip. */
 const formatMetaValue = (meta: ValueWithMeta): string => {
   const unit = normalizeMeasurementUnit(meta.measurementUnit)
-  return formatMeasurementDisplay(meta.value, unit)
+  return formatMeasurementDisplay(meta.value, unit).replace(/\r\n|\r|\n/g, ' ')
 }
 
 const tagItems = computed((): TagWithMeta[] => {
@@ -785,6 +868,22 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
     },
   ]
 
+  const inTray = sessionFocusStore.hasTag(Number(tag.id))
+  contextMenu.push({
+    name: inTray ? t('session_focus.remove_from_tray') : t('session_focus.add_to_tray'),
+    type: 'item',
+    icon: inTray ? 'bullseye-arrow' : 'bullseye',
+    action: () => {
+      toggleInTray({
+        tagId: Number(tag.id),
+        metaId: Number(tag.metaId),
+        name: String(tag.name || ''),
+        icon: tag.meta?.icon ? String(tag.meta.icon) : null,
+        color: tag.color ? String(tag.color) : null,
+      })
+    },
+  })
+
   if (canTpdbAutoScrape || canTmdbAutoScrape) {
     contextMenu.push({type: 'divider'})
     if (canTpdbAutoScrape) {
@@ -874,5 +973,13 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
 .tag-chip--from-folder {
   opacity: 0.92;
   border-style: dashed !important;
+}
+
+.nested-tag-chip-wrap--draggable {
+  cursor: grab;
+}
+
+.nested-tag-chip-wrap--draggable:active {
+  cursor: grabbing;
 }
 </style>

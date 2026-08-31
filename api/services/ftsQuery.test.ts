@@ -47,14 +47,17 @@ describe('matchesGlobalSearchName', () => {
     expect(matchesGlobalSearchName('JulesJordan', 'jules')).toBe(true)
   })
 
-  it('rejects incidental long-prefix matches', () => {
-    expect(matchesGlobalSearchName('Lana Analise', 'anal')).toBe(false)
+  it('matches LIKE substrings without stem heuristics', () => {
+    expect(matchesGlobalSearchName('Lana Analise', 'anal')).toBe(true)
     expect(matchesGlobalSearchName('YasmiButt', 'anal')).toBe(false)
+    expect(matchesGlobalSearchName('Mountain Peak', 'moun')).toBe(true)
+    expect(matchesGlobalSearchName('Mountain Peak', 'mount')).toBe(true)
   })
 
   it('requires every query token to match', () => {
-    expect(matchesGlobalSearchName('Lana Analise', 'lana anal')).toBe(false)
+    expect(matchesGlobalSearchName('Lana Analise', 'lana anal')).toBe(true)
     expect(matchesGlobalSearchName('Lana Storm', 'lana storm')).toBe(true)
+    expect(matchesGlobalSearchName('Lana Storm', 'lana missing')).toBe(false)
   })
 
   it('matches non-ascii names and queries', () => {
@@ -73,8 +76,8 @@ describe('resolveGlobalSearchTagMatch', () => {
     expect(result.matchedSynonyms).toEqual(['anal'])
   })
 
-  it('matches performer names without incidental prefixes', () => {
-    expect(resolveGlobalSearchTagMatch('Lana Analise', null, 'anal').matched).toBe(false)
+  it('matches performer names with LIKE substrings', () => {
+    expect(resolveGlobalSearchTagMatch('Lana Analise', null, 'anal').matched).toBe(true)
     expect(resolveGlobalSearchTagMatch('Anal Gape', null, 'anal').matched).toBe(true)
   })
 

@@ -37,6 +37,7 @@
         class="main-scroll"
         :class="{'main-scroll--settings': isSettingsPage}"
       >
+        <FloatingBottomDock v-if="!store.isLocked"/>
         <SessionFocusBar v-if="!store.isLocked"/>
         <div
           :class="{'main-scroll-inner--settings': isSettingsPage}"
@@ -94,6 +95,11 @@
 
     <ContextMenu v-if="isShellReady && !isPlayerWindow"/>
     <ElementSpotlight v-if="isShellReady && !isPlayerWindow"/>
+    <FeatureHintOverlay
+      v-if="isShellReady && !isPlayerWindow"
+      :is-player-window="isPlayerWindow"
+      :is-shell-ready="isShellReady"
+    />
 
     <div
       v-if="isElectron && !isPlayerWindow"
@@ -128,6 +134,7 @@ import {isPlayerUiActive} from '@/utils/playerShellState'
 import {isWinElectronUi} from '@/utils/electronUi'
 
 import SystemBar from '@/components/app/SystemBar.vue'
+import FloatingBottomDock from '@/components/app/FloatingBottomDock.vue'
 import {useGlobalMediaDrop} from '@/composable/useGlobalMediaDrop'
 
 const AppBar = defineAsyncComponent(() => import('@/components/app/AppBar.vue'))
@@ -143,6 +150,7 @@ const HoverImage = defineAsyncComponent(() => import('@/components/app/HoverImag
 const NotificationsPool = defineAsyncComponent(() => import('@/components/app/NotificationsPool.vue'))
 const ContextMenu = defineAsyncComponent(() => import('@/components/app/ContextMenu.vue'))
 const ElementSpotlight = defineAsyncComponent(() => import('@/components/app/ElementSpotlight.vue'))
+const FeatureHintOverlay = defineAsyncComponent(() => import('@/components/app/FeatureHintOverlay.vue'))
 const AutoUpdater = defineAsyncComponent(() => import('@/components/app/AutoUpdater.vue'))
 
 const settingsStore = useSettingsStore()

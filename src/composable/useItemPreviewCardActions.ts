@@ -41,6 +41,16 @@ export function resolvePreviewDblClickAction(input: {
   return 'play-system'
 }
 
+export function resolvePreviewKeyAction(input: {
+  key: string
+  isCollapsing: boolean
+  isBigPreviewVisual: boolean
+}): PreviewClickAction {
+  if (input.key !== 'Escape') return 'ignore'
+  if (input.isCollapsing || !input.isBigPreviewVisual) return 'ignore'
+  return 'dismiss-big-preview'
+}
+
 export function resolvePreviewPlayer(player: unknown): PreviewPlayer {
   if (player === 'system' || player === 'default' || player === 'builtin') return player
   return 'builtin'
@@ -98,7 +108,7 @@ export function useItemPreviewCardActions(options: ItemPreviewCardActionsOptions
     })
   }
 
-  const schedulePlay = (player: PreviewPlayer = 'builtin') => {
+  const schedulePlay = (player: PreviewPlayer = 'default') => {
     clearPlayClickTimer()
     playClickTimer = setTimeout(() => {
       playClickTimer = undefined
@@ -114,7 +124,7 @@ export function useItemPreviewCardActions(options: ItemPreviewCardActionsOptions
     }
     // Second click of a double-click — wait for dblclick handler.
     if (event && event.detail > 1) return
-    schedulePlay('builtin')
+    schedulePlay('default')
   }
 
   const handlePreviewClick = (event?: MouseEvent) => {
@@ -135,6 +145,18 @@ export function useItemPreviewCardActions(options: ItemPreviewCardActionsOptions
     play('system')
   }
 
+  const handlePreviewKeydown = (event: KeyboardEvent) => {
+    const action = resolvePreviewKeyAction({
+      key: event.key,
+      isCollapsing: options.gridBigPreview.isCollapsing.value,
+      isBigPreviewVisual: options.gridBigPreview.isVisual.value,
+    })
+    if (action === 'ignore') return
+    event.preventDefault()
+    event.stopPropagation()
+    runClickAction(action)
+  }
+
   const handlePreviewBlur = () => {
     if (toValue(options.isBigPreviewOpen)) return
     options.stopPlayingPreview()
@@ -148,6 +170,7 @@ export function useItemPreviewCardActions(options: ItemPreviewCardActionsOptions
     handlePreviewClick,
     handleMediaClick,
     handlePreviewDblClick,
+    handlePreviewKeydown,
     handlePreviewBlur,
     play,
     restartImageGeneration,

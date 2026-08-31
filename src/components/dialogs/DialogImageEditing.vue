@@ -11,13 +11,13 @@
         v-if="compact"
         v-bind="activatorProps"
         :class="activatorClass"
-        size="small"
-        variant="tonal"
+        :size="size"
+        :variant="variant"
         color="primary"
         icon
         v-tooltip:top="t('image.edit_image')"
       >
-        <v-icon size="18">mdi-image-edit-outline</v-icon>
+        <v-icon :size="iconSize">mdi-image-edit-outline</v-icon>
       </v-btn>
       <v-btn
         v-else
@@ -32,7 +32,7 @@
       />
     </template>
     <template v-slot:default="{ isActive }">
-      <v-card>
+      <v-card rounded="xl">
         <DialogHeader
           @close="isActive.value = false"
           :header="t('image.editing_image')"
@@ -96,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onBeforeUnmount, watch, nextTick} from 'vue'
+import {ref, computed, onMounted, onBeforeUnmount, watch, nextTick, type PropType} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useNotificationsStore} from '@/stores/notifications'
@@ -164,6 +164,18 @@ const props = defineProps({
   compact: {
     type: Boolean,
     default: false,
+  },
+  variant: {
+    type: String as PropType<'flat' | 'text' | 'elevated' | 'outlined' | 'plain' | 'tonal'>,
+    default: 'tonal',
+  },
+  size: {
+    type: String,
+    default: 'small',
+  },
+  iconSize: {
+    type: Number,
+    default: 18,
   },
 })
 

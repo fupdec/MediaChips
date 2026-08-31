@@ -7,6 +7,7 @@ import { getHomeHealth, getHomeHealthLite } from '../services/homeHealth'
 import { getHomeExtendedStats } from '../services/homeExtendedStats'
 import { getHomeChartStats } from '../services/homeChartStats'
 import { getHomeSimilar } from '../services/homeSimilar'
+import { getHomeTagSpotlight } from '../services/homeTagSpotlight'
 import { getCreatedCalendarMonth } from '../services/homeCreatedCalendar'
 import { searchMediaByName, searchTagsByName, searchGlobal } from '../services/globalSearch'
 import { parseClampedLimit, parseOptionalInt } from '../utils/parseRequestNumber'
@@ -93,10 +94,29 @@ export default (db: ApiDb) => {
   const getSimilar = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const limit = parseClampedLimit(req.query.limit, 12)
-      const data = await getHomeSimilar(db, {limit})
+      const excludeSeedId = parseOptionalInt(req.query.excludeSeedId)
+      const data = await getHomeSimilar(db, {
+        limit,
+        ...(excludeSeedId && excludeSeedId > 0 ? {excludeSeedId} : {}),
+      })
       sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving home similar media.')
+    }
+  }
+
+  const getTagSpotlight = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const excludeRaw = req.query?.excludeTagId
+      const excludeTagId = excludeRaw == null || excludeRaw === ''
+        ? null
+        : Number(excludeRaw)
+      const data = getHomeTagSpotlight(db, {
+        excludeTagId: Number.isFinite(excludeTagId) && excludeTagId! > 0 ? excludeTagId : null,
+      })
+      sendOk(res, data)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while retrieving tag spotlight.')
     }
   }
 
@@ -146,6 +166,7 @@ export default (db: ApiDb) => {
       const data = await searchGlobal(db, String(q || ''), {
         limit: req.body?.limit,
         tagIds: req.body?.tagIds,
+        deep: req.body?.deep === true,
       })
       sendOk(res, data)
     } catch (err) {
@@ -161,6 +182,7 @@ export default (db: ApiDb) => {
     getExtendedStats,
     getChartStats,
     getSimilar,
+    getTagSpotlight,
     getCreatedCalendar,
     searchMedia,
     searchTags,

@@ -89,7 +89,7 @@
 
     <div v-if="licenseInfo?.license_type !== 'Lifetime'" class="mb-4">
       <v-btn
-        @click="openLink('https://mediachips.app/')"
+        @click="openLink(BUY_ACTIVATION_KEY_URL)"
         color="primary"
         rounded
         variant="flat"
@@ -355,12 +355,13 @@
 <script setup lang="ts">
 import {ref, computed, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {useRegistrationStore} from '@/stores/registration'
+import {useRegistrationStore, isAlreadyInactiveOnServerMessage} from '@/stores/registration'
 import {useNotificationsStore} from '@/stores/notifications'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {isMsStoreBuild} from '@/utils/sfwBuild'
 import {openExternal} from '@/services/shellService'
+import {BUY_ACTIVATION_KEY_URL} from '@/utils/freeLibraryCap'
 import type {VFormInstance} from '@/types/vue'
 import type {LicenseInfo} from '@/types/stores'
 
@@ -389,6 +390,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 const dialog = ref(false)
 const dialogDeactivateConfirm = ref(false)
 const dialogDeactivateOthersConfirm = ref(false)
+const isDeactivateRun = ref(false)
 const step = ref(1)
 const licenseKey = ref('')
 const valid = ref(false)
@@ -440,7 +442,8 @@ const refreshLicenseFromServer = async () => {
 
   try {
     await registrationStore.ensureMachineId()
-    const data = await registrationStore.checkLicense(licenseCode)
+    // Sync local fingerprints with the server so status matches deactivate.
+    const data = await registrationStore.syncLicenseFromServer(licenseCode)
     if (data) {
       remoteLicenseInfo.value = data
       activated_devices.value = calculateActivations(data)
@@ -571,6 +574,8 @@ const register = async () => {
 
 const deactivateKey = async () => {
   dialogDeactivateConfirm.value = false
+  if (isDeactivateRun.value) return
+  isDeactivateRun.value = true
 
   const licenseCode = licenseInfo.value?.license_code
   if (!licenseCode) {
@@ -578,16 +583,23 @@ const deactivateKey = async () => {
       type: 'error',
       text: t('registration.no_activation_key_found')
     })
+    isDeactivateRun.value = false
     return
   }
 
   try {
     const data = await registrationStore.deactivateLicense(licenseCode) as LicenseActionResponse
+    // Server may already lack this fingerprint while local cache still says registered.
+    // License API returns HTTP 200 with success:false for that case — treat as cleared.
+    const alreadyInactive = isAlreadyInactiveOnServerMessage(data.message)
+    const clearedLocally = !!(data.success || alreadyInactive)
 
-    if (data.success) {
+    if (clearedLocally) {
       notificationsStore.setNotification({
         type: 'info',
-        text: data.message || ''
+        text: alreadyInactive
+          ? t('registration.deactivation_already_inactive')
+          : (data.message || t('registration.deactivation_successful'))
       })
       licenseKey.value = ''
 
@@ -605,6 +617,8 @@ const deactivateKey = async () => {
       type: 'error',
       text: getErrorMessage(error, t('registration.deactivation_failed'))
     })
+  } finally {
+    isDeactivateRun.value = false
   }
 }
 
@@ -667,6 +681,9 @@ onMounted(() => {
   if (savedLicenseCode.value) {
     refreshLicenseFromServer()
   }
+  if (registrationStore.keyEntryRequestToken > 0 && !isStoreChannel) {
+    openDialog()
+  }
 })
 
 watch(savedLicenseCode, (licenseCode) => {
@@ -676,6 +693,11 @@ watch(savedLicenseCode, (licenseCode) => {
     remoteLicenseInfo.value = null
     activated_devices.value = 0
   }
+})
+
+watch(() => registrationStore.keyEntryRequestToken, (token, previous) => {
+  if (!token || token === previous || isStoreChannel) return
+  openDialog()
 })
 </script>
 

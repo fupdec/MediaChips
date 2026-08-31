@@ -17,6 +17,7 @@ import {mergeTagsInCategoryTx} from './tagMerge'
 import type {TagRow} from '../db/repositories/tags'
 import {uniquePositiveIds} from '../utils/uniqueIds'
 import {normalizeTagLookupName} from '../../shared/tagLookupName'
+import {assertMetaIsTagLeaf} from './tagCategoryTree'
 import {
   buildExistingNameIndex,
   detectTagNameConflicts,
@@ -82,7 +83,7 @@ export interface MoveTagsToCategoryResult {
 
 type MoveTx = Parameters<Parameters<ApiDb['drizzle']['transaction']>[0]>[0]
 
-export function normalizeTagName(name: string | null | undefined): string {
+export function normalizeTagName(name: unknown): string {
   return normalizeTagLookupName(name)
 }
 
@@ -264,11 +265,15 @@ function moveTagMetaId(
   if (!tagIds.length) return
   remapLinksForTags(tx, tagIds, sourceMetaId, targetMetaId)
   tx.update(tags)
-    .set({metaId: targetMetaId, updatedAt: nowIso()})
+    .set({metaId: targetMetaId, parentTagId: null, updatedAt: nowIso()})
     .where(and(
       inArray(tags.id, tagIds),
       eq(tags.metaId, sourceMetaId),
     ))
+    .run()
+  tx.update(tags)
+    .set({parentTagId: null, updatedAt: nowIso()})
+    .where(inArray(tags.parentTagId, tagIds))
     .run()
 }
 
@@ -327,6 +332,9 @@ export async function moveTagsToCategory(
     if (targetMeta.type !== 'array') {
       throw new TagMoveToCategoryError('Target must be a tag category (type array)')
     }
+    assertMetaIsTagLeaf(tx, targetMetaId)
+
+    const tagIds = uniquePositiveIds(input.tagIds)
 
     const tagRows = tx.select().from(tags).where(inArray(tags.id, tagIds)).all()
     if (tagRows.length !== tagIds.length) {

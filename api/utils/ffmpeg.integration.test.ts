@@ -13,6 +13,8 @@ import {
   extractVideoThumbnail,
   ffprobe,
   runFfmpeg,
+  convertVideoFile,
+  trimVideoFile,
 } from './ffmpeg'
 
 function ffmpegBinariesAvailable(): boolean {
@@ -32,11 +34,17 @@ describeIntegration('ffmpeg integration', () => {
   beforeAll(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-ffmpeg-int-'))
     sampleMp4 = path.join(tmpDir, 'sample.mp4')
-    // Synthetic 1s H.264 clip — no checked-in media fixture required.
+    // Synthetic 5s H.264/AAC clip — no checked-in media fixture required.
     await runFfmpeg([
       '-f', 'lavfi',
-      '-i', 'testsrc=duration=1:size=320x240:rate=10',
+      '-i', 'testsrc=duration=5:size=320x240:rate=10',
+      '-f', 'lavfi',
+      '-i', 'sine=frequency=1000:duration=5',
+      '-shortest',
+      '-map', '0:v:0',
+      '-map', '1:a:0',
       '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac',
       '-c:v', 'libx264',
       '-y',
       sampleMp4,
@@ -47,14 +55,30 @@ describeIntegration('ffmpeg integration', () => {
     if (tmpDir) fs.rmSync(tmpDir, {recursive: true, force: true})
   })
 
+  it('converts a short clip to HEVC MP4 with AAC audio', async () => {
+    const out = path.join(tmpDir, 'converted-hevc.mp4')
+    await convertVideoFile(sampleMp4, out, {
+      codec: 'hevc',
+      resolution: 480,
+      quality: 'economy',
+      duration: 5,
+    })
+    const probe = await ffprobe(out)
+    expect(fs.statSync(out).size).toBeGreaterThan(0)
+    expect(probe.streams?.find((stream) => stream.codec_type === 'video')?.codec_name).toBe('hevc')
+    expect(probe.streams?.find((stream) => stream.codec_type === 'audio')?.codec_name ?? 'aac').toBe('aac')
+    expect(Number(probe.format.duration)).toBeGreaterThan(0)
+  }, 60_000)
+
   it('ffprobe reports a short video stream', async () => {
     const probe = await ffprobe(sampleMp4)
-    expect(Number(probe.format.duration)).toBeGreaterThan(0.5)
-    expect(Number(probe.format.duration)).toBeLessThan(2)
+    expect(Number(probe.format.duration)).toBeGreaterThan(4)
+    expect(Number(probe.format.duration)).toBeLessThan(6)
     const video = (probe.streams || []).find((stream) => stream.codec_type === 'video')
     expect(video).toBeTruthy()
     expect(Number(video?.width)).toBe(320)
     expect(Number(video?.height)).toBe(240)
+    expect(probe.streams?.find((stream) => stream.codec_type === 'audio')?.codec_name).toBe('aac')
   })
 
   it('extractVideoThumbnail writes a non-empty jpeg', async () => {
@@ -87,4 +111,18 @@ describeIntegration('ffmpeg integration', () => {
     expect(fs.statSync(out).size).toBeGreaterThan(500)
     expect(fs.statSync(out).size).not.toBe(firstSize)
   })
+
+  it('trims a clip with stream copy', async () => {
+    const out = path.join(tmpDir, 'trimmed.mp4')
+    const result = await trimVideoFile(sampleMp4, out, {
+      startSeconds: 1,
+      durationSeconds: 2,
+    })
+    expect(result.fallback).toBe(false)
+    expect(fs.statSync(result.outputPath).size).toBeGreaterThan(0)
+    const probe = await ffprobe(result.outputPath)
+    const duration = Number(probe.format.duration)
+    expect(duration).toBeGreaterThan(1)
+    expect(duration).toBeLessThan(3.5)
+  }, 30_000)
 })

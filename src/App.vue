@@ -85,6 +85,7 @@ let connectInFlight: Promise<void> | null = null
 let electronConfigListenerBound = false
 let consecutivePingFailures = 0
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+let configFetchRetryTimer: ReturnType<typeof setTimeout> | null = null
 let healthCheckTimer: ReturnType<typeof setInterval> | null = null
 let autoRelaunchTimer: ReturnType<typeof setTimeout> | null = null
 let autoRelaunchTickTimer: ReturnType<typeof setInterval> | null = null
@@ -135,6 +136,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (healthCheckTimer) clearInterval(healthCheckTimer)
   if (startupHealthTimer) clearTimeout(startupHealthTimer)
+  if (configFetchRetryTimer) clearTimeout(configFetchRetryTimer)
   stopReconnectLoop()
   clearAutoRelaunchTimers()
 })
@@ -462,10 +464,16 @@ async function fetchConfigFromServer() {
     applyConfig(data as ServerConfigPayload)
   } catch (error) {
     console.error('❌ Network error while getting config:', error);
-    // Retry for player
-    if (isPlayerWindow.value) {
-      setTimeout(fetchConfigFromServer, 2000);
-    }
+    reconnectHint.value = isElectronHost
+      ? t('auto_connect.reconnecting_local')
+      : t('auto_connect.reconnecting')
+    if (configFetchRetryTimer) return
+    configFetchRetryTimer = setTimeout(() => {
+      configFetchRetryTimer = null
+      if (!isConfigLoaded.value) {
+        void fetchConfigFromServer()
+      }
+    }, RECONNECT_INTERVAL_MS)
   }
 }
 
@@ -474,8 +482,10 @@ function applyConfig(config: ServerConfigPayload) {
 
   app.localhost = resolveDirectBackendUrl(config as AppConfig, currentServer.value)
   app.appVersion = config.appVersion ?? ''
-  app.dbPath = config.path ?? ''
-  app.mediaPath = path.join(config.path ?? '', 'media')
+  // path-browserify treats `\` as a literal; keep stored roots slash-normalized on Windows.
+  const dbPath = String(config.path ?? '').replace(/\\/g, '/')
+  app.dbPath = dbPath
+  app.mediaPath = path.join(dbPath, 'media')
   app.databases = config.databases ?? []
   app.config = config
 
@@ -489,6 +499,11 @@ function applyConfig(config: ServerConfigPayload) {
 
   if (!wasLoaded) {
     isConfigLoaded.value = true
+    reconnectHint.value = ''
+    if (configFetchRetryTimer) {
+      clearTimeout(configFetchRetryTimer)
+      configFetchRetryTimer = null
+    }
     if (!isPlayerWindow.value) {
       if (startupHealthTimer) clearTimeout(startupHealthTimer)
       startupHealthTimer = setTimeout(() => {

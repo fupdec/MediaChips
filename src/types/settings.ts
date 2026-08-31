@@ -144,6 +144,13 @@ export type SettingsState = {
   sidebarCollapsed: string
   showPlaylistsInNavigation: string
   showMarkersInNavigation: string
+  /**
+   * JSON order/visibility for Library sidebar items
+   * (`home`, `folders`, `playlists`, `markers`, `media-{id}`).
+   */
+  library_nav_config: string
+  /** '1' shows Trash in the app bar and sidebar / bottom navigation. */
+  showTrashInNavigation: string
   numberOfPagesLimit: string
   gapSize: string
   /** Slideshow step interval in seconds for the image viewer. */
@@ -168,6 +175,16 @@ export type SettingsState = {
   showHeaderImageAboveProfile: string
   showExperimentalFeatures: string
   showSavedFilters: string
+  /**
+   * '1' shows the A–Z first-letter bar on tag pages.
+   * '0' hides it (and clears an active letter filter).
+   */
+  showAlphabetFilter: string
+  /**
+   * '1' shows the color swatch bar on tag pages whose category has colors enabled.
+   * '0' hides it (and clears an active color filter).
+   */
+  showColorFilter: string
   showAdultContent: string
   enabledPlugins: string
   /** One-shot migration marker for default enabledPlugins upgrades. */
@@ -203,6 +220,12 @@ export type SettingsState = {
   transcodeUnsupportedFormats: string
   transcodeMaxHeight: string
   transcodeCacheMaxGb: string
+  conversionCodec: string
+  conversionResolution: string
+  conversionQuality: string
+  conversionDestination: string
+  conversionDeleteOriginal: string
+  conversionCompatibilityTest: string
   ratingAndFavoriteInCard: string
   group_chips_in_card_description: string
   show_preset_metadata_in_card: string
@@ -244,6 +267,7 @@ export type SettingsState = {
   'pathParser.preferLongestMatch': string
   'pathParser.matchPrecision': string
   defaultTagCategoryId: string
+  tagSuggestionBanList: string
   'faceMatch.performerMetaId': string
   'faceMatch.minConfidence': string
   'faceMatch.candidateLimit': string
@@ -288,6 +312,8 @@ export const defaultSettingsState = (): SettingsState => ({
   sidebarCollapsed: '0',
   showPlaylistsInNavigation: '1',
   showMarkersInNavigation: '1',
+  library_nav_config: '',
+  showTrashInNavigation: '1',
   numberOfPagesLimit: '7',
   gapSize: '2',
   imageSlideshowInterval: '4',
@@ -308,6 +334,8 @@ export const defaultSettingsState = (): SettingsState => ({
   showHeaderImageAboveProfile: '1',
   showExperimentalFeatures: '0',
   showSavedFilters: '1',
+  showAlphabetFilter: '1',
+  showColorFilter: '1',
   showAdultContent: '0',
   enabledPlugins: '["mediachips.adult","mediachips.stash","mediachips.jellyfin","mediachips.plex","mediachips.emby","mediachips.tmdb"]',
   /** '0' until first bootstrap migration persists the current schema. */
@@ -343,6 +371,12 @@ export const defaultSettingsState = (): SettingsState => ({
   transcodeUnsupportedFormats: '1',
   transcodeMaxHeight: '1080',
   transcodeCacheMaxGb: '5',
+  conversionCodec: 'auto',
+  conversionResolution: '1080',
+  conversionQuality: 'balanced',
+  conversionDestination: '',
+  conversionDeleteOriginal: '0',
+  conversionCompatibilityTest: '',
   ratingAndFavoriteInCard: '1',
   group_chips_in_card_description: '1',
   show_preset_metadata_in_card: '1',
@@ -383,6 +417,7 @@ export const defaultSettingsState = (): SettingsState => ({
   'pathParser.preferLongestMatch': 'true',
   'pathParser.matchPrecision': '0.5',
   defaultTagCategoryId: '',
+  tagSuggestionBanList: '[]',
   'faceMatch.performerMetaId': '',
   'faceMatch.minConfidence': '0.55',
   'faceMatch.candidateLimit': '10',

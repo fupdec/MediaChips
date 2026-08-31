@@ -483,16 +483,19 @@ async function searchGlobal(db: ApiDb, query: string, limitOrOptions?: unknown) 
 
   // With text query: tags are always global matches (for pinning more),
   // media are scoped to pinned tags when any are set.
+  // Hot path = name/synonym FTS only. Bookmark + text-content LIKE scans are
+  // optional (`deep`) — they dominate first-keystroke latency on huge DBs.
   const tagSearchOptions: SearchTagsByNameOptions = pinnedTagIds.length
     ? {limit, excludeTagIds: pinnedTagIds}
     : {limit}
+  const deep = options.deep === true
 
   const [mediaByName, mediaByBookmark, mediaByContent, tagsByName, tagsByBookmark] = await Promise.all([
     searchMediaByName(db, trimmed, limit, pinnedTagIds),
-    searchMediaByBookmark(db, trimmed, limit, pinnedTagIds),
-    searchMediaByContent(db, trimmed, limit, pinnedTagIds),
+    deep ? searchMediaByBookmark(db, trimmed, limit, pinnedTagIds) : Promise.resolve([]),
+    deep ? searchMediaByContent(db, trimmed, limit, pinnedTagIds) : Promise.resolve([]),
     searchTagsByName(db, trimmed, tagSearchOptions),
-    searchTagsByBookmark(db, trimmed, tagSearchOptions),
+    deep ? searchTagsByBookmark(db, trimmed, tagSearchOptions) : Promise.resolve([]),
   ])
 
   const tags = mergeTagSearchRows(tagsByName, tagsByBookmark, limit)

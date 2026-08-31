@@ -12,6 +12,8 @@ export interface FilterObject {
   order?: number | null
   /** UI-only stable key for drag-and-drop before the row has a DB id. */
   clientKey?: string
+  /** Ignored leftover from tag trees. Saved filters may still contain it. */
+  includeDescendants?: boolean
 }
 
 export interface FilterListParam {
@@ -39,6 +41,8 @@ export interface SavedFilter {
   size?: number | null
   view?: number | string | null
   groupBy?: string | null
+  filtersJoin?: 'and' | 'or' | null
+  icon?: string | null
   [key: string]: unknown
 }
 

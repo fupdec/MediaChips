@@ -13,6 +13,11 @@ import { getDatabaseManager } from '../../../app/server/databaseRegistry'
 import createTasksMigrateFromLowDbController from './TasksMigrateFromLowDb.controller'
 import { normalizeUserPath } from '../../utils/normalizeUserPath'
 
+export function isLowDbSettingsEntry(name: string): boolean {
+  const normalized = String(name || '').replace(/\\/g, '/').replace(/^\.\/+/, '')
+  return normalized === 'dbs.json' || normalized.endsWith('/dbs.json')
+}
+
 export default function (app: Express, db: ApiDb) {
   const getDbPath = () => {
     if (!db.path) {
@@ -104,7 +109,7 @@ export default function (app: Express, db: ApiDb) {
           const entries = await zip.entries();
           let is_low_db = false;
           for (const entry of Object.values(entries) as Array<{name: string}>) {
-            if (entry.name === 'dbs.json') {
+            if (isLowDbSettingsEntry(entry.name)) {
               is_low_db = true;
               break
             }

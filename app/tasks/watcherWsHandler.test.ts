@@ -10,6 +10,7 @@ const {
   getReports,
   reset,
   setFolders,
+  syncFolderMetadata,
 } = vi.hoisted(() => {
   const mockWatcher = {
     on: vi.fn(),
@@ -25,6 +26,7 @@ const {
     getReports: vi.fn().mockReturnValue([{folder: {path: '/media'}, files: []}]),
     reset: vi.fn(),
     setFolders: vi.fn(),
+    syncFolderMetadata: vi.fn(),
   }
 })
 
@@ -42,6 +44,7 @@ vi.mock('./watcherSync', () => ({
       getReports,
       reset,
       setFolders,
+      syncFolderMetadata,
       applyFileEvent: vi.fn().mockReturnValue(false),
     }
   }),
@@ -126,7 +129,7 @@ describe('createWatcherWsHandler', () => {
     }))
 
     expect(watch).toHaveBeenCalledWith(['/media/movies/**/*.mp4'], expect.any(Object))
-    expect(refreshDbPaths).toHaveBeenCalled()
+    expect(refreshDbPaths).not.toHaveBeenCalled()
     await triggerWatcherEvent('ready')
     expect(fullSync).toHaveBeenCalledWith(folders)
     expect(ws.messages.some((message) => message.type === 'scanStart')).toBe(true)
@@ -173,7 +176,8 @@ describe('createWatcherWsHandler', () => {
     }))
 
     expect(refreshDbPaths).toHaveBeenCalled()
-    expect(setFolders).toHaveBeenCalledWith(folders)
+    expect(syncFolderMetadata).toHaveBeenCalledWith(folders)
+    expect(setFolders).not.toHaveBeenCalled()
     expect(watch).not.toHaveBeenCalled()
     expect(ws.messages[ws.messages.length - 1]).toEqual({
       type: 'files',

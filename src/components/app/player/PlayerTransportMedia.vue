@@ -15,6 +15,21 @@
       <div class="tip" v-html="t('player.controls.set_frame_as_thumb')"/>
     </v-btn>
 
+    <v-btn
+      v-if="canOpenTrim"
+      @click="toggleTrimMode"
+      :color="player.trimMode ? 'primary' : undefined"
+      :disabled="player.trimBusy"
+      icon
+      dark
+    >
+      <v-icon>mdi-content-cut</v-icon>
+      <div class="tip">
+        <span class="mr-2">{{ t('player.controls.trim') }}</span>
+        <v-hotkey keys="t"/>
+      </div>
+    </v-btn>
+
     <v-btn @click="editVideo" icon dark>
       <v-icon>mdi-square-edit-outline</v-icon>
       <div class="tip">
@@ -24,7 +39,7 @@
     </v-btn>
 
     <v-btn @click="showInLibrary" icon dark>
-      <v-icon>mdi-library</v-icon>
+      <v-icon>mdi-select-all</v-icon>
       <div class="tip">
         <span class="mr-2">{{ t('player.controls.show_in_library') }}</span>
       </div>
@@ -133,5 +148,7 @@ const {
   showInLibrary,
   updateVideoInfo,
   deleteVideo,
+  canOpenTrim,
+  toggleTrimMode,
 } = inject(PLAYER_TRANSPORT_KEY)!
 </script>

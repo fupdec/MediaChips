@@ -2,39 +2,16 @@
  * @vitest-environment node
  */
 import {afterEach, describe, expect, it} from 'vitest'
-import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
-import {applySqlitePragmas} from '../db/pragmas'
+import {createTestDb as createSharedTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import type {ApiDb} from '../types/db'
 import {findSimilarByTags, loadMediaTagIds} from './mediaTagSimilarity'
 
+let lastDbPath: string | undefined
+
 function createTestDb(): ApiDb {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
-  sqlite.exec(`
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY,
-      path TEXT NOT NULL UNIQUE,
-      name TEXT,
-      basename TEXT,
-      mediaTypeId INTEGER,
-      favorite INTEGER DEFAULT 0,
-      viewedAt TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE tagsInMedia (
-      mediaId INTEGER NOT NULL,
-      tagId INTEGER NOT NULL,
-      metaId INTEGER NOT NULL,
-      PRIMARY KEY (mediaId, tagId, metaId)
-    );
-  `)
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite),
-    path: ':memory:',
-  } as ApiDb
+  const {sqlite, drizzle, dbPath} = createSharedTestDb('media-tag-similarity')
+  lastDbPath = dbPath
+  return {sqlite, drizzle, path: dbPath} as ApiDb
 }
 
 function insertMedia(db: ApiDb, id: number, name = `m${id}`) {
@@ -54,7 +31,7 @@ describe('findSimilarByTags', () => {
   let db: ApiDb
 
   afterEach(() => {
-    db?.sqlite?.close()
+    if (db?.sqlite && lastDbPath) closeTestDb({sqlite: db.sqlite, dbPath: lastDbPath})
   })
 
   it('returns empty when seed has no tags', () => {

@@ -6,22 +6,22 @@ import type {
   FileResolverResult,
   ResolveFilePathFn,
 } from '../types/builtinRoutes'
-import type { ServerConfig, ServerDatabaseEntry } from '../types/server'
+import type { ServerDatabaseEntry } from '../types/server'
 import path from 'path'
 import fs from 'fs'
 import { createMediaRepository } from '../../api/db/repositories/media'
 import { normalizeMediaPath } from '../../api/utils/normalizeUserPath'
 import {
-  isLanAccessEnabled,
   isLanAccessEnvLocked,
   applyLanAccessChange,
   didLanAccessChange,
 } from './lanAccess'
-import { pickPublicHost } from './publicHost'
 import { listMediaRoots } from '../../api/services/mediaRoots'
 import { listBrowseDirectory } from '../../api/services/browseDirectory'
 import { listSystemPlaces } from '../../api/services/systemPlaces'
-import { getBestLocalIp, getAllIps } from './network'
+import { deleteEntries, copyEntries, moveEntries, validateEntries, createFolder, renameEntry } from '../../api/services/browseOperations'
+import { syncMediaPathsForMoves } from '../../api/services/browseMediaPathSync'
+import { invalidateMediaDerivedCaches } from '../../api/services/mediaCacheInvalidation'
 import { saveConfigFile } from './configFile'
 import { safeJsonError } from './fileResolver'
 import { streamVideoFile } from '../../api/services/transcode/streamVideoFile'
@@ -30,21 +30,6 @@ import { getDatabaseManager } from './databaseRegistry'
 import { createStorageDirectories } from './serverConfig'
 import packageJson from '../../package.json'
 import { parseBooleanSetting } from '../../shared/parseBooleanSetting'
-import {
-  GLOBAL_APP_CONFIG_KEYS,
-  readGlobalConfigString,
-  readMinimizeToTrayConfig,
-} from '../../shared/appGlobalConfig'
-function buildGlobalSettingsPayload(config: ServerConfig) {
-  const source = config as unknown as Record<string, unknown>
-  const payload: Record<string, string> = {}
-
-  for (const key of GLOBAL_APP_CONFIG_KEYS) {
-    payload[key] = readGlobalConfigString(source, key)
-  }
-
-  return payload
-}
 
 function resolveMediaVideoPath(
   db: ApiDb,
@@ -62,6 +47,33 @@ function resolveMediaVideoPath(
   }
 
   return Promise.resolve({video, videoPath})
+}
+
+function syncMovedMediaPaths(
+  db: ApiDb,
+  movedFrom: string[],
+  destinationDir: string,
+  explicitTo?: string,
+) {
+  if (!movedFrom.length) return
+  try {
+    const repo = createMediaRepository(db.drizzle)
+    const moves = movedFrom.map((from) => ({
+      from,
+      to: explicitTo || path.join(destinationDir, path.basename(from)),
+    }))
+    const updated = syncMediaPathsForMoves({
+      findByPaths: (paths) => repo.findByPaths(paths).map((row) => ({
+        id: row.id,
+        path: row.path,
+      })),
+      findIdAndPathByLikePatterns: (patterns) => repo.findIdAndPathByLikePatterns(patterns),
+      updateById: (id, data, options) => repo.updateById(id, data, options),
+    }, moves)
+    if (updated > 0) invalidateMediaDerivedCaches()
+  } catch (error) {
+    console.error('Failed to sync media paths after filesystem move', error)
+  }
 }
 
 function registerBuiltinRoutes({
@@ -207,43 +219,89 @@ function registerBuiltinRoutes({
     res.json({container: false, places: listSystemPlaces()})
   })
 
-  app.get('/api/config', (req: ApiRequest, res: ApiResponse) => {
-    console.log('Config request from:', req.headers.origin || 'unknown origin')
-
-    const activeDb = config.databases.find((dbEntry: ServerDatabaseEntry) => dbEntry.active)
-    const frontendIp = pickPublicHost(
-      {getBestLocalIp, getAllIps},
-      {requestHostname: req.hostname},
-    )
-
-    const responseConfig = {
-      ip: frontendIp,
-      ips: config.ips,
-      hostname: config.hostname,
-      port: config.port,
-      appVersion: (packageJson.version || '1.0.0').replace(/(-beta)+$/i, '-beta'),
-      path: activeDb ? path.join(databasesPath, activeDb.id) : '',
-      databases: config.databases || [],
-      activeDatabase: activeDb,
-      serverInfo: {
-        webUrl: `http://${frontendIp}:${config.port}`,
-        apiUrl: `http://${frontendIp}:${config.port}/api`,
-        wsUrl: `ws://${frontendIp}:${config.port}`,
-        detectedAt: new Date().toISOString(),
-      },
-      allowLanAccess: isLanAccessEnabled(),
-      allowLanAccessEnvLocked: isLanAccessEnvLocked(),
-      registration: typeof config.registration === 'string' ? config.registration : '',
-      minimizeToTray: readMinimizeToTrayConfig(config as unknown as Record<string, unknown>),
-      ...buildGlobalSettingsPayload(config),
-      ...(typeof config.onboardingCompleted === 'string' ? { onboardingCompleted: config.onboardingCompleted } : {}),
-      ...(typeof config.onboardingStep === 'string' ? { onboardingStep: config.onboardingStep } : {}),
-      ...(typeof config.onboardingPaused === 'string' ? { onboardingPaused: config.onboardingPaused } : {}),
-      ...(typeof config.lastSeenVersion === 'string' ? { lastSeenVersion: config.lastSeenVersion } : {}),
-      ...(typeof config.skippedUpdateVersions === 'string' ? { skippedUpdateVersions: config.skippedUpdateVersions } : {}),
+  app.post('/api/browse/deleteEntries', async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      validateEntries(req.body?.entries)
+      const result = await deleteEntries(req.body.entries)
+      res.json(result)
+    } catch (error: unknown) {
+      const status = Number((error as {status?: number})?.status) || 500
+      const message = apiErrorMessage(error) || 'Failed to delete entries'
+      res.status(status).json({message})
     }
+  })
 
-    res.json(responseConfig)
+  app.post('/api/browse/copyEntries', async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      validateEntries(req.body?.entries)
+      const destination = String(req.body?.destination || '').trim()
+      if (!destination) {
+        throw Object.assign(new Error('Destination path is required'), {status: 400})
+      }
+      const result = await copyEntries(req.body.entries, destination)
+      if (req.body.entries.length === 1 && result.failed[0]?.status === 409) {
+        throw Object.assign(new Error(result.failed[0].reason), {status: 409})
+      }
+      res.json(result)
+    } catch (error: unknown) {
+      const status = Number((error as {status?: number})?.status) || 500
+      const message = apiErrorMessage(error) || 'Failed to copy entries'
+      res.status(status).json({message})
+    }
+  })
+
+  app.post('/api/browse/moveEntries', async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      validateEntries(req.body?.entries)
+      const destination = String(req.body?.destination || '').trim()
+      if (!destination) {
+        throw Object.assign(new Error('Destination path is required'), {status: 400})
+      }
+      const result = await moveEntries(req.body.entries, destination)
+      if (req.body.entries.length === 1 && result.failed[0]?.status === 409) {
+        throw Object.assign(new Error(result.failed[0].reason), {status: 409})
+      }
+      syncMovedMediaPaths(db, result.moved, destination)
+      res.json(result)
+    } catch (error: unknown) {
+      const status = Number((error as {status?: number})?.status) || 500
+      const message = apiErrorMessage(error) || 'Failed to move entries'
+      res.status(status).json({message})
+    }
+  })
+
+  app.post('/api/browse/createFolder', async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const targetPath = String(req.body?.path || '').trim()
+      if (!targetPath) {
+        throw Object.assign(new Error('Path is required'), {status: 400})
+      }
+      const result = await createFolder(targetPath)
+      res.json(result)
+    } catch (error: unknown) {
+      const status = Number((error as {status?: number})?.status) || 500
+      const message = apiErrorMessage(error) || 'Failed to create folder'
+      res.status(status).json({message})
+    }
+  })
+
+  app.post('/api/browse/renameEntry', async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      const oldPath = String(req.body?.path || '').trim()
+      const newName = String(req.body?.name || '').trim()
+      if (!oldPath || !newName) {
+        throw Object.assign(new Error('Path and name are required'), {status: 400})
+      }
+      const result = await renameEntry(oldPath, newName)
+      if (result.renamed && result.renamed !== oldPath) {
+        syncMovedMediaPaths(db, [oldPath], path.dirname(result.renamed), result.renamed)
+      }
+      res.json(result)
+    } catch (error: unknown) {
+      const status = Number((error as {status?: number})?.status) || 500
+      const message = apiErrorMessage(error) || 'Failed to rename entry'
+      res.status(status).json({message})
+    }
   })
 
   app.post('/api/update-config', async (req: ApiRequest, res: ApiResponse) => {

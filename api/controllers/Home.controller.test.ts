@@ -158,6 +158,20 @@ describe('Home.controller', () => {
     expect(res.body).toEqual(payload)
   })
 
+  it('forwards excludeSeedId for similar reshuffle', async () => {
+    const payload = {seed: {id: 9, name: 'Other', reason: 'any'}, items: [{id: 10}]}
+    getHomeSimilar.mockResolvedValue(payload)
+
+    const req = {query: {limit: '6', excludeSeedId: '7'}} as unknown as ApiRequest
+    const res = createResponse()
+
+    await controller.getSimilar(req, res)
+
+    expect(getHomeSimilar).toHaveBeenCalledWith({}, {limit: 6, excludeSeedId: 7})
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toEqual(payload)
+  })
+
   it('returns created calendar for a month', async () => {
     const payload = {
       year: 2026,
@@ -202,6 +216,7 @@ describe('Home.controller', () => {
     expect(searchGlobal).toHaveBeenCalledWith({}, 'matrix', {
       limit: undefined,
       tagIds: undefined,
+      deep: false,
     })
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({media: [], tags: []})

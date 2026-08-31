@@ -1,9 +1,11 @@
 import {describe, expect, it} from 'vitest'
 import {
-  BASE_MARK_TYPES,
+  BOOKMARK_MARK_TYPE,
   CHAPTER_MARK_ICON,
   DEFAULT_BOOKMARK_ICON,
+  FAVORITE_MARK_ICON,
   TAG_MARK_TYPE,
+  applyNoteIcon,
   buildMarkPayload,
   buildMarkTypes,
   findAssignedMeta,
@@ -47,8 +49,8 @@ describe('normalizeMarkTime', () => {
 })
 
 describe('buildMarkTypes', () => {
-  it('returns favorite, bookmark and a single Tag type', () => {
-    expect(buildMarkTypes()).toEqual([...BASE_MARK_TYPES, TAG_MARK_TYPE])
+  it('returns bookmark and a single Tag type, without a separate favorite chip', () => {
+    expect(buildMarkTypes()).toEqual([BOOKMARK_MARK_TYPE, TAG_MARK_TYPE])
   })
 
   it('ignores assigned metas and legacy marks flags', () => {
@@ -57,7 +59,7 @@ describe('buildMarkTypes', () => {
       {meta: {id: 6, name: 'Hidden', marks: false, type: 'array'}},
       {meta: {id: 8, name: 'Scenes', marks: true, icon: 'movie', type: 'array'}},
     ])
-    expect(types).toEqual([...BASE_MARK_TYPES, TAG_MARK_TYPE])
+    expect(types).toEqual([BOOKMARK_MARK_TYPE, TAG_MARK_TYPE])
   })
 })
 
@@ -95,6 +97,10 @@ describe('resolveMarkEditType / icon', () => {
   it('maps legacy scene to bookmark + chapter icon', () => {
     expect(resolveMarkEditType({type: 'scene'})).toBe('bookmark')
     expect(resolveMarkEditIcon({type: 'scene'})).toBe(CHAPTER_MARK_ICON)
+  })
+
+  it('maps favorite to the heart icon', () => {
+    expect(resolveMarkEditIcon({type: 'favorite', icon: null})).toBe(FAVORITE_MARK_ICON)
   })
 
   it('maps meta marks to the Tag chip', () => {
@@ -196,6 +202,49 @@ describe('buildMarkPayload', () => {
       type: 'bookmark',
       icon: CHAPTER_MARK_ICON,
       text: 'Intro',
+    })
+  })
+
+  it('keeps favorite type and stores the heart icon', () => {
+    expect(buildMarkPayload({
+      adding: {time: 8, type: 'favorite'},
+      data: {text: '  ', icon: FAVORITE_MARK_ICON},
+      mediaId: 2,
+    })).toMatchObject({
+      type: 'favorite',
+      icon: FAVORITE_MARK_ICON,
+      text: null,
+      time: 8,
+      mediaId: 2,
+    })
+  })
+
+  it('treats the heart bookmark icon as favorite', () => {
+    expect(buildMarkPayload({
+      adding: {time: 3, type: 'bookmark'},
+      data: {text: 'Fav', icon: FAVORITE_MARK_ICON},
+      mediaId: 4,
+    })).toMatchObject({
+      type: 'favorite',
+      icon: FAVORITE_MARK_ICON,
+      text: 'Fav',
+    })
+  })
+})
+
+describe('applyNoteIcon', () => {
+  it('maps heart to favorite and other presets to bookmark', () => {
+    expect(applyNoteIcon(FAVORITE_MARK_ICON)).toMatchObject({
+      type: 'favorite',
+      icon: FAVORITE_MARK_ICON,
+    })
+    expect(applyNoteIcon(DEFAULT_BOOKMARK_ICON)).toMatchObject({
+      type: 'bookmark',
+      icon: DEFAULT_BOOKMARK_ICON,
+    })
+    expect(applyNoteIcon(CHAPTER_MARK_ICON)).toMatchObject({
+      type: 'bookmark',
+      icon: CHAPTER_MARK_ICON,
     })
   })
 })

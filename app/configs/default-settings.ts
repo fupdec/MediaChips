@@ -95,6 +95,10 @@ const Settings = [  {
     "value": 1
   },
   {
+    "option": "library_nav_config",
+    "value": ""
+  },
+  {
     "option": "numberOfPagesLimit",
     "value": 7
   },
@@ -171,6 +175,14 @@ const Settings = [  {
     "value": 1
   },
   {
+    "option": "showAlphabetFilter",
+    "value": 1
+  },
+  {
+    "option": "showColorFilter",
+    "value": 1
+  },
+  {
     "option": "stickyControlDeck",
     "value": 1
   },
@@ -233,7 +245,13 @@ const Settings = [  {
   {
     "option": "transcodeCacheMaxGb",
     "value": "5"
-  }
+  },
+  { "option": "conversionCodec", "value": "auto" },
+  { "option": "conversionResolution", "value": "1080" },
+  { "option": "conversionQuality", "value": "balanced" },
+  { "option": "conversionDestination", "value": "" },
+  { "option": "conversionDeleteOriginal", "value": "0" },
+  { "option": "conversionCompatibilityTest", "value": "" }
 ]
 
 export default Settings

@@ -12,6 +12,8 @@ import {
 } from '@/utils/mediaType'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {openTextMedia} from '@/utils/openTextMedia'
+import {resolveGalleryPlaylistVideos} from '@/utils/galleryPlaylist'
+import {getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
 import type {
   GetItemsFromDbEvent,
   RemoveEntitiesEvent,
@@ -62,26 +64,27 @@ export function useItemsPageEvents({
 
   const ITEMS = computed(() => itemsStore)
   let initPromise: Promise<void> | null = null
+  let initGeneration = 0
   const pageInitialized = ref(false)
   const itemsRenderKey = ref(0)
 
   const runInitSafely = async (): Promise<void> => {
-    if (initPromise) {
-      return initPromise
-    }
-
+    const generation = ++initGeneration
     pageInitialized.value = false
 
     initPromise = (async () => {
       try {
         await init()
+        if (generation !== initGeneration) return
         loadSavedFilters()
       } catch (error) {
         console.error('Failed to initialize items page:', error)
       } finally {
-        loader.value.is_busy = false
-        pageInitialized.value = true
-        initPromise = null
+        if (generation === initGeneration) {
+          loader.value.is_busy = false
+          pageInitialized.value = true
+          initPromise = null
+        }
       }
     })()
 
@@ -285,6 +288,8 @@ export function useItemsPageEvents({
       storeUpdates.groupByMetaId = parsed.groupByMetaId
       pageUpdates.firstChar = parsed.firstChar
     }
+    // Always restore join mode from the saved view (defaults to AND).
+    storeUpdates.filtersJoin = layout.filtersJoin === 'or' ? 'or' : 'and'
 
     itemsStore.updateMultiple(storeUpdates)
     await updatePageSetting(pageUpdates)
@@ -308,7 +313,7 @@ export function useItemsPageEvents({
       })
   }
 
-  const handleOpenRandomItem = (event: number) => {
+  const handleOpenRandomItem = async (event: number) => {
     const id = Number(event)
     const navigationPool = ITEMS.value.navigationItems.length
       ? ITEMS.value.navigationItems
@@ -318,14 +323,51 @@ export function useItemsPageEvents({
       const url = `/tag?metaId=${meta.value.id}&tagId=${id}&mediaTypeId=${getDefaultMediaTypeId(appStore.mediaTypes)}`
       void router.push(url)
     } else if (props.items_type === 'media') {
-      const media = navigationPool.find((i) => i.id === id)
+      let media = navigationPool.find((i) => i.id === id)
+      if (!media) {
+        // Random item picked from the full filtered set — fetch it from DB.
+        try {
+          const url = '/api/media/items'
+          const res = await typedApi.postItemsList(url, {
+            ids: [id],
+            mediaTypeId: props.mediaTypeId,
+            filters: [],
+            limit: 1,
+            skipTotals: true,
+            includeNavigation: false,
+          })
+          media = res.data.items?.find((entry: MediaItem) => Number(entry.id) === Number(id))
+        } catch {
+          // If the fetch fails, just give up.
+        }
+      }
       if (!media) return
       const kind = resolveOpenMediaKind(mediaType.value, {path: media.path})
       if (kind === 'view-image') {
         itemsStore.viewImage({image: media})
       } else if (kind === 'play-av') {
+        // The random target may not be in the in-memory gallery, so playVideo
+        // would otherwise skip the full playlist and play it as a single item.
+        // Resolve the entire filtered set and pass it explicitly.
+        const mediaTypeId = ITEMS.value.environment.media_type_id ?? media.mediaTypeId
+        const resolvedMediaType = appStore.mediaTypes?.find((item) => item.id === Number(mediaTypeId))
+        const playlist = await resolveGalleryPlaylistVideos({
+          type: ITEMS.value.type,
+          mediaTypeId,
+          filters: ITEMS.value.filters,
+          filtersJoin: ITEMS.value.filtersJoin,
+          sortBy: ITEMS.value.sortBy,
+          sortDir: ITEMS.value.sortDir,
+          find_duplicates: ITEMS.value.find_duplicates,
+          duplicatesBy: getDuplicatesGroupKey(resolvedMediaType, ITEMS.value.duplicates_by),
+          listScopeIds: ITEMS.value.listScopeIds,
+          entities: ITEMS.value.entities,
+          navigationItems: ITEMS.value.navigationItems,
+          totalFiltered: ITEMS.value.totalFiltered,
+        })
         itemsStore.playVideo({
           video: media,
+          videos: playlist ?? undefined,
         })
       } else if (kind === 'preview-text' || kind === 'open-path') {
         openTextMedia(media)
@@ -422,12 +464,14 @@ export function useItemsPageEvents({
 
   watch(() => ITEMS.value.size, (val, old) => {
     if (val === old) return
+    if (!pageInitialized.value) return
     void updatePageSetting({size: val})
   })
 
   watch(() => ITEMS.value.view, (val, old) => {
     if (val === old) return
     if (val == null) return
+    if (!pageInitialized.value) return
     void updatePageSetting({view: val})
   })
 
@@ -443,6 +487,11 @@ export function useItemsPageEvents({
       if (props.items_type === 'media' && !props.mediaTypeId) return
       if (props.items_type === 'tag' && !props.metaId) return
 
+      itemsStore.updateMultiple({
+        groupBy: 'none',
+        groupByMetaId: null,
+        groups: [],
+      })
       itemsStore.clearSelection()
       itemsStore.listScopeIds = null
       itemsStore.listScope = null

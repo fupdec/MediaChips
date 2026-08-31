@@ -15,11 +15,14 @@ function notifyOpenPathError(message: string): void {
   })
 }
 
-function isElectronIpcFailure(message: string): boolean {
+function shouldFallbackToHttp(message: string): boolean {
+  const lower = message.toLowerCase()
   return (
     message.includes('reply was never sent')
     || message.includes('No handler registered')
     || message.includes('Error invoking remote method')
+    || lower.includes('failed to open path')
+    || lower.includes('command failed')
   )
 }
 
@@ -50,8 +53,8 @@ export async function openPath(entryPath: string, isDirectory?: boolean) {
       const err = error as AxiosLikeError
       const message = err.message || 'Failed to open path'
       // Prefer the HTTP task endpoint when IPC dies mid-call (common after
-      // main-process restarts or when shell.openPath never replies).
-      if (isElectronIpcFailure(message)) {
+      // main-process restarts) or when Electron's shell.openPath fails for folders.
+      if (shouldFallbackToHttp(message)) {
         try {
           return await openPathViaHttp(normalizedPath, isDirectory)
         } catch (fallbackError) {

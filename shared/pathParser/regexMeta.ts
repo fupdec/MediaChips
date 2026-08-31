@@ -140,6 +140,41 @@ export function applyPathRegexReplace(match: RegExpExecArray, template?: string 
   })
 }
 
+function uniqueTagNames(names: string[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const name of names) {
+    const trimmed = name.trim()
+    if (!trimmed) continue
+    const key = trimmed.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push(trimmed)
+  }
+  return result
+}
+
+function tagNamesFromRegexMatch(match: RegExpExecArray, template?: string | null): string[] {
+  const replaced = applyPathRegexReplace(match, template).trim()
+  if (replaced) return [replaced]
+
+  const names: string[] = []
+  for (let i = 1; i < match.length; i++) {
+    const value = match[i] == null ? '' : String(match[i]).trim()
+    if (value) names.push(value)
+  }
+  if (names.length) return uniqueTagNames(names)
+
+  const full = match[0] == null ? '' : String(match[0]).trim()
+  return full ? [full] : []
+}
+
+function compileGlobalPathRegex(pattern: string): RegExp {
+  const regex = compilePathRegex(pattern)
+  const flags = regex.flags.includes('g') ? regex.flags : `${regex.flags}g`
+  return new RegExp(regex.source, flags)
+}
+
 export function isPathRegexMetaEligible(meta: PathRegexMetaLike): boolean {
   if (meta.id == null) return false
   if (String(meta.type || '') !== 'array') return false
@@ -157,26 +192,33 @@ export function shouldCreatePathRegexTags(meta: PathRegexMetaLike): boolean {
   return isMetaTruthyValue(meta.pathRegexCreateTags)
 }
 
-export function extractPathRegexTagName(
+export function extractPathRegexTagNameList(
   filePath: string,
   meta: PathRegexMetaLike,
-): string | null {
-  if (!isPathRegexMetaEligible(meta)) return null
+): string[] {
+  if (!isPathRegexMetaEligible(meta)) return []
 
   const pattern = String(meta.pathRegex || '').trim()
   let regex: RegExp
   try {
-    regex = compilePathRegex(pattern)
+    regex = compileGlobalPathRegex(pattern)
   } catch {
-    return null
+    return []
   }
 
   const normalized = normalizePathForRegex(filePath)
-  const match = regex.exec(normalized)
-  if (!match) return null
+  const names: string[] = []
+  for (const match of normalized.matchAll(regex)) {
+    names.push(...tagNamesFromRegexMatch(match as unknown as RegExpExecArray, meta.pathRegexReplace))
+  }
+  return uniqueTagNames(names)
+}
 
-  const tagName = applyPathRegexReplace(match, meta.pathRegexReplace).trim()
-  return tagName || null
+export function extractPathRegexTagName(
+  filePath: string,
+  meta: PathRegexMetaLike,
+): string | null {
+  return extractPathRegexTagNameList(filePath, meta)[0] ?? null
 }
 
 export function extractPathRegexTagNames(
@@ -187,15 +229,15 @@ export function extractPathRegexTagNames(
 
   for (const meta of metas) {
     if (!isPathRegexMetaEligible(meta)) continue
-    const tagName = extractPathRegexTagName(filePath, meta)
-    if (!tagName) continue
-
-    results.push({
-      metaId: Number(meta.id),
-      tagName,
-      createTags: shouldCreatePathRegexTags(meta),
-      source: 'regex',
-    })
+    const createTags = shouldCreatePathRegexTags(meta)
+    for (const tagName of extractPathRegexTagNameList(filePath, meta)) {
+      results.push({
+        metaId: Number(meta.id),
+        tagName,
+        createTags,
+        source: 'regex',
+      })
+    }
   }
 
   return results

@@ -16,6 +16,7 @@ import {
   apiPinnedMetaDelete,
   apiRemoveTagFromItem,
   apiTagCooccurring,
+  apiTagAssignmentCounts,
   apiTagsInMedia,
   apiTagsInFolder,
   apiTagsInTag,
@@ -28,6 +29,7 @@ import type { Meta, Tag, MarkFilterMeta, MetaWritePayload } from '@shared/entiti
 import type {
   CreateTagPayload,
   CreateTagsInMediaOnePayload,
+  CreateTagsInTagOnePayload,
   DuplicateCategoryPayload,
   DuplicateTagPayload,
   MediaTypeWritePayload,
@@ -62,6 +64,7 @@ import {
   parsePathTagEntries,
   parseTag,
   parseTags,
+  parseTagAssignmentCounts,
   parseTagsInMediaCreateOne,
   parseTagThumbsResponse,
   parseValueInTagEntries,
@@ -168,6 +171,13 @@ export const metaApi = {
         metaId: number
         color: string | null
       }>,
+    }))
+  },
+
+  getTagAssignmentCounts(tagId: number) {
+    return apiClient.get(apiTagAssignmentCounts(tagId)).then((res) => ({
+      ...res,
+      data: validated(parseTagAssignmentCounts, res.data),
     }))
   },
 
@@ -307,12 +317,23 @@ export const metaApi = {
     }))
   },
 
+  createTagsInTagOne(body: CreateTagsInTagOnePayload) {
+    return apiClient.post(API_ROUTES.tagsInTagCreateOne, body).then((res) => ({
+      ...res,
+      data: Array.isArray(res.data) ? res.data as [unknown, boolean?] : res.data,
+    }))
+  },
+
   postTagsInMedia(body: unknown[]) {
     return apiClient.post(API_ROUTES.tagsInMedia, body)
   },
 
-  createTags(body: CreateTagPayload[]) {
-    return apiClient.post<Tag[]>(API_ROUTES.tag, body).then((res) => ({
+  createTags(body: CreateTagPayload[], options?: {onTrashNameConflict?: 'restore' | 'purge' | 'create'}) {
+    return apiClient.post<Tag[]>(API_ROUTES.tag, body, {
+      params: options?.onTrashNameConflict
+        ? {onTrashNameConflict: options.onTrashNameConflict}
+        : undefined,
+    }).then((res) => ({
       ...res,
       data: validated(parseTags, res.data),
     }))
@@ -478,5 +499,31 @@ export const metaApi = {
       ...res,
       data: validated(parseTagThumbsResponse, res.data),
     }))
+  },
+
+  listTagTrash(params?: {limit?: number}) {
+    return apiClient.get<{
+      items: Array<{
+        kind: 'tag'
+        id: number
+        name: string | null
+        deletedAt: string
+        metaId?: number | null
+      }>
+      count: number
+      retentionDays: number
+    }>(API_ROUTES.tagTrashList, {params})
+  },
+
+  restoreTagTrash(body: {ids: number[]}) {
+    return apiClient.post<{restoredIds: number[]}>(API_ROUTES.tagTrashRestore, body)
+  },
+
+  purgeTagTrash(body: {ids: number[]}) {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.tagTrashPurge, body)
+  },
+
+  purgeExpiredTagTrash() {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.tagTrashPurgeExpired, {})
   },
 }

@@ -21,6 +21,7 @@ export interface Meta {
   measurementUnit?: string | null
   hidden?: boolean
   order?: number
+  parentMetaId?: number | null
   type?: string
   [key: string]: unknown
 }
@@ -72,6 +73,7 @@ export interface MetaSetting {
 export interface Tag {
   id: number
   metaId?: number
+  parentTagId?: number | null
   name?: string
   synonyms?: string
   favorite?: boolean

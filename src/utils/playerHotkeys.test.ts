@@ -33,3 +33,70 @@ describe('handlePlayerKeydown seek', () => {
     expect(playerJumpTo).toHaveBeenCalledWith(32)
   })
 })
+
+describe('handlePlayerKeydown studio', () => {
+  it('exits studio on Escape instead of closing the player', () => {
+    const exitStudioLayer = vi.fn()
+    const closePlayer = vi.fn()
+    const event = new KeyboardEvent('keydown', { code: 'Escape' })
+
+    const handled = handlePlayerKeydown(event, {
+      playerStore: { active: true, studioMode: true },
+      controls: { exitStudioLayer },
+      closePlayer,
+    })
+
+    expect(handled).toBe(true)
+    expect(exitStudioLayer).toHaveBeenCalled()
+    expect(closePlayer).not.toHaveBeenCalled()
+  })
+
+  it('toggles studio with Shift+M', () => {
+    const toggleStudioMode = vi.fn()
+    const event = new KeyboardEvent('keydown', { code: 'KeyM', shiftKey: true })
+
+    handlePlayerKeydown(event, {
+      playerStore: { active: true, studioMode: false },
+      controls: { toggleStudioMode },
+    })
+
+    expect(toggleStudioMode).toHaveBeenCalled()
+  })
+})
+
+describe('handlePlayerKeydown trim', () => {
+  it('exits trim on Escape instead of closing the player', () => {
+    const exitTrimMode = vi.fn()
+    const closePlayer = vi.fn()
+    const event = new KeyboardEvent('keydown', { code: 'Escape' })
+
+    const handled = handlePlayerKeydown(event, {
+      playerStore: { active: true, trimMode: true },
+      controls: { exitTrimMode },
+      closePlayer,
+    })
+
+    expect(handled).toBe(true)
+    expect(exitTrimMode).toHaveBeenCalled()
+    expect(closePlayer).not.toHaveBeenCalled()
+  })
+
+  it('sets in/out points while trim mode is on', () => {
+    const setTrimIn = vi.fn()
+    const setTrimOut = vi.fn()
+    const toggleMarks = vi.fn()
+
+    handlePlayerKeydown(new KeyboardEvent('keydown', { code: 'KeyI' }), {
+      playerStore: { active: true, trimMode: true },
+      controls: { setTrimIn, toggleMarks },
+    })
+    handlePlayerKeydown(new KeyboardEvent('keydown', { code: 'KeyO' }), {
+      playerStore: { active: true, trimMode: true },
+      controls: { setTrimOut },
+    })
+
+    expect(setTrimIn).toHaveBeenCalled()
+    expect(setTrimOut).toHaveBeenCalled()
+    expect(toggleMarks).not.toHaveBeenCalled()
+  })
+})

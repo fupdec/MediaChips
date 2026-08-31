@@ -81,6 +81,11 @@
             v-if="arrayAssignedItems.length && !isInspectorLayout"
             class="editing-section__group editing-section__group--tags"
           >
+            <v-icon
+              class="editing-section__tags-icon"
+              size="18"
+              icon="mdi-tag-multiple-outline"
+            />
             <v-btn-toggle
               :model-value="useMixedTagsInput ? 'mixed' : 'separate'"
               class="editing-section__tags-mode"
@@ -172,8 +177,8 @@
                   <span class="editing-rating-field__name">{{ t('meta.default_names.rating') }}</span>
                   <v-rating
                     v-model="vals.rating"
-                    color="yellow-darken-3"
-                    background-color="grey-darken-1"
+                    active-color="yellow-darken-3"
+                    color="grey-darken-1"
                     empty-icon="mdi-star-outline"
                     half-icon="mdi-star-half-full"
                     half-increments
@@ -200,7 +205,6 @@
                     density="compact"
                     hide-details
                     class="fav-btn"
-                    v-tooltip:top="t('meta.default_names.favorite')"
                   />
                 </template>
               </div>
@@ -303,8 +307,7 @@
               <MetaInputCountry
                 @update:model-value="setValByKey($event, 'country')"
                 :model-value="vals.country || []"
-                :label="isInspectorLayout ? '' : undefined"
-                :placeholder="isInspectorLayout ? t('meta.default_names.country') : undefined"
+                v-bind="fieldCaption(t('meta.default_names.country'))"
                 :variant="fieldVariant"
                 density="compact"
                 hide-details
@@ -336,6 +339,7 @@
                 @update:model-value="setMixedTagsValue"
                 :label="isInspectorLayout ? '' : undefined"
                 :variant="fieldVariant"
+                :menu-props="mixedTagsMenuProps"
                 density="compact"
                 hide-details
               />
@@ -371,6 +375,7 @@
                 :label="isInspectorLayout ? '' : undefined"
                 :placeholder="isInspectorLayout ? metaName(item) : undefined"
                 :variant="fieldVariant"
+                :menu-props="arrayTagMenuProps"
                 density="compact"
                 :hide-details="fieldHideDetails"
                 multiple
@@ -384,10 +389,10 @@
                 :hint="isInspectorLayout ? undefined : metaHint(item)"
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 :rules="[numberRules]"
+                :precision="null"
                 control-variant="split"
                 density="compact"
                 :hide-details="fieldHideDetails"
-                :persistent-hint="!isInspectorLayout"
                 clearable
                 :variant="fieldVariant"
               >
@@ -399,7 +404,7 @@
                 </template>
               </v-number-input>
 
-              <v-text-field
+              <v-textarea
                 v-if="item.meta?.type === 'string'"
                 :model-value="getStringVal(item)"
                 @update:model-value="setVal($event, getItemKey(item))"
@@ -408,8 +413,9 @@
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 density="compact"
                 :hide-details="fieldHideDetails"
-                :persistent-hint="!isInspectorLayout"
                 clearable
+                auto-grow
+                rows="1"
                 :variant="fieldVariant"
               >
                 <template
@@ -418,7 +424,7 @@
                 >
                   <EditingFieldRestoreBtn inline @click="restore(getItemKey(item))" />
                 </template>
-              </v-text-field>
+              </v-textarea>
 
               <v-checkbox
                 v-if="item.meta?.type === 'boolean'"
@@ -429,7 +435,6 @@
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 density="compact"
                 :hide-details="fieldHideDetails"
-                :persistent-hint="!isInspectorLayout"
               />
 
               <v-text-field
@@ -441,7 +446,6 @@
                 :prepend-icon="showIcons ? `mdi-${metaIcon(item)}` : undefined"
                 density="compact"
                 :hide-details="fieldHideDetails"
-                :persistent-hint="!isInspectorLayout"
                 readonly
                 clearable
                 :variant="fieldVariant"
@@ -556,6 +560,7 @@
 import {ref, computed, onMounted, onUnmounted, watch, reactive} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
+import {usePlayerStore} from '@/stores/player'
 import {useSettingsStore} from '@/stores/settings'
 import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
@@ -710,7 +715,15 @@ const isMedia = computed(() => !props.tag && !!props.media)
 const mediaOverride = ref<MediaItem | null>(null)
 const currentItem = computed((): MediaItem | Tag | null => {
   if (isTag.value) return props.tag ?? null
-  return mediaOverride.value || props.media
+  const media = props.media ?? null
+  if (
+    mediaOverride.value
+    && media
+    && Number(mediaOverride.value.id) === Number(media.id)
+  ) {
+    return mediaOverride.value
+  }
+  return media
 })
 const currentItemId = computed(() => currentItem.value?.id)
 const overviewItem = computed((): MediaItem | Tag => {
@@ -718,6 +731,7 @@ const overviewItem = computed((): MediaItem | Tag => {
 })
 
 const appStore = useAppStore()
+const playerStore = usePlayerStore()
 const settingsStore = useSettingsStore()
 const dialogsStore = useDialogsStore()
 const scraperStore = useScraperStore()
@@ -730,11 +744,74 @@ const locale = computed(() => settingsStore.locale == 'cn' ? 'zh-cn' : settingsS
 dayjs.extend(relativeTime)
 dayjs.locale(locale.value)
 
+// Body-teleported menus render outside the fullscreened .player element and
+// become invisible under native browser fullscreen — attach inside it there.
+const fullscreenAttach = computed(() => playerStore.fullscreen ? '.player' : undefined)
+
+const mixedTagsMenuProps = computed(() => ({
+  contentClass: 'custom-list ac-dropdown mixed-tags-dropdown',
+  maxHeight: isInspectorLayout.value ? 240 : 280,
+  zIndex: 2800,
+  attach: fullscreenAttach.value,
+}))
+
+const arrayTagMenuProps = computed(() => ({
+  contentClass: 'custom-list ac-dropdown meta-input-array-list',
+  maxHeight: 280,
+  zIndex: 2800,
+  attach: fullscreenAttach.value,
+}))
+
 const form = ref<VFormInstance>(null)
 const valid = ref(false)
 const vals = ref<PinnedMetaValues>({})
 const old = ref<PinnedMetaValues>({})
 const assignedItems = ref<PinnedMetaAssignment[]>([])
+
+// Keep the card and inspector summary in sync with unsaved identity edits.
+// The full form is still persisted together by save(), but rating/favorite
+// should be visible everywhere immediately while the form is dirty.
+// Do NOT depend on currentItemId: on selection change vals still hold the
+// previous card, and writing them onto the new id leaks rating/favorite.
+watch(
+  () => [vals.value.rating, vals.value.favorite] as const,
+  ([rating, favorite]) => {
+    const itemId = currentItemId.value
+    if (itemId == null) return
+    if (rating !== undefined) {
+      itemsStore.updateItemField({id: Number(itemId), field: 'rating', value: rating})
+    }
+    if (favorite !== undefined) {
+      itemsStore.updateItemField({id: Number(itemId), field: 'favorite', value: favorite})
+    }
+  },
+  {flush: 'sync'},
+)
+
+// Also accept changes made directly on the card while this editor is open.
+// Do not reload the whole form: other unsaved fields must remain untouched.
+// Skip when the bound item changes — loadEditingState owns that reset, and
+// copying the new card into vals before save(previousId) would corrupt it.
+watch(
+  () => [currentItemId.value, props.media?.rating, props.media?.favorite, props.tag?.rating, props.tag?.favorite] as const,
+  ([itemId, mediaRating, mediaFavorite, tagRating, tagFavorite], previous) => {
+    const prevItemId = previous?.[0]
+    if (itemId == null || (prevItemId != null && itemId !== prevItemId)) return
+
+    const rating = isMedia.value ? mediaRating : tagRating
+    const favorite = isMedia.value ? mediaFavorite : tagFavorite
+    if (rating !== undefined && rating !== vals.value.rating) {
+      vals.value.rating = Number(rating) || 0
+      old.value.rating = vals.value.rating
+    }
+    const normalizedFavorite = Number(favorite) ? 1 : 0
+    if (favorite !== undefined && normalizedFavorite !== vals.value.favorite) {
+      vals.value.favorite = normalizedFavorite
+      old.value.favorite = vals.value.favorite
+    }
+  },
+  {flush: 'sync'},
+)
 const metaInputRefs = ref<Record<string | number, MetaInputArrayInstance>>({})
 const mixedTagsInputRef = ref<MetaInputMixedTagsInstance | null>(null)
 
@@ -963,7 +1040,13 @@ const getItemKey = (item: PinnedMetaAssignment): string | number => {
   return item.pinnedMetaId ?? item.metaId ?? item.id ?? ''
 }
 
-const getMetaIdNumber = (item: PinnedMetaAssignment): number => Number(getItemKey(item))
+/** Category id for tag API lookups (not the assignment storage key). */
+const getMetaIdNumber = (item: PinnedMetaAssignment): number => {
+  const fromMeta = Number(item.meta?.id ?? item.metaId)
+  if (Number.isFinite(fromMeta) && fromMeta > 0) return fromMeta
+  const fallback = Number(getItemKey(item))
+  return Number.isFinite(fallback) ? fallback : 0
+}
 
 const getArrayVal = (item: PinnedMetaAssignment): number[] | undefined => {
   const val = vals.value[getItemKey(item)]
@@ -1169,18 +1252,35 @@ const applyMediaFileInfo = (fileInfo: Partial<MediaItem> | null) => {
 
   mediaOverride.value = {...base, ...fileInfo}
 
-  const mediaId = Number(base.id)
-  if (mediaId) {
-    // Bust thumb caches so the dialog reloads after image probe/thumb regen.
-    itemsStore.refreshThumb(mediaId)
-  }
+  // Thumb refresh is deferred to refreshEditingMediaFileInfo so the caller
+  // can capture pre-refresh dimensions (updateItem mutates items in-place).
 }
 
 const refreshEditingMediaFileInfo = async () => {
   if (!isMedia.value || currentItemId.value == null) return
 
+  const base = mediaOverride.value || props.media
+  // Capture dimensions before the async call — syncMediaFileInfo inside
+  // refreshMediaFileInfo mutates the store item in-place via updateItem.
+  const prevW = base ? (Number(base.width) || 0) : 0
+  const prevH = base ? (Number(base.height) || 0) : 0
+
   const fileInfo = await refreshMediaFileInfo(Number(currentItemId.value))
   applyMediaFileInfo(fileInfo)
+
+  if (!fileInfo) return
+
+  const nextW = Number(fileInfo.width) || 0
+  const nextH = Number(fileInfo.height) || 0
+  // Only bust the card thumb when width/height were resolved for the first time
+  // or actually changed.  Blind refreshThumb on every inspector focus bumps the
+  // VImg :key and causes a visible blank flash on unchanged thumbs.
+  if (prevW !== nextW || prevH !== nextH) {
+    const mediaId = Number(base?.id ?? currentItemId.value)
+    if (mediaId) {
+      itemsStore.refreshThumb(mediaId)
+    }
+  }
 }
 
 const onMediaPathUpdate = (updatedMedia: MediaItem) => {
@@ -1643,6 +1743,9 @@ watch(currentItemId, async (itemId, previousItemId) => {
   if (isInspectorLayout.value && previousItemId != null && getIsDirty()) {
     await save({itemId: previousItemId})
   }
+  if (mediaOverride.value && Number(mediaOverride.value.id) !== Number(itemId)) {
+    mediaOverride.value = null
+  }
   await loadEditingState()
   if (isMedia.value) {
     void refreshEditingMediaFileInfo()
@@ -1758,11 +1861,18 @@ defineExpose({
 
   .editing-section__group--search {
     flex: 1 1 auto;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .editing-section__group--tags,
   .editing-section__group--filters {
     flex: 0 0 auto;
+  }
+
+  .editing-section__tags-icon {
+    flex: 0 0 auto;
+    opacity: 0.6;
   }
 
   .editing-section__group-label {
@@ -2019,6 +2129,21 @@ defineExpose({
       font-size: 0.6rem !important;
       margin: 0 !important;
       padding-inline: 4px !important;
+    }
+
+    :deep(.v-chip.editing-tag-chip),
+    :deep(.v-chip.country-field-chip) {
+      --v-chip-height: 10px;
+      height: 10px !important;
+      font-size: 0.5rem !important;
+      padding-inline: 2px !important;
+    }
+
+    :deep(.v-chip.editing-tag-chip .v-icon),
+    :deep(.v-chip.country-field-chip .v-icon) {
+      font-size: 7px !important;
+      width: 7px !important;
+      height: 7px !important;
     }
 
     :deep(.v-chip .v-icon) {

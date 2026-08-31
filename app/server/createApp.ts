@@ -51,8 +51,8 @@ function createExpressApp() {
   return {app, router}
 }
 
-function setupStaticApp(app: Express) {
-  const src = projectPath('dist')
+function setupStaticApp(app: Express, staticDir: string = projectPath('dist')) {
+  const src = staticDir
   const spaHistory = history({
     disableDotRule: true,
     verbose: false,

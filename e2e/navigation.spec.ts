@@ -6,7 +6,7 @@ test.describe('Navigation', () => {
     await page.goto('/playlists')
     await waitForAppShell(page)
 
-    await expect(page.locator('.playlists-page-title')).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('.items-page-header__name').first()).toBeVisible({ timeout: 30_000 })
   })
 
   test('opens media library route', async ({ page }) => {

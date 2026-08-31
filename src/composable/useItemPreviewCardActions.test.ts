@@ -5,6 +5,7 @@ import {
   resolveMediaClickAction,
   resolvePreviewClickAction,
   resolvePreviewDblClickAction,
+  resolvePreviewKeyAction,
   resolvePreviewPlayer,
   useItemPreviewCardActions,
 } from './useItemPreviewCardActions'
@@ -61,6 +62,34 @@ describe('resolvePreviewDblClickAction', () => {
   })
 })
 
+describe('resolvePreviewKeyAction', () => {
+  it('dismisses cinema preview on Escape', () => {
+    expect(resolvePreviewKeyAction({
+      key: 'Escape',
+      isCollapsing: false,
+      isBigPreviewVisual: true,
+    })).toBe('dismiss-big-preview')
+  })
+
+  it('ignores other keys and collapse', () => {
+    expect(resolvePreviewKeyAction({
+      key: 'Enter',
+      isCollapsing: false,
+      isBigPreviewVisual: true,
+    })).toBe('ignore')
+    expect(resolvePreviewKeyAction({
+      key: 'Escape',
+      isCollapsing: true,
+      isBigPreviewVisual: true,
+    })).toBe('ignore')
+    expect(resolvePreviewKeyAction({
+      key: 'Escape',
+      isCollapsing: false,
+      isBigPreviewVisual: false,
+    })).toBe('ignore')
+  })
+})
+
 describe('resolvePreviewPlayer', () => {
   it('defaults non-player values to builtin', () => {
     expect(resolvePreviewPlayer('system')).toBe('system')
@@ -102,7 +131,7 @@ describe('useItemPreviewCardActions', () => {
     handleMediaClick()
     expect(playVideo).not.toHaveBeenCalled()
     vi.advanceTimersByTime(PREVIEW_PLAY_CLICK_DELAY_MS)
-    expect(playVideo).toHaveBeenCalledWith({video: media, player: 'builtin', time: 12})
+    expect(playVideo).toHaveBeenCalledWith({video: media, player: 'default', time: 12})
   })
 
   it('cancels builtin play and opens system player on double-click', () => {

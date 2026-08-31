@@ -55,6 +55,16 @@ describe('resolveMediaListSqlParts', () => {
     expect(parts.fromForSort).toContain('FROM media')
   })
 
+  it('joins metadata when includeGroupingJoin is set for navigation rows', () => {
+    const parts = resolveMediaListSqlParts({
+      whereSql: 'media.mediaTypeId = :mediaTypeId',
+      sortBy: 'id',
+      includeGroupingJoin: true,
+    })
+    expect(parts.fromForSort).toContain('videoMetadata')
+    expect(parts.fromForSort).toContain('imageMetadata')
+  })
+
   it('uses DISTINCT id select when needed', () => {
     const parts = resolveMediaListSqlParts({
       whereSql: '1 = 1',

@@ -71,6 +71,16 @@ export const usePlayerStore = defineStore('player', {
 
     marks: [] as PlayerMark[],
     mediaWindowTitle: '',
+
+    studioMode: false,
+    trimMode: false,
+    trimStart: 0,
+    trimEnd: 0,
+    trimBusy: false,
+    selectedMarkId: null as number | null,
+    markDraft: null as { id: number; time: number; end: number | null } | null,
+    creatingMarkDraft: null as { time: number; end: number } | null,
+    studioSnapTime: null as number | null,
   }),
   getters: {
     isKeyboardBlocked(state): boolean {

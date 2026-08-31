@@ -14,24 +14,25 @@ describe('homeCreatedCalendar', () => {
     })
   })
 
-  it('aggregates day counts and totals from mediaCreatedAt', () => {
-    const rowsBySql: Record<string, unknown[]> = {
-      day: [
-        {day: '2026-08-01', count: 2},
-        {day: '2026-08-15', count: 5},
-        {day: 'bad', count: 9},
-      ],
-      totals: [{withDate: 12, missingDate: 3}],
-    }
+  it('aggregates day counts and totals from createdAt (date added)', () => {
+    const dayRows = [
+      {day: '2026-08-01', count: 2},
+      {day: '2026-08-15', count: 5},
+      {day: 'bad', count: 9},
+    ]
+    const totals = {withDate: 12, missingDate: 3}
+    const latest = {ym: '2026-08'}
 
     const db = {
       sqlite: {
         prepare(sql: string) {
-          const key = sql.includes('GROUP BY day') ? 'day' : 'totals'
-          const rows = rowsBySql[key]
-          return {
-            all: () => rows,
+          if (sql.includes('GROUP BY day')) {
+            return {all: () => dayRows, get: () => undefined}
           }
+          if (sql.includes('ORDER BY') && sql.includes('LIMIT 1')) {
+            return {all: () => [], get: () => latest}
+          }
+          return {all: () => [], get: () => totals}
         },
       },
     }
@@ -47,6 +48,7 @@ describe('homeCreatedCalendar', () => {
       totalInMonth: 7,
       totalWithDate: 12,
       totalMissingDate: 3,
+      latestMonthKey: '2026-08',
     })
   })
 })

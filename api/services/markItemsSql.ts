@@ -1,5 +1,7 @@
 import type {ApiDb} from '../types/db'
 import {queryAll, queryGet} from '../db/utils/rawQuery'
+import {MEDIA_NOT_IN_TRASH_SQL} from '../../shared/mediaTrash'
+import {notInTrashSql} from '../../shared/entityTrash'
 import {escapeLikePattern} from './globalSearchMerge'
 
 const MARKS_FROM = `
@@ -105,6 +107,8 @@ function buildMarkFilterWhere(
   replacements: Record<string, unknown>,
 ): string {
   const clauses = [
+    notInTrashSql('marks'),
+    MEDIA_NOT_IN_TRASH_SQL,
     buildMarkTypeSql(options.types || [], replacements),
   ]
   const searchSql = buildMarkSearchSql(options.search || '', replacements)

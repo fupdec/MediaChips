@@ -5,8 +5,28 @@
       icon="file-outline"
     />
 
-    <div v-if="!mediaTypes.length" class="media-types-settings__empty text-medium-emphasis text-body-2">
-      {{ t('media.type.please_add_media_first') }}
+    <div class="mb-4">
+      <v-btn
+        color="success"
+        rounded="pill"
+        variant="flat"
+        class="pr-4"
+        prepend-icon="mdi-plus"
+        :text="t('common.add')"
+        @click="dialogAdd = true"
+      />
+    </div>
+
+    <div v-if="!mediaTypes.length" class="settings-empty text-center py-10 px-4">
+      <div class="settings-empty__icon mb-3" aria-hidden="true">
+        <v-icon icon="mdi-file-outline" size="28"/>
+      </div>
+      <div class="text-body-1 font-weight-medium mb-1">
+        {{ t('media.type.empty') }}
+      </div>
+      <div class="text-caption text-medium-emphasis">
+        {{ t('media.type.empty_hint') }}
+      </div>
     </div>
 
     <v-chip-group v-else column class="media-types-settings__chips">
@@ -25,7 +45,7 @@
 
     <DialogMediaTypeAdd
       v-if="dialogAdd"
-      v-model="dialogAdd"
+      :dialog="dialogAdd"
       @added="finishAdding"
       @close="dialogAdd = false"
     />
@@ -94,8 +114,23 @@ function updateMediaTypes() {
 </script>
 
 <style scoped>
-.media-types-settings__empty {
-  padding: 4px 0;
+.settings-empty {
+  border-radius: 22px;
+  border: 1px dashed rgba(var(--v-theme-on-surface), 0.14);
+  background:
+    radial-gradient(80% 120% at 50% 0%, rgba(var(--v-theme-primary), 0.08), transparent 65%),
+    rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.settings-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
 }
 
 .media-types-settings__chips {

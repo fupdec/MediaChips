@@ -1,4 +1,5 @@
 import type { GetItemsFromDbEvent } from '../api/responses'
+import type { AppMenuCheckedState } from './appMenuState'
 
 export const IPC_SEND_CHANNELS = [
   'open-player',
@@ -55,6 +56,7 @@ export const IPC_INVOKE_CHANNELS = [
   'checkFileExists',
   'set-minimize-to-tray',
   'set-shell-locale',
+  'set-app-menu-state',
   'focusMainWindow',
   'isMainWindowFocused',
 ] as const
@@ -236,6 +238,7 @@ export interface IpcInvokePayloads {
   checkFileExists: CheckFileExistsPayload
   'set-minimize-to-tray': boolean
   'set-shell-locale': string
+  'set-app-menu-state': AppMenuCheckedState
   focusMainWindow: void
   isMainWindowFocused: void
 }
@@ -275,6 +278,7 @@ export interface IpcInvokeResults {
   checkFileExists: boolean
   'set-minimize-to-tray': boolean
   'set-shell-locale': string
+  'set-app-menu-state': boolean
   focusMainWindow: boolean
   isMainWindowFocused: boolean
 }
@@ -353,6 +357,7 @@ export interface ElectronOsAPI {
   arch: string
   type: string
   version: string
+  systemVersion?: string
 }
 
 export interface ElectronAppInfo {

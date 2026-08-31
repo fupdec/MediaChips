@@ -36,17 +36,29 @@
             </span>
           </button>
 
-          <div class="d-flex align-center items-page-header__title min-width-0">
-            <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
-            <span class="items-page-header__name text-truncate">{{ pageTitle }}</span>
-            <span
-              v-if="!loader.is_busy && total > 0"
-              class="items-page-header__meta"
+          <div class="items-page-header__title min-width-0">
+            <div class="items-page-header__heading min-width-0">
+              <v-icon class="items-page-header__icon" start>mdi-{{ ITEMS.icon }}</v-icon>
+              <span class="items-page-header__name text-truncate">{{ pageTitle }}</span>
+            </div>
+            <div
+              v-if="!loader.is_busy && (total > 0 || filesize_all)"
+              class="items-page-header__badges"
             >
-              <span v-if="total != totalInDb">({{ total }} of {{ totalInDb }})</span>
-              <span v-else>({{ total }})</span>
-              <span v-if="filesize_all"> · {{ filesize_all }}</span>
-            </span>
+              <span
+                v-if="total > 0"
+                class="items-page-header__meta"
+              >
+                <template v-if="total != totalInDb">{{ total }} of {{ totalInDb }}</template>
+                <template v-else>{{ total }}</template>
+              </span>
+              <span
+                v-if="filesize_all"
+                class="items-page-header__meta"
+              >
+                {{ filesize_all }}
+              </span>
+            </div>
           </div>
 
           <div class="d-flex align-center flex-nowrap ga-2 items-control-deck__controls">
@@ -65,25 +77,14 @@
             />
 
             <v-btn
-              @click="dialogEditingPinnedMeta = true"
-              v-tooltip:top="t('meta.settings.edit_pinned_meta')"
-              color="primary"
-              variant="tonal"
-              size="small"
-              icon
-            >
-              <v-icon size="18">mdi-pencil-outline</v-icon>
-            </v-btn>
-
-            <v-btn
               @click="toggleCustomization"
-              v-tooltip:top="t('appbar.buttons.customize')"
+              v-tooltip:top="t('appbar.buttons.customize_appearance')"
               color="primary"
               :variant="toolbarStore.appearance.show ? 'flat' : 'tonal'"
               size="small"
               icon
             >
-              <v-icon size="18">mdi-tune</v-icon>
+              <v-icon size="18">mdi-eye-settings-outline</v-icon>
             </v-btn>
 
             <v-btn
@@ -113,6 +114,18 @@
             id="items-control-deck-appearance"
             class="items-control-deck__appearance items-control-deck__section"
           >
+            <div class="items-control-deck__appearance-close">
+              <v-btn
+                @click="toggleCustomization"
+                size="x-small"
+                icon
+                variant="text"
+                color="primary"
+                :aria-label="t('common.close')"
+              >
+                <v-icon size="16">mdi-close</v-icon>
+              </v-btn>
+            </div>
             <ToolbarAppearance embedded/>
           </div>
         </v-expand-transition>
@@ -122,6 +135,51 @@
           class="items-filters-top-host items-control-deck__filters-host"
         ></div>
       </div>
+    </div>
+
+    <div
+      v-if="items_type === 'tag' && settingsStore.showAlphabetFilter == '1'"
+      class="items-alphabet"
+    >
+      <button
+        v-for="letter in alphabetLetters"
+        :key="letter"
+        type="button"
+        class="items-alphabet__btn"
+        :class="{
+          'items-alphabet__btn--active': letterFilter === letter,
+        }"
+        @click="toggleLetterFilter(letter)"
+      >
+        {{ letter }}
+      </button>
+    </div>
+
+    <div
+      v-if="showColorFilterBar"
+      class="items-color-filter"
+    >
+      <button
+        type="button"
+        class="items-color-filter__swatch items-color-filter__swatch--none"
+        :class="{'items-color-filter__swatch--active': colorFilter === TAG_COLOR_FILTER_NONE}"
+        :aria-pressed="colorFilter === TAG_COLOR_FILTER_NONE ? 'true' : 'false'"
+        :aria-label="t('items.color_filter_none')"
+        v-tooltip:top="t('items.color_filter_none')"
+        @click="toggleColorFilter(TAG_COLOR_FILTER_NONE)"
+      />
+      <button
+        v-for="color in categoryTagColors"
+        :key="color"
+        type="button"
+        class="items-color-filter__swatch"
+        :class="{'items-color-filter__swatch--active': colorFilter === color}"
+        :style="{backgroundColor: color}"
+        :aria-pressed="colorFilter === color ? 'true' : 'false'"
+        :aria-label="color"
+        v-tooltip:top="color"
+        @click="toggleColorFilter(color)"
+      />
     </div>
 
     <SavedFilters v-if="pageInitialized && settingsStore.showSavedFilters == '1'"/>
@@ -142,7 +200,7 @@
     />
 
     <ItemsMasonryGrid
-      v-if="pageInitialized && ITEMS.itemsOnPage.length && isMasonryGrid"
+      v-if="pageInitialized && ITEMS.itemsOnPage.length && (isMasonryGrid || isSquaresGrid)"
       :key="`masonry-${itemsRenderKey}`"
       :items="ITEMS.itemsOnPage"
       :items-type="listItemType"
@@ -155,6 +213,7 @@
       :grid-classes="itemsGridClasses"
       :grid-layout-options="itemsGridLayoutOptions"
       :virtual="useVirtualMasonry"
+      :square-items="isSquaresGrid"
       class="items-page-grid"
     />
 
@@ -174,6 +233,7 @@
       :image-grid="isImageGrid"
       :wide-image="isWideImage"
       :line-grid="isLineGrid"
+      :list-grid="isListGrid"
       :chips-grid="isChipsGrid"
       :image-aspect-ratio="virtualCardAspectRatio"
       class="items-page-grid"
@@ -204,7 +264,7 @@
           </div>
           <Item
             v-for="(i, x) in section.items"
-            v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType, itemsRenderKey]"
+            v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType, itemsRenderKey, ITEMS.thumbRefreshKeys[i.id]]"
             :key="String(i.id)"
             :type="listItemType"
             :item="i"
@@ -218,7 +278,7 @@
       <template v-else>
         <Item
           v-for="(i, x) in ITEMS.itemsOnPage"
-          v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType, itemsRenderKey]"
+          v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType, itemsRenderKey, ITEMS.thumbRefreshKeys[i.id]]"
           :key="String(i.id)"
           :type="listItemType"
           :item="i"
@@ -231,7 +291,7 @@
     </div>
 
     <div
-      v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd"
+      v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd && mainScrollOverflowing"
       class="scroll-top-after-items"
     >
       <v-btn
@@ -312,7 +372,7 @@
             size="large"
             @click="browseByMediaCreated"
           >
-            <v-icon start>mdi-calendar-star</v-icon>
+            <v-icon start>mdi-calendar-plus</v-icon>
             {{ t('empty_states.browse_media_created') }}
           </v-btn>
         </template>
@@ -451,6 +511,7 @@ import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {useStickyControlDeck} from '@/composable/useStickyControlDeck'
+import {useMainScrollOverflow} from '@/composable/useMainScrollOverflow'
 import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
@@ -464,6 +525,12 @@ import {
   type ItemsGroupSection,
 } from '@/utils/itemsGroupBy'
 import {getFilterObject} from '@/services/formatUtils'
+import {getTagFirstLetter} from '@shared/transliterate'
+import {
+  approximateTagColor,
+  compareTagColorSwatches,
+  TAG_COLOR_FILTER_NONE,
+} from '@shared/tagColorFilter'
 import type { MediaItem } from '@/types/stores'
 
 // Пропсы
@@ -492,7 +559,7 @@ function openEmptySearch() {
 
 function browseByMediaCreated() {
   void openMediaList({
-    sortBy: 'mediaCreatedAt',
+    sortBy: 'createdAt',
     sortDir: 'desc',
     groupBy: 'dateDay',
   })
@@ -510,6 +577,18 @@ const meta = ref<Meta | null>(null)
 const container = ref<HTMLElement | null>(null)
 const itemsGridRef = ref<HTMLElement | null>(null)
 const dialogEditingPinnedMeta = ref(false)
+const letterFilter = ref<string | null>(
+  settingsStore.showAlphabetFilter === '1' ? itemsStore.namePrefix : null,
+)
+if (settingsStore.showAlphabetFilter !== '1' && itemsStore.namePrefix) {
+  itemsStore.namePrefix = null
+}
+const colorFilter = ref<string | null>(
+  settingsStore.showColorFilter === '1' ? itemsStore.colorFilter : null,
+)
+if (settingsStore.showColorFilter !== '1' && itemsStore.colorFilter) {
+  itemsStore.colorFilter = null
+}
 const {
   controlDeckSentinel,
   controlDeckClass,
@@ -604,6 +683,14 @@ const {pageInitialized, itemsRenderKey} = useItemsPageEvents({
   loadNextInfinitePage,
 })
 
+const {mainScrollOverflowing} = useMainScrollOverflow({
+  watchSources: [
+    () => itemsStore.itemsOnPage.length,
+    () => pageInitialized.value,
+    () => infiniteScrollReachedEnd.value,
+  ],
+})
+
 // Компьютеды
 const ITEMS = computed(() => itemsStore)
 const SETTINGS = computed(() => settingsStore)
@@ -625,10 +712,16 @@ const isImageGrid = computed(() =>
 const isMasonryGrid = computed(() =>
   props.items_type === 'media' && mediaType.value?.type === 'image' && ITEMS.value.view == 3
 )
+const isSquaresGrid = computed(() =>
+  props.items_type === 'media' && mediaType.value?.type === 'image' && ITEMS.value.view == 6
+)
 const isWideImage = computed(() =>
   props.items_type === 'media' && isVideoMediaType(mediaType.value) && ITEMS.value.view == 2
 )
 const isLineGrid = computed(() => isWideImage.value)
+const isListGrid = computed(() =>
+  (props.items_type === 'media' || props.items_type === 'tag') && ITEMS.value.view == 5
+)
 const isChipsGrid = computed(() =>
   props.items_type === 'tag' && ITEMS.value.view == 2
 )
@@ -648,6 +741,7 @@ const listItemType = computed((): ItemsPageType =>
 const useVirtualGrid = computed(() =>
   isGroupByOff.value
   && !isMasonryGrid.value
+  && !isSquaresGrid.value
   && !isChipsGrid.value
   && shouldUseVirtualGrid(
     ITEMS.value.itemsOnPage.length,
@@ -657,7 +751,7 @@ const useVirtualGrid = computed(() =>
   ),
 )
 const useVirtualMasonry = computed(() =>
-  isMasonryGrid.value
+  (isMasonryGrid.value || isSquaresGrid.value)
   && shouldUseVirtualMasonry(
     ITEMS.value.itemsOnPage.length,
     is_infinite_scroll.value,
@@ -670,7 +764,7 @@ const useVirtualMasonry = computed(() =>
 )
 
 const groupedSections = computed(() => {
-  if (isMasonryGrid.value) return null
+  if (isMasonryGrid.value || isSquaresGrid.value) return null
   const groupBy = resolveActiveItemsGroupBy(
     ITEMS.value.groupBy,
     ITEMS.value.sortBy,
@@ -816,19 +910,110 @@ const itemsGridClasses = computed(() => [
   {'wide-image': isWideImage.value},
   {'image-grid': isImageGrid.value},
   {'masonry-grid': isMasonryGrid.value},
+  {'list-grid': isListGrid.value},
 ])
 const itemsGridLayoutOptions = computed(() => ({
   size: ITEMS.value.size,
   gapSize: SETTINGS.value.gapSize,
-  imageGrid: isImageGrid.value || isMasonryGrid.value,
+  imageGrid: isImageGrid.value || isMasonryGrid.value || isSquaresGrid.value,
   wideImage: isWideImage.value,
   lineGrid: isLineGrid.value,
+  listGrid: isListGrid.value,
   chipsGrid: isChipsGrid.value,
   imageAspectRatio: virtualCardAspectRatio.value,
 }))
 const { gridStyle: itemsGridStyle } = useResponsiveGridLayout(itemsGridRef, itemsGridLayoutOptions)
 const reg = computed(() => registrationStore.reg)
 const ENV = computed(() => ITEMS.value.environment)
+
+const alphabetLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+
+function toggleLetterFilter(letter: string): void {
+  if (letterFilter.value === letter) {
+    letterFilter.value = null
+  } else {
+    letterFilter.value = letter
+  }
+}
+
+watch(letterFilter, (val) => {
+  if (itemsStore.type !== 'tag') return
+  itemsStore.updateState({key: 'page', value: 1})
+  itemsStore.namePrefix = val
+  void getItemsFromDb()
+})
+
+watch(() => settingsStore.showAlphabetFilter, (val) => {
+  if (val === '1') return
+  if (letterFilter.value) {
+    letterFilter.value = null
+    return
+  }
+  if (!itemsStore.namePrefix) return
+  itemsStore.namePrefix = null
+  if (itemsStore.type === 'tag') {
+    itemsStore.updateState({key: 'page', value: 1})
+    void getItemsFromDb()
+  }
+})
+
+const categoryTagColors = computed(() => {
+  const metaId = Number(props.metaId)
+  if (!Number.isFinite(metaId) || metaId <= 0) return [] as string[]
+  const unique = new Set<string>()
+  for (const tag of appStore.tags) {
+    if (Number(tag.metaId) !== metaId) continue
+    const bucket = approximateTagColor(tag.color)
+    if (!bucket) continue
+    unique.add(bucket)
+  }
+  return [...unique].sort(compareTagColorSwatches)
+})
+
+const showColorFilterBar = computed(() => (
+  props.items_type === 'tag'
+  && settingsStore.showColorFilter === '1'
+  && !!meta.value?.color
+))
+
+function toggleColorFilter(value: string): void {
+  if (colorFilter.value === value) {
+    colorFilter.value = null
+  } else {
+    colorFilter.value = value
+  }
+}
+
+function clearColorFilter(): void {
+  if (colorFilter.value) {
+    colorFilter.value = null
+    return
+  }
+  if (!itemsStore.colorFilter) return
+  itemsStore.colorFilter = null
+  if (itemsStore.type === 'tag') {
+    itemsStore.updateState({key: 'page', value: 1})
+    void getItemsFromDb()
+  }
+}
+
+watch(colorFilter, (val) => {
+  if (itemsStore.type !== 'tag') return
+  itemsStore.updateState({key: 'page', value: 1})
+  itemsStore.colorFilter = val
+  void getItemsFromDb()
+})
+
+watch(() => settingsStore.showColorFilter, (val) => {
+  if (val === '1') return
+  clearColorFilter()
+})
+
+watch(() => meta.value?.color, (enabled) => {
+  if (meta.value == null) return
+  if (enabled) return
+  clearColorFilter()
+})
 
 useItemsThumbPrefetch({
   items: computed(() => ITEMS.value.itemsOnPage),
@@ -919,6 +1104,11 @@ defineEmits<{
   content-visibility: auto;
   /* Prefer a tall estimate: undersized intrinsic size makes cards jump when painted. */
   contain-intrinsic-size: auto 360px;
+}
+
+.items-page-grid:not(.items-virtual-grid) :deep(.item-view-5) {
+  /* List rows are much shorter than cards — match their real height. */
+  contain-intrinsic-size: auto 90px;
 }
 
 .items-group-header {
@@ -1017,360 +1207,81 @@ defineEmits<{
   overflow-anchor: none;
 }
 
-.items-page-header {
-  row-gap: 12px;
+.items-alphabet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-bottom: 12px;
+}
 
-  &__icon {
-    font-size: 32px !important;
-    width: 32px !important;
-    height: 32px !important;
-    margin-inline-end: 8px;
+.items-alphabet__btn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 28px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 
-    @media (min-width: 960px) {
-      font-size: 42px !important;
-      width: 42px !important;
-      height: 42px !important;
-    }
+  &:hover {
+    background: rgba(var(--v-theme-on-surface), 0.1);
+    color: rgba(var(--v-theme-on-surface), 0.9);
   }
 
-  &__title {
-    line-height: 1.2;
-  }
-
-  &__name {
-    font-weight: 600;
-  }
-
-  &__meta {
-    margin-inline-start: 8px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    opacity: 0.65;
-    white-space: nowrap;
-  }
-
-  &--deck {
-    .items-page-header__icon {
-      font-size: 22px !important;
-      width: 22px !important;
-      height: 22px !important;
-      margin-inline-end: 6px;
-    }
-
-    .items-page-header__name {
-      font-size: 1.125rem;
-      line-height: 1.3;
-    }
-
-    .items-page-header__meta {
-      font-size: 0.75rem;
-    }
+  &--active {
+    background: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-on-primary));
   }
 }
 
-/* Classic layout sticky header removed — control deck is always on. */
-.items-layout-container.v-container {
-  padding-top: 8px;
+.items-color-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
-.items-control-deck-sentinel {
-  width: 100%;
-  height: 1px;
-  margin: 0;
+.items-color-filter__swatch {
+  width: 22px;
+  height: 22px;
   padding: 0;
-  pointer-events: none;
-}
+  border-radius: 50%;
+  border: 2px solid rgba(var(--v-theme-on-surface), 0.18);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 
-.items-control-deck {
-  width: 100%;
-
-  &--browser {
-    --deck-pad-x: 14px;
-    --deck-gap: 10px;
-    --deck-radius: 16px;
-    --deck-control-h: 40px;
-    --deck-sticky-top: 8px;
-
-    position: sticky;
-    top: var(--deck-sticky-top);
-    /*
-      Above item cards and context-menu spotlight (900),
-      below app bar / side chrome (~1000+).
-    */
-    z-index: 950;
-    margin-top: 0;
-    margin-bottom: 16px;
-    /* Opaque page bg under rounded surface — do not use overflow:hidden here
-       or the stuck elevation shadow gets clipped and the deck blends in. */
-    background: rgb(var(--v-theme-background));
-    border-radius: var(--deck-radius, 16px);
-    isolation: isolate;
-
-    &.items-control-deck--static {
-      position: static;
-      top: auto;
-      z-index: auto;
-      isolation: auto;
-    }
-
-    @media (max-width: 959px) {
-      --deck-pad-x: 12px;
-      --deck-gap: 8px;
-      --deck-control-h: 36px;
-    }
+  &:hover {
+    transform: scale(1.08);
   }
 
-  &__surface--card {
-    border: 1px solid rgba(var(--v-theme-primary), 0.16);
-    border-radius: var(--deck-radius, 16px);
-    background: rgb(var(--v-theme-surface));
-    box-shadow:
-      0 1px 0 rgba(var(--v-theme-primary), 0.04),
-      0 8px 22px -16px rgba(0, 0, 0, 0.22);
-    overflow: hidden;
-    transition: box-shadow 180ms ease, border-color 180ms ease;
-
-    /* No leftover divider under the header when appearance/filters are collapsed. */
-    &:not(:has(.items-control-deck__section)):not(:has(.filters-top__shell)) {
-      border-bottom-color: transparent;
-    }
-  }
-
-  &--stuck &__surface--card {
-    border-color: rgba(var(--v-theme-primary), 0.28);
-    box-shadow:
-      0 0 0 1px rgba(var(--v-theme-primary), 0.08),
-      0 1px 0 rgba(var(--v-theme-on-surface), 0.06),
-      0 10px 28px -10px rgba(0, 0, 0, 0.38),
-      0 4px 14px -6px rgba(0, 0, 0, 0.22);
-  }
-
-  &__header {
+  &--none {
     position: relative;
-    padding: 10px var(--deck-pad-x);
-    margin: 0;
-    min-height: 52px;
-    min-width: 0;
+    background: rgba(var(--v-theme-on-surface), 0.04);
 
-    @media (max-width: 959px) {
-      padding: 8px 10px;
-      min-height: var(--deck-control-h);
-      gap: 8px !important;
-
-      .items-page-header__title {
-        flex: 1 1 auto;
-        min-width: 0;
-      }
-
-      .items-page-header__meta {
-        display: none;
-      }
+    &::after {
+      content: '';
+      position: absolute;
+      left: 18%;
+      right: 18%;
+      top: 50%;
+      height: 2px;
+      background: rgba(var(--v-theme-on-surface), 0.5);
+      transform: rotate(-45deg);
     }
   }
 
-  &__sticky-pin {
-    position: absolute;
-    top: -4px;
-    left: -4px;
-    z-index: 2;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    background: transparent;
-    color: rgba(var(--v-theme-on-surface), 0.36);
-    cursor: pointer;
-    transition:
-      color 160ms ease,
-      background-color 160ms ease;
-
-    &:hover {
-      color: rgb(var(--v-theme-primary));
-      background: rgba(var(--v-theme-primary), 0.08);
-    }
-
-    &:focus-visible {
-      outline: 2px solid rgba(var(--v-theme-primary), 0.45);
-      outline-offset: -2px;
-    }
-
-    &--active {
-      color: rgb(var(--v-theme-primary));
-    }
+  &--active {
+    border-color: rgb(var(--v-theme-primary));
+    box-shadow: 0 0 0 2px rgb(var(--v-theme-primary));
   }
-
-  &__sticky-pin-glyph {
-    display: inline-flex;
-    transform: rotate(42deg) translate(0.5px, -0.5px);
-    transform-origin: center 60%;
-    opacity: 0.9;
-    transition: transform 180ms cubic-bezier(0.33, 1, 0.68, 1), opacity 160ms ease;
-
-    .items-control-deck__sticky-pin--active & {
-      transform: rotate(0deg) translate(0, 0.5px);
-      opacity: 1;
-    }
-
-    .items-control-deck__sticky-pin:hover & {
-      opacity: 1;
-    }
-  }
-
-  &__section {
-    border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  }
-
-  &__appearance {
-    min-width: 0;
-  }
-
-  &__filters-host {
-    min-width: 0;
-  }
-
-  &__field {
-    margin-inline: 0 !important;
-    flex: 0 0 auto;
-    font-size: 0.8125rem;
-    line-height: 1.25;
-
-    :deep(.v-field) {
-      --v-input-control-height: var(--deck-control-h);
-      font-size: 0.8125rem;
-    }
-
-    :deep(.v-field__input) {
-      min-height: var(--deck-control-h) !important;
-      max-height: var(--deck-control-h);
-      font-size: 0.8125rem !important;
-      line-height: 1.25 !important;
-      flex-wrap: nowrap;
-      overflow: hidden;
-      align-items: center;
-    }
-
-    :deep(.v-autocomplete__selection),
-    :deep(.v-autocomplete__selection-text),
-    :deep(.v-autocomplete__selection .pl-2),
-    :deep(.v-select__selection),
-    :deep(.v-select__selection-text),
-    :deep(.v-select__selection .pl-2) {
-      max-width: 100%;
-      overflow: hidden;
-      white-space: nowrap !important;
-      text-overflow: ellipsis;
-      font-size: 0.8125rem !important;
-      line-height: 1.25 !important;
-    }
-
-    :deep(.v-label) {
-      font-size: 0.75rem;
-    }
-
-    :deep(.v-input--density-compact) {
-      --v-input-padding-top: 0;
-    }
-  }
-
-  &__sort {
-    width: 260px;
-    min-width: 240px;
-    max-width: 280px;
-
-    :deep(.v-field) {
-      --v-input-control-height: var(--deck-control-h);
-      font-size: 0.75rem;
-    }
-
-    :deep(.v-field__input) {
-      min-height: var(--deck-control-h) !important;
-      max-height: var(--deck-control-h);
-      font-size: 0.75rem !important;
-      line-height: 1.2 !important;
-    }
-
-    :deep(.v-autocomplete__selection),
-    :deep(.v-autocomplete__selection-text),
-    :deep(.v-select__selection),
-    :deep(.v-select__selection-text) {
-      font-size: 0.75rem !important;
-      line-height: 1.2 !important;
-    }
-
-    :deep(.v-input__prepend .v-btn) {
-      width: var(--deck-control-h) !important;
-      height: var(--deck-control-h) !important;
-    }
-
-    @media (max-width: 959px) {
-      width: min(100%, 280px);
-      min-width: 0;
-      flex: 1 1 160px;
-    }
-  }
-
-  &__group-by {
-    width: 190px;
-    min-width: 170px;
-    max-width: 200px;
-
-    :deep(.v-field) {
-      --v-input-control-height: var(--deck-control-h);
-      font-size: 0.75rem;
-    }
-
-    :deep(.v-field__input) {
-      min-height: var(--deck-control-h) !important;
-      max-height: var(--deck-control-h);
-      font-size: 0.75rem !important;
-      line-height: 1.2 !important;
-    }
-
-    :deep(.v-autocomplete__selection),
-    :deep(.v-autocomplete__selection-text),
-    :deep(.v-select__selection),
-    :deep(.v-select__selection-text) {
-      font-size: 0.75rem !important;
-      line-height: 1.2 !important;
-    }
-
-    @media (max-width: 959px) {
-      width: min(100%, 200px);
-      min-width: 0;
-      flex: 1 1 140px;
-    }
-  }
-
-  &__controls {
-    flex: 0 1 auto;
-    justify-content: flex-end;
-    align-items: center;
-    min-height: var(--deck-control-h);
-    min-width: 0;
-
-    :deep(.v-btn--icon.v-btn--size-small) {
-      width: var(--deck-control-h);
-      height: var(--deck-control-h);
-    }
-
-    @media (max-width: 959px) {
-      flex: 0 0 auto;
-      justify-content: flex-end;
-      flex-wrap: nowrap;
-    }
-  }
-
-  &__sort-icon,
-  &__group-by-icon {
-    flex: 0 0 auto;
-  }
-}
-
-.items-filters-top-host {
-  width: 100%;
 }
 </style>

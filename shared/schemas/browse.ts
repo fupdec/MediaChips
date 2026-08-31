@@ -45,3 +45,26 @@ export const MediaRootEntrySchema = z.object({
 export const MediaRootsResponseSchema = z.object({
   roots: z.array(MediaRootEntrySchema).default([]),
 }).passthrough()
+
+export const MediaFolderBrowseFolderSchema = z.object({
+  path: z.string(),
+  name: z.string(),
+  mediaCount: z.number(),
+  coverMediaIds: z.array(z.number()).optional(),
+}).passthrough()
+
+export const MediaFolderBrowseBreadcrumbSchema = z.object({
+  path: z.string(),
+  name: z.string(),
+}).passthrough()
+
+export const MediaFolderBrowseResponseSchema = z.object({
+  currentPath: z.string().nullable(),
+  parentPath: z.string().nullable(),
+  breadcrumbs: z.array(MediaFolderBrowseBreadcrumbSchema).default([]),
+  folders: z.array(MediaFolderBrowseFolderSchema).default([]),
+  media: z.array(z.object({
+    id: z.number(),
+  }).passthrough()).default([]),
+  coverMediaTypeById: z.record(z.string(), z.number()).optional(),
+}).passthrough()

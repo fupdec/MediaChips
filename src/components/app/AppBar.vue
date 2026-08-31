@@ -30,7 +30,7 @@
         style="height: 40px;"
       >
 
-        <DialogMediaAdding v-if="itemsStore.type == 'media'"/>
+        <DialogMediaAdding v-if="showAddMediaButton"/>
         <TagsAdd v-if="itemsStore.type == 'tag'"/>
         <TagsAdd v-else :button="false"/>
 
@@ -84,11 +84,18 @@
               @click="editMetaFromMenu"
             />
             <v-list-item
-              :disabled="itemsStore.entities.length == 0"
+              :disabled="randomItemLoading || itemsStore.totalFiltered == 0"
               link
               prepend-icon="mdi-dice-5"
               :title="t('appbar.buttons.open_random')"
               @click="openRandomItem"
+            />
+            <v-list-item
+              :disabled="itemsStore.entities.length == 0"
+              link
+              prepend-icon="mdi-card-search-outline"
+              :title="t('review_mode.open')"
+              @click="openReviewFromMenu"
             />
           </v-list>
         </v-menu>
@@ -105,6 +112,8 @@
         class="d-flex align-center"
         style="height: 40px;"
       >
+        <DialogMediaAdding v-if="showAddMediaButton"/>
+
         <AppBarButton
           v-if="itemsStore.type === 'playlist'"
           :action="openAddPlaylist"
@@ -121,28 +130,34 @@
         />
       </div>
 
+      <div
+        v-else-if="showAddMediaButton && !itemsStore.isSelect"
+        class="d-flex align-center"
+        style="height: 40px;"
+      >
+        <DialogMediaAdding/>
+      </div>
+
       <v-spacer/>
 
       <!-- RIGHT AREA -->
       <div class="d-flex align-center">
-        <v-tooltip v-if="!reg"
+        <v-tooltip v-if="showFreeLibraryLock"
           location="bottom">
           <template v-slot:activator="{ props: activatorProps }">
             <v-btn v-bind="activatorProps"
-              @click="register"
+              @click="openRegistrationPaywall"
               icon>
               <v-icon>mdi-lock-question</v-icon>
             </v-btn>
           </template>
-          <span>
-            APP NOT REGISTERED <br/>
-            the number of items per page is limited to 15
-          </span>
+          <span>{{ lockTooltip }}</span>
         </v-tooltip>
 
         <div class="mr-1">
           <GlobalSearch/>
         </div>
+        <MediaTrash/>
         <Documentation/>
         <Notifications/>
       </div>
@@ -168,14 +183,20 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useRegistrationStore} from '@/stores/registration'
+import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
+import {FREE_LIBRARY_CAP} from '@/utils/freeLibraryCap'
 import {useI18n} from 'vue-i18n'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
+import {isFoldersRoute} from '@/composable/useBrowserLayout'
+import {useReviewModeLauncher} from '@/composable/useReviewModeLauncher'
 import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
 import {useAppPlatform} from '@/composable/useAppPlatform'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
 import {typedApi} from '@/services/typedApi'
+import {getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
 import {getTabUrl} from '@/services/routeService'
 import {reloadTabsCatalog} from '@/composable/appCatalogs'
+import {copyCurrentPageSettingsToTab} from '@/utils/tabPageSettings'
 import type { TabLike } from '@/types/common'
 
 /* Components */
@@ -188,6 +209,7 @@ const AppBarButton = defineAsyncComponent(() => import('@/components/app/appbar/
 const Tabs = defineAsyncComponent(() => import('@/components/app/appbar/Tabs.vue'))
 const GlobalSearch = defineAsyncComponent(() => import('@/components/app/appbar/GlobalSearch.vue'))
 const Documentation = defineAsyncComponent(() => import('@/components/app/appbar/Documentation.vue'))
+const MediaTrash = defineAsyncComponent(() => import('@/components/app/appbar/MediaTrash.vue'))
 const Notifications = defineAsyncComponent(() => import('@/components/app/appbar/Notifications.vue'))
 const DialogTabEditing = defineAsyncComponent(() => import('@/components/dialogs/DialogTabEditing.vue'))
 
@@ -197,6 +219,7 @@ const dialogsStore = useDialogsStore()
 const app = useAppStore()
 const registrationStore = useRegistrationStore()
 const pageCommands = useItemsPageCommands()
+const {openReviewMode} = useReviewModeLauncher()
 
 /* Router & i18n */
 const route = useRoute()
@@ -215,18 +238,64 @@ const itemsEditMetaRef = ref<{editMeta: () => void} | null>(null)
 /* Colors */
 const tabs = computed(() => app.tabs)
 const reg = computed(() => registrationStore.reg)
+const {
+  libraryCount,
+  grandfathered,
+  atCap,
+  refreshLibraryCount,
+  openPaywall,
+} = useFreeLibraryGate()
+
+const showFreeLibraryLock = computed(() => !reg.value && !grandfathered.value)
+
+const lockTooltip = computed(() => {
+  if (atCap.value) {
+    return t('registration.appbar_free_limit', {cap: FREE_LIBRARY_CAP})
+  }
+  return t('registration.appbar_free_slots', {
+    count: libraryCount.value,
+    cap: FREE_LIBRARY_CAP,
+  })
+})
 
 const showDarwinTrafficLightSpacer = computed(() => (
   isMac && isElectron && !isWinElectron && !fullscreen.value
 ))
 
 const isMediaOrTagPage = computed(() =>
-  itemsStore.type === 'media' || itemsStore.type === 'tag',
+  (itemsStore.type === 'media' || itemsStore.type === 'tag')
+  && !isFoldersRoute(route.path),
 )
 
 const isCardSelectPage = computed(() =>
-  itemsStore.type === 'mark' || itemsStore.type === 'playlist',
+  itemsStore.type === 'mark'
+  || itemsStore.type === 'playlist'
+  || isFoldersRoute(route.path),
 )
+
+const isTagsSurface = computed(() => {
+  const path = route.path
+  if (path === '/tags' || path.startsWith('/tags/')) return true
+  if (itemsStore.type === 'tag') return true
+  return false
+})
+
+/** Add-media control in the app bar on every library surface except tag pages. */
+const showAddMediaButton = computed(() => {
+  if (itemsStore.isSelect || isTagsSurface.value) return false
+  if (route.path.startsWith('/settings')) return false
+
+  return itemsStore.type === 'media'
+    || itemsStore.type === 'mark'
+    || itemsStore.type === 'playlist'
+    || isFoldersRoute(route.path)
+    || route.path === '/'
+    || route.path.startsWith('/media')
+    || route.path.startsWith('/meta')
+    || route.path.startsWith('/tag')
+    || route.path.startsWith('/markers')
+    || route.path.startsWith('/playlists')
+})
 
 function openAddPlaylist() {
   dialogsStore.openPlaylistAdd()
@@ -242,12 +311,60 @@ async function syncFullscreenState() {
   }
 }
 
-function openRandomItem() {
+const randomItemLoading = ref(false)
+
+async function openRandomItem() {
+  // If already loading, skip to avoid double-clicks.
+  if (randomItemLoading.value) return
+
+  randomItemLoading.value = true
+  try {
+    if (itemsStore.type === 'media') {
+      // Use the full filtered list when scoped (semantic / more-like-this).
+      if (itemsStore.listScopeIds?.length) {
+        const ids = itemsStore.listScopeIds
+        const rand = Math.floor(Math.random() * ids.length)
+        await pageCommands.openRandomItem(ids[rand])
+        return
+      }
+
+      // Fetch ALL filtered IDs so the random truly spans
+      // the entire filtered set, not just the loaded page.
+      const mediaTypeId = itemsStore.environment.media_type_id
+      const mediaType = app.mediaTypes?.find((item) => item.id === mediaTypeId)
+
+      const response = await typedApi.getMediaIds({
+        mediaTypeId,
+        filters: itemsStore.filters,
+        sortBy: itemsStore.sortBy,
+        direction: itemsStore.sortDir,
+        find_duplicates: itemsStore.find_duplicates,
+        duplicates_by: getDuplicatesGroupKey(mediaType, itemsStore.duplicates_by),
+      })
+
+      const ids = response.data.ids || []
+      if (ids.length > 0) {
+        const rand = Math.floor(Math.random() * ids.length)
+        await pageCommands.openRandomItem(ids[rand])
+        return
+      }
+    }
+  } catch {
+    // Fall through to frontend entities fallback on error.
+  } finally {
+    randomItemLoading.value = false
+  }
+
+  // Fallback for non-media pages (tags) or when the API returns empty.
   const ids = itemsStore.entities.map(i => i.id)
   if (ids.length > 0) {
     const rand = Math.floor(Math.random() * ids.length)
     pageCommands.openRandomItem(ids[rand])
   }
+}
+
+function openReviewFromMenu() {
+  void openReviewMode()
 }
 
 function editMetaFromMenu() {
@@ -267,6 +384,11 @@ async function createTab() {
       metaId: itemsStore.environment.meta_id,
     })
 
+    const tabId = Number((data as TabLike)?.id)
+    if (Number.isFinite(tabId) && tabId > 0) {
+      await copyCurrentPageSettingsToTab(tabId)
+    }
+
     const url = getTabUrl(data as TabLike)
     router.push(url)
     void reloadTabsCatalog()
@@ -275,10 +397,8 @@ async function createTab() {
   }
 }
 
-function register() {
-  if (!route.path.startsWith('/settings')) {
-    router.push("/settings/?tab=about")
-  }
+function openRegistrationPaywall() {
+  openPaywall()
 }
 
 const handleEnterFullScreen = () => {
@@ -294,6 +414,7 @@ let unsubscribeLeaveFullScreen: (() => void) | undefined
 
 onMounted(() => {
   void syncFullscreenState()
+  void refreshLibraryCount()
   unsubscribeEnterFullScreen = subscribeElectronIpc('enter-full-screen', handleEnterFullScreen)
   unsubscribeLeaveFullScreen = subscribeElectronIpc('leave-full-screen', handleLeaveFullScreen)
   window.addEventListener('focus', syncFullscreenState)

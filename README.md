@@ -1,18 +1,20 @@
 <p align="center">
-  <img src="public/icons/logo.png" alt="MediaChips" width="120" />
+  <img src="public/icons/logo.png" alt="MediaChips" width="96" />
 </p>
 
 <h1 align="center">MediaChips</h1>
 
 <p align="center">
-  <strong>Organize, tag, and browse your local media library with ease.</strong>
+  <strong>Custom metadata. Deep tags &amp; filters. Visual browsing.</strong><br />
+  Build the library interface that fits <em>your</em> collection.
 </p>
 
 <p align="center">
   <a href="https://mediachips.app">Website</a> ·
-  <a href="https://github.com/fupdec/mediaChips/releases">Downloads</a> ·
+  <a href="https://github.com/fupdec/mediaChips/releases/latest">Download</a> ·
   <a href="https://github.com/fupdec/mediaChips/issues">Issues</a> ·
-  <a href="https://github.com/fupdec/mediaChips/discussions">Discussions</a>
+  <a href="https://discord.gg/dEQPper2yu">Discord</a> ·
+  <a href="https://reddit.com/r/mediachips/">Reddit</a>
 </p>
 
 <p align="center">
@@ -21,92 +23,98 @@
   <a href="https://mediachips.app"><img src="https://img.shields.io/badge/website-mediachips.app-2ea44f" alt="Website" /></a>
 </p>
 
----
+<p align="center">
+  <img src="docs/images/readme-hero.jpg" alt="MediaChips — tags sidebar, media grid, and inspector with custom metadata" width="920" />
+</p>
 
-MediaChips is open-source software for organizing, tagging, filtering, and playing local video files.  
-Attach rich metadata — tags, ratings, favorites, bookmarks, text, dates, numbers, and more — then browse your library as visual cards, filter it in detail, and play files in the built-in or system player.
+MediaChips is an open-source desktop app for local **videos, images, audio, and text**.  
+You shape the library: define **chips** (custom metadata), keep rich **tags**, filter by anything, and browse with **previews and view modes** that make the collection readable — not just a folder tree.
 
-> **Privacy first.** MediaChips does not collect your data or send it anywhere. The app is fully transparent — inspect the code, extend it, or self-host it on your network.
-
----
-
-## Vue 3 rewrite (v0.13.0+)
-
-Starting with **v0.13.0**, the `master` branch is a full rewrite:
-
-| | **Current (`master`)** | **Legacy (`legacy/vue2`)** |
-|---|---|---|
-| Stack | Vue 3 · Vite · Vuetify 3 · Express · Electron | Vue 2 · Webpack · Vuetify 2 |
-| Last release | [v1.0.0](https://github.com/fupdec/mediaChips/releases/tag/v1.0.0) | [v0.12.5-beta](https://github.com/fupdec/mediaChips/releases/tag/v0.12.5-beta) |
-| Status | Active development | Maintenance / reference only |
-
-To work with the old codebase:
-
-```bash
-git checkout legacy/vue2
-```
-
-Older releases and tags remain available in [Releases](https://github.com/fupdec/mediaChips/releases).
+> **Private. Local. Yours.** Nothing is uploaded to the cloud. Inspect the code, extend it with plugins, or self-host on your LAN / NAS.
 
 ---
 
-## Features
+## Why MediaChips?
 
-### Media + Chips
-
-**Chips** (metadata) are pieces of information attached to your files: tags, ratings, favorites, bookmarks, text, dates, numbers, and custom types you define.  
-Each chip can be customized — add images, colors, countries, nested chips, and more.
-
-### Browse
-
-- Video cards with metadata, hover preview, and inline playback
-- Built-in player with timeline markers, playlist, and storyboard view
-- Customizable appearance: colors, card layout, chip styles, dark mode
-- Tabs for videos and tags, multiple databases
-
-### Filter & Sort
-
-- Filter by any parameter or tag
-- Save and load filter presets
-- Quick filters, favorites, and global search
-- Sort by rating, date, and other fields
-
-### Share on your LAN
-
-Open your library in a browser on any device on the local network — phone, tablet, TV, or another computer.  
-Desktop builds are available for **macOS**, **Windows**, and **Linux**.
-
-### Tools
-
-- Watched folders for new and removed files
-- File operations: move, delete, open containing folder
-- Password protection
-- Duplicate detection by hybrid fingerprint (and related health alerts)
-- Plugins (optional Adult pack with performer/scene scrapers)
-- Path-based tag suggestions (optional ML model)
+- **Custom chips** — ratings, favorites, dates, numbers, nested fields, or whatever schema your collection needs
+- **Detailed tags** — images, synonyms, categories, hierarchy, and full tag pages
+- **Deep filters** — any field or tag combination; save presets and refine until it fits
+- **Visual previews** — storyboards, hover / timeline scrub, inline playback, big preview
+- **View modes** — browser layout (sidebar + grid + inspector), media / tags / folders, cards you can tune
+- **Stays usable at scale** — the same workflow on small libraries and on hundreds of thousands of files
+- **Windows · macOS · Linux · Docker / NAS**
 
 ---
 
 ## Download
 
-Pre-built installers are published on GitHub:
+**[⬇ Download the latest release](https://github.com/fupdec/mediaChips/releases/latest)**
 
-**[⬇ Download latest release](https://github.com/fupdec/mediaChips/releases/latest)**
-
-For macOS installation notes (Gatekeeper / quarantine), see [INSTALLATION.md](./INSTALLATION.md).
+macOS Gatekeeper / quarantine notes: [INSTALLATION.md](./INSTALLATION.md).
 
 ### Docker / Synology / NAS
-
-Self-host with Docker (multi-arch image for DSM and similar NAS systems):
 
 ```bash
 cp .env.docker.example .env   # optional
 docker compose up -d
-# pulls vinsdoe/mediachips:latest — open http://localhost:12321
+# vinsdoe/mediachips:latest — open http://localhost:12321
 # or: docker pull ghcr.io/fupdec/mediachips:latest
 ```
 
-See **[DOCKER.md](./DOCKER.md)** for Synology DSM volumes, `PUID`/`PGID`, LAN share URL, and how to add media via `/media/...` mounts.
+Full NAS setup (volumes, `PUID`/`PGID`, mounts): **[DOCKER.md](./DOCKER.md)**.
+
+---
+
+## Coming from Stash?
+
+Install the **Stash import** plugin and import from your `stash-go.sqlite` database.
+
+MediaChips can import **scenes, performers, studios, tags, and markers** (matched by path / oshash). Galleries, performer images, and some Stash-only structures are not a full 1:1 migrate — then keep organizing with your own chips, filters, and views.
+
+More: [mediachips.app](https://mediachips.app) · plugin docs in `plugins/official/stash/`.
+
+---
+
+## Features
+
+### Chips & tags
+
+- Built-in and custom chip types (tags, ratings, favorites, bookmarks, text, dates, numbers, colors, …)
+- Rich tag profiles — images, countries, nested chips, synonyms
+- Chip recipes — installable metadata presets for common setups
+- Tag hierarchy, categories, merge tools, virtual folder tags
+
+### Filters & search
+
+- Filter by any parameter or tag (including nested fields); exact / negative conditions
+- Saved filter presets; sort and group-by controls
+- Global search (`/`) across names and tags
+- Optional CLIP Find scene and on-device face tools
+
+### Browse & preview
+
+- Eagle-style browser: tags sidebar, inspector, docked filters
+- Hover preview, 3×3 storyboard grids, timeline scrub, inline play
+- Media, tags, and folders views; customizable cards and layouts
+- Built-in player with timeline markers, chapters, and playlists
+
+### Library tools
+
+- Path tags & regex extraction, watched folders, bulk edit
+- Duplicate finder (hybrid fingerprint + visual grid)
+- Multiple databases, backup & restore, LAN / mobile browser access
+- Plugins (Stash, Jellyfin, Plex, Emby, TMDB, Adult scrapers, …)
+
+---
+
+## Community
+
+- [Discord](https://discord.gg/dEQPper2yu)
+- [Reddit r/mediachips](https://reddit.com/r/mediachips/)
+- [Discussions](https://github.com/fupdec/mediaChips/discussions)
+- [Issues](https://github.com/fupdec/mediaChips/issues)
+
+Chip recipes (metadata schemas): see [`chip-recipes/`](./chip-recipes/).
 
 ---
 
@@ -118,7 +126,7 @@ See **[DOCKER.md](./DOCKER.md)** for Synology DSM volumes, `PUID`/`PGID`, LAN sh
 - **npm** 9+
 - Platform build tools for native modules (`better-sqlite3`, `ffmpeg-static`)
 
-### Install dependencies
+### Install
 
 ```bash
 git clone https://github.com/fupdec/mediaChips.git
@@ -126,25 +134,17 @@ cd mediaChips
 npm install
 ```
 
-The ML path tag parser model is downloaded when building distribution packages. Face detection (SCRFD ~16 MB) and recognition (InsightFace R50 ~170 MB) are **not** bundled — users download them once from Face settings (or they download automatically on first detect/enroll/match). For local development, run `node scripts/compile.mjs scripts && node .scripts-build/download-parser-model.js` if you use path-based tag suggestions.
+The ML path tag parser model is downloaded when building distribution packages. Face detection (SCRFD ~16 MB) and recognition (InsightFace R50 ~170 MB) are **not** bundled — users download them once from Face settings (or automatically on first detect/enroll/match). For local development, run `node scripts/compile.mjs scripts && node .scripts-build/download-parser-model.js` if you use path-based tag suggestions.
 
-### Production
-
-1. Build the frontend into `/dist`:
+### Production (server + browser)
 
 ```bash
 npm run build
-```
-
-2. Start the server (creates config and database on first run):
-
-```bash
 npm run server
+# open http://localhost:12321
 ```
 
-3. Open **http://localhost:12321** in your browser.
-
-To expose the server on your LAN:
+LAN:
 
 ```bash
 npm run server:lan
@@ -152,35 +152,15 @@ npm run server:lan
 
 ### Development
 
-1. Build the frontend once:
-
 ```bash
 npm run build
+npm run server:dev   # terminal 1 — API (nodemon)
+npm run dev          # terminal 2 — Vite on http://localhost:3000
 ```
 
-2. Start the backend (creates `public/config.json` on first run):
+Copy or edit `public/config.json` after first server start if you need a LAN IP.
 
-```bash
-npm run server
-```
-
-3. Copy or edit `public/config.json` if needed (set `ip` to your machine's local address for LAN testing).
-
-4. Run the backend with auto-restart:
-
-```bash
-npm run server:dev
-```
-
-5. In a second terminal, run the Vite dev server for hot reload:
-
-```bash
-npm run dev
-```
-
-6. Open **http://localhost:3000** (frontend) — API requests go to the backend port from `config.json` (default **12321**).
-
-### Desktop app (Electron)
+### Desktop (Electron)
 
 ```bash
 npm run build
@@ -191,48 +171,25 @@ npm run electron
 
 | Command | Description |
 |---------|-------------|
-| `npm run pack` | Build unpacked app (`release/`) |
-| `npm run dist` | Build installers for the current platform |
-| `npm run dist -- --mac` / `--win` / `--linux` | Build installers for a specific platform |
+| `npm run pack` | Unpacked app (`release/`) |
+| `npm run dist` | Installers for the current platform |
+| `npm run dist -- --mac` / `--win` / `--linux` | Installers for one platform |
 | `npm run portable` | Windows portable build |
-
-Build artifacts are written to the `release/` directory.
 
 ### Publishing a release (maintainers)
 
 Desktop auto-update reads installers from [GitHub Releases](https://github.com/fupdec/MediaChips/releases).
 
-1. Bump `version` in `package.json` (semver, e.g. `0.13.1`).
-2. Move the `[Unreleased]` section in `CHANGELOG.md` to `[X.Y.Z] - YYYY-MM-DD`.
-3. Commit the change on `main`.
-4. Create and push a matching tag (tag must equal version with a `v` prefix):
+1. Bump `version` in `package.json`.
+2. Move `[Unreleased]` in `CHANGELOG.md` to `[X.Y.Z] - YYYY-MM-DD`.
+3. Commit, then tag and push (`vX.Y.Z` must match `package.json`):
 
 ```bash
 git tag v0.13.1
 git push origin v0.13.1
 ```
 
-5. The [Release workflow](.github/workflows/release.yml) builds **Windows (NSIS + portable)**, **macOS (arm64 + x64 DMG/ZIP)**, and **Linux (AppImage)** in parallel and uploads them to the GitHub Release together with `latest.yml` / `latest-mac.yml` / `latest-linux.yml` required by `electron-updater`. Release notes are taken from the matching `CHANGELOG.md` section.
-
-Expected asset names (legacy style):
-
-| Platform | File |
-|----------|------|
-| Windows (installer) | `MediaChips.vX.Y.Z.Windows.Installer.exe` |
-| Windows (portable) | `MediaChips.vX.Y.Z.Windows.Portable.exe` |
-| macOS (install) | `MediaChips.vX.Y.Z.Mac.arm64.dmg`, `MediaChips.vX.Y.Z.Mac.x64.dmg` |
-| macOS (auto-update) | `MediaChips.vX.Y.Z.Mac.arm64.zip`, `MediaChips.vX.Y.Z.Mac.x64.zip` |
-| Linux | `MediaChips.vX.Y.Z.Linux.AppImage` |
-6. Installed desktop apps with **Settings → About → Check for updates at startup** will detect the new version automatically.
-
-No extra GitHub secrets are required: the workflow uses the built-in `GITHUB_TOKEN` with `contents: write`.
-
-**Notes**
-
-- Tag `vX.Y.Z` must match `package.json` `version` exactly.
-- Portable Windows builds are published on each release but are not auto-updated in-app; users must download manually.
-- macOS builds are **ad-hoc signed** by default (`identity: "-"`). Users still confirm the first launch via right-click → Open (see [INSTALLATION.md](./INSTALLATION.md)).
-- For Developer ID + notarized macOS builds locally or in CI: set `MEDIA_CHIPS_MAC_SIGN=1` plus cert/notarize vars from [`build/mac-signing.env.example`](./build/mac-signing.env.example), then `npm run dist -- --mac`.
+4. The [Release workflow](.github/workflows/release.yml) builds Windows / macOS / Linux assets and updater manifests. Notes: tag must match version; portable Windows is not auto-updated; macOS community builds are ad-hoc signed ([INSTALLATION.md](./INSTALLATION.md)); Developer ID + notarize via [`build/mac-signing.env.example`](./build/mac-signing.env.example).
 
 ---
 
@@ -240,31 +197,37 @@ No extra GitHub secrets are required: the workflow uses the built-in `GITHUB_TOK
 
 | Script | Description |
 |--------|-------------|
-| `dev` | Vite dev server with hot reload |
-| `build` | Compile frontend to `dist/` |
-| `server` | Start Express backend |
-| `server:lan` | Start backend on `0.0.0.0` for LAN access |
-| `server:dev` | Start backend with nodemon (auto-restart on TS changes) |
-| `electron` | Run the Electron desktop shell (Vite + hot reload) |
-| `pack` | Electron-builder — unpacked output |
-| `dist` | Electron-builder — installers for the current platform (prunes foreign native binaries before pack) |
-| `npm run dist -- --mac` / `--win` / `--linux` | Electron-builder — installers for one platform |
-| `portable` | Electron-builder — Windows portable |
+| `dev` | Vite hot reload |
+| `build` | Frontend → `dist/` |
+| `server` / `server:lan` / `server:dev` | Express backend |
+| `electron` | Desktop shell |
+| `pack` / `dist` / `portable` | Electron-builder packages |
 
 ---
 
 ## Project structure
 
 ```
-api/            Database models, migrations, controllers, routes
-app/            Express server, tasks, default settings
-databases/      Created at runtime — SQLite DBs and generated images
-dist/           Production frontend build (generated)
-electron/       Electron preload scripts
-public/         Static assets, dev config (`config.json`)
-src/            Vue 3 frontend source
-models/         ML model files (path tag parser, face detection/recognition)
-scripts/        Build and utility scripts
+api/            Database, migrations, controllers, routes
+app/            Express server, tasks, defaults
+databases/      Runtime SQLite DBs and generated images
+dist/           Production frontend build
+electron/       Electron preload
+public/         Static assets, dev config
+src/            Vue 3 frontend
+models/         Optional ML models
+scripts/        Build utilities
+packages/       Official plugins (stash, jellyfin, …)
+```
+
+---
+
+## Legacy Vue 2 branch
+
+`master` is the Vue 3 rewrite (v0.13.0+). The old stack lives on `legacy/vue2` for reference only:
+
+```bash
+git checkout legacy/vue2
 ```
 
 ---
@@ -273,41 +236,32 @@ scripts/        Build and utility scripts
 
 ### `better-sqlite3` and Electron
 
-You need **better-sqlite3 12.4.2+** — on 11.x, builds against modern Electron fail (`Context::GetIsolate` was removed from V8).
-
-The module is native and builds for **one** runtime at a time:
+Need **better-sqlite3 12.4.2+**. The native module builds for one runtime at a time:
 
 | Task | What happens |
 |------|----------------|
-| `npm run server` / `server:dev` | `better-sqlite3` is rebuilt for Node during `postinstall` and before start |
-| `npm run electron` | `better-sqlite3` is rebuilt for Electron via `scripts/ensure-electron-native.mjs` |
+| `npm run server` / `server:dev` | Rebuilt for Node on `postinstall` / start |
+| `npm run electron` | Rebuilt for Electron via `scripts/ensure-electron-native.mjs` |
 
-If you see a `NODE_MODULE_VERSION` mismatch after `npm install`, run `npm rebuild better-sqlite3` or `node scripts/ensure-electron-native.mjs --force`.
+On `NODE_MODULE_VERSION` mismatch: `npm rebuild better-sqlite3` or `node scripts/ensure-electron-native.mjs --force`.
 
-On macOS 15+ (especially macOS 26), Electron may crash with `CODESIGNING / Invalid Page` when loading `better-sqlite3`: `electron-rebuild` leaves a `linker-signed` binary that AMFI rejects. After the rebuild, `scripts/ensure-electron-native.mjs` automatically re-signs `.node` files ad-hoc (`codesign --sign -`). If you ran `electron-rebuild` manually, run `node scripts/sign-native-modules.mjs`.
-
-`electron-builder` rebuilds native modules itself during `pack`/`dist`; a separate `electron-rebuild` step is not needed in CI.
+On macOS 15+ (esp. 26), AMFI may reject `linker-signed` natives — `ensure-electron-native.mjs` re-signs ad-hoc; or run `node scripts/sign-native-modules.mjs`.
 
 ### Electron and the `databases` folder
 
-Electron 32+ may remove the `databases` directory in certain build configurations.  
-Keep backups of your databases before packaging, or store them outside the app bundle.
+Keep backups before packaging, or store DBs outside the app bundle.
 
 ### macOS code signing
 
-Community macOS builds use **ad-hoc signing** so Apple Silicon does not show the unfixable "app is damaged" dialog. Users still need one right-click → **Open** on first launch. See [INSTALLATION.md](./INSTALLATION.md).
+Community builds use **ad-hoc signing**. First launch: right-click → **Open**. See [INSTALLATION.md](./INSTALLATION.md).
 
 ---
 
 ## Contributing
 
-Found a bug or want a new feature?
-
 1. Check [existing issues](https://github.com/fupdec/mediaChips/issues)
-2. Open a new issue with steps to reproduce or a clear feature description
+2. Open a new issue with repro steps or a clear feature request
 3. Pull requests are welcome
-
-Community: [Discord](https://discord.gg/dEQPper2yu) · [Reddit](https://reddit.com/r/mediachips/)
 
 ---
 

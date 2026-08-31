@@ -10,6 +10,7 @@ import {typedApi} from '@/services/typedApi'
 import {getReadableFileSize} from '@/services/formatUtils'
 import {setNotification} from '@/services/notificationService'
 import {computed, onMounted, ref} from 'vue'
+import {setOption} from '@/services/settingsService'
 
 const SETTINGS = useSettingsStore()
 const appStore = useAppStore()
@@ -95,6 +96,37 @@ onMounted(loadCacheStats)
       :title="$t('settings_labels.video_player.transcode_unsupported')"
       :hint="$t('settings_labels.video_player.transcode_unsupported_hint')"
       :disabled="SETTINGS.isPlayVideoInSystemPlayer === '1'"
+    />
+
+    <v-select
+      :model-value="SETTINGS.conversionQuality"
+      :items="[
+        {title: 'Economy — smaller file', value: 'economy'},
+        {title: 'Balanced — recommended', value: 'balanced'},
+        {title: 'High quality — larger file', value: 'quality'},
+      ]"
+      label="Conversion quality"
+      hint="Controls the size and visual quality of permanent conversions."
+      persistent-hint
+      density="comfortable"
+      class="mt-4"
+      @update:model-value="(value) => setOption(String(value), 'conversionQuality')"
+    />
+
+    <v-select
+      :model-value="SETTINGS.conversionResolution"
+      :items="[
+        {title: 'Original', value: 'original'},
+        {title: '4K maximum', value: '2160'},
+        {title: '1080p maximum', value: '1080'},
+        {title: '720p maximum', value: '720'},
+        {title: '480p maximum', value: '480'},
+      ]"
+      label="Maximum conversion resolution"
+      hint="A smaller source is never enlarged."
+      persistent-hint
+      density="comfortable"
+      @update:model-value="(value) => setOption(String(value), 'conversionResolution')"
     />
 
     <div class="transcode-cache-actions mt-2 mb-4">

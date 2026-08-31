@@ -42,6 +42,7 @@ import {
   buildBulkPathUpdatePatch,
   normalizeBulkPathUpdateInputs,
 } from '../../services/mediaBulkPathUpdate'
+import { runMediaBulkLiteImport } from '../../services/mediaBulkLiteImport'
 import { ffprobe, resolveFfprobeDuration } from '../../utils/ffmpeg'
 import { isUsableDuration } from '../../utils/ffprobeMath'
 import { probeVideoMetadata } from '../../services/videoMetadataProbe'
@@ -392,6 +393,35 @@ export default function createTasksMediaController(shared: TaskControllerShared)
   const addMediaAudio = addMedia
   const addMediaText = addMedia
 
+  const addMediaBulk = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const mediaType = req.body.type
+      const files = Array.isArray(req.body.files) ? req.body.files.map(String) : undefined
+      const roots = Array.isArray(req.body.roots) ? req.body.roots.map(String) : undefined
+      const excluded = Array.isArray(req.body.excluded) ? req.body.excluded.map(String) : undefined
+      const expandZips = Boolean(req.body.expandZips)
+
+      if ((!files || !files.length) && (!roots || !roots.length)) {
+        throw new HttpError(400, 'Provide files and/or roots')
+      }
+
+      const result = await runMediaBulkLiteImport(db.drizzle, {
+        mediaType: mediaType && typeof mediaType === 'object'
+          ? mediaType as {id?: unknown; type?: unknown; extensions?: unknown}
+          : {id: mediaType},
+        files,
+        roots,
+        excluded,
+        expandZips,
+      })
+
+      sendOk(res, result)
+    } catch (error) {
+      console.error('addMediaBulk failed:', error)
+      sendAsClientError(res, error, 'Some error occurred while bulk adding media.')
+    }
+  }
+
   const updateMediaInfo = async (req: ApiRequest, res: ApiResponse) => {
     const media_id = req.body.id
 
@@ -399,6 +429,14 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       const media = mediaRepo.findById(Number(media_id))
 
       if (media) {
+        const mediaPath = String(media.path || '')
+        // Inspector (and other callers) re-probe on every open — skip quietly when
+        // the file is missing so we do not spam ffprobe / fail on statSync.
+        if (!mediaPath || !(await fileExists(mediaPath))) {
+          sendOk(res, 'success')
+          return
+        }
+
         const mediaType = media.mediaTypeId
           ? mediaTypesRepo.findById(media.mediaTypeId)
           : undefined
@@ -406,12 +444,14 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         await mediaPostProcess.refreshMediaInfo(media, mediaType)
 
         const {isVirtualZipPath, getZipEntryInfo} = await import('../../services/zipGallery')
-        if (!isVirtualZipPath(String(media.path || ''))) {
-          const stats = fs.statSync(String(media.path))
-          const filesize = stats.size
-          mediaRepo.updateById(Number(media_id), {filesize})
+        if (!isVirtualZipPath(mediaPath)) {
+          const resolved = await resolveExistingPath(mediaPath)
+          if (resolved) {
+            const stats = fs.statSync(resolved)
+            mediaRepo.updateById(Number(media_id), {filesize: stats.size})
+          }
         } else {
-          const entryInfo = await getZipEntryInfo(String(media.path))
+          const entryInfo = await getZipEntryInfo(mediaPath)
           if (entryInfo?.filesize != null) {
             mediaRepo.updateById(Number(media_id), {filesize: entryInfo.filesize})
           }
@@ -525,6 +565,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     addMediaAudio,
     addMediaText,
     addMedia,
+    addMediaBulk,
     updateMediaInfo,
     ensureImageDimensions,
     searchMediaByPath,

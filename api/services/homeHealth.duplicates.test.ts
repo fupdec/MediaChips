@@ -2,32 +2,16 @@
  * @vitest-environment node
  */
 import {afterEach, describe, expect, it} from 'vitest'
-import Database from 'better-sqlite3'
-import {drizzle} from 'drizzle-orm/better-sqlite3'
-import {applySqlitePragmas} from '../db/pragmas'
+import {createTestDb as createSharedTestDb, closeTestDb} from '../db/testUtils/createTestDb'
 import type {ApiDb} from '../types/db'
 import {getDuplicateCounts} from './homeHealth'
 
-function createTestDb(): ApiDb {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
-  sqlite.exec(`
-    CREATE TABLE media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      path TEXT NOT NULL UNIQUE,
-      filesize INTEGER NOT NULL DEFAULT 0,
-      oshash TEXT,
-      visualHash TEXT,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-  `)
+let lastDbPath: string | undefined
 
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite),
-    path: ':memory:',
-  } as ApiDb
+function createTestDb(): ApiDb {
+  const {sqlite, drizzle, dbPath} = createSharedTestDb('home-health-duplicates')
+  lastDbPath = dbPath
+  return {sqlite, drizzle, path: dbPath} as ApiDb
 }
 
 function insertMedia(
@@ -59,7 +43,7 @@ describe('getDuplicateCounts', () => {
   let db: ApiDb
 
   afterEach(() => {
-    db?.sqlite?.close()
+    if (db?.sqlite && lastDbPath) closeTestDb({sqlite: db.sqlite, dbPath: lastDbPath})
   })
 
   it('counts exact visualHash duplicates without near-dup clustering', async () => {

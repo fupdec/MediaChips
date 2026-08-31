@@ -5,6 +5,7 @@
 @use "./sfw.scss";
 @use "./meta-assignment.scss";
 @use "./item.scss";
+@use "./control-deck.scss";
 @use "./screen.scss";
 
 html {
@@ -109,6 +110,22 @@ header {
   color: rgb(var(--v-theme-surface));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   max-width: min(240px, 70vw);
+
+  /* Slightly smaller than default VHotkey so chips match compact tooltip text. */
+  .v-hotkey {
+    gap: 2px;
+    line-height: 1.2;
+  }
+
+  .v-hotkey .v-kbd,
+  .v-hotkey .v-hotkey__key,
+  .v-hotkey .v-hotkey__contained-wrapper {
+    font-size: 0.5625rem;
+    line-height: 1.15;
+    padding: 0.08rem 0.22rem;
+    min-height: unset;
+    min-width: 1.15em;
+  }
 }
 
 //.v-main__wrap {
@@ -366,6 +383,109 @@ header {
   }
 }
 
+.v-chip.editing-tag-chip,
+.v-chip.country-field-chip {
+  --v-chip-height: 19px;
+  height: 19px !important;
+  font-size: 0.7rem !important;
+  padding-inline: 6px !important;
+  margin: 1px 2px 1px 0 !important;
+
+  .v-icon {
+    font-size: 10px !important;
+    width: 10px !important;
+    height: 10px !important;
+  }
+
+  .v-chip__close {
+    font-size: 10px !important;
+    margin-inline-end: 0 !important;
+  }
+
+  .lang-flag {
+    transform: scale(0.43);
+    transform-origin: center center;
+  }
+}
+
+.v-autocomplete .v-field__input:has(.editing-tag-chip),
+.v-autocomplete .v-field__input:has(.country-field-chip) {
+  row-gap: 1px !important;
+  column-gap: 2px !important;
+  padding-block: 2px !important;
+}
+
+/* Shared compact scale for tag/country autocomplete menus (teleported overlays). */
+.v-overlay__content.ac-dropdown {
+  font-size: 14px;
+
+  .v-list {
+    padding: 3px 0 !important;
+  }
+
+  .v-list-item {
+    min-height: 28px !important;
+    padding-block: 0 !important;
+    padding-inline: 8px !important;
+    align-items: center;
+    font-size: 14px !important;
+  }
+
+  .v-list-item-title,
+  .v-list-item-title * {
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  .list-item {
+    padding: 1px 8px !important;
+    min-height: 28px;
+  }
+
+  .synonyms {
+    margin-left: 8px !important;
+    max-width: 196px;
+    font-size: 11px !important;
+    font-weight: 400;
+  }
+
+  .v-icon {
+    font-size: 14px !important;
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .mixed-tags__category {
+    margin: 3px 6px !important;
+    padding: 3px 8px !important;
+    gap: 6px !important;
+  }
+
+  .mixed-tags__category-title {
+    font-size: 11px !important;
+  }
+}
+
+.mixed-tags-dropdown .synonyms {
+  color: rgba(var(--v-theme-on-surface), 0.55);
+}
+
+.country-dropdown {
+  .v-list-item-title {
+    font-weight: 400;
+  }
+
+  .lang-flag {
+    transform: scale(0.63);
+    transform-origin: center center;
+    box-shadow: none;
+    display: block;
+    line-height: 0;
+  }
+}
+
 .filters-add-menu {
   .filters-add-menu__category {
     display: flex;
@@ -542,6 +662,14 @@ header {
     display: block;
     border-radius: 6px;
     background-color: rgba(var(--v-theme-surface-variant), 0.35);
+
+    &--tag {
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      max-height: none;
+      object-fit: cover;
+    }
   }
 
   &__placeholder {
@@ -991,6 +1119,7 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: var(--floating-bottom-dock-reserve, 0px);
   .v-pagination {
     width: auto;
   }

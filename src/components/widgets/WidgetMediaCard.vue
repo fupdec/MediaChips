@@ -4,11 +4,14 @@
     :class="{
       'home-media-card--big-preview': bigPreview,
       'home-media-card--seed': Boolean(badge),
+      'home-media-card--fluid': fluid,
+      'home-media-card--compact': compact,
     }"
     rounded="lg"
     variant="outlined"
     flat
     @click="handleCardClick"
+    @contextmenu="showItemContextMenu"
   >
     <div
       class="home-media-card__preview"
@@ -26,14 +29,11 @@
 
       <template v-else>
         <v-img
-          v-if="thumb"
-          :src="thumb"
+          :src="displayThumb"
           cover
           class="home-media-card__thumb"
+          @error="onThumbError"
         />
-        <div v-else class="home-media-card__placeholder">
-          <v-icon size="36" color="grey-darken-1">{{ placeholderIcon }}</v-icon>
-        </div>
       </template>
 
       <v-chip
@@ -44,6 +44,24 @@
         variant="flat"
       >
         {{ badge }}
+      </v-chip>
+
+      <v-chip
+        v-else-if="similarMatchKinds.length"
+        v-tooltip:top="similarMatchTooltip"
+        class="home-media-card__badge home-media-card__match-badge"
+        color="primary"
+        size="x-small"
+        variant="flat"
+        :aria-label="similarMatchTooltip"
+      >
+        <v-icon
+          v-for="kind in similarMatchKinds"
+          :key="kind"
+          size="14"
+        >
+          {{ SIMILAR_MATCH_ICONS[kind] }}
+        </v-icon>
       </v-chip>
 
       <v-chip
@@ -91,11 +109,15 @@
       class="home-media-card__body"
       @click="handleBodyClick"
     >
-      <div class="text-caption text-truncate" :title="item.name">
-        {{ item.name }}
+      <div
+        class="home-media-card__title"
+        :class="{ 'text-caption text-truncate': !compact }"
+        :title="displayTitle"
+      >
+        {{ displayTitle }}
       </div>
       <div
-        v-if="metaLine"
+        v-if="metaLine && !compact"
         class="home-media-card__meta text-caption text-medium-emphasis"
         :title="metaLine.title"
       >
@@ -127,8 +149,16 @@ import 'dayjs/locale/ru'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
-import {findMediaTypeById, isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType} from '@/utils/mediaType'
+import {findMediaTypeById, isVideoMediaType} from '@/utils/mediaType'
+import {IMAGE_UNAVAILABLE_URL} from '@/utils/imageSource'
+import {isThumbUnavailable} from '@/utils/thumbSource'
 import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
+import {openItemContextMenu} from '@/composable/openItemContextMenu'
+import {
+  SIMILAR_MATCH_ICONS,
+  listSimilarMatchKinds,
+  similarMatchTooltipKey,
+} from '@/utils/similarMatchBadge'
 import type { HomeMediaCardVariant, HomeMediaItem } from '@/types/widgets'
 
 const props = withDefaults(defineProps<{
@@ -137,10 +167,19 @@ const props = withDefaults(defineProps<{
   variant?: HomeMediaCardVariant
   /** Optional overlay badge (e.g. seed / original). */
   badge?: string | null
+  /** Fill the parent cell instead of the home-row 148px width. */
+  fluid?: boolean
+  /** Tighter caption — filename only, less padding. */
+  compact?: boolean
+  /** Override the caption (e.g. filesystem basename). */
+  title?: string | null
 }>(), {
   thumb: null,
   variant: 'views',
   badge: null,
+  fluid: false,
+  compact: false,
+  title: null,
 })
 
 const emit = defineEmits<{
@@ -180,18 +219,37 @@ const mediaType = computed(() =>
 
 const isVideoMedia = computed(() => isVideoMediaType(mediaType.value))
 
+const displayTitle = computed(() =>
+  (props.title && String(props.title).trim()) || props.item.name || '',
+)
+
+const brokenThumb = ref(false)
+
+const displayThumb = computed(() => {
+  if (brokenThumb.value) return IMAGE_UNAVAILABLE_URL
+  if (isThumbUnavailable(props.thumb)) return IMAGE_UNAVAILABLE_URL
+  return props.thumb || IMAGE_UNAVAILABLE_URL
+})
+
+function onThumbError() {
+  brokenThumb.value = true
+}
+
+watch(() => props.thumb, () => {
+  brokenThumb.value = false
+})
+
+const similarMatchKinds = computed(() => listSimilarMatchKinds(props.item))
+
+const similarMatchTooltip = computed(() => {
+  const key = similarMatchTooltipKey(similarMatchKinds.value)
+  return key ? t(key) : ''
+})
+
 const continuePlayTime = computed(() => {
   if (props.variant !== 'continue') return undefined
   const time = Number(props.item.time || 0)
   return time > 0 ? time : undefined
-})
-
-const placeholderIcon = computed(() => {
-  if (isImageMediaType(mediaType.value)) return 'mdi-image'
-  if (isVideoMediaType(mediaType.value)) return 'mdi-movie-open'
-  if (isAudioMediaType(mediaType.value)) return 'mdi-music'
-  if (isTextMediaType(mediaType.value)) return 'mdi-file-document-outline'
-  return 'mdi-file'
 })
 
 const progress = computed(() => {
@@ -202,12 +260,23 @@ const progress = computed(() => {
 })
 
 const metaLine = computed(() => {
+  dayjs.locale(dayjsLocale.value)
+
+  const formatAdded = () => {
+    if (!props.item.createdAt) return null
+    const time = dayjs(props.item.createdAt).fromNow()
+    return {
+      icon: 'mdi-calendar-plus',
+      text: time,
+      title: t('home.widgets.added_ago', {time}),
+    }
+  }
+
   const hasContinueProgress = props.variant === 'continue' && Number(props.item.time || 0) > 0
   if (hasContinueProgress) {
     const percent = Math.round(progress.value)
     const percentText = t('home.widgets.continue_progress_short', {percent})
     if (props.item.viewedAt) {
-      dayjs.locale(dayjsLocale.value)
       const when = dayjs(props.item.viewedAt).fromNow()
       return {
         icon: 'mdi-eye',
@@ -222,12 +291,16 @@ const metaLine = computed(() => {
     }
   }
 
-  if (props.variant === 'inbox' && props.item.createdAt) {
-    return dayjs(props.item.createdAt).fromNow()
+  // Inbox / recent adds: date added is the useful signal.
+  if (props.variant === 'inbox') {
+    return formatAdded() || {
+      icon: 'mdi-inbox-arrow-down',
+      text: t('home.widgets.inbox'),
+      title: t('home.widgets.inbox'),
+    }
   }
 
   if (props.item.viewedAt) {
-    dayjs.locale(dayjsLocale.value)
     const time = dayjs(props.item.viewedAt).fromNow()
     return {
       icon: 'mdi-eye',
@@ -235,6 +308,10 @@ const metaLine = computed(() => {
       title: t('home.widgets.viewed_ago', {time}),
     }
   }
+
+  // Never viewed: show when it was added instead of an empty/useless line.
+  const added = formatAdded()
+  if (added) return added
 
   return {
     icon: 'mdi-eye-off-outline',
@@ -247,6 +324,10 @@ function handleCardClick() {
   if (!isVideoMedia.value) {
     emit('click')
   }
+}
+
+function showItemContextMenu(event: MouseEvent) {
+  openItemContextMenu(event, props.item, 'media', null, isFileExists.value)
 }
 
 function handleBodyClick() {
@@ -275,6 +356,60 @@ function handleBodyClick() {
     border-color: rgb(var(--v-theme-primary)) !important;
   }
 
+  &--fluid {
+    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &--compact {
+    border-radius: 8px !important;
+    background: rgb(var(--v-theme-surface)) !important;
+    border: 1px solid rgba(var(--v-theme-on-surface), 0.12) !important;
+    height: auto;
+    min-height: 0;
+    align-self: flex-start;
+    overflow: hidden;
+
+    .home-media-card__preview {
+      flex: 0 0 auto;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      height: auto;
+    }
+
+    .home-media-card__body {
+      box-sizing: border-box;
+      flex: 0 0 22px;
+      height: 22px;
+      min-height: 22px;
+      padding: 0 8px;
+      margin-top: 0;
+      justify-content: center;
+      align-items: center;
+      text-align: left;
+      background: rgb(var(--v-theme-surface));
+    }
+
+    .home-media-card__title {
+      width: 100%;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 16px;
+      letter-spacing: 0;
+      color: inherit;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .home-media-card__favorite {
+      top: 4px;
+      right: 4px;
+    }
+  }
+
   &--seed {
     border-color: rgba(var(--v-theme-primary), 0.55) !important;
   }
@@ -296,7 +431,8 @@ function handleBodyClick() {
     &.no-file {
       .home-media-card__thumb,
       :deep(.v-img__img),
-      :deep(.thumb .v-img__img) {
+      :deep(.thumb .v-img__img),
+      :deep(.thumb--grid-frame) {
         filter: saturate(0.1) opacity(50%);
       }
     }
@@ -324,6 +460,14 @@ function handleBodyClick() {
         object-fit: cover;
         border-radius: inherit;
       }
+
+      &.thumb--grid-frame {
+        .grid-sprite-frame {
+          width: 100%;
+          height: 100%;
+          border-radius: inherit;
+        }
+      }
     }
   }
 
@@ -338,19 +482,23 @@ function handleBodyClick() {
     }
   }
 
-  &__placeholder {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
   &__badge {
     position: absolute;
     right: 6px;
     bottom: 6px;
     z-index: 3;
+  }
+
+  &__match-badge {
+    min-width: 0;
+    padding-inline: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+
+    :deep(.v-chip__content) {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
   }
 
   &__seed-badge {

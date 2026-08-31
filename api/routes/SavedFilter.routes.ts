@@ -2,14 +2,22 @@ import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 import express from 'express'
 import createSavedFilterController from '../controllers/SavedFilter.controller'
-import { validateBody } from '../middleware/validateBody'
-import { SavedFilterWriteRequestSchema } from '../../shared/schemas/requests'
+import { validateBody, validateQuery } from '../middleware/validateBody'
+import {
+  MediaTrashIdsRequestSchema,
+  MediaTrashListQuerySchema,
+  SavedFilterWriteRequestSchema,
+} from '../../shared/schemas/requests'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
   const SavedFilter = createSavedFilterController(db)
   const router = express.Router()
 
   router.post('/', validateBody(SavedFilterWriteRequestSchema), SavedFilter.create)
+  router.get('/trash', validateQuery(MediaTrashListQuerySchema), SavedFilter.listTrash)
+  router.post('/trash/restore', validateBody(MediaTrashIdsRequestSchema), SavedFilter.restoreTrash)
+  router.post('/trash/purge', validateBody(MediaTrashIdsRequestSchema), SavedFilter.purgeTrash)
+  router.post('/trash/purgeExpired', SavedFilter.purgeExpiredTrash)
   router.get('/dynamicPlaylists/basic', SavedFilter.dynamicPlaylistsBasic)
   router.get('/dynamicPlaylists', SavedFilter.dynamicPlaylistsSummary)
   router.get('/:id/summary', SavedFilter.getPlaylistSummary)

@@ -15,6 +15,7 @@ import {
   makeXstackLayout,
   planGridTileTimestamps,
   gridTileSeekSeconds,
+  parseGridTileIndex,
 } from './videoPreview'
 
 describe('videoPreview', () => {
@@ -86,6 +87,14 @@ describe('videoPreview', () => {
     expect(gridTileSeekSeconds(100, 9)).toBeNull()
     // Mid-slice 8.5 floors to 8 — same as historical ISO HH:MM:SS -ss strings.
     expect(gridTileSeekSeconds(10, 8, 9)).toBe(8)
+
+    expect(parseGridTileIndex(0)).toBe(0)
+    expect(parseGridTileIndex(8)).toBe(8)
+    expect(parseGridTileIndex(9)).toBeNull()
+    expect(parseGridTileIndex(-1)).toBeNull()
+    expect(parseGridTileIndex('4')).toBe(4)
+    expect(parseGridTileIndex('')).toBeNull()
+    expect(parseGridTileIndex(null)).toBeNull()
 
     const combine = buildGridCombineInputs('/tmp/g', 2, 3, (dir, name) => `${dir}/${name}`)
     expect(combine).toEqual({

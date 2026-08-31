@@ -11,7 +11,9 @@ import type {
   VideoTimelineTaskPayload,
 } from '@shared/api/responses'
 import type {
+  ConversionJobResponse,
   AddMediaPayload,
+  AddMediaBulkPayload,
   BackupNamePayload,
   BulkMetaApplyPayload,
   ConfigUpdatePayload,
@@ -28,6 +30,13 @@ import type {
   TabUpdatePayload,
   UpdateMediaMultiplePayload,
   VideoPreviewTaskPayload,
+  ConvertVideosPayload,
+  TestVideoSegmentPayload,
+  TestVideoSegmentResponse,
+  TrimVideoPayload,
+  TrimVideoJobResponse,
+  TrimVideoDeleteOriginalPayload,
+  TrimVideoDeleteOriginalResponse,
 } from '@shared/api/payloads'
 import {
   parseAddMediaResponse,
@@ -50,6 +59,7 @@ import {
 } from '@shared/schemas'
 import {
   AddMediaRequestSchema,
+  AddMediaBulkRequestSchema,
   DatabaseSizesRequestSchema,
   DuplicateDbRequestSchema,
   CheckFilesPayloadSchema,
@@ -192,6 +202,66 @@ export const tasksApi = {
     return apiClient.post(API_ROUTES.taskOpenInExternalPlayer, body)
   },
 
+  convertVideos(body: ConvertVideosPayload) {
+    return apiClient.post<{data: ConversionJobResponse}>(API_ROUTES.taskConvertVideos, body).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  createTestVideoSegment(body: TestVideoSegmentPayload) {
+    return apiClient.post<{data: TestVideoSegmentResponse}>(API_ROUTES.taskCreateTestVideoSegment, body).then((res) => ({...res, data: res.data.data}))
+  },
+
+  trimVideo(body: TrimVideoPayload) {
+    return apiClient.post<{data: TrimVideoJobResponse}>(API_ROUTES.taskTrimVideo, body).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  getTrimJob(jobId: string) {
+    return apiClient.get<{data: TrimVideoJobResponse | null}>(`${API_ROUTES.taskTrim}/${encodeURIComponent(jobId)}`).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  cancelTrim(jobId: string) {
+    return apiClient.post<{data: {cancelled: boolean}}>(`${API_ROUTES.taskTrim}/${encodeURIComponent(jobId)}/cancel`).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  trimDeleteOriginal(body: TrimVideoDeleteOriginalPayload) {
+    return apiClient.post<{data: TrimVideoDeleteOriginalResponse}>(API_ROUTES.taskTrimVideoDeleteOriginal, body).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  getConversionJob(jobId: string) {
+    return apiClient.get<{data: ConversionJobResponse | null}>(`${API_ROUTES.taskConversion}/${encodeURIComponent(jobId)}`).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  cancelConversion(jobId: string) {
+    return apiClient.post<{data: {cancelled: boolean}}>(`${API_ROUTES.taskConversion}/${encodeURIComponent(jobId)}/cancel`).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
+  cancelAllConversions() {
+    return apiClient.post<{data: {cancelled: number}}>(`${API_ROUTES.taskConversion}/cancel-all`).then((res) => ({
+      ...res,
+      data: res.data.data,
+    }))
+  },
+
   updateConfig(data: ConfigUpdatePayload) {
     return apiClient.post(API_ROUTES.updateConfig, data)
   },
@@ -212,6 +282,21 @@ export const tasksApi = {
     return apiClient.post(API_ROUTES.taskAddMedia, payload).then((res) => ({
       ...res,
       data: validated(parseAddMediaResponse, res.data),
+    }))
+  },
+
+  addMediaBulk(body: AddMediaBulkPayload) {
+    const payload = validateRequest(AddMediaBulkRequestSchema, body)
+    return apiClient.post<{
+      scanned: number
+      inserted: number
+      skipped: number
+      errors: string[]
+      added: Array<{path: string; mediaId: number}>
+    }>(API_ROUTES.taskAddMediaBulk, payload, {timeout: 1_800_000}).then((res) => ({
+      ...res,
+      // sendOk writes the payload at the top level (not wrapped in `{data: ...}`).
+      data: res.data,
     }))
   },
 

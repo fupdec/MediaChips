@@ -117,6 +117,7 @@ import type {PropType} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
+import {usePlayerStore} from '@/stores/player'
 import {useContextMenu} from '@/stores/contextMenu'
 import {useI18n} from 'vue-i18n'
 import {useEventBus} from '@/utils/eventBus'
@@ -191,6 +192,7 @@ const emit = defineEmits<{
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
+const playerStore = usePlayerStore()
 const contextMenuStore = useContextMenu()
 const {t} = useI18n()
 const eventBus = useEventBus()
@@ -247,6 +249,8 @@ async function openMark() {
 
 async function editMark() {
   await openMark()
+  playerStore.studioMode = true
+  playerStore.marksVisible = true
   dialogsStore.openMarkEditing({
     id: markId.value,
     type: typeof props.mark.type === 'string' ? props.mark.type : null,
@@ -285,17 +289,20 @@ function deleteMark() {
   dialogsStore.confirm.checkBox = false
   dialogsStore.confirm.checkBox2 = false
   dialogsStore.confirm.checkBox2RequiresPrimary = false
-  dialogsStore.confirm.checkBoxText = ''
+  dialogsStore.confirm.checkBoxText = t('actions.delete_permanently')
   dialogsStore.confirm.checkBox2Text = ''
   dialogsStore.confirm.text = t('markers.delete_selected_confirm', {count: 1})
   dialogsStore.confirm.action = async () => {
+    const permanent = Boolean(dialogsStore.confirm.checkBox)
     try {
-      await typedApi.deleteMark(id)
+      await typedApi.deleteMark(id, {permanent})
       itemsStore.selection = itemsStore.selection.filter((entry) => Number(entry) !== id)
       eventBus.emit('markers:reload')
       setNotification({
         type: 'success',
-        title: t('markers.delete_selected_done', {count: 1}),
+        title: permanent
+          ? t('markers.delete_selected_done', {count: 1})
+          : t('notifications_text.items_moved_to_trash'),
       })
     } catch (error) {
       console.warn('Failed deleting mark', id, error)

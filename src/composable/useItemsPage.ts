@@ -290,6 +290,13 @@ export function useItemsPage({
       query.limit = pageLimit
       query.skipTotals = appendListPage
 
+      if (props.items_type === 'tag' && ITEMS.value.namePrefix) {
+        query.namePrefix = ITEMS.value.namePrefix
+      }
+      if (props.items_type === 'tag' && ITEMS.value.colorFilter) {
+        query.colorFilter = ITEMS.value.colorFilter
+      }
+
       const groupBy = ITEMS.value.groupBy
       if (groupBy && groupBy !== 'none') {
         query.groupBy = serializeGroupBySetting(

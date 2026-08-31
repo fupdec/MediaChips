@@ -41,6 +41,15 @@ function hasTable(sqlite: Database.Database, tableName: string): boolean {
   return Boolean(row)
 }
 
+function hasColumn(sqlite: Database.Database, tableName: string, columnName: string): boolean {
+  if (!hasTable(sqlite, tableName)) {
+    return false
+  }
+
+  const columns = sqlite.pragma(`table_info(${tableName})`) as Array<{name: string}>
+  return columns.some((column) => column.name === columnName)
+}
+
 function ensureDrizzleMigrationsTable(sqlite: Database.Database) {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS "__drizzle_migrations" (
@@ -63,6 +72,123 @@ function stampMigrationIfMissing(sqlite: Database.Database, entry: JournalEntry)
       'INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)',
     ).run(hash, entry.when)
   }
+}
+
+function addColumnCaptureRegex(): RegExp {
+  return /ALTER\s+TABLE\s+[`"]?(\w+)[`"]?\s+ADD(?:\s+COLUMN)?\s+[`"]?(\w+)[`"]?/gi
+}
+
+function addColumnStatementRegex(): RegExp {
+  return /ALTER\s+TABLE\s+[`"]?\w+[`"]?\s+ADD(?:\s+COLUMN)?\s+[^;]+;?/gi
+}
+
+function createIndexCaptureRegex(): RegExp {
+  return /CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?(\w+)[`"]?/gi
+}
+
+function createIndexStatementRegex(): RegExp {
+  return /CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?[^;]+;?/gi
+}
+
+function createTableCaptureRegex(): RegExp {
+  return /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?(\w+)[`"]?/gi
+}
+
+function createTableStatementRegex(): RegExp {
+  return /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[^;]+;?/gi
+}
+
+function hasIndex(sqlite: Database.Database, indexName: string): boolean {
+  const row = sqlite.prepare(
+    `SELECT name FROM sqlite_master WHERE type = 'index' AND name = ? LIMIT 1`,
+  ).get(indexName) as {name: string} | undefined
+
+  return Boolean(row)
+}
+
+function isMigrationSatisfied(sqlite: Database.Database, sql: string): boolean {
+  const withoutBreakpoints = sql.replace(/-->\s*statement-breakpoint/g, '')
+
+  const columnMatches = [...sql.matchAll(addColumnCaptureRegex())]
+  if (columnMatches.length > 0) {
+    const withoutAddColumns = withoutBreakpoints.replace(addColumnStatementRegex(), '').trim()
+    if (withoutAddColumns.length > 0) {
+      return false
+    }
+
+    return columnMatches.every((match) => {
+      const table = match[1]
+      const column = match[2]
+      return Boolean(table && column && hasColumn(sqlite, table, column))
+    })
+  }
+
+  const indexMatches = [...sql.matchAll(createIndexCaptureRegex())]
+  if (indexMatches.length > 0) {
+    // Some idempotent index migrations first remove an older definition.
+    // That DROP is part of the migration's normal replay-safe procedure and
+    // should not prevent recognizing the resulting indexes as satisfied.
+    const withoutIndexes = withoutBreakpoints
+      .replace(createIndexStatementRegex(), '')
+      .replace(/DROP\s+INDEX\s+(?:IF\s+EXISTS\s+)?[`"]?\w+[`"]?\s*;?/gi, '')
+      .trim()
+    if (withoutIndexes.length > 0) {
+      return false
+    }
+
+    return indexMatches.every((match) => Boolean(match[1] && hasIndex(sqlite, match[1])))
+  }
+
+  const tableMatches = [...sql.matchAll(createTableCaptureRegex())]
+  if (tableMatches.length > 0) {
+    const withoutTables = withoutBreakpoints.replace(createTableStatementRegex(), '').trim()
+    if (withoutTables.length > 0) {
+      return false
+    }
+
+    return tableMatches.every((match) => Boolean(match[1] && hasTable(sqlite, match[1])))
+  }
+
+  return false
+}
+
+/**
+ * When schemaRepair (or a prior partial boot) already added columns/indexes/tables,
+ * stamp the matching pure ADD COLUMN / CREATE INDEX / CREATE TABLE drizzle migrations
+ * so migrate() does not fail by trying to re-apply them.
+ */
+export function stampSatisfiedAddColumnMigrations(sqlite: Database.Database): string[] {
+  if (!hasTable(sqlite, '__drizzle_migrations')) {
+    return []
+  }
+
+  const stamped: string[] = []
+  const journal = readJournal()
+
+  for (const entry of journal.entries) {
+    const sql = fs.readFileSync(migrationSqlPath(entry.tag), 'utf8')
+    const hash = hashMigrationSql(sql)
+    const exists = sqlite.prepare(
+      'SELECT 1 FROM __drizzle_migrations WHERE hash = ? LIMIT 1',
+    ).get(hash)
+    if (exists) {
+      continue
+    }
+
+    // drizzle's migrator only compares against the single latest recorded
+    // created_at (see SQLiteSyncDialect.migrate), so stamping a later
+    // migration while an earlier one stays unrecorded would permanently
+    // hide that earlier migration from migrate(). Stop at the first entry
+    // we can't verify so stamping never skips ahead out of order.
+    if (!isMigrationSatisfied(sqlite, sql)) {
+      break
+    }
+
+    stampMigrationIfMissing(sqlite, entry)
+    stamped.push(entry.tag)
+  }
+
+  return stamped
 }
 
 export function ensureLegacyDrizzleBaseline(sqlite: Database.Database) {
@@ -129,6 +255,14 @@ export function runDrizzleMigrations(dbPath: string) {
     const renamed = renameDuplicateTagNames(sqlite)
     if (renamed > 0) {
       console.log('\x1b[33m%s\x1b[0m', `⚙️ Renamed ${renamed} duplicate tag name(s) for global uniqueness`)
+    }
+
+    const stamped = stampSatisfiedAddColumnMigrations(sqlite)
+    if (stamped.length > 0) {
+      console.log(
+        '\x1b[33m%s\x1b[0m',
+        `⚙️ Stamped already-applied column migrations: ${stamped.join(', ')}`,
+      )
     }
 
     const db = drizzle(sqlite)

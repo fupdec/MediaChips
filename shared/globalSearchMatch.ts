@@ -22,17 +22,16 @@ export function splitGlobalSearchTokens(text: string | null | undefined): string
   return [...new Set(tokens)]
 }
 
+/** LIKE-style substring match used by global search highlight helpers. */
 export function tokenMatchesQueryPart(token: string, part: string): boolean {
-  if (token === part) return true
-  if (!token.startsWith(part)) return false
-
-  // Short queries keep autocomplete behaviour ("act" → "action").
-  if (part.length <= 3) return true
-
-  // Longer queries avoid incidental prefixes ("anal" should not match "analise").
-  return token.length <= part.length + 2
+  return token.includes(part)
 }
 
+/**
+ * Global search name match — same idea as SQL LIKE '%part%':
+ * every whitespace-separated query part must appear as a substring.
+ * CamelCase tokens are also checked so "jordan" hits "JulesJordan".
+ */
 export function matchesGlobalSearchName(
   name: string | null | undefined,
   rawQuery: string,
@@ -40,11 +39,14 @@ export function matchesGlobalSearchName(
   const query = String(rawQuery || '').trim().toLowerCase()
   if (!query) return false
 
-  const tokens = splitGlobalSearchTokens(name)
-  if (!tokens.length) return false
+  const haystack = String(name || '').toLowerCase()
+  if (!haystack) return false
 
+  const tokens = splitGlobalSearchTokens(name)
   const parts = query.split(/\s+/).filter(Boolean)
-  return parts.every((part) => tokens.some((token) => tokenMatchesQueryPart(token, part)))
+  return parts.every(
+    (part) => haystack.includes(part) || tokens.some((token) => token.includes(part)),
+  )
 }
 
 /** Alias used by UI highlight helpers. */

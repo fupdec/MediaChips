@@ -343,8 +343,14 @@ onUnmounted(() => {
   overscroll-behavior-x: none;
   // Swipe uses inline transform; leave slide is driven by the pool transition.
   transition: box-shadow 0.3s ease;
-  will-change: transform, opacity;
   cursor: grab;
+
+  // Hover overlay is `currentColor` (white in dark theme). During leave
+  // transform it composites as a leftover stripe on the left edge.
+  :deep(.v-card__overlay),
+  :deep(.v-card__underlay) {
+    display: none;
+  }
 
   &--clickable {
     cursor: pointer;

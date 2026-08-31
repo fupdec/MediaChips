@@ -36,6 +36,8 @@ export const MediaIdsRequestSchema = z.object({
   direction: z.string().optional(),
   find_duplicates: optionalCoercedBoolean,
   duplicates_by: z.string().optional(),
+  includeNavigation: optionalCoercedBoolean,
+  skipTotals: optionalCoercedBoolean,
 }).passthrough()
 
 export const MediaBasicsRequestSchema = z.object({
@@ -78,6 +80,11 @@ export const MediaDuplicateGroupsRequestSchema = z.object({
   duplicates_by: z.string().trim().min(1).optional(),
   mediaTypeId: z.union([z.number(), z.string()]).optional().nullable(),
 })
+
+export const MediaFolderBrowseRequestSchema = z.object({
+  path: z.string().nullable().optional(),
+  mediaTypeId: optionalNullableCoercedNumberSchema,
+}).passthrough()
 
 export const MediaThumbsRequestSchema = z.object({
   ids: z.array(z.union([z.number(), z.string()])).optional(),
@@ -174,6 +181,23 @@ export const DeleteEntityOneRequestSchema = z.object({
   type: z.string().nullable().optional(),
 }).passthrough()
 
+const LibraryResetScopeIdSchema = z.union([
+  z.literal('all'),
+  z.number().int().positive(),
+  z.string().regex(/^\d+$/).transform((value) => Number(value)),
+])
+
+export const LibraryResetMediaRequestSchema = z.object({
+  mediaTypeId: LibraryResetScopeIdSchema,
+  permanent: z.boolean().optional(),
+  withFile: z.boolean().optional(),
+}).passthrough()
+
+export const LibraryResetTagsRequestSchema = z.object({
+  metaId: LibraryResetScopeIdSchema,
+  permanent: z.boolean().optional(),
+}).passthrough()
+
 export const MediaTrashIdsRequestSchema = z.object({
   ids: z.array(z.union([z.number(), z.string()])).min(1),
 }).passthrough()
@@ -204,6 +228,8 @@ export const GlobalSearchRequestSchema = z.object({
   limit: z.union([z.number(), z.string()]).optional(),
   metaId: z.union([z.number(), z.string()]).optional(),
   tagIds: z.array(z.union([z.number(), z.string()])).optional(),
+  /** Include bookmark / text-content LIKE scans (slow on large libraries). */
+  deep: z.boolean().optional(),
 }).passthrough()
 
 export const PathPayloadSchema = z.object({
@@ -219,6 +245,19 @@ export const AddMediaRequestSchema = z.object({
   type: z.union([z.string(), z.number(), z.record(z.unknown())]).optional(),
   is_check_duplicates: z.boolean().optional(),
 }).passthrough()
+
+/** Thin-row bulk import (skip probe/thumbs). Provide `files` and/or `roots`. */
+export const AddMediaBulkRequestSchema = z.object({
+  mode: z.literal('lite').optional().default('lite'),
+  type: z.union([z.string(), z.number(), z.record(z.unknown())]),
+  files: z.array(z.string().min(1)).max(5000).optional(),
+  roots: z.array(z.string().min(1)).max(200).optional(),
+  excluded: z.array(z.string()).optional(),
+  expandZips: z.boolean().optional(),
+}).passthrough().refine(
+  (value) => (value.files?.length ?? 0) > 0 || (value.roots?.length ?? 0) > 0,
+  {message: 'Provide files and/or roots'},
+)
 
 export const ParsePathTagsRequestSchema = z.object({
   paths: z.array(z.object({
@@ -307,7 +346,10 @@ export const ClearDataRequestSchema = z.object({
 })
 
 export const CreateThumbRequestSchema = z.object({
-  timestamp: z.coerce.number(),
+  timestamp: z.union([
+    z.coerce.number().finite(),
+    z.string().min(1),
+  ]),
   inputPath: z.string().min(1),
   outputPath: z.string().min(1),
   width: z.coerce.number(),
@@ -328,6 +370,46 @@ export const CreateMarkThumbRequestSchema = z.object({
   mediaId: z.coerce.number().optional(),
   overwrite: z.boolean().optional(),
 }).passthrough()
+
+const ConversionItemRequestSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  path: z.string().trim().min(1).max(4096),
+})
+
+const ConversionOptionsRequestSchema = z.object({
+  codec: z.enum(['auto', 'hevc', 'h264']),
+  resolution: z.union([
+    z.literal('original'),
+    z.coerce.number().int().refine((value) => [2160, 1080, 720, 480].includes(value), 'Unsupported conversion resolution'),
+  ]),
+  quality: z.enum(['economy', 'balanced', 'quality']),
+  destination: z.string().trim().min(1).max(4096),
+  deleteOriginal: z.boolean().optional(),
+})
+
+export const TestVideoSegmentRequestSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  path: z.string().trim().min(1).max(4096),
+  destination: z.string().trim().min(1).max(4096),
+})
+
+export const TrimVideoRequestSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  path: z.string().trim().min(1).max(4096),
+  startSeconds: z.coerce.number().min(0),
+  endSeconds: z.coerce.number().min(0),
+})
+
+export const TrimVideoDeleteOriginalRequestSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  originalPath: z.string().trim().min(1).max(4096),
+  trimmedPath: z.string().trim().min(1).max(4096),
+})
+
+export const ConvertVideosRequestSchema = z.object({
+  items: z.array(ConversionItemRequestSchema).min(1).max(500),
+  options: ConversionOptionsRequestSchema,
+})
 
 export const VideoPreviewTaskRequestSchema = z.object({
   id: z.coerce.number().optional(),
@@ -447,6 +529,10 @@ export const HomeMediaQuerySchema = z.object({
 
 export const HomeMarkersQuerySchema = z.object({
   limit: optionalCoercedNumber,
+}).passthrough()
+
+export const HomeTagSpotlightQuerySchema = z.object({
+  excludeTagId: optionalCoercedNumber,
 }).passthrough()
 
 export const HomeChartStatsQuerySchema = z.object({
@@ -831,6 +917,8 @@ export const TagItemsRequestSchema = ItemsListRequestSchema.extend({
   search: z.string().optional(),
   query: z.string().optional(),
   searchMode: z.enum(['substring', 'chars']).optional(),
+  namePrefix: z.string().optional(),
+  colorFilter: z.string().optional(),
   find_duplicates: optionalCoercedBoolean,
 })
 
@@ -944,6 +1032,7 @@ export type ParsedBulkMetaApplyRequest = z.infer<typeof BulkMetaApplyRequestSche
 export type ParsedGlobalSearchRequest = z.infer<typeof GlobalSearchRequestSchema>
 export type ParsedPathPayload = z.infer<typeof PathPayloadSchema>
 export type ParsedAddMediaRequest = z.infer<typeof AddMediaRequestSchema>
+export type ParsedAddMediaBulkRequest = z.infer<typeof AddMediaBulkRequestSchema>
 export type ParsedParsePathTagsRequest = z.infer<typeof ParsePathTagsRequestSchema>
 export type ParsedApplyParseLibraryTagsRequest = z.infer<typeof ApplyParseLibraryTagsRequestSchema>
 export type ParsedPlaylistWriteRequest = z.infer<typeof PlaylistWriteRequestSchema>

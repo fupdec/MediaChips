@@ -4,6 +4,7 @@
     @mousemove.capture="saveEvent($event); showPreview($event)"
     @mouseleave="clearPreviewHover"
     class="timeline pa-0"
+    :class="{'timeline--studio': player.studioMode, 'timeline--trim': player.trimMode}"
     ref="slider_progress"
   >
     <Transition name="up-next-slide">
@@ -34,6 +35,7 @@
         {
           'timeline-slider--transcode': showTranscodeTimeline,
           'timeline-slider--stream': showTranscodeTimeline && timelineDisplay.showStream,
+          'timeline-slider--trim': player.trimMode,
         },
       ]"
       :style="timelineTrackStyle"
@@ -44,28 +46,32 @@
       hide-details
     />
 
-    <controls-set-mark-time v-if="dialogsStore.markAdding.show"/>
+    <PlayerTrimRange :controls-width="controls_width"/>
+
+    <PlayerMarksTrack v-if="player.studioMode" :controls_width="controls_width"/>
 
     <Preview v-if="!isAudioMode"/>
 
-    <Mark
-      v-for="mark in player.marks"
-      @removeMark="onRemoveMark"
-      :key="mark.id"
-      :mark="mark"
-      :controls_width="controls_width"
-    />
+    <template v-if="!player.studioMode && !player.trimMode">
+      <Mark
+        v-for="mark in player.marks"
+        @removeMark="onRemoveMark"
+        :key="mark.id"
+        :mark="mark"
+        :controls_width="controls_width"
+      />
+    </template>
   </v-card-actions>
 </template>
 
 <script setup lang="ts">
 import {useI18n} from 'vue-i18n'
-import {useDialogsStore} from '@/stores/dialogs'
 import {usePlayerNeighborPreview} from '@/composable/usePlayerNeighborPreview'
 import Preview from '@/components/app/player/Preview.vue'
 import Mark from '@/components/app/player/Mark.vue'
-import ControlsSetMarkTime from '@/components/app/player/ControlsSetMarkTime.vue'
+import PlayerMarksTrack from '@/components/app/player/PlayerMarksTrack.vue'
 import PlayerNeighborPreview from '@/components/app/player/PlayerNeighborPreview.vue'
+import PlayerTrimRange from '@/components/app/player/PlayerTrimRange.vue'
 import {usePlayerTimeline} from '@/composable/usePlayerTimeline'
 import type {PlayerMark} from '@/types/player'
 
@@ -80,7 +86,6 @@ const emit = defineEmits<{
 }>()
 
 const {t} = useI18n()
-const dialogsStore = useDialogsStore()
 
 const {
   nextItem,

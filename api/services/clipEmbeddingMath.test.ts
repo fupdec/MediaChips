@@ -10,6 +10,7 @@ import {
   rankByCosineSimilarity,
   rankByMaxCosineSimilarity,
   rankByMaxCosineSimilarityHits,
+  rankByMaxPairwiseCosineSimilarityHits,
   unpackFloat32Embedding,
   unpackFloat32Embeddings,
 } from './clipEmbeddingMath'
@@ -136,6 +137,29 @@ describe('clipEmbeddingMath', () => {
       l2Normalize([0.9, 0.1, 0]),
     ]
     expect(maxPairwiseCosineSimilarity(seed, candidate)).toBeGreaterThan(0.9)
+  })
+
+  it('returns the winning candidate tile for pairwise similar', () => {
+    const seed = [
+      l2Normalize([1, 0, 0]),
+      l2Normalize([0, 1, 0]),
+    ]
+    const hits = rankByMaxPairwiseCosineSimilarityHits(seed, [
+      {
+        id: 20,
+        embeddings: [
+          l2Normalize([0, 0, 1]),
+          l2Normalize([0, 0, 1]),
+          l2Normalize([0.95, 0.05, 0]),
+        ],
+      },
+      {
+        id: 21,
+        embeddings: [l2Normalize([0.2, 0.8, 0])],
+      },
+    ], 2)
+    expect(hits[0]).toMatchObject({id: 20, tileIndex: 2, tileCount: 3})
+    expect(hits[1]).toMatchObject({id: 21, tileIndex: 0, tileCount: 1})
   })
 
   it('returns empty ranks for empty query or non-positive limit', () => {

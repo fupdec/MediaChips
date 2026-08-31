@@ -25,6 +25,7 @@ import {
   resolvePlaylistIndex,
 } from '@/composable/usePlayerTransportPlayback'
 import {PLAYER_SESSION_KEY, type PlayerSessionContext} from '@/composable/usePlayerSession'
+import {usePlayerTrim} from '@/composable/usePlayerTrim'
 import {maybeRefillSimilarRadio} from '@/services/similarRadio'
 import {useOpenMediaList} from '@/utils/openMediaList'
 import {findItemElementById} from '@/composable/useBrowserLayoutHotkeys'
@@ -60,6 +61,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   const {xs, xl, mdAndDown, smAndDown} = useDisplay()
   const {t} = useI18n()
   const {openMediaList} = useOpenMediaList()
+  const trim = usePlayerTrim(session)
 
   const editingComponent = ref<VideoEditComponentRef | null>(null)
   const speeds = ref([0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2])
@@ -162,6 +164,26 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     playerStore.marksVisible = !playerStore.marksVisible
   }
 
+  const exitStudioLayer = () => {
+    if (playerStore.trimMode) {
+      trim.exitTrimMode()
+      return
+    }
+    if (playerStore.studioMode) {
+      playerStore.studioMode = false
+    }
+  }
+
+  const toggleStudioMode = () => {
+    if (playerStore.studioMode) {
+      playerStore.studioMode = false
+      return
+    }
+    playerStore.studioMode = true
+    playerStore.selectedMarkId = null
+    dialogsStore.openMarkAdding({ time: playerStore.currentTime })
+  }
+
   const toggleMute = () => {
     if (!player.value.player) return
 
@@ -230,10 +252,9 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   }
 
   const addMark = () => {
-    if (dialogsStore.markAdding.show) {
-      if (!dialogsStore.markAdding.submitting) {
-        dialogsStore.closeMarkAdding()
-      }
+    if (playerStore.studioMode) {
+      playerStore.selectedMarkId = null
+      dialogsStore.openMarkAdding({ time: playerStore.currentTime })
       return
     }
     emit('addMark')
@@ -273,6 +294,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
       setNotification({
         title: t('player.video_thumb_not_updated'),
         text: String(e),
+        filePath: video.value.path,
         icon: 'image',
         type: 'error',
       })
@@ -382,6 +404,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
           type: 'videos',
           id: video_edit.id,
           with_file,
+          permanent: with_file,
           path: video_edit.path,
         })
 
@@ -408,8 +431,28 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     playerStore.setKeyboardBlocked('edit', value)
   })
 
-  watch(() => dialogsStore.markAdding.show, (value) => {
-    playerStore.setKeyboardBlocked('mark', value)
+  watch(
+    () => [dialogsStore.markAdding.show, playerStore.studioMode] as const,
+    () => {
+      playerStore.setKeyboardBlocked('mark', false)
+    },
+  )
+
+  watch(() => playerStore.studioMode, (active) => {
+    if (active) {
+      if (!dialogsStore.markAdding.show) {
+        playerStore.selectedMarkId = null
+        dialogsStore.openMarkAdding({ time: playerStore.currentTime })
+      }
+      return
+    }
+    playerStore.selectedMarkId = null
+    playerStore.markDraft = null
+    playerStore.creatingMarkDraft = null
+    playerStore.studioSnapTime = null
+    if (dialogsStore.markAdding.show && !dialogsStore.markAdding.submitting) {
+      dialogsStore.closeMarkAdding()
+    }
   })
 
   return {
@@ -438,6 +481,8 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     next,
     togglePlaylist,
     toggleMarks,
+    toggleStudioMode,
+    exitStudioLayer,
     toggleMute,
     changeVolume,
     handleVolumeWheel,
@@ -454,5 +499,12 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     updateVideoInfo,
     deleteVideo,
     jumpToMark,
+    canTrim: trim.canTrim,
+    canOpenTrim: trim.canOpenTrim,
+    trimDuration: trim.trimDuration,
+    toggleTrimMode: trim.toggleTrimMode,
+    exitTrimMode: trim.exitTrimMode,
+    setTrimPoint: trim.setTrimPoint,
+    applyTrim: trim.applyTrim,
   }
 }

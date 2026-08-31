@@ -205,6 +205,29 @@ class WatcherSyncEngine {
     this.folderStates = []
   }
 
+  syncFolderMetadata(folders: WatchedFolderEntry[]): void {
+    for (const folder of folders) {
+      const folderState = this.folderStates.find(
+        (state) => state.folder.path === folder.path,
+      )
+      if (!folderState) {
+        continue
+      }
+
+      folderState.folder = folder
+
+      for (const type of folder.types || []) {
+        const typeState = folderState.types.find(
+          (entry) => Number(entry.type.id) === Number(type.id),
+        )
+        if (typeState) {
+          typeState.type = type
+          typeState.extensions = parseExtensions(type.extensions)
+        }
+      }
+    }
+  }
+
   async fullSync(folders: WatchedFolderEntry[]): Promise<WatcherFolderReport[]> {
     this.setFolders(folders)
 
@@ -249,11 +272,28 @@ class WatcherSyncEngine {
           String(entry.path),
           folderState.folder.excludedPaths,
         ))
+        await this.reconcileFsPathsWithDb(typeState)
         recomputeDiff(typeState)
       }
     }
 
     return this.getReports()
+  }
+
+  private async reconcileFsPathsWithDb(typeState: TypeSyncState): Promise<void> {
+    for (const entry of typeState.dbEntries) {
+      const entryPath = String(entry.path)
+      if (findEquivalentPath(entryPath, typeState.fsPaths)) {
+        continue
+      }
+
+      try {
+        await fs.access(entryPath)
+        typeState.fsPaths.push(normalizeMediaPath(entryPath))
+      } catch {
+        // File is genuinely missing from disk.
+      }
+    }
   }
 
   applyFileEvent(event: 'add' | 'unlink', rawPath: string): boolean {

@@ -47,3 +47,44 @@ export function derivePageBackground(
 
   return toHexColor(...mixed)
 }
+
+/**
+ * Derives a surface color (for cards, sidebars, dialogs) tinted from the primary.
+ * Sits between the page background and the primary — slightly more prominent than the
+ * page background so that elevated surfaces are visually distinct.
+ */
+export function deriveSurfaceBackground(
+  primaryHex: string,
+  mode: 'light' | 'dark',
+  fallback = mode === 'light' ? '#ffffff' : '#1e1e1e',
+): string {
+  const rgb = parseHexColor(primaryHex)
+  if (!rgb) return fallback
+
+  // Light: a touch more tint than page bg. Dark: lighter than page bg toward primary.
+  const mixed = mode === 'light'
+    ? mixToward(rgb, [255, 255, 255], 0.95)
+    : mixToward(rgb, [30, 30, 30], 0.90)
+
+  return toHexColor(...mixed)
+}
+
+/**
+ * Derives a surfaces-variant color (subtle card accents, image placeholders)
+ * slightly more saturated than the surface.
+ */
+export function deriveSurfaceVariantBackground(
+  primaryHex: string,
+  mode: 'light' | 'dark',
+  fallback = mode === 'light' ? '#f0f0f0' : '#2a2a2a',
+): string {
+  const rgb = parseHexColor(primaryHex)
+  if (!rgb) return fallback
+
+  // A bit more tint than surface; lighter (light) or darker (dark) for contrast.
+  const mixed = mode === 'light'
+    ? mixToward(rgb, [255, 255, 255], 0.88)
+    : mixToward(rgb, [18, 18, 18], 0.78)
+
+  return toHexColor(...mixed)
+}

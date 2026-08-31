@@ -1,4 +1,4 @@
-import {ref, onMounted, onBeforeUnmount, nextTick} from 'vue'
+import {ref, onMounted, onBeforeUnmount, nextTick, watch} from 'vue'
 import type { Ref } from 'vue'
 import type { Handler } from 'mitt'
 import {useRoute, useRouter} from 'vue-router'
@@ -37,7 +37,7 @@ import {
   readMinimizeToTrayFromStore,
   type GlobalAppConfigKey,
 } from '@/services/globalAppConfig'
-import {syncMinimizeToTray, syncShellLocale, getElectronAPI} from '@/services/electronBridge'
+import {syncMinimizeToTray, syncShellLocale, syncAppMenuState, getElectronAPI} from '@/services/electronBridge'
 import {isDesktopElectronUi} from '@/utils/electronUi'
 import {openLowDbMigrationIfNeeded} from '@/composable/useLowDbMigration'
 import {invalidateHomeMediaCache} from '@/composable/useHomeMedia'
@@ -45,6 +45,7 @@ import {useOperationsStore} from '@/stores/operations'
 import {useAppTheme} from '@/composable/useAppTheme'
 import {useAppZoom} from '@/composable/useAppZoom'
 import {useSystemMenuActions} from '@/composable/useSystemMenuActions'
+import {useAppMenuCheckedState} from '@/composable/useAppMenuState'
 import type {SystemMenuAction} from '@/types/systemMenu'
 import type { GetItemsFromDbEvent, RemoveEntitiesEvent } from '@/types/itemsPage'
 import {
@@ -83,6 +84,20 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   })
   const {applyTheme} = useAppTheme()
   const {isWindowMaximized} = useWindowMaximizedState()
+  const nativeMenuState = useAppMenuCheckedState()
+  let stopNativeMenuStateSync: (() => void) | undefined
+
+  function bindNativeAppMenuState(): void {
+    if (isPlayerWindow.value || !isDesktopElectronUi()) return
+    stopNativeMenuStateSync?.()
+    stopNativeMenuStateSync = watch(
+      nativeMenuState,
+      (state) => {
+        void syncAppMenuState(state)
+      },
+      {immediate: true},
+    )
+  }
 
   let handleAddMedia = async (_action?: () => void): Promise<void> => {}
   let cleanupMediaAdding: (() => void) | null = null
@@ -188,6 +203,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
           store.tags = res.data.map((tag) => ({
             ...tag,
             metaId: tag.metaId ?? undefined,
+            parentTagId: tag.parentTagId ?? null,
             name: tag.name ?? undefined,
             synonyms: tag.synonyms ?? undefined,
             color: tag.color ?? undefined,
@@ -547,11 +563,20 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     isAppReady.value = true
     store.is_app_ready = true
     runAutoRegistration()
+    void settleFreeLibraryCapOnStartup()
     if (!operationsStore.migrationLowDb.dialog) {
       openOnboardingIfNeeded(isPlayerWindow.value)
       void openWhatsNewIfNeeded(isPlayerWindow.value)
     }
     await nextTick()
+  }
+
+  function settleFreeLibraryCapOnStartup(): void {
+    import('@/services/freeLibraryCapConfig')
+      .then(({settleFreeLibraryCapIfNeeded}) => settleFreeLibraryCapIfNeeded())
+      .catch((error) => {
+        console.warn('Failed to settle free library cap:', error)
+      })
   }
 
   async function bootstrapPlayerWindow(): Promise<void> {
@@ -586,6 +611,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     await initSettings()
     applyTheme()
     await applyLocale()
+    bindNativeAppMenuState()
 
     // Reveal the app chrome before heavy startup work (plugins, catalogs).
     await revealAppShell()
@@ -677,6 +703,7 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     isShellReady.value = false
     shellRevealSent = false
     cleanupMediaAdding?.()
+    stopNativeMenuStateSync?.()
     unbindMainAppEventBus()
     thumbBroadcastChannel?.removeEventListener('message', handleThumbBroadcast)
     thumbBroadcastChannel?.close()

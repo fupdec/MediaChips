@@ -9,6 +9,7 @@
     >
       <v-img
         v-if="showThumbImage"
+        :key="thumbDisplayKey"
         :src="thumb || undefined"
         cover
         class="video-preview-host__anchor-thumb"
@@ -22,7 +23,7 @@
         v-ripple="gridBigPreview.isExpanded.value ? false : { class: `text-primary` }"
         :aspect-ratio="16 / 9"
         class="video-preview-container"
-        :class="previewContainerClasses"
+        :class="[previewContainerClasses, { 'timeline-preview-active': showTimelinePreview, 'video-preview-container--chrome-hidden': chromeHidden, 'video-preview-container--darwin-electron': isDarwinElectron && !isDarwinFullscreen }]"
         :style="previewAppearStyle"
         @blur="handlePreviewBlur"
         @click="handlePreviewClick"
@@ -33,14 +34,32 @@
         @mousemove="onPreviewMouseMove"
         @mouseenter="handleMouseEnter"
       >
+      <div
+        v-if="showStaticGridPoster"
+        class="thumb thumb--grid-frame"
+        :class="{'thumb--cover': useCoverThumb}"
+        @click.stop="handleMediaClick"
+        @dblclick.stop="handlePreviewDblClick"
+      >
+        <div
+          class="grid-sprite-frame"
+          :style="staticGridFrameStyle"
+        >
+          <div
+            class="grid-sprite-sheet"
+            :style="staticGridSheetStyle"
+          />
+        </div>
+      </div>
       <v-img
-        v-if="showThumbImage"
+        v-else-if="showThumbImage"
         :key="thumbDisplayKey"
         :aspect-ratio="gridBigPreview.isVisual.value ? undefined : 16 / 9"
         :src="thumb || undefined"
         class="thumb"
-        :contain="!isCompactHost && !gridBigPreview.isVisual.value"
-        :cover="isCompactHost || gridBigPreview.isVisual.value"
+        :class="{'thumb--cover': useCoverThumb}"
+        :contain="!useCoverThumb"
+        :cover="useCoverThumb"
         @click.stop="handleMediaClick"
         @dblclick.stop="handlePreviewDblClick"
         @load="onThumbLoad"
@@ -103,28 +122,82 @@
       </div>
 
       <div
+        v-if="showBigPreviewChrome"
+        class="big-preview-chrome"
+      >
+        <div class="big-preview-chrome__top">
+          <div
+            v-if="bigPreviewTitle"
+            class="big-preview-chrome__title"
+            :title="bigPreviewTitle"
+          >
+            {{ bigPreviewTitle }}
+          </div>
+          <div class="big-preview-chrome__meta">
+            <span
+              class="big-preview-chrome__quality"
+              :class="quality.toLowerCase()"
+            >{{ quality }}</span>
+            <span class="big-preview-chrome__height">{{ height }}</span>
+          </div>
+        </div>
+        <div class="big-preview-chrome__hint">
+          {{ t('media.preview.close_hint') }}
+          <span aria-hidden="true"> · </span>
+          {{ t('media.preview.options_hint') }}
+        </div>
+      </div>
+
+      <div
         v-if="showPlaybackTimeline"
         class="preview-playback-timeline"
+        :class="{ 'preview-playback-timeline--cinema': showBigPreviewChrome }"
         @click.stop
         @mousedown.stop
+        @mousemove.stop="revealChrome"
+        @mouseenter="holdChrome"
+        @mouseleave="releaseChrome"
       >
-        <div class="preview-playback-timeline__track">
-          <div
-            class="preview-playback-timeline__fill"
-            :style="{ width: `${playbackTimelinePercent}%` }"
-          />
-        </div>
-        <div class="preview-playback-timeline__time">
-          <v-chip
-            class="preview-playback-timeline__chip"
-            color="black"
-            density="compact"
-            size="small"
-            theme="dark"
+        <div class="preview-playback-timeline__row">
+          <v-btn
+            v-if="showBigPreviewChrome"
+            class="preview-mute-btn"
+            icon
             variant="flat"
+            size="small"
+            :aria-label="muted ? t('media.preview.unmute') : t('media.preview.mute')"
+            @click.stop="togglePreviewMute"
           >
-            {{ playbackTimelineTimeLabel }}
-          </v-chip>
+            <v-icon>{{ muted ? 'mdi-volume-off' : 'mdi-volume-high' }}</v-icon>
+          </v-btn>
+          <div
+            ref="timelineTrackRef"
+            class="preview-playback-timeline__track"
+            @click.stop="onTimelineTrackClick"
+            @mousedown.stop="onTimelineTrackMouseDown"
+          >
+            <div
+              class="preview-playback-timeline__fill"
+              :style="{ width: `${playbackTimelinePercent}%` }"
+            >
+              <span
+                v-if="showBigPreviewChrome"
+                class="preview-playback-timeline__knob"
+              />
+            </div>
+          </div>
+          <div class="preview-playback-timeline__time">
+            <v-chip
+              class="preview-playback-timeline__chip"
+              color="black"
+              density="compact"
+              size="small"
+              theme="dark"
+              variant="flat"
+            >
+              {{ playbackTimelineTimeLabel }}
+            </v-chip>
+          </div>
         </div>
       </div>
 
@@ -136,26 +209,26 @@
         @click.stop="handleMediaClick"
         @dblclick.stop="handlePreviewDblClick"
       >
-        <div v-if="isFrameLost"
+        <div v-if="isFrameLost && (isTaskRunning || gridLoading)"
           class="text-gen">
-          <v-progress-circular v-if="isTaskRunning"
+          <v-progress-circular
             indeterminate
             color="white">
             <v-icon size="small">mdi-image</v-icon>
           </v-progress-circular>
-          <v-btn v-else
-            @click.stop="restartImageGeneration"
-            style="z-index: 1">
-            <v-icon start>mdi-cogs</v-icon>
-            Generate images
-          </v-btn>
         </div>
 
         <div
           v-if="hoverGridFrameStyle"
           class="grid-sprite-frame"
           :style="hoverGridFrameStyle"
-        />
+        >
+          <div
+            v-if="hoverGridSheetStyle"
+            class="grid-sprite-sheet"
+            :style="hoverGridSheetStyle"
+          />
+        </div>
 
         <div class="sections">
           <div
@@ -244,7 +317,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue'
+import {ref, computed, watch, onBeforeUnmount, onMounted} from 'vue'
 import type {ComponentPublicInstance} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
@@ -256,12 +329,13 @@ import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {typedApi} from '@/services/typedApi'
 import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
-import {GRID_FRAME_INDEXES} from '@/utils/gridSprite'
+import {GRID_FRAME_INDEXES, isNearPreviewContainerAspect} from '@/utils/gridSprite'
 import {setNotification} from '@/services/notificationService'
 import {setOption} from '@/services/settingsService'
 import {isImageOnlyItemsView} from '@/utils/itemsView'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {useHoverPreviewPlayback} from '@/composable/useHoverPreviewPlayback'
+import {useBigPreviewChromeIdle} from '@/composable/useBigPreviewChrome'
 import {useItemPreviewBigPreviewSession} from '@/composable/useItemPreviewBigPreviewSession'
 import {useItemPreviewCardActions} from '@/composable/useItemPreviewCardActions'
 import {useItemPreviewContextMenu} from '@/composable/useItemPreviewContextMenu'
@@ -269,8 +343,11 @@ import {useItemPreviewDisplay} from '@/composable/useItemPreviewDisplay'
 import {useItemPreviewHoverSession} from '@/composable/useItemPreviewHoverSession'
 import {useItemPreviewLifecycle} from '@/composable/useItemPreviewLifecycle'
 import {useItemPreviewTimelineFrames} from '@/composable/useItemPreviewTimelineFrames'
+import {useStaticGridPoster} from '@/composable/useStaticGridPoster'
 import {useVideoBigPreview} from '@/composable/useVideoBigPreview'
 import {useVideoPreviewThumb} from '@/composable/useVideoPreviewThumb'
+import {subscribeElectronIpc} from '@/utils/electronIpc'
+import {detectAppPlatform} from '@/composable/useAppPlatform'
 import type {MediaItem} from '@/types/stores'
 import type {HoverSessionTimeoutMap} from '@/composable/useItemPreviewHoverSession'
 
@@ -305,12 +382,37 @@ const listSync = useItemsListSync()
 const {t} = useI18n()
 const gridBigPreview = useVideoBigPreview()
 
+/* macOS — avoid overlapping traffic-light window controls in Electron */
+const platform = detectAppPlatform()
+const isDarwinElectron = computed(() => platform.isMac && platform.isElectron)
+const isDarwinFullscreen = ref(false)
+
+let unsubscribeEnterFs: (() => void) | undefined
+let unsubscribeLeaveFs: (() => void) | undefined
+
+async function syncDarwinFullscreen() {
+  if (!platform.isElectron || !window.electronAPI?.invoke) return
+  try {
+    const value = await window.electronAPI.invoke('isMainFullscreen')
+    isDarwinFullscreen.value = value === true
+  } catch {
+    // keep last known state
+  }
+}
+
+const handleEnterFullScreen = () => { isDarwinFullscreen.value = true }
+const handleLeaveFullScreen = () => { isDarwinFullscreen.value = false }
+
 const hasFixedPreviewTime = computed(() => props.previewStartTime != null)
 const isEmbeddedHost = computed(() => props.previewHost === 'embedded')
 const isCompactHost = computed(() => props.previewHost === 'compact')
 const isImageOnlyView = computed(() => isImageOnlyItemsView(itemsStore.view))
 const isViewCard = computed(() =>
-  isEmbeddedHost.value || isCompactHost.value || Number(itemsStore.view) === 1 || isImageOnlyView.value,
+  isEmbeddedHost.value
+  || isCompactHost.value
+  || Number(itemsStore.view) === 1
+  || Number(itemsStore.view) === 5
+  || isImageOnlyView.value,
 )
 const isViewTimeline = computed(() =>
   !isEmbeddedHost.value && Number(itemsStore.view) === 2,
@@ -352,6 +454,7 @@ const showThumbImage = computed(() => props.previewActive && Boolean(thumb.value
 
 const previewRef = ref<ComponentPublicInstance | null>(null)
 const cardAnchorRef = ref<HTMLElement | null>(null)
+const timelineTrackRef = ref<HTMLElement | null>(null)
 const storyRef = ref<HTMLElement | null>(null)
 const storyWrapperRef = ref<HTMLElement | null>(null)
 const isHovered = ref(false)
@@ -383,6 +486,9 @@ const {
   handleVideoLoaded,
   handleVideoTimeUpdate,
   applyPreviewTimeFromPointer,
+  seekPreviewFromTimeline,
+  beginTimelineScrub,
+  endTimelineScrub,
   applyFixedPreviewTime,
   scheduleHoverPreviewUi,
   syncPreviewVideoPosition,
@@ -468,6 +574,7 @@ const {
   collapsePreviewFading,
   timeouts,
   hasFixedPreviewTime: () => hasFixedPreviewTime.value,
+  requestThumb,
   getPreviewEl,
   clearCinemaTimeout,
   clearPreviewDelayTimer,
@@ -491,11 +598,6 @@ const {
   },
 })
 
-const onPreviewMouseMove = (e: MouseEvent) => {
-  handleMouseMove(e)
-  changePreviewTime(e)
-}
-
 const {
   muted,
   bigPreviewSize,
@@ -512,6 +614,7 @@ const {
   hostClasses,
   previewContainerClasses,
   showEmbeddedPlayHint,
+  showBigPreviewChrome,
   showPlaybackTimeline,
   playbackTimelinePercent,
   playbackTimelineTimeLabel,
@@ -542,11 +645,74 @@ const {
   gridBigPreview,
 })
 
+// Fill near-16:9 cards edge-to-edge; letterbox portrait / ultrawide.
+const useCoverThumb = computed(() =>
+  isCompactHost.value
+  || gridBigPreview.isVisual.value
+  || isNearPreviewContainerAspect(mediaAspectRatio.value),
+)
+
+const {
+  frameStyle: staticGridFrameStyle,
+  sheetStyle: staticGridSheetStyle,
+  showStaticGridPoster,
+} = useStaticGridPoster({
+  media: () => props.media,
+  mediaPath: () => store.mediaPath,
+  mediaAspectRatio: () => mediaAspectRatio.value,
+  previewActive: () => props.previewActive,
+  isMounted: () => isMounted.value,
+})
+
+const bigPreviewTitle = computed(() => String(props.media.name || '').trim())
+
+const {
+  chromeHidden,
+  revealChrome,
+  holdChrome,
+  releaseChrome,
+} = useBigPreviewChromeIdle(showBigPreviewChrome)
+
+const onPreviewMouseMove = (e: MouseEvent) => {
+  handleMouseMove(e)
+  changePreviewTime(e)
+  revealChrome()
+}
+
+const seekCinemaTimeline = (e: Pick<MouseEvent, 'clientX'>) => {
+  seekPreviewFromTimeline(e, timelineTrackRef.value, showBigPreviewChrome.value)
+}
+
+const onTimelineTrackClick = (e: MouseEvent) => {
+  seekCinemaTimeline(e)
+}
+
+const onTimelineScrubMove = (e: MouseEvent) => {
+  seekCinemaTimeline(e)
+}
+
+const stopTimelineScrub = () => {
+  endTimelineScrub()
+  window.removeEventListener('mousemove', onTimelineScrubMove)
+  window.removeEventListener('mouseup', stopTimelineScrub)
+}
+
+const onTimelineTrackMouseDown = (e: MouseEvent) => {
+  if (!showBigPreviewChrome.value || e.button !== 0) return
+  e.preventDefault()
+  beginTimelineScrub()
+  seekCinemaTimeline(e)
+  window.addEventListener('mousemove', onTimelineScrubMove)
+  window.addEventListener('mouseup', stopTimelineScrub)
+}
+
 const {
   getGridFrameDuration,
   hoverGridFrameStyle,
+  hoverGridSheetStyle,
   storyFrameStyles,
   isFrameLost,
+  gridLoading,
   showFramesInProgressMessage,
   setHoverFrameIndex,
   scrollStory,
@@ -570,6 +736,7 @@ const {
   resolveThumbFallback,
   getImg,
   runImageProbe,
+  createGrid: (input, output) => typedApi.taskCreateGrid(buildVideoGridTaskParams(input, output)),
   getStoryEl: () => storyRef.value,
   getStoryWrapperEl: () => storyWrapperRef.value,
   onUpdateVideoFrames: (handler) => eventBus.on('updateVideoFrames', handler),
@@ -600,6 +767,7 @@ const refreshGridPreviewIfNeeded = async () => {
 }
 
 const {
+  togglePreviewMute,
   handlePreviewContextMenu,
   handlePreviewMouseDown,
 } = useItemPreviewContextMenu({
@@ -634,6 +802,7 @@ const {
   handlePreviewClick,
   handleMediaClick,
   handlePreviewDblClick,
+  handlePreviewKeydown,
   handlePreviewBlur,
   play,
   restartImageGeneration,
@@ -652,6 +821,27 @@ const {
   syncMediaItem: (mediaId) => {
     listSync.getItemsFromDb({ids: [mediaId], type: 'media'})
   },
+})
+
+watch(() => gridBigPreview.isVisual.value, (visual) => {
+  if (visual) {
+    window.addEventListener('keydown', handlePreviewKeydown)
+    return
+  }
+  window.removeEventListener('keydown', handlePreviewKeydown)
+})
+
+onMounted(() => {
+  void syncDarwinFullscreen()
+  unsubscribeEnterFs = subscribeElectronIpc('enter-full-screen', handleEnterFullScreen)
+  unsubscribeLeaveFs = subscribeElectronIpc('leave-full-screen', handleLeaveFullScreen)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handlePreviewKeydown)
+  stopTimelineScrub()
+  unsubscribeEnterFs?.()
+  unsubscribeLeaveFs?.()
 })
 
 useItemPreviewLifecycle({

@@ -1,6 +1,6 @@
 <template>
   <div class="notifications-pool">
-    <transition name="toast-slide">
+    <transition name="toast-slide" @before-leave="onBeforeLeave">
       <div
         v-if="taskSummaryItem"
         ref="taskSummaryEl"
@@ -183,13 +183,22 @@ const closeAll = () => {
   notificationsStore.closeAllNotifications()
 }
 
-/** Lock vertical offset so leave doesn't jump to the stack's top-right corner. */
+/** Pin leave geometry before the item leaves flow — otherwise the stack
+ *  collapses (`width: fit-content`) and `max-width: 100%` squeezes the card
+ *  into a leftover strip on the left. */
 const onBeforeLeave = (el: Element) => {
   const node = el as HTMLElement
-  node.style.top = `${node.offsetTop}px`
-  node.style.right = '0'
-  node.style.left = 'auto'
-  node.style.width = `${node.offsetWidth}px`
+  const top = node.offsetTop
+  const left = node.offsetLeft
+  const width = node.offsetWidth
+  const height = node.offsetHeight
+  node.style.position = 'absolute'
+  node.style.top = `${top}px`
+  node.style.left = `${left}px`
+  node.style.right = 'auto'
+  node.style.width = `${width}px`
+  node.style.maxWidth = `${width}px`
+  node.style.height = `${height}px`
   node.style.margin = '0'
 }
 
@@ -270,7 +279,9 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: stretch;
   position: relative;
-  width: fit-content;
+  // Keep width while a toast is `position: absolute` on leave.
+  width: var(--toast-width);
+  min-width: min(var(--toast-width), 100%);
   max-width: 100%;
 
   &:empty {
@@ -309,7 +320,6 @@ onUnmounted(() => {
   background: rgb(var(--v-theme-surface));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   transition: box-shadow 0.3s ease;
-  will-change: transform, opacity;
   cursor: grab;
 
   &.swipe-dismiss--swiping {
@@ -372,12 +382,13 @@ onUnmounted(() => {
 
 .toast-slide-leave-active {
   position: absolute;
-  right: 0;
-  left: auto;
+  left: 0;
+  right: auto;
   width: var(--toast-width);
-  max-width: 100%;
+  max-width: var(--toast-width);
   z-index: 1;
   pointer-events: none;
+  will-change: transform, opacity;
 }
 
 .toast-slide-enter-from,

@@ -89,11 +89,49 @@ export function sortTagsByCategoryPreference<T extends TagSortableItem>(
       [dir, 'asc'],
     )
   }
-  if (key === 'mediaCount' || key === 'numberOfMedia') {
+  if (key === 'mediaCount' || key === 'numberOfMedia' || key === 'assignmentCount') {
     return orderBy(
       byName,
       [
-        (tag) => Number(tag.mediaCount ?? tag.numberOfMedia) || 0,
+        (tag) => Number(
+          tag.mediaCount
+          ?? tag.numberOfMedia
+          ?? tag.assignmentCount,
+        ) || 0,
+        (tag) => String(tag.name || '').toLowerCase(),
+      ],
+      [dir, 'asc'],
+    )
+  }
+  if (key === 'videoCount' || key === 'numberOfVideos') {
+    return orderBy(
+      byName,
+      [
+        (tag) => Number(tag.videoCount ?? tag.numberOfVideos) || 0,
+        (tag) => String(tag.name || '').toLowerCase(),
+      ],
+      [dir, 'asc'],
+    )
+  }
+  if (key === 'imageCount' || key === 'numberOfImages') {
+    return orderBy(
+      byName,
+      [
+        (tag) => Number(tag.imageCount ?? tag.numberOfImages) || 0,
+        (tag) => String(tag.name || '').toLowerCase(),
+      ],
+      [dir, 'asc'],
+    )
+  }
+  if (key === 'tagCount' || key === 'numberOfTags' || key === 'assignedTagCount') {
+    return orderBy(
+      byName,
+      [
+        (tag) => Number(
+          tag.tagCount
+          ?? tag.numberOfTags
+          ?? tag.assignedTagCount,
+        ) || 0,
         (tag) => String(tag.name || '').toLowerCase(),
       ],
       [dir, 'asc'],
@@ -158,6 +196,20 @@ export function getTopTagsSubtitleKey(
           return 'widgets.top_tags.top_by_favorite'
         case 'updatedAt':
           return 'widgets.top_tags.top_by_updated'
+        case 'mediaCount':
+        case 'numberOfMedia':
+        case 'assignmentCount':
+          return 'widgets.top_tags.top_by_media_count'
+        case 'videoCount':
+        case 'numberOfVideos':
+          return 'widgets.top_tags.top_by_video_count'
+        case 'imageCount':
+        case 'numberOfImages':
+          return 'widgets.top_tags.top_by_image_count'
+        case 'tagCount':
+        case 'numberOfTags':
+        case 'assignedTagCount':
+          return 'widgets.top_tags.top_by_tag_count'
         case 'createdAt':
         default:
           return 'widgets.top_tags.top_by_created'

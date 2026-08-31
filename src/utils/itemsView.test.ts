@@ -11,20 +11,21 @@ describe('normalizeItemsView', () => {
     expect(normalizeItemsView(2, 'media', videoType)).toBe(2)
     expect(normalizeItemsView(4, 'media', videoType)).toBe(4)
     expect(normalizeItemsView(3, 'media', videoType)).toBe(1)
-    expect(normalizeItemsView(5, 'media', videoType)).toBe(1)
+    expect(normalizeItemsView(5, 'media', videoType)).toBe(5)
   })
 
   it('keeps supported image views only', () => {
     expect(normalizeItemsView(3, 'media', imageType)).toBe(3)
     expect(normalizeItemsView(2, 'media', imageType)).toBe(1)
     expect(normalizeItemsView(4, 'media', imageType)).toBe(1)
+    expect(normalizeItemsView(5, 'media', imageType)).toBe(5)
   })
 
   it('keeps supported tag views only', () => {
     expect(normalizeItemsView(1, 'tag')).toBe(1)
     expect(normalizeItemsView(2, 'tag')).toBe(2)
     expect(normalizeItemsView(4, 'tag')).toBe(4)
-    expect(normalizeItemsView(5, 'tag')).toBe(1)
+    expect(normalizeItemsView(5, 'tag')).toBe(5)
   })
 })
 

@@ -26,6 +26,17 @@ describe('resolveTagListSqlParts', () => {
     expect(parts.idSelect).toBe('SELECT DISTINCT tags.id')
     expect(parts.sortDir).toBe('DESC')
   })
+
+  it('appends aggregate sort joins after filter joins', () => {
+    const parts = resolveTagListSqlParts({
+      whereSql: 'tags.metaId = :metaId',
+      joinSql: 'INNER JOIN tagsInTags ON tagsInTags.parentTagId = tags.id',
+      sortJoinSql: 'LEFT JOIN (SELECT 1) AS tag_sort_type_count ON 1 = 1',
+      direction: 'desc',
+    })
+    expect(parts.fromClause).toContain('INNER JOIN tagsInTags')
+    expect(parts.fromClause).toContain('tag_sort_type_count')
+  })
 })
 
 describe('assembleTagListResult', () => {

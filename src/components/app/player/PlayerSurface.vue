@@ -117,13 +117,6 @@
             </v-btn>
           </div>
 
-          <div v-if="!reg && player.nowPlaying > 14" class="reg-block">
-            <div class="mb-2">{{ t('registration.application_not_registered') }}</div>
-            <div class="caption">
-              {{ t('registration.unregistered_playlist_limit') }}
-            </div>
-          </div>
-
           <div v-if="showTranscodeSpinner" class="transcode-spinner">
             <v-progress-circular
               indeterminate
@@ -169,6 +162,7 @@
             @changeVolume="changeVolume($event)"
             @showControls="showControls"
             @addMark="openAddingMark"
+            @saveMark="addMark($event)"
             @removeMark="removeMark"
             @close="closePlayer"
             @updateVideo="updateItemVideo"
@@ -179,12 +173,6 @@
 
       <Playlist @play="playVideoObject($event)"/>
     </div>
-
-    <DialogMarkAdding
-      v-if="dialogsStore.markAdding.show"
-      @togglePause="togglePause"
-      @addMark="addMark($event)"
-    />
   </div>
 </template>
 
@@ -195,7 +183,6 @@ import Controls from '@/components/app/player/Controls.vue'
 import Playlist from '@/components/app/player/Playlist.vue'
 import Marks from '@/components/app/player/Marks.vue'
 import SystemBarPlayer from '@/components/app/SystemBarPlayer.vue'
-import DialogMarkAdding from '@/components/dialogs/DialogMarkAdding.vue'
 import {PLAYER_SESSION_KEY} from '@/composable/usePlayerSession'
 import {usePlayerSurfaceGestures} from '@/composable/usePlayerSurfaceGestures'
 import {isTranscodeBusy} from '@/utils/playerTranscodeStatus'
@@ -206,9 +193,7 @@ const session = inject(PLAYER_SESSION_KEY)!
 const {
   player,
   playerStore,
-  dialogsStore,
   isPlayerWindow,
-  reg,
   videoPlayer,
   controls,
   marks,

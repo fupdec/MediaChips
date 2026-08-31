@@ -1,4 +1,5 @@
 import {describe, expect, it, afterEach} from 'vitest'
+import fs from 'fs'
 import path from 'path'
 import {getProjectRoot, projectPath, resetProjectRootCache} from './projectRoot'
 
@@ -9,7 +10,10 @@ describe('projectRoot', () => {
 
   it('resolves from shared/ to the package root', () => {
     const root = getProjectRoot(__dirname)
-    expect(path.basename(root)).toBe('mediaChips')
+    // The checkout directory may differ by casing (mediaChips vs MediaChips), so
+    // assert on the package name instead of the directory basename.
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
+    expect(pkg.name).toBe('mediachips')
     expect(projectPath('package.json')).toBe(path.join(root, 'package.json'))
   })
 

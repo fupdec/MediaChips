@@ -1,5 +1,4 @@
 import {computed} from 'vue'
-import {useRouter} from 'vue-router'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
@@ -7,12 +6,12 @@ import {useSettingsStore} from '@/stores/settings'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useOperationsStore} from '@/stores/operations'
 import {useNotificationsStore} from '@/stores/notifications'
-import {useRegistrationStore} from '@/stores/registration'
 import {useTasksStore} from '@/stores/tasks'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
 import {useMoveTagsToCategory} from '@/composable/useMoveTagsToCategory'
+import {flattenTagCategories} from '@/utils/tagCategoryTree'
 import path from 'path-browserify'
 import {
   getCurrentMediaType,
@@ -26,6 +25,7 @@ import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {openTextMedia} from '@/utils/openTextMedia'
 import {isInAppTextPreviewPath} from '@/utils/textPreview'
 import {setNotification} from '@/services/notificationService'
+import {getApiErrorMessage} from '@/types/vue'
 import {refreshMediaFileInfoMany} from '@/services/mediaFileInfoService'
 import {runFaceDetectionForMediaIds} from '@/composable/useFaceDetectionTask'
 import {openPath} from '@/services/shellService'
@@ -84,16 +84,14 @@ export default function useItemContextMenu(
   const playlistsStore = useAppStore().playlists
   const itemsStore = useItemsStore()
   const settingsStore = useSettingsStore()
-  const registrationStore = useRegistrationStore()
   const tasksStore = useTasksStore()
-  const router = useRouter()
 
   const eventBus = useEventBus()
   const listSync = useItemsListSync()
   const {moveTagsToCategory} = useMoveTagsToCategory()
   const {openMediaList} = useOpenMediaList()
   const sessionFocusStore = useSessionFocusStore()
-  const {applyFocusTagToMediaIds, startFocus, clearFocus} = useSessionFocusActions()
+  const {applyFocusTagToMediaIds, applyTrayToItems, toggleInTray, addTagsToTray} = useSessionFocusActions()
 
   const scraperStore = useScraperStore()
   const sceneScraperStore = useSceneScraperStore()
@@ -101,8 +99,6 @@ export default function useItemContextMenu(
   const { runForSelection: runSceneScrapeForSelection, runForMedia: runSceneScrapeForMedia } = useAutoSceneScrapeBatch()
   const tmdbPersonBatch = useTmdbPersonAutoScrapeBatch()
 
-  const reg = options.reg ?? registrationStore.reg
-  const x = options.x ?? 0
   const isSelectMode = () => !options.singleItem && itemsStore.isSelect
 
   const currentMediaType = computed(() => {
@@ -134,6 +130,19 @@ export default function useItemContextMenu(
         action: editItem,
       })
 
+      if (type === 'media' && sessionFocusStore.isActive) {
+        contextMenu.push({
+          name: sessionFocusStore.tags.length === 1
+            ? t('session_focus.apply_menu', {name: sessionFocusStore.tag?.name || ''})
+            : t('session_focus.apply_all_menu', {count: sessionFocusStore.tags.length}),
+          type: 'item',
+          icon: 'bullseye-arrow',
+          action: () => {
+            void applyFocusTagToMediaIds([item.id])
+          },
+        })
+      }
+
       if (type === 'tag' && isTagPageItem(item, type) && meta) {
         contextMenu.push({
           name: t('common.duplicate'),
@@ -141,17 +150,13 @@ export default function useItemContextMenu(
           icon: 'content-duplicate',
           action: duplicateTagItem,
         })
-        const focused = Number(sessionFocusStore.tagId) === Number(item.id)
+        const inTray = sessionFocusStore.hasTag(Number(item.id))
         contextMenu.push({
-          name: focused ? t('session_focus.clear') : t('session_focus.start'),
+          name: inTray ? t('session_focus.remove_from_tray') : t('session_focus.add_to_tray'),
           type: 'item',
-          icon: focused ? 'bullseye-arrow' : 'bullseye',
+          icon: inTray ? 'bullseye-arrow' : 'bullseye',
           action: () => {
-            if (focused) {
-              clearFocus()
-              return
-            }
-            startFocus({
+            toggleInTray({
               tagId: Number(item.id),
               metaId: Number(meta.id),
               name: String(item.name || ''),
@@ -172,6 +177,53 @@ export default function useItemContextMenu(
           itemsStore.isSelect = false
         },
       })
+
+      if (type === 'media' && sessionFocusStore.isActive) {
+        contextMenu.push({
+          name: sessionFocusStore.tags.length === 1
+            ? t('session_focus.apply_menu', {name: sessionFocusStore.tag?.name || ''})
+            : t('session_focus.apply_all_menu', {count: sessionFocusStore.tags.length}),
+          type: 'item',
+          icon: 'bullseye-arrow',
+          disabled: itemsStore.selection.length === 0,
+          action: () => {
+            void applyFocusTagToMediaIds([...itemsStore.selection])
+          },
+        })
+      }
+
+      if (type === 'tag' && sessionFocusStore.isActive) {
+        contextMenu.push({
+          name: t('session_focus.apply_all_menu', {count: sessionFocusStore.tags.length}),
+          type: 'item',
+          icon: 'bullseye-arrow',
+          disabled: itemsStore.selection.length === 0,
+          action: () => {
+            void applyTrayToItems([...itemsStore.selection], 'tag')
+          },
+        })
+      }
+
+      if (type === 'tag' && meta) {
+        contextMenu.push({
+          name: t('session_focus.add_to_tray'),
+          type: 'item',
+          icon: 'bullseye',
+          disabled: itemsStore.selection.length === 0,
+          action: () => {
+            const selected = itemsStore.selection
+              .map((id) => itemsStore.entities.find((entry) => Number(entry.id) === Number(id)))
+              .filter((entry): entry is Tag => Boolean(entry))
+            addTagsToTray(selected.map((entry) => ({
+              tagId: Number(entry.id),
+              metaId: Number(entry.metaId || meta.id),
+              name: String(entry.name || ''),
+              icon: meta.icon ? String(meta.icon) : null,
+              color: entry.color ? String(entry.color) : null,
+            })))
+          },
+        })
+      }
 
       if (type === 'tag' && meta) {
         contextMenu.push({
@@ -237,10 +289,9 @@ export default function useItemContextMenu(
         meta?.id
           ?? (isTagPageItem(item, type) ? item.metaId : 0),
       )
-      const targetCategories = (store.meta || []).filter((category: Meta) =>
-        category.type === 'array'
-        && Number(category.id) !== currentMetaId,
-      )
+      const targetCategories = flattenTagCategories(store.meta || [])
+        .filter((row) => !row.isGroup && Number(row.meta.id) !== currentMetaId)
+        .map((row) => row.meta)
 
       if (targetCategories.length > 0) {
         contextMenu.push({
@@ -294,11 +345,12 @@ export default function useItemContextMenu(
         contextMenu.push({type: 'divider'})
       }
     } else if (type === 'media') {
-      // Smart tools submenu (works in single-item and multi-select modes).
+      // File tools + find-similar submenus (single-item and multi-select).
       const selectionEmpty = isSelectMode() && itemsStore.selection.length === 0
-      const smartMenu: ItemContextMenuEntry[] = []
+      const toolsMenu: ItemContextMenuEntry[] = []
+      const similarMenu: ItemContextMenuEntry[] = []
 
-      smartMenu.push({
+      toolsMenu.push({
         name: t('context_menu.parse_tags_in_path'),
         type: 'item',
         icon: 'text-box-search',
@@ -307,14 +359,21 @@ export default function useItemContextMenu(
       })
 
       if (isVideoMediaType(currentMediaType.value)) {
-        smartMenu.push({
+        toolsMenu.push({
           name: t('context_menu.detect_faces'),
           type: 'item',
           icon: 'face-recognition',
           disabled: !is_file_exists || selectionEmpty,
           action: detectFacesForSelection,
         })
-        smartMenu.push({
+        toolsMenu.push({
+          name: t('context_menu.convert_video'),
+          type: 'item',
+          icon: 'sync',
+          disabled: !is_file_exists || selectionEmpty,
+          action: openVideoConversion,
+        })
+        toolsMenu.push({
           name: t('context_menu.generate_chapters'),
           type: 'item',
           icon: 'bookmark-multiple-outline',
@@ -323,27 +382,27 @@ export default function useItemContextMenu(
         })
 
         if (isMediaPageItem(item, type)) {
-          smartMenu.push({
-            name: t('context_menu.more_like_this'),
-            type: 'item',
-            icon: 'image-search-outline',
-            // Seed is the right-clicked item (also available while multi-selecting).
-            action: openMoreLikeThis,
-          })
-          smartMenu.push({
+          toolsMenu.push({
             name: t('context_menu.apply_tags_from_similar'),
             type: 'item',
             icon: 'tag-plus-outline',
             disabled: selectionEmpty,
             action: applyTagsFromSimilar,
           })
-          smartMenu.push({
+          similarMenu.push({
+            name: t('context_menu.more_like_this'),
+            type: 'item',
+            icon: 'image-search-outline',
+            // Seed is the right-clicked item (also available while multi-selecting).
+            action: openMoreLikeThis,
+          })
+          similarMenu.push({
             name: t('context_menu.semantically_similar'),
             type: 'item',
             icon: 'brain',
             action: openSemanticallySimilar,
           })
-          smartMenu.push({
+          similarMenu.push({
             name: t('context_menu.play_similar_radio'),
             type: 'item',
             icon: 'radio-tower',
@@ -357,7 +416,7 @@ export default function useItemContextMenu(
         isImageMediaType(currentMediaType.value)
         && isMediaPageItem(item, type)
       ) {
-        smartMenu.push({
+        similarMenu.push({
           name: t('context_menu.semantically_similar'),
           type: 'item',
           icon: 'brain',
@@ -365,13 +424,23 @@ export default function useItemContextMenu(
         })
       }
 
-      if (smartMenu.length) {
+      if (toolsMenu.length || similarMenu.length) {
         contextMenu.push({type: 'divider'})
+      }
+      if (toolsMenu.length) {
         contextMenu.push({
-          name: t('context_menu.smart_tools'),
+          name: t('context_menu.tools'),
           type: 'menu',
-          icon: 'flash',
-          menu: smartMenu,
+          icon: 'wrench',
+          menu: toolsMenu,
+        })
+      }
+      if (similarMenu.length) {
+        contextMenu.push({
+          name: t('context_menu.find_similar'),
+          type: 'menu',
+          icon: 'compare',
+          menu: similarMenu,
         })
       }
 
@@ -449,7 +518,7 @@ export default function useItemContextMenu(
             name: t('context_menu.play_video_in'),
             type: 'menu',
             icon: 'play-circle',
-            disabled: !is_file_exists || (!reg && x > 14),
+            disabled: !is_file_exists,
             menu: playInMenu,
           })
         }
@@ -459,7 +528,7 @@ export default function useItemContextMenu(
             name: t('context_menu.play_audio_in'),
             type: 'menu',
             icon: 'play-circle',
-            disabled: !is_file_exists || (!reg && x > 14),
+            disabled: !is_file_exists,
             menu: [
               {
                 name: t('context_menu.mediachips_player'),
@@ -575,20 +644,6 @@ export default function useItemContextMenu(
           icon: 'playlist-plus',
           menu: menuPlaylists,
           disabled: isSelectMode() && itemsStore.selection.length === 0,
-        })
-      }
-
-      if (sessionFocusStore.tag) {
-        const focusTag = sessionFocusStore.tag
-        contextMenu.push({
-          name: t('session_focus.apply_menu', {name: focusTag.name}),
-          type: 'item',
-          icon: 'bullseye-arrow',
-          disabled: isSelectMode() && itemsStore.selection.length === 0,
-          action: () => {
-            const ids = isSelectMode() ? [...itemsStore.selection] : [item.id]
-            void applyFocusTagToMediaIds(ids)
-          },
         })
       }
 
@@ -918,8 +973,8 @@ export default function useItemContextMenu(
     const added: number[] = []
     for (const val of vals) {
       await typedApi.createTagsInMediaOne(val)
-        .then((res) => {
-          if (res.data?.[1]) added.push(1)
+        .then(() => {
+          added.push(1)
         })
         .catch((e) => {
           console.log(e)
@@ -933,12 +988,22 @@ export default function useItemContextMenu(
       icon: 'text-box-search',
     })
 
-    if (added.length > 0) {
+    await reloadTagsCatalog()
+    if (updated.length > 0) {
       listSync.getItemsFromDb({
         ids: updated,
         type: 'media',
       })
     }
+  }
+
+  const openVideoConversion = async (): Promise<void> => {
+    const videos = isSelectMode()
+      ? await resolveSelectedMediaItems(itemsStore.selection)
+      : (isMediaPageItem(item, type) ? [item] : [])
+    const valid = videos.filter((video) => Boolean(video.path))
+    if (!valid.length) return
+    dialogsStore.openVideoConversion(valid)
   }
 
   const updateFileInfo = async (): Promise<void> => {
@@ -1304,15 +1369,13 @@ export default function useItemContextMenu(
     const locale = settingsStore.locale as Locale
 
     const previewCandidates: Array<MediaItem | Tag> = []
-    if (type === 'media') {
-      if (isSelectMode()) {
-        for (const id of itemsStore.selection) {
-          const found = resolveItemById(id)
-          if (found) previewCandidates.push(found)
-        }
-      } else {
-        previewCandidates.push(item)
+    if (isSelectMode()) {
+      for (const id of itemsStore.selection) {
+        const found = resolveItemById(id)
+        if (found) previewCandidates.push(found)
       }
+    } else {
+      previewCandidates.push(item)
     }
 
     const zipArchiveNames = [...new Set(
@@ -1328,10 +1391,12 @@ export default function useItemContextMenu(
 
     const runDelete = async ({
       withFile,
+      permanent,
       deleteZipGallery,
       deleteZipFile,
     }: {
       withFile: boolean
+      permanent: boolean
       deleteZipGallery: boolean
       deleteZipFile: boolean
     }): Promise<void> => {
@@ -1343,7 +1408,7 @@ export default function useItemContextMenu(
       const deleted_items_names: string[] = []
       const deletedIds = new Set<number>()
       const handledZipArchives = new Set<string>()
-      let softDeleted = type === 'media'
+      let softDeleted = !permanent && (type === 'media' || type === 'tag')
       const itemsToDelete = type === 'media' && isSelectMode()
         ? await resolveSelectedMedia(ids)
         : ids
@@ -1355,6 +1420,7 @@ export default function useItemContextMenu(
 
         const itemData: DeleteItemPayload = {
           with_file: withFile,
+          permanent,
           id: found.id,
         }
 
@@ -1373,14 +1439,15 @@ export default function useItemContextMenu(
             itemData.delete_zip_gallery = true
             itemData.delete_zip_file = deleteZipFile
             itemData.with_file = false
+            itemData.permanent = true
           }
         }
 
         try {
           const response = await typedApi.deleteEntityOne(type, itemData)
           const responseData = response.data as {deletedIds?: number[]; softDeleted?: boolean} | undefined
-          if (responseData?.softDeleted === false) softDeleted = false
-          if (type !== 'media') softDeleted = false
+          if (responseData?.softDeleted === false || permanent || deleteZipGallery) softDeleted = false
+          if (type !== 'media' && type !== 'tag') softDeleted = false
           const responseIds = Array.isArray(responseData?.deletedIds)
             ? responseData.deletedIds
             : [found.id]
@@ -1417,7 +1484,7 @@ export default function useItemContextMenu(
       })
 
       if (type === 'tag') {
-        void reloadTagsCatalog()
+        await reloadTagsCatalog()
       }
 
       if (type === 'media') {
@@ -1426,6 +1493,16 @@ export default function useItemContextMenu(
     }
 
     const archives = zipArchiveNames.join(', ')
+    const previewNames = previewCandidates
+      .map((entry) => String(entry.name ?? '').trim())
+      .filter(Boolean)
+    const previewLabel = previewNames.length
+      ? previewNames.length > 5
+        ? `${previewNames.slice(0, 5).join(', ')}… (${previewNames.length})`
+        : `${previewNames.join(', ')}${previewNames.length > 1 ? ` (${previewNames.length})` : ''}`
+      : isSelectMode()
+        ? String(itemsStore.selection.length)
+        : ''
     dialogsStore.confirm.checkBox = false
     dialogsStore.confirm.checkBox2 = false
     dialogsStore.confirm.checkBox2RequiresPrimary = false
@@ -1439,22 +1516,34 @@ export default function useItemContextMenu(
       dialogsStore.confirm.checkBoxText = translate('actions.delete_zip_gallery', {}, locale)
       dialogsStore.confirm.checkBox2Text = translate('actions.delete_zip_file', {}, locale)
       dialogsStore.confirm.checkBox2RequiresPrimary = true
-    } else {
-      dialogsStore.confirm.text = type === 'media'
-        ? translate('media.move_to_trash_confirm', {}, locale)
-        : translate('media.delete_from_app_confirm', {}, locale)
-      dialogsStore.confirm.checkBoxText = type === 'media'
-        ? translate('actions.also_delete_files_on_purge', {}, locale)
+    } else if (type === 'media' || type === 'tag') {
+      const base = translate('media.move_to_trash_confirm', {}, locale)
+      dialogsStore.confirm.text = previewLabel ? `${base}\n${previewLabel}` : base
+      dialogsStore.confirm.checkBoxText = translate('actions.delete_permanently', {}, locale)
+      dialogsStore.confirm.checkBox2Text = type === 'media'
+        ? translate('actions.also_delete_files', {}, locale)
         : ''
+      dialogsStore.confirm.checkBox2RequiresPrimary = type === 'media'
+    } else {
+      const base = translate('media.delete_from_app_confirm', {}, locale)
+      dialogsStore.confirm.text = previewLabel ? `${base}\n${previewLabel}` : base
+      dialogsStore.confirm.checkBoxText = ''
       dialogsStore.confirm.checkBox2Text = ''
     }
 
     dialogsStore.confirm.action = () => {
       const deleteZipGallery = hasZipGallery && dialogsStore.confirm.checkBox
       const deleteZipFile = deleteZipGallery && dialogsStore.confirm.checkBox2
+      const permanent = hasZipGallery
+        ? deleteZipGallery
+        : Boolean(dialogsStore.confirm.checkBox)
+      const withFile = hasZipGallery
+        ? false
+        : type === 'media' && Boolean(dialogsStore.confirm.checkBox2)
 
       void runDelete({
-        withFile: !hasZipGallery && dialogsStore.confirm.checkBox,
+        withFile,
+        permanent,
         deleteZipGallery,
         deleteZipFile,
       })
@@ -1466,7 +1555,7 @@ export default function useItemContextMenu(
     if (!isMediaPageItem(item, type)) return
     itemsStore.playVideo({
       video: item,
-      player: forceSystem ? 'system' : 'builtin',
+      player: forceSystem ? 'system' : 'default',
     })
   }
 
@@ -1495,6 +1584,7 @@ export default function useItemContextMenu(
         type: 'error',
         title: playerLabel,
         text: err.response?.data?.message || err.message || String(error),
+        filePath: mediaPath,
       })
     }
   }

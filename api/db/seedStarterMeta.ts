@@ -175,7 +175,7 @@ const STARTER_TAGS = [
   },
   {
     name: 'Favorites',
-    synonyms: 'Fav, Best',
+    synonyms: 'Favorite, Favourite, Fav, Best',
     rating: 5,
     favorite: 1,
     bookmark: 'favorite',
@@ -206,10 +206,6 @@ const STARTER_CATEGORY_TAGS: Record<string, StarterCategoryTag[]> = {
   Gender: [
     {name: 'Female', color: '#e91e63'},
     {name: 'Male', color: '#2196f3'},
-    {name: 'Non-Binary', synonyms: 'Non-binary, Nonbinary', color: '#9c27b0'},
-    {name: 'Transgender Female', synonyms: 'Trans Female, Transfeminine', color: '#f06292'},
-    {name: 'Transgender Male', synonyms: 'Trans Male, Transmasculine', color: '#64b5f6'},
-    {name: 'Intersex', color: '#ff9800'},
   ],
   'Eye color': [
     {name: 'Blue', color: '#1e88e5'},
@@ -391,17 +387,106 @@ function ensureStarterTagsIfEmpty(sqlite: Database.Database) {
 }
 
 /**
+ * Inserts starter saved filters (top-rated views) for the Tags category,
+ * Video media type, and Image media type.
+ * Each filter has: rating > 4 OR favorite = true, sorted by rating descending.
+ * Idempotent — skips if columns don't exist yet or filters already present.
+ */
+export function seedStarterSavedFilters(sqlite: Database.Database) {
+  // Guard: old databases may not have the sortBy column yet.
+  // Schema repair runs earlier in postMigrations; we skip silently.
+  const hasSortBy = sqlite.prepare(
+    "PRAGMA table_info('savedFilters')",
+  ).all().some((row: unknown) => (row as {name: string}).name === 'sortBy')
+
+  if (!hasSortBy) return
+
+  const tagsMetaId = findTagsMetaId(sqlite)
+  const videoMediaTypeId = findMediaTypeId(sqlite, 'video')
+  const imageMediaTypeId = findMediaTypeId(sqlite, 'image')
+
+  if (tagsMetaId == null || videoMediaTypeId == null || imageMediaTypeId == null) return
+
+  const timestamp = nowIso()
+
+  const checkExisting = sqlite.prepare(`
+    SELECT COUNT(*) as count FROM savedFilters
+    WHERE name = ? AND metaId IS ? AND mediaTypeId IS ? AND tagId IS ?
+  `)
+
+  const insertFilterRow = sqlite.prepare(`
+    INSERT INTO filterRows (param, type, cond, val, active, note, lock, "order", createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+
+  const insertSavedFilter = sqlite.prepare(`
+    INSERT INTO savedFilters (name, metaId, mediaTypeId, tagId, tabId, sortBy, sortDir, filtersJoin, icon, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+
+  const insertLink = sqlite.prepare(`
+    INSERT INTO filterRowsInSavedFilters (filterId, rowId)
+    VALUES (?, ?)
+  `)
+
+  const NAME = 'Top Rated'
+
+  function createOne(
+    metaId: number | null,
+    mediaTypeId: number | null,
+    tagId: number | null,
+  ) {
+    const existing = checkExisting.get(NAME, metaId, mediaTypeId, tagId) as {count: number}
+    if (Number(existing.count) > 0) return
+
+    const ratingRowResult = insertFilterRow.run(
+      'rating', 'rating', '>', '4', 1, null, 0, 0, timestamp, timestamp,
+    )
+    const ratingRowId = Number(ratingRowResult.lastInsertRowid)
+
+    const favoriteRowResult = insertFilterRow.run(
+      'favorite', 'boolean', '=', 'true', 1, null, 0, 1, timestamp, timestamp,
+    )
+    const favoriteRowId = Number(favoriteRowResult.lastInsertRowid)
+
+    const result = insertSavedFilter.run(
+      NAME,
+      metaId,
+      mediaTypeId,
+      tagId,
+      null,
+      'rating',
+      'desc',
+      'or',
+      'star',
+      timestamp,
+      timestamp,
+    )
+    const filterId = Number(result.lastInsertRowid)
+    insertLink.run(filterId, ratingRowId)
+    insertLink.run(filterId, favoriteRowId)
+  }
+
+  // Tags category scope
+  createOne(tagsMetaId, null, null)
+  // Video scope
+  createOne(null, videoMediaTypeId, null)
+  // Image scope
+  createOne(null, imageMediaTypeId, null)
+}
+
+/**
  * Seeds media + performer meta for TMDB/TPDB when the meta table is empty.
  * Pins media fields to Videos/Images, pins person children under Performers.
  * Does not set scraper keys — plugins map them on Configure.
  * Idempotent for non-empty libraries; backfills starter tags when Tags exists but has none.
  * Built-in media.rating / media.favorite cover rating and favorites — no duplicate meta fields.
  */
-export function seedStarterMeta(sqlite: Database.Database) {
+export function seedStarterMeta(sqlite: Database.Database): boolean {
   const row = sqlite.prepare('SELECT COUNT(*) as count FROM meta').get() as {count: number}
   if (Number(row.count) > 0) {
     ensureStarterTagsIfEmpty(sqlite)
-    return
+    return false
   }
 
   const timestamp = nowIso()
@@ -439,6 +524,8 @@ export function seedStarterMeta(sqlite: Database.Database) {
   if (tagsMetaId != null) {
     insertStarterTags(sqlite, tagsMetaId, timestamp)
   }
+
+  return true
 }
 
 /** @deprecated Use seedStarterMeta */

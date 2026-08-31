@@ -97,6 +97,12 @@ export const docs = [
     children: [
       { id: 'tags.categories', name: 'Tag categories', icon: 'mdi-shape-outline' },
       { id: 'tags.tag_page', name: 'Tag page', icon: 'mdi-tag-outline' },
+      {
+        id: 'tags.session_focus',
+        name: 'Session focus',
+        icon: 'mdi-bullseye-arrow',
+        selector: ['.session-focus-bar'],
+      },
     ],
   },
   {
@@ -449,6 +455,13 @@ export const docs = [
             icon: 'mdi-trash-can-outline',
             selector: ['#settings-doc-tab-database', '#settings-clear-generated-images'],
             navigate: '/settings?tab=database&section=clear_generated',
+          },
+          {
+            id: 'settings.database.library_reset',
+            name: 'Library reset',
+            icon: 'mdi-database-remove-outline',
+            selector: ['#settings-doc-tab-database', '#settings-library-reset'],
+            navigate: '/settings?tab=database&section=library_reset',
           },
         ],
       },

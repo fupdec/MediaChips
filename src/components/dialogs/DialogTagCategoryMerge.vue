@@ -7,7 +7,7 @@
     scrollable
     persistent
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         :header="t('meta.dialogs.merge_categories_title')"
         :subheader="t('settings.tabs.meta')"

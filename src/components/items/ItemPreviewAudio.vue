@@ -65,7 +65,7 @@ const itemsStore = useItemsStore()
 const thumbFailed = ref(false)
 
 const isViewCard = computed(() =>
-  Number(itemsStore.view) === 1
+  Number(itemsStore.view) === 1 || Number(itemsStore.view) === 5
 )
 
 const thumb = computed(() => {

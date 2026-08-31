@@ -5,6 +5,10 @@ const { persistOnboardingConfig } = vi.hoisted(() => ({
   persistOnboardingConfig: vi.fn(),
 }))
 
+vi.mock('@/composable/useWhatsNew', () => ({
+  openWhatsNewIfNeeded: vi.fn(async () => undefined),
+}))
+
 vi.mock('@/services/onboardingConfig', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/onboardingConfig')>()
   return {

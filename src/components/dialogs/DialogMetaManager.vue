@@ -7,7 +7,7 @@
     content-class="dialog-position-start meta-manager-dialog"
     @after-leave="resetDialogState"
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="closeDialog"
         :header="dialogHeader"
@@ -96,16 +96,16 @@
                     rounded="xl"
                     class="text-caption"
                   >
-                    {{ metaSettings.type === 'array'
-                      ? t('meta.dialogs.array_meta_info')
-                      : getHint() }}
+                    {{ createInfoText }}
                   </v-alert>
                 </div>
 
                 <v-text-field
                   v-model="metaSettings.name"
                   :rules="[nameRules]"
-                  :label="t('common.name')"
+                  :label="isTagCategoryDialog
+                    ? t('meta.dialogs.tag_category_name')
+                    : t('common.name')"
                   class="mb-3"
                   density="comfortable"
                 />
@@ -113,7 +113,9 @@
                 <v-text-field
                   v-model="metaSettings.hint"
                   :label="t('common.hint')"
-                  :hint="t('meta.fields.hint_help')"
+                  :hint="isTagCategoryDialog
+                    ? t('meta.dialogs.tag_category_hint_help')
+                    : t('meta.fields.hint_help')"
                   persistent-hint
                   class="mb-3"
                   density="comfortable"
@@ -126,7 +128,7 @@
               </v-form>
 
               <MetaFieldFormPreview
-                v-if="metaSettings.type"
+                v-if="metaSettings.type && !isTagCategoryDialog"
                 :meta="metaSettingsAsMeta"
                 class="mt-4"
               />
@@ -382,6 +384,16 @@ const metaTypes = computed(() => {
 
 const showTypePicker = computed(() => !props.editMode && metaTypes.value.length > 1)
 
+function isArrayOnlyAllowed(allowed: string[] | null | undefined): boolean {
+  return Array.isArray(allowed) && allowed.length === 1 && allowed[0] === 'array'
+}
+
+function iconNameFromMetaType(type: string): string | null {
+  const typeMeta = MetaTypes.find((item) => item.value === type)
+  if (!typeMeta?.icon) return null
+  return typeMeta.icon.replace(/^mdi-/, '')
+}
+
 function buildCreateDefaults(): MetaSettingsForm {
   const defaults: MetaSettingsForm = {...metaSettingsDefault.value}
   const allowed = props.allowedTypes
@@ -391,6 +403,8 @@ function buildCreateDefaults(): MetaSettingsForm {
       defaults.type = first.value
       defaults.icon = first.icon.replace(/^mdi-/, '')
     }
+  } else if (isArrayOnlyAllowed(allowed)) {
+    defaults.icon = iconNameFromMetaType('array') || defaults.icon
   }
   return defaults
 }
@@ -446,6 +460,13 @@ const buttons = ref<DialogHeaderButton[]>([])
 
 const hasOptions = computed(() => ['array', 'rating', 'string', 'number'].includes(metaSettings.value.type))
 const isArrayType = computed(() => metaSettings.value.type === 'array')
+const isTagCategoryDialog = computed(() => isArrayOnlyAllowed(props.allowedTypes))
+
+const createInfoText = computed(() => {
+  if (isTagCategoryDialog.value) return t('meta.dialogs.adding_tag_category_info')
+  if (metaSettings.value.type === 'array') return t('meta.dialogs.array_meta_info')
+  return getHint()
+})
 
 const dialogWidth = computed(() => {
   if (!props.editMode) return 550
@@ -472,11 +493,20 @@ const showWherePanel = computed(() => {
 })
 
 const dialogHeader = computed(() => {
+  if (isTagCategoryDialog.value) {
+    return props.editMode
+      ? t('all_tags.edit_category')
+      : t('meta.dialogs.adding_tag_category')
+  }
   return props.editMode ? t('media.type.editing_meta') : t('meta.dialogs.adding_meta')
 })
 
 const textDialogDelete = computed(() => {
   if (!props.editMode || !props.meta) return ''
+
+  if (isTagCategoryDialog.value) {
+    return t('meta.dialogs.delete_tag_category_confirm') + '\n' + t('common.are_you_sure')
+  }
 
   let text = t('meta.dialogs.delete_meta_assigned_confirm') + '\n'
   if (metaSettings.value.type === 'array') {
@@ -642,7 +672,12 @@ const sendForm = async () => {
       if (!props.editMode) {
         setNotification({
           type: 'success',
-          title: t('meta.dialogs.meta_added', {name: metaSettings.value.name})
+          title: t(
+            isTagCategoryDialog.value
+              ? 'meta.dialogs.tag_category_added'
+              : 'meta.dialogs.meta_added',
+            {name: metaSettings.value.name},
+          )
         })
 
         const created = response.data as Meta
@@ -653,6 +688,9 @@ const sendForm = async () => {
         if (created.type === 'array') {
           createdMeta.value = created
           nextStepsDialog.value = true
+        } else {
+          // Any field type can be pinned to media types — open pinning right away.
+          emit('request-edit', {meta: created, tab: 'where' as EditTab})
         }
         return
       }
@@ -664,7 +702,9 @@ const sendForm = async () => {
     console.error('Error adding meta:', error)
 
     const errorMessage = getErrorResponseData<{ message?: string }>(error)?.message
-      || t('meta.dialogs.failed_add')
+      || t(isTagCategoryDialog.value
+        ? 'meta.dialogs.failed_add_tag_category'
+        : 'meta.dialogs.failed_add')
 
     setNotification({
       type: 'error',
@@ -718,7 +758,12 @@ const deleteMeta = async () => {
 
     setNotification({
       type: 'success',
-      title: t('meta.dialogs.meta_deleted', {name: metaSettings.value.name})
+      title: t(
+        isTagCategoryDialog.value
+          ? 'meta.dialogs.tag_category_deleted'
+          : 'meta.dialogs.meta_deleted',
+        {name: metaSettings.value.name},
+      )
     })
 
     dialogDeleteMeta.value = false
@@ -730,7 +775,9 @@ const deleteMeta = async () => {
 
     setNotification({
       type: 'error',
-      text: t('meta.dialogs.failed_delete')
+      text: t(isTagCategoryDialog.value
+        ? 'meta.dialogs.failed_delete_tag_category'
+        : 'meta.dialogs.failed_delete')
     })
   }
 }

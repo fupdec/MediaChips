@@ -16,18 +16,34 @@ import { createMarksRepository } from '../db/repositories/marks'
 import {
   deleteTagGeneratedAssets,
 } from '../services/localAssetCleanup'
+import {
+  countTrashTags,
+  ENTITY_TRASH_RETENTION_DAYS,
+  getTrashedTagsForPurge,
+  listExpiredTagIds,
+  listTrashTags,
+  restoreTrashTags,
+  softDeleteTag,
+} from '../services/entityTrash'
 import { findDefaultTagCategoryId } from '../services/defaultTagCategory'
 import { mergeTagsInCategory } from '../services/tagMerge'
 import {
   moveTagsToCategory,
+  normalizeTagName,
 } from '../services/tagMoveToCategory'
 import { duplicateTag } from '../services/tagDuplicate'
 import {
   assertTagNameAvailable,
   assertTagNamesAvailable,
+  findTrashedTagsByNormalizedNames,
+  summarizeTrashedNameMatches,
+  TagNameInTrashError,
 } from '../services/tagNameUniqueness'
 import { loadTagItems } from '../services/tagItemsLoader'
 import { findCooccurringTags } from '../services/tagCooccurrence'
+import {
+  assertMetaCanHoldTags,
+} from '../services/tagCategoryTree'
 import {
   mapWithConcurrency,
   readImageAsDataUrl,
@@ -38,6 +54,25 @@ export default function (db: ApiDb) {
   const tagsRepo = createTagsRepository(db.drizzle, db.sqlite)
   const marksRepo = createMarksRepository(db.drizzle)
   const getDbPath = () => db.path!
+
+  async function purgeTrashedTagIds(ids: number[]): Promise<number[]> {
+    const targets = getTrashedTagsForPurge(db, ids)
+    const deletedIds: number[] = []
+    for (const target of targets) {
+      const tag = tagsRepo.findById(target.id)
+      if (!tag) continue
+      const displayName = typeof tag.trashOriginalName === 'string' && tag.trashOriginalName.trim()
+        ? tag.trashOriginalName.trim()
+        : (typeof tag.name === 'string' ? tag.name.trim() : '')
+      marksRepo.convertMetaMarksToBookmarksByTagId(target.id, displayName)
+      if (tag.metaId) {
+        await deleteTagGeneratedAssets(getDbPath(), tag.metaId, target.id)
+      }
+      tagsRepo.deleteById(target.id)
+      deletedIds.push(target.id)
+    }
+    return deletedIds
+  }
 
   const getAllForItems = async function (req: ApiRequest, res: ApiResponse) {
     const body = getRequestBody<TagItemsListRequest>(req)
@@ -70,6 +105,8 @@ export default function (db: ApiDb) {
         searchMode: body.searchMode === 'substring' || body.searchMode === 'chars'
           ? body.searchMode
           : undefined,
+        namePrefix: typeof body.namePrefix === 'string' ? body.namePrefix : undefined,
+        colorFilter: typeof body.colorFilter === 'string' ? body.colorFilter : undefined,
         groupBy: body.groupBy,
       })
       sendOk(res, result)
@@ -79,7 +116,7 @@ export default function (db: ApiDb) {
     }
   };
 
-  const create = function (req: ApiRequest, res: ApiResponse) {
+  const create = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<CreateTagPayload[]>(req)
       if (!Array.isArray(body) || !body.length) {
@@ -94,7 +131,9 @@ export default function (db: ApiDb) {
           : defaultMetaId
         return {
           ...item,
+          name: String(item.name ?? ''),
           metaId: metaId != null && Number(metaId) > 0 ? Number(metaId) : null,
+          parentTagId: null,
         }
       })
 
@@ -102,10 +141,45 @@ export default function (db: ApiDb) {
         return sendBadRequest(res, 'Tag category is required. Create a Tags category first.')
       }
 
+      db.drizzle.transaction((tx) => {
+        for (const item of items) {
+          assertMetaCanHoldTags(tx, Number(item.metaId))
+        }
+      })
+
       assertTagNamesAvailable(
         db.sqlite,
         items.map((item) => String(item.name ?? '')),
       )
+
+      const trashMatches = findTrashedTagsByNormalizedNames(
+        db.sqlite,
+        items.map((item) => String(item.name ?? '')),
+      )
+      const trashMode = parseTrashNameConflictMode(req)
+      if (trashMatches.length && trashMode == null) {
+        throw new TagNameInTrashError(trashMatches)
+      }
+
+      if (trashMatches.length && trashMode === 'restore') {
+        const summary = summarizeTrashedNameMatches(trashMatches)
+        if (summary.extraIds.length) {
+          await purgeTrashedTagIds(summary.extraIds)
+        }
+        const restoredIds = restoreTrashTags(db, summary.newest.map((match) => match.id))
+        const restored = restoredIds
+          .map((id) => tagsRepo.findById(id))
+          .filter((tag): tag is NonNullable<typeof tag> => Boolean(tag))
+        const restoredKeys = new Set(restored.map((tag) => normalizeTagName(tag.name)))
+        const remaining = items.filter((item) => !restoredKeys.has(normalizeTagName(item.name)))
+        const created = remaining.length ? tagsRepo.bulkCreate(remaining) : []
+        sendCreated(res, alignTagsToRequestedNames(items, [...restored, ...created]))
+        return
+      }
+
+      if (trashMatches.length && trashMode === 'purge') {
+        await purgeTrashedTagIds(trashMatches.map((match) => match.id))
+      }
 
       const data = tagsRepo.bulkCreate(items)
       sendCreated(res, data)
@@ -145,6 +219,19 @@ export default function (db: ApiDb) {
       sendControllerError(res, err, 'Some error occurred while retrieving co-occurring tags.')
     }
   };
+
+  const getAssignmentCounts = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const tagId = Number(req.params.id)
+      if (!Number.isFinite(tagId) || tagId <= 0) {
+        return sendBadRequest(res, 'tag id is required')
+      }
+
+      sendOk(res, tagsRepo.countAssignments(tagId))
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while retrieving assignment counts.')
+    }
+  }
   
   const getCount = async function (req: ApiRequest, res: ApiResponse) {
     try {
@@ -170,6 +257,9 @@ export default function (db: ApiDb) {
       const body = getRequestBody<EntityUpdatePayload>(req)
       const { silent, ...updates } = body
       const tagId = Number(req.params.id)
+      if (Object.prototype.hasOwnProperty.call(updates, 'parentTagId')) {
+        delete (updates as {parentTagId?: unknown}).parentTagId
+      }
       if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
         assertTagNameAvailable(db.sqlite, String((updates as {name?: unknown}).name ?? ''), tagId)
       }
@@ -223,29 +313,84 @@ export default function (db: ApiDb) {
 
   const deleteOne = async function (req: ApiRequest, res: ApiResponse) {
     const body = getRequestBody<DeleteEntityOnePayload>(req)
-    const id = body.id
+    const id = Number(body.id)
 
     try {
-      const tag = tagsRepo.findById(Number(id))
+      const tag = tagsRepo.findById(id)
 
       if (!tag) {
         return sendNotFound(res, 'Tag not found.')
       }
 
-      const metaId = req.body.metaId || tag.metaId
-      if (!metaId) {
+      const permanent = Boolean(body.permanent)
+      if (!permanent) {
+        softDeleteTag(db, id)
+        return sendOk(res, {deletedIds: [id], softDeleted: true})
+      }
+
+      const assetMetaId = body.metaId ?? tag.metaId
+      if (!assetMetaId) {
         return sendBadRequest(res, 'metaId is required to delete tag assets.')
       }
 
-      const tagName = typeof tag.name === 'string' ? tag.name.trim() : ''
-      marksRepo.convertMetaMarksToBookmarksByTagId(id, tagName)
+      const displayName = typeof tag.trashOriginalName === 'string' && tag.trashOriginalName.trim()
+        ? tag.trashOriginalName.trim()
+        : (typeof tag.name === 'string' ? tag.name.trim() : '')
+      marksRepo.convertMetaMarksToBookmarksByTagId(id, displayName)
 
-      await deleteTagGeneratedAssets(getDbPath(), metaId, id)
+      await deleteTagGeneratedAssets(getDbPath(), assetMetaId, id)
 
-      tagsRepo.deleteById(Number(id))
-      sendOk(res)
+      tagsRepo.deleteById(id)
+      sendOk(res, {deletedIds: [id], softDeleted: false})
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
+    }
+  }
+
+  const listTrash = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const limitRaw = (req.query as {limit?: string | number} | undefined)?.limit
+      const limit = Number(limitRaw)
+      const items = listTrashTags(db, Number.isFinite(limit) ? limit : 200)
+      sendOk(res, {
+        items,
+        count: countTrashTags(db),
+        retentionDays: ENTITY_TRASH_RETENTION_DAYS,
+      })
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while listing trash.')
+    }
+  }
+
+  const restoreTrash = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{ids?: Array<number | string>}>(req)
+      const ids = (body.ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      const restoredIds = restoreTrashTags(db, ids)
+      sendOk(res, {restoredIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while restoring trash.')
+    }
+  }
+
+  const purgeTrash = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{ids?: Array<number | string>}>(req)
+      const ids = (body.ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      const deletedIds = await purgeTrashedTagIds(ids)
+      sendOk(res, {deletedIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while purging trash.')
+    }
+  }
+
+  const purgeExpiredTrash = async function (_req: ApiRequest, res: ApiResponse) {
+    try {
+      const ids = listExpiredTagIds(db)
+      const deletedIds = await purgeTrashedTagIds(ids)
+      sendOk(res, {deletedIds})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while purging expired trash.')
     }
   };
 
@@ -301,10 +446,39 @@ export default function (db: ApiDb) {
     getAll,
     findOne,
     getCooccurring,
+    getAssignmentCounts,
     update,
     merge,
     moveToCategory,
     duplicate,
     deleteOne,
+    listTrash,
+    restoreTrash,
+    purgeTrash,
+    purgeExpiredTrash,
   }
+}
+
+type TrashNameConflictMode = 'restore' | 'purge' | 'create'
+
+function parseTrashNameConflictMode(req: ApiRequest): TrashNameConflictMode | null {
+  const raw = (req.query as {onTrashNameConflict?: unknown} | undefined)?.onTrashNameConflict
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (value === 'restore' || value === 'purge' || value === 'create') return value
+  return null
+}
+
+function alignTagsToRequestedNames<T extends {name?: string | null}>(
+  items: Array<{name?: unknown}>,
+  tags: T[],
+): T[] {
+  const byKey = new Map<string, T>()
+  for (const tag of tags) {
+    const key = normalizeTagName(tag.name)
+    if (!key || byKey.has(key)) continue
+    byKey.set(key, tag)
+  }
+  return items
+    .map((item) => byKey.get(normalizeTagName(item.name)))
+    .filter((tag): tag is T => Boolean(tag))
 }

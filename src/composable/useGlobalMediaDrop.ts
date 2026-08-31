@@ -182,7 +182,7 @@ export function useGlobalMediaDrop() {
       return
     }
 
-    startDroppedMediaAdding({
+    void startDroppedMediaAdding({
       paths,
       mediaTypeId,
       mediaTypes: appStore.mediaTypes,

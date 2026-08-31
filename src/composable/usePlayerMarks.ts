@@ -8,6 +8,7 @@ import {
   filterMarksByTypes,
   getMarkListColor,
   getMarkListIcon,
+  getMarkTypeFilterValue,
 } from '@/composable/playerMarkDisplay'
 import {
   ensureMarkThumb,
@@ -35,7 +36,27 @@ export function usePlayerMarks({ emit }: UsePlayerMarksOptions) {
   const is_thumbs_loaded = ref(false)
 
   const player = computed(() => playerStore)
-  const assigned = computed(() => getAssignedArrayMetas(itemsStore.assigned))
+
+  /** Filter values (favorite/bookmark/chapter/metaId) actually present among this video's marks. */
+  const presentFilterValues = computed(() => {
+    const values = new Set<string | number>()
+    for (const mark of playerStore.marks) {
+      const value = getMarkTypeFilterValue(mark)
+      if (value != null) values.add(value)
+    }
+    return values
+  })
+
+  const hasFavoriteMarks = computed(() => presentFilterValues.value.has('favorite'))
+  const hasBookmarkMarks = computed(() => presentFilterValues.value.has('bookmark'))
+  const hasChapterMarks = computed(() => presentFilterValues.value.has(MARK_FILTER_CHAPTER))
+
+  /** Only categories that actually have a mark on this video — not every category in the app. */
+  const assigned = computed(() =>
+    getAssignedArrayMetas(itemsStore.assigned).filter((item) =>
+      item.meta?.id != null && presentFilterValues.value.has(Number(item.meta.id)),
+    ),
+  )
 
   const marks = computed(() => filterMarksByTypes(playerStore.marks, marksType.value))
 
@@ -143,6 +164,9 @@ export function usePlayerMarks({ emit }: UsePlayerMarksOptions) {
     marksType,
     is_thumbs_loaded,
     assigned,
+    hasFavoriteMarks,
+    hasBookmarkMarks,
+    hasChapterMarks,
     marks,
     getThumbs,
     getIcon: getMarkListIcon,

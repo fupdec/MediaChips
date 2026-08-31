@@ -6,7 +6,7 @@
     opacity="1"
     persistent
   >
-    <v-card>
+    <v-card rounded="xl">
       <DialogHeader
         @close="close"
         :header="t('login.welcome')"
@@ -22,7 +22,8 @@
           :label="t('settings_labels.security.password')"
           class="mt-6"
           variant="outlined"
-          rounded
+          density="comfortable"
+          rounded="lg"
         >
           <template #append-inner>
             <v-btn @click="showPassword = !showPassword" variant="text" icon>

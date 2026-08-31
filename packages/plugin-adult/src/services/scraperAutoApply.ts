@@ -1,6 +1,6 @@
 import path from 'path-browserify'
 import { typedApi } from '@/services/typedApi'
-import { createImage, createUnavailableImage, checkFileExists } from '@/services/fileService'
+import { createImage, createUnavailableImage, checkFileExists, isCreateImageSuccessStatus } from '@/services/fileService'
 import { setNotification } from '@/services/notificationService'
 import { useSettingsStore } from '@/stores/settings'
 import translate, { type Locale } from '@/utils/translate'
@@ -95,7 +95,7 @@ async function downloadMainImage({
   )
 
   const imagePath = path.join(
-    dbPath,
+    String(dbPath || '').replace(/\\/g, '/'),
     'meta',
     String(meta.id),
     `${tag.id}_main.jpg`,
@@ -118,7 +118,7 @@ async function downloadMainImage({
 
   for (const poster of posters) {
     const response = await createImage(poster.url, imagePath, sizes)
-    if (response.status !== 201) continue
+    if (!isCreateImageSuccessStatus(response.status)) continue
 
     await applyAutoColor()
     return true
@@ -130,7 +130,7 @@ async function downloadMainImage({
   }
 
   const fallback = await createUnavailableImage(imagePath, sizes)
-  if (fallback.status === 201) {
+  if (isCreateImageSuccessStatus(fallback.status)) {
     return true
   }
 

@@ -80,18 +80,19 @@
 
                   <v-list-item
                     v-else
-                    :to="metaPath(item.id)"
-                    :prepend-icon="`mdi-${item.icon}`"
+                    :to="item.isGroup ? undefined : metaPath(item.id)"
+                    :link="!item.isGroup"
+                    :prepend-icon="`mdi-${item.isGroup ? (item.icon || 'folder-outline') : item.icon}`"
                     :title="item.name"
-                    :active="route.query.metaId == String(item.id)"
+                    :active="!item.isGroup && route.query.metaId == String(item.id)"
                     :class="{
                       'd-none': item.hidden && !isShowHidden,
                       'sidebar-meta--hidden': item.hidden && isShowHidden,
                     }"
+                    :style="item.depth ? {paddingInlineStart: `${8 + item.depth * 12}px`} : undefined"
                     color="primary"
                     class="drag-handle"
                     exact
-                    link
                   >
                     <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
                       {{ item.name }}
@@ -116,6 +117,18 @@
           >
             <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
               {{ settingsLink.title }}
+            </v-tooltip>
+          </v-list-item>
+
+          <v-list-item
+            v-if="showTrash"
+            :prepend-icon="trashLink.icon"
+            :title="trashLink.title"
+            draggable="false"
+            @click="openTrash()"
+          >
+            <v-tooltip activator="parent" location="end" :disabled="isDrawerHovered">
+              {{ trashLink.title }}
             </v-tooltip>
           </v-list-item>
 
@@ -161,15 +174,15 @@
 import {ref, computed, watch, onMounted, defineAsyncComponent} from 'vue'
 import {useRoute} from 'vue-router'
 import {typedApi} from '@/services/typedApi'
-import orderBy from 'lodash/orderBy'
 import {useI18n} from 'vue-i18n'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
+import {flattenTagCategories} from '@/utils/tagCategoryTree'
 import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import type {Meta} from '@/types/stores'
 
 const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
-type MetaNavItem = Meta & {hidden?: boolean; order?: number}
+type MetaNavItem = Meta & {hidden?: boolean; order?: number; depth?: number; isGroup?: boolean}
 type MetaNavRow = MetaNavItem | {type: 'toggler'; id: string}
 
 const isShowHidden = ref(false)
@@ -185,11 +198,14 @@ const {
   libraryLinks,
   settingsLink,
   allTagsLink,
+  trashLink,
+  showTrash,
   showInbox,
   inboxBadgeCount,
   inboxLostCount,
   watcherBusy,
   openInbox,
+  openTrash,
   metaPath,
 } = useLibraryNavItems()
 
@@ -209,12 +225,21 @@ const hiddenToggleLabel = computed(() =>
     : t('navigation.show_hidden', {count: hiddenMetaCount.value}),
 )
 
+function flattenNav(items: MetaNavItem[]): MetaNavItem[] {
+  return flattenTagCategories(items).map(({meta, depth, isGroup}) => ({
+    ...meta,
+    depth,
+    isGroup,
+  }))
+}
+
 function reorderMeta(items: MetaNavItem[]): MetaNavRow[] {
-  const sorted = orderBy(items, ['hidden', 'order'], ['asc', 'asc'])
+  const visible = flattenNav(items.filter((item) => !item.hidden))
+  const hidden = flattenNav(items.filter((item) => item.hidden))
+  const sorted = [...visible, ...hidden]
   if (sorted.length > 1) {
-    const visibleCount = sorted.filter((item) => !item.hidden).length
     const arr: MetaNavRow[] = [...sorted]
-    arr.splice(visibleCount, 0, {type: 'toggler', id: 'toggler'})
+    arr.splice(visible.length, 0, {type: 'toggler', id: 'toggler'})
     return arr
   }
   return sorted
@@ -244,6 +269,7 @@ function metaNavItemsEqual(a: MetaNavItem[], b: MetaNavItem[]): boolean {
     if (a[i].id !== b[i].id) return false
     if (a[i].order !== b[i].order) return false
     if (Boolean(a[i].hidden) !== Boolean(b[i].hidden)) return false
+    if (Number(a[i].parentMetaId ?? 0) !== Number(b[i].parentMetaId ?? 0)) return false
   }
 
   return true
@@ -306,14 +332,14 @@ async function updateMetaOrder() {
 }
 
 .sidebar-section {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-transform: none;
   height: 28px;
   min-height: 28px;
   padding-inline: 16px;
-  opacity: 0.55;
+  opacity: 0.65;
   overflow: hidden;
 }
 

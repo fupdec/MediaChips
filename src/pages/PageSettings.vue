@@ -66,6 +66,10 @@
                 <SettingsAppearancePage/>
               </SettingsSection>
 
+              <SettingsSection id="settings-appearance-image-viewer">
+                <SettingsAppearanceImageViewer/>
+              </SettingsSection>
+
               <SettingsSection id="settings-appearance-sfw">
                 <SettingsSfwMode/>
               </SettingsSection>
@@ -162,6 +166,7 @@
               <SettingsGroupLabel
                 :title="t('settings.groups.maintenance')"
                 icon="wrench-outline"
+                large
               />
 
               <SettingsLibraryHealthGuide/>
@@ -216,9 +221,12 @@
                 :title="t('settings.groups.maintenance_cleanup')"
                 icon="broom"
                 accent
+                error
               />
 
               <SettingsClearGeneratedImages/>
+
+              <SettingsLibraryReset/>
             </SettingsList>
           </div>
 
@@ -274,6 +282,8 @@ import SettingsAppearanceZoom
   from "@/components/settings/appearance/SettingsAppearanceZoom.vue"
 import SettingsAppearancePage
   from "@/components/settings/appearance/SettingsAppearancePage.vue"
+import SettingsAppearanceImageViewer
+  from "@/components/settings/appearance/SettingsAppearanceImageViewer.vue"
 import SettingsSfwMode
   from "@/components/settings/appearance/SettingsSfwMode.vue"
 import {usePluginsStore} from "@/stores/plugins"
@@ -361,6 +371,9 @@ const SettingsDetectFaces = defineAsyncComponent(() =>
 )
 const SettingsClearGeneratedImages = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsClearGeneratedImages.vue")
+)
+const SettingsLibraryReset = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsLibraryReset.vue")
 )
 const SettingsGeneral = defineAsyncComponent(() =>
   import("@/components/settings/general/SettingsGeneral.vue")
@@ -523,6 +536,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   appearance_colors: "settings-appearance-colors",
   appearance_cards: "settings-appearance-cards",
   appearance_page: "settings-appearance-page",
+  appearance_image_viewer: "settings-appearance-image-viewer",
   appearance_sfw: "settings-appearance-sfw",
   meta: "settings-meta",
   tag_categories: "settings-tag-categories",
@@ -536,6 +550,7 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   watched_folders: "settings-watched-folders",
   open_data_folder: "settings-open-data-folder",
   databases: "settings-databases",
+  library_reset: "settings-library-reset",
   library_health_guide: "settings-library-health-guide",
   generate_video_images: "settings-generate-video-images",
   generate_auto_chapters: "settings-generate-auto-chapters",
@@ -621,6 +636,7 @@ const APPEARANCE_SECTIONS = new Set([
   "appearance_colors",
   "appearance_cards",
   "appearance_page",
+  "appearance_image_viewer",
   "appearance_sfw",
 ])
 
@@ -650,6 +666,7 @@ const DATABASE_SECTIONS = new Set([
   "open_data_folder",
   "databases",
   "database_add",
+  "library_reset",
   "library_health_guide",
   "generate_video_images",
   "generate_auto_chapters",

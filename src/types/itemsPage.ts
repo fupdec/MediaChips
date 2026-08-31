@@ -106,6 +106,8 @@ export interface PresetMetaProps {
   item: MediaItem | Tag
   type: ItemsPageType | string
   isShowAll?: boolean
+  /** When false, preset chips (and their fetch) are skipped. Default true. */
+  showPreset?: boolean
 }
 
 export interface PresetMetaParam {

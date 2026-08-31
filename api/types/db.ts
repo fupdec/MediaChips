@@ -33,6 +33,7 @@ export type FilterLike = AnyRecord & {
   cond?: string
   val?: unknown
   active?: boolean | number | string
+  includeDescendants?: boolean | number | string
 }
 
 export type TagLike = AnyRecord & {

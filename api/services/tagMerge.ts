@@ -159,6 +159,16 @@ export function mergeTagsInCategoryTx(
 
   const survivor = tagRows.find((row) => row.id === survivorId)!
   const sources = tagRows.filter((row) => row.id !== survivorId)
+
+  tx.update(tags)
+    .set({parentTagId: null, updatedAt: nowIso()})
+    .where(inArray(tags.id, allIds))
+    .run()
+  tx.update(tags)
+    .set({parentTagId: null, updatedAt: nowIso()})
+    .where(inArray(tags.parentTagId, allIds))
+    .run()
+
   const migrated = {
     mediaLinks: 0,
     nestedAsChild: 0,

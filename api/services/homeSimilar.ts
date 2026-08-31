@@ -3,6 +3,7 @@ import {queryAll, queryGet} from '../db/utils/rawQuery'
 import {getContinueWatching} from './homeMedia'
 import {CLIP_EMBEDDING_INDEX_KEY} from './mediaClipEmbeddings'
 import {loadMediaBasicsByIds} from './mediaItemsLoader'
+import {parseGridTileIndex} from '../../shared/videoPreview'
 import {findSimilarHybrid} from './mediaHybridSimilarity'
 
 export type HomeSimilarSeedReason = 'viewed' | 'favorite' | 'any'
@@ -23,7 +24,11 @@ export type HomeSimilarResult = {
 }
 
 const SEED_CANDIDATE_LIMIT = 24
-/** Share of early seed attempts drawn from recently viewed media. */
+/**
+ * Chance each attempt draws from recently viewed (else the random pool).
+ * Must be per-slot, not a viewed prefix: first-success would otherwise
+ * always pick a recently viewed original whenever those have neighbors.
+ */
 const VIEWED_SEED_BIAS = 0.4
 /** Match the Home Continue row so Similar does not echo it. */
 const CONTINUE_EXCLUDE_LIMIT = 12
@@ -54,8 +59,8 @@ function shuffleCopy<T>(items: T[], random: () => number): T[] {
 }
 
 /**
- * Build try-order for seeds: ~viewedBias of the first slots come from
- * recently viewed (shuffled), the rest from the random pool, then leftovers.
+ * Build try-order for seeds: each slot is viewed with probability
+ * `viewedBias`, otherwise from the random pool (then leftovers).
  */
 export function orderHomeSimilarSeeds(
   viewed: HomeSimilarSeed[],
@@ -76,25 +81,23 @@ export function orderHomeSimilarSeeds(
 
   const seen = new Set<number>()
   const out: HomeSimilarSeed[] = []
-  const viewedTarget = Math.round(limit * bias)
+  let viewedIndex = 0
+  let randomIndex = 0
 
-  for (const seed of viewedShuffled) {
-    if (out.length >= viewedTarget) break
-    if (seen.has(seed.id)) continue
-    seen.add(seed.id)
-    out.push(seed)
-  }
+  while (out.length < limit) {
+    while (viewedIndex < viewedShuffled.length && seen.has(viewedShuffled[viewedIndex].id)) {
+      viewedIndex += 1
+    }
+    while (randomIndex < randomShuffled.length && seen.has(randomShuffled[randomIndex].id)) {
+      randomIndex += 1
+    }
+    const haveViewed = viewedIndex < viewedShuffled.length
+    const haveRandom = randomIndex < randomShuffled.length
+    if (!haveViewed && !haveRandom) break
 
-  for (const seed of randomShuffled) {
-    if (out.length >= limit) break
-    if (seen.has(seed.id)) continue
-    seen.add(seed.id)
-    out.push(seed)
-  }
-
-  for (const seed of viewedShuffled) {
-    if (out.length >= limit) break
-    if (seen.has(seed.id)) continue
+    const takeViewed = haveViewed && (!haveRandom || random() < bias)
+    const seed = takeViewed ? viewedShuffled[viewedIndex++] : randomShuffled[randomIndex++]
+    if (!seed || seen.has(seed.id)) continue
     seen.add(seed.id)
     out.push(seed)
   }
@@ -206,11 +209,14 @@ async function buildSimilarForSeed(
       const row = byId.get(id)
       if (!row) return null
       const hit = scoreById.get(id)
+      const tileIndex = parseGridTileIndex(hit?.tileIndex)
       return toHomeItem(row, {
+        ...(tileIndex != null ? {semanticTileIndex: tileIndex} : {}),
         similarity: hit
           ? {
               score: hit.score,
               signals: hit.signals,
+              ...(tileIndex != null ? {tileIndex} : {}),
             }
           : undefined,
       })
@@ -223,7 +229,7 @@ async function buildSimilarForSeed(
 
 export async function getHomeSimilar(
   db: ApiDb,
-  options: {limit?: number; random?: () => number} = {},
+  options: {limit?: number; random?: () => number; excludeSeedId?: number | null} = {},
 ): Promise<HomeSimilarResult> {
   const limit = Math.min(Math.max(Number(options.limit) || 12, 1), 24)
   if (!libraryHasSimilarSignals(db)) {
@@ -234,6 +240,10 @@ export async function getHomeSimilar(
   const excludeIds = continueWatching
     .map((row) => Number(row.id))
     .filter((id) => Number.isFinite(id) && id > 0)
+  const excludeSeedId = Number(options.excludeSeedId)
+  if (Number.isFinite(excludeSeedId) && excludeSeedId > 0) {
+    excludeIds.push(excludeSeedId)
+  }
   const excludeSet = new Set(excludeIds)
 
   // Keep Continue off the seed too — Similar should not echo that row.

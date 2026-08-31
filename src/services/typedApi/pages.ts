@@ -29,6 +29,7 @@ import {
   parseFilterRowResponse,
   parseFilterRowsInSavedFilter,
   parsePageSettingsFindOrCreate,
+  parsePageSettingsRecordOrNull,
   parsePlaylistCreateResponse,
   parseSavedFilterBasicList,
   parsePlaylistMediaLinks,
@@ -52,6 +53,14 @@ export const pagesApi = {
     return apiClient.post(API_ROUTES.pageSetting, query).then((res) => ({
       ...res,
       data: validated(parsePageSettingsFindOrCreate, res.data),
+    }))
+  },
+
+  /** Lookup only — never creates default page settings rows. */
+  findPageSettings(query: PageSettingWritePayload['query']) {
+    return apiClient.post(API_ROUTES.pageSettingFind, query).then((res) => ({
+      ...res,
+      data: validated(parsePageSettingsRecordOrNull, res.data),
     }))
   },
 
@@ -108,8 +117,11 @@ export const pagesApi = {
     }))
   },
 
-  deleteSavedFilter(id: number) {
-    return apiClient.delete(apiSavedFilter(id))
+  deleteSavedFilter(id: number, options: {permanent?: boolean} = {}) {
+    return apiClient.delete(apiSavedFilter(id), {
+      data: options.permanent ? {permanent: true} : undefined,
+      params: options.permanent ? {permanent: '1'} : undefined,
+    })
   },
 
   getSavedFilterMedia(id: number, params?: Record<string, unknown>) {
@@ -179,8 +191,62 @@ export const pagesApi = {
     return apiClient.put(apiPlaylist(id), data)
   },
 
-  deletePlaylist(id: number) {
-    return apiClient.delete(apiPlaylist(id))
+  deletePlaylist(id: number, options: {permanent?: boolean} = {}) {
+    return apiClient.delete(apiPlaylist(id), {
+      data: options.permanent ? {permanent: true} : undefined,
+      params: options.permanent ? {permanent: '1'} : undefined,
+    })
+  },
+
+  listPlaylistTrash(params?: {limit?: number}) {
+    return apiClient.get<{
+      items: Array<{
+        kind: 'playlist'
+        id: number
+        name: string | null
+        deletedAt: string
+      }>
+      count: number
+      retentionDays: number
+    }>(API_ROUTES.playlistTrashList, {params})
+  },
+
+  restorePlaylistTrash(body: {ids: number[]}) {
+    return apiClient.post<{restoredIds: number[]}>(API_ROUTES.playlistTrashRestore, body)
+  },
+
+  purgePlaylistTrash(body: {ids: number[]}) {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.playlistTrashPurge, body)
+  },
+
+  purgeExpiredPlaylistTrash() {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.playlistTrashPurgeExpired, {})
+  },
+
+  listSavedFilterTrash(params?: {limit?: number}) {
+    return apiClient.get<{
+      items: Array<{
+        kind: 'savedFilter'
+        id: number
+        name: string | null
+        deletedAt: string
+        metaId?: number | null
+      }>
+      count: number
+      retentionDays: number
+    }>(API_ROUTES.savedFilterTrashList, {params})
+  },
+
+  restoreSavedFilterTrash(body: {ids: number[]}) {
+    return apiClient.post<{restoredIds: number[]}>(API_ROUTES.savedFilterTrashRestore, body)
+  },
+
+  purgeSavedFilterTrash(body: {ids: number[]}) {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.savedFilterTrashPurge, body)
+  },
+
+  purgeExpiredSavedFilterTrash() {
+    return apiClient.post<{deletedIds: number[]}>(API_ROUTES.savedFilterTrashPurgeExpired, {})
   },
 
   addMediaToPlaylist(body: { mediaId: number; playlistId: number }) {

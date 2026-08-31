@@ -48,10 +48,11 @@ export function useItemsPageInit({
   const apiUrl = computed(() => appStore.localhost)
 
   const updatePageSetting = async (data: PageSettingData): Promise<void> => {
+    const query = normalizePageSettingCriteria(props)
     const run = async () => {
       await typedApi.putPageSetting({
         data,
-        query: normalizePageSettingCriteria(props),
+        query,
       })
     }
     pageSettingWriteChain = pageSettingWriteChain.then(run, run)
@@ -208,6 +209,7 @@ export function useItemsPageInit({
     itemsStore.updateMultiple({
       filters,
       savedFilter,
+      filtersJoin: savedFilter?.filtersJoin === 'or' ? 'or' : 'and',
     })
 
     if (props.tagId) {
@@ -308,7 +310,11 @@ export function useItemsPageInit({
     }
 
     const {filters, savedFilter} = await fetchSavedFilterBundle()
-    Object.assign(storeUpdates, {filters, savedFilter})
+    Object.assign(storeUpdates, {
+      filters,
+      savedFilter,
+      filtersJoin: savedFilter?.filtersJoin === 'or' ? 'or' : 'and',
+    })
 
     if (props.tagId) {
       const existingFilters = storeUpdates.filters || []

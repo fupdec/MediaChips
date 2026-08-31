@@ -1,14 +1,14 @@
 <template>
   <v-chip-group v-model="marksType" color="primary" column multiple>
-    <v-chip value="favorite" size="small" variant="tonal" filter>
+    <v-chip v-if="hasFavorite" value="favorite" size="small" variant="tonal" filter>
       <v-icon icon="mdi-heart" size="small" start/>
       {{ t('meta.default_names.favorite') }}
     </v-chip>
-    <v-chip value="bookmark" size="small" variant="tonal" filter>
+    <v-chip v-if="hasBookmark" value="bookmark" size="small" variant="tonal" filter>
       <v-icon icon="mdi-bookmark" size="small" start/>
       {{ t('meta.default_names.bookmark') }}
     </v-chip>
-    <v-chip :value="MARK_FILTER_CHAPTER" size="small" variant="tonal" filter>
+    <v-chip v-if="hasChapter" :value="MARK_FILTER_CHAPTER" size="small" variant="tonal" filter>
       <v-icon icon="mdi-movie-open-outline" size="small" start/>
       {{ t('player.auto_chapters') }}
     </v-chip>
@@ -33,6 +33,9 @@ import {MARK_FILTER_CHAPTER} from '@/utils/markAdding'
 
 const props = defineProps<{
   assigned?: AssignedMeta[]
+  hasFavorite?: boolean
+  hasBookmark?: boolean
+  hasChapter?: boolean
 }>()
 
 const assignedWithMeta = computed(() =>

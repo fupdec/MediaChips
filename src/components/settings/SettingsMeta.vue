@@ -65,8 +65,16 @@
       </template>
     </div>
 
-    <div v-if="!meta.length" class="meta-empty text-medium-emphasis mt-3">
-      {{ t('meta.dialogs.meta_missing_add_first') }}
+    <div v-if="!meta.length" class="settings-empty text-center py-10 px-4 mt-3">
+      <div class="settings-empty__icon mb-3" aria-hidden="true">
+        <v-icon icon="mdi-shape-outline" size="28"/>
+      </div>
+      <div class="text-body-1 font-weight-medium mb-1">
+        {{ t('meta.dialogs.meta_missing_add_first') }}
+      </div>
+      <div class="text-caption text-medium-emphasis">
+        {{ t('meta.dialogs.meta_empty_hint') }}
+      </div>
     </div>
 
     <template v-else-if="!isSearchEmpty">
@@ -137,9 +145,11 @@
       </v-chip-group>
     </template>
 
-    <div v-if="meta.length && isSearchEmpty" class="meta-empty text-medium-emphasis mt-4">
-      <v-img src="/images/filters/filters-no-results-meta.svg" max-height="120" class="mb-2" contain></v-img>
-      <div>{{ t('meta.dialogs.no_meta_found') }}</div>
+    <div v-if="meta.length && isSearchEmpty" class="settings-empty text-center py-10 px-4 mt-4">
+      <v-img src="/images/filters/filters-no-results-meta.svg" max-height="120" class="mb-3 mx-auto" contain></v-img>
+      <div class="text-body-1 font-weight-medium">
+        {{ t('meta.dialogs.no_meta_found') }}
+      </div>
     </div>
 
     <MetaManager
@@ -539,6 +549,25 @@ onMounted(async () => {
 
 .meta-empty {
   text-align: center;
+}
+
+.settings-empty {
+  border-radius: 22px;
+  border: 1px dashed rgba(var(--v-theme-on-surface), 0.14);
+  background:
+    radial-gradient(80% 120% at 50% 0%, rgba(var(--v-theme-primary), 0.08), transparent 65%),
+    rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.settings-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.12);
 }
 
 .meta-group__label {

@@ -6,6 +6,10 @@
   --item-fav-inset-top: 6px;
   --item-fav-inset-right: 6px;
 
+  .item-title {
+    font-size: 1.05em;
+  }
+
   // Keep native card drag-out; don't let preview <img> steal HTML5 drag.
   img,
   picture,
@@ -18,12 +22,27 @@
     overflow: hidden;
   }
 
+  &--selecting:not(.item-view-5) {
+    border-radius: 17px;
+  }
+
   &--inspector-focused,
   &--keyboard-cursor {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: 2px;
-    border-radius: 14px;
+    border-radius: 17px;
     z-index: 1;
+  }
+
+  &--tag-drop-target {
+    outline: 2px dashed rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+    border-radius: 17px;
+    z-index: 2;
+
+    .item_wrapper {
+      box-shadow: inset 0 0 0 2px rgba(var(--v-theme-primary), 0.35);
+    }
   }
 
   .item-select-overlay {
@@ -31,7 +50,7 @@
     inset: 0;
     z-index: 4;
     cursor: pointer;
-    border-radius: 14px;
+    border-radius: 17px;
     pointer-events: auto;
 
     &::before {
@@ -216,7 +235,7 @@
   }
   .rating-favorite-in-description {
     --item-rating-favorite-muted-color: #b5b5b5;
-    --item-rating-favorite-icon-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --item-rating-favorite-icon-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
 
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -647,12 +666,15 @@
     margin-right: 0.5em;
     font-size: 0.9em;
     .v-icon {
-      margin-right: 0.3em;
+      margin-right: 0;
     }
   }
   .v-icon {
     margin-right: 0.2em;
     font-size: 1.2em;
+  }
+  .category-name .v-icon {
+    margin-right: 0;
   }
   .nested-tags__toggle {
     cursor: pointer;
@@ -760,15 +782,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
-    width: 100%;
-    background-color: #000;
+    // Same oversample as `.thumb { inset: -1px }` so the sprite tile covers the poster.
     position: absolute;
-    left: 0;
-    top: 0;
+    inset: -1px;
+    width: auto;
+    height: auto;
+    background-color: #000;
     animation: appearing 0.3s both;
     .grid-sprite-frame {
       flex-shrink: 0;
+      overflow: hidden;
+      position: relative;
+    }
+    .grid-sprite-sheet {
+      position: absolute;
+      pointer-events: none;
     }
     img {
       height: 100%;
@@ -976,14 +1004,57 @@
   }
 
   &.video-preview-container--expanded {
+    --big-preview-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --big-preview-thumb-filter: blur(56px) saturate(1.55) brightness(0.36);
+    // Reserve space for the glass HUD above/below the video plate.
+    --big-preview-safe-top: 48px;
+    --big-preview-safe-bottom: 48px;
+    --big-preview-chrome-gap: 8px;
+    --big-preview-pad-x: 16px;
+    --big-preview-video-max-height: calc(
+      100vh - var(--big-preview-safe-top) - var(--big-preview-safe-bottom) - (var(--big-preview-chrome-gap) * 2)
+    );
+    --big-preview-video-offset-y: calc(
+      (var(--big-preview-safe-top) - var(--big-preview-safe-bottom)) / 2
+    );
     position: fixed;
-    background-color: transparent;
+    isolation: isolate;
+    background-color: #000;
     z-index: 3000;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: none !important;
+
+    &::before,
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 420ms var(--big-preview-ease);
+    }
+
+    &::before {
+      z-index: 1;
+      background:
+        radial-gradient(ellipse 68% 58% at 50% 48%, transparent 8%, rgba(0, 0, 0, 0.42) 100%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, transparent 22%, transparent 70%, rgba(0, 0, 0, 0.62) 100%);
+    }
+
+    &::after {
+      z-index: 1;
+      box-shadow: inset 0 0 140px 28px rgba(0, 0, 0, 0.42);
+    }
+
+    &:not(.video-preview-container--expanding):not(.video-preview-container--collapsing) {
+      &::before,
+      &::after {
+        opacity: 1;
+      }
+    }
 
     video {
       pointer-events: none;
@@ -1002,17 +1073,18 @@
       position: absolute;
       left: -50%;
       top: -50%;
+      z-index: 0;
       opacity: 1;
-      filter: blur(50px);
+      filter: var(--big-preview-thumb-filter);
       background-color: transparent;
       will-change: filter, opacity;
       transition:
-        width 350ms ease-in-out,
-        min-width 350ms ease-in-out,
-        height 350ms ease-in-out,
-        left 350ms ease-in-out,
-        top 350ms ease-in-out,
-        filter 350ms ease-in-out,
+        width 350ms var(--big-preview-ease),
+        min-width 350ms var(--big-preview-ease),
+        height 350ms var(--big-preview-ease),
+        left 350ms var(--big-preview-ease),
+        top 350ms var(--big-preview-ease),
+        filter 350ms var(--big-preview-ease),
         opacity 280ms ease-in-out;
 
       // Cover the stage so card letterbox blacks don't read as bars
@@ -1026,9 +1098,9 @@
     &.video-preview-container--expanding {
       .thumb {
         // Blur in parallel with the FLIP expand (not after it).
-        filter: blur(0);
+        filter: blur(0) saturate(1) brightness(1);
         opacity: 0.96;
-        animation: video-big-preview-thumb-blur-in 350ms ease-out forwards;
+        animation: video-big-preview-thumb-blur-in 350ms var(--big-preview-ease) forwards;
       }
 
       .preview,
@@ -1045,16 +1117,20 @@
       display: inline-flex;
       width: fit-content;
       height: fit-content;
-      max-width: 95vw;
-      max-height: 95vh;
+      max-width: 98vw;
+      max-height: var(--big-preview-video-max-height);
       left: 50%;
-      top: 50%;
+      top: calc(50% + var(--big-preview-video-offset-y));
       transform: translate(-50%, -50%);
       z-index: 1000;
       opacity: 1;
       animation: none;
       transition-duration: 0s;
-      box-shadow: 0 0 80px rgba(0, 0, 0, 0.55);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.14),
+        0 28px 90px rgba(0, 0, 0, 0.62),
+        0 0 140px rgba(var(--v-theme-primary), 0.28),
+        0 0 70px rgba(255, 196, 92, 0.1);
       // Let blurred thumb/grid show through letterbox / side insets.
       background-color: transparent;
       // Transform on this shell breaks overflow clipping of hardware
@@ -1071,14 +1147,21 @@
         height: auto;
         // Keep the fit box ≥16:9 so landscape is height-limited
         // (side insets) instead of width-limited (edge-to-edge flush).
-        max-width: 95vw;
-        max-height: min(95vh, calc(90vw * 9 / 16));
+        max-width: 98vw;
+        max-height: min(
+          var(--big-preview-video-max-height),
+          calc(96vw * 9 / 16)
+        );
         object-fit: contain;
         border-radius: 16px;
         clip-path: inset(0 round 16px);
         -webkit-clip-path: inset(0 round 16px);
         pointer-events: none;
       }
+    }
+
+    &:not(.video-preview-container--expanding):not(.video-preview-container--collapsing) .preview {
+      animation: big-preview-plate-settle 520ms var(--big-preview-ease) both;
     }
 
     &.video-preview-container--collapsing {
@@ -1135,7 +1218,8 @@
         }
       }
 
-      .preview-playback-timeline {
+      .preview-playback-timeline,
+      .big-preview-chrome {
         opacity: 0;
         pointer-events: none;
         transition: opacity 120ms ease-out;
@@ -1150,62 +1234,235 @@
 
     &.big-preview-size-original .preview {
       video {
-        max-width: min(var(--big-preview-native-width, 95vw), 95vw);
+        max-width: min(var(--big-preview-native-width, 98vw), 98vw);
         max-height: min(
-          var(--big-preview-native-height, 95vh),
-          95vh,
-          calc(90vw * 9 / 16)
+          var(--big-preview-native-height, var(--big-preview-video-max-height)),
+          var(--big-preview-video-max-height),
+          calc(96vw * 9 / 16)
         );
       }
     }
     &.big-preview-size-full-height .preview {
       video {
         // Stretch up to the same ≥16:9 fit box (side insets + rounded corners).
-        height: min(95vh, calc(90vw * 9 / 16));
+        height: min(var(--big-preview-video-max-height), calc(96vw * 9 / 16));
         width: auto;
-        max-width: 95vw;
-        max-height: min(95vh, calc(90vw * 9 / 16));
+        max-width: 98vw;
+        max-height: min(var(--big-preview-video-max-height), calc(96vw * 9 / 16));
       }
     }
     &.big-preview-size-two-thirds .preview {
       video {
-        height: min(calc(100vh * 2 / 3), calc(90vw * 9 / 16));
+        height: min(
+          calc(var(--big-preview-video-max-height) * 2 / 3),
+          calc(96vw * 9 / 16)
+        );
         width: auto;
-        max-width: 95vw;
-        max-height: min(calc(100vh * 2 / 3), calc(90vw * 9 / 16));
+        max-width: 98vw;
+        max-height: min(
+          calc(var(--big-preview-video-max-height) * 2 / 3),
+          calc(96vw * 9 / 16)
+        );
       }
     }
     &.big-preview-size-half .preview {
       video {
-        height: min(50vh, calc(90vw * 9 / 16));
+        height: min(
+          calc(var(--big-preview-video-max-height) / 2),
+          calc(96vw * 9 / 16)
+        );
         width: auto;
-        max-width: 95vw;
-        max-height: min(50vh, calc(90vw * 9 / 16));
+        max-width: 98vw;
+        max-height: min(
+          calc(var(--big-preview-video-max-height) / 2),
+          calc(96vw * 9 / 16)
+        );
       }
     }
+    .big-preview-chrome {
+      position: absolute;
+      inset: 0;
+      z-index: 1012;
+      pointer-events: none;
+      animation: preview-timeline-appear 420ms var(--big-preview-ease) 60ms both;
+
+      &__top {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: var(--big-preview-safe-top);
+        padding: 8px var(--big-preview-pad-x) 0;
+        box-sizing: border-box;
+      }
+
+      &__title {
+        min-width: 0;
+        max-width: min(58vw, 720px);
+        padding: 5px 12px;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        line-height: 1.15;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background: rgba(12, 12, 16, 0.42);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        box-shadow: 0 10px 32px rgba(0, 0, 0, 0.32);
+        backdrop-filter: blur(18px) saturate(1.4);
+        -webkit-backdrop-filter: blur(18px) saturate(1.4);
+      }
+
+      &__meta {
+        display: inline-flex;
+        align-items: stretch;
+        flex-shrink: 0;
+        overflow: hidden;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        box-shadow: 0 10px 32px rgba(0, 0, 0, 0.32);
+        backdrop-filter: blur(18px) saturate(1.4);
+        -webkit-backdrop-filter: blur(18px) saturate(1.4);
+      }
+
+      &__quality,
+      &__height {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 8px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      &__quality {
+        background: rgb(236, 197, 22);
+        color: #111;
+
+        &.sd { background-color: #db8e6b; }
+        &.hd { background-color: #e2e2e2; }
+        &.fhd { background-color: #ffee00; }
+        &.uhd { background-color: #00ffff; }
+        &.vert { background-color: #e674b6; }
+      }
+
+      &__height {
+        color: #fff;
+        background: rgba(8, 8, 12, 0.72);
+      }
+
+      &__hint {
+        position: absolute;
+        left: 50%;
+        bottom: calc(var(--big-preview-safe-bottom) + var(--big-preview-chrome-gap));
+        transform: translateX(-50%);
+        padding: 4px 10px;
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 0.72rem;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        line-height: 1.2;
+        white-space: nowrap;
+        background: rgba(12, 12, 16, 0.32);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(16px) saturate(1.3);
+        -webkit-backdrop-filter: blur(16px) saturate(1.3);
+      }
+    }
+
     .preview-mute-btn {
-      position: fixed;
-      right: 24px;
-      bottom: 24px;
-      z-index: 1011;
+      flex-shrink: 0;
+      width: 36px !important;
+      height: 36px !important;
+      color: #fff !important;
       pointer-events: auto;
-      background-color: rgba(0, 0, 0, 0.45);
+      background: rgba(12, 12, 16, 0.42) !important;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(18px) saturate(1.35);
+      -webkit-backdrop-filter: blur(18px) saturate(1.35);
+
+      .v-icon {
+        color: #fff !important;
+      }
+
+      &:hover {
+        background: rgba(12, 12, 16, 0.58) !important;
+      }
     }
 
     .preview-playback-timeline {
-      z-index: 1010;
-      padding: 16px 24px 20px;
+      z-index: 1013;
+      min-height: var(--big-preview-safe-bottom);
+      padding: 8px var(--big-preview-pad-x) 12px;
+      box-sizing: border-box;
       pointer-events: auto;
+      background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.42) 100%);
+
+      &--cinema .preview-playback-timeline__row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 36px;
+      }
+
+      &--cinema .preview-playback-timeline__track {
+        overflow: visible;
+        cursor: pointer;
+        position: relative;
+
+        &::before {
+          content: "";
+          position: absolute;
+          inset: -12px 0;
+        }
+      }
 
       &__track {
-        height: 4px;
-        margin-bottom: 8px;
+        flex: 1;
+        height: 5px;
+        margin-bottom: 0;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+        transition: height 160ms ease;
+      }
+
+      &--cinema:hover .preview-playback-timeline__track {
+        height: 8px;
       }
 
       &__fill {
-        box-shadow: 0 0 14px rgba(var(--v-theme-primary), 0.28);
+        position: relative;
+        box-shadow: 0 0 16px rgba(var(--v-theme-primary), 0.45);
         transition: none;
+      }
+
+      &__knob {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow:
+          0 0 0 4px rgba(var(--v-theme-primary), 0.32),
+          0 2px 8px rgba(0, 0, 0, 0.4);
+        transform: translate(50%, -50%);
+        pointer-events: none;
+      }
+
+      &__time {
+        flex-shrink: 0;
+        animation: none;
       }
 
       &__chip {
@@ -1215,25 +1472,64 @@
         box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
       }
     }
+
+    &.video-preview-container--chrome-hidden {
+      .big-preview-chrome,
+      .preview-playback-timeline {
+        animation: none;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 280ms ease;
+      }
+    }
   }
   .thumb {
     // Oversample slightly on both axes — width-only 101% + top:-0.5% left a
     // 1px black gap along the bottom edge of the card thumb.
+    // v-responsive defaults to max-width/height 100%, which cancelled the
+    // oversample and left the poster short of the card width.
     position: absolute;
     inset: -1px;
     width: auto;
     height: auto;
     min-width: 0;
+    max-width: none;
+    max-height: none;
+    flex: none;
     background-color: #000;
     // Under the hover <video>: always painted so leave fades never expose the
     // card underlay (gray≈white) or a blank video frame (black).
     z-index: 1;
     opacity: 1;
 
-    // Keep vertical letterboxing black while the container stays gray
-    // for missing / loading / unavailable placeholders.
     .v-img__img {
+      width: 100%;
+      height: 100%;
+      // Default contain so portrait / ultrawide are not stretched.
+      object-fit: contain;
       background-color: #000;
+    }
+
+    &.thumb--cover .v-img__img {
+      object-fit: cover;
+    }
+
+    &.thumb--grid-frame {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+
+      .grid-sprite-frame {
+        flex-shrink: 0;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .grid-sprite-sheet {
+        position: absolute;
+        pointer-events: none;
+      }
     }
   }
   .preview-unavailable-notice {
@@ -1306,6 +1602,22 @@
     }
   }
 
+  // Timeline hover is a grid-sprite layer, not a zoomed poster. Keep this
+  // explicit because the poster has its own generic :hover transform rules.
+  &.timeline-preview-active:not(.video-preview-container--expanded) {
+    .thumb {
+      pointer-events: none;
+      transform: none !important;
+      z-index: 1;
+    }
+
+    .timeline {
+      opacity: 1 !important;
+      z-index: 2;
+      pointer-events: auto;
+    }
+  }
+
   &.is-hover-preview-ready:not(.video-preview-container--expanded) {
     .thumb {
       // Stay painted under the fading video (do not hide — that caused flashes).
@@ -1324,7 +1636,7 @@
 
   &.video-preview-container--expanded {
     .thumb {
-      z-index: auto;
+      z-index: 0;
     }
 
     .preview {
@@ -1436,17 +1748,62 @@
 
 @keyframes video-big-preview-thumb-blur-in {
   from {
-    filter: blur(0);
+    filter: blur(0) saturate(1) brightness(1);
     opacity: 0.96;
   }
   to {
-    filter: blur(50px);
+    filter: blur(56px) saturate(1.55) brightness(0.36);
     opacity: 1;
+  }
+}
+
+@keyframes big-preview-plate-settle {
+  from {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 8px 24px rgba(0, 0, 0, 0.28);
+  }
+  to {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.14),
+      0 28px 90px rgba(0, 0, 0, 0.62),
+      0 0 140px rgba(var(--v-theme-primary), 0.28),
+      0 0 70px rgba(255, 196, 92, 0.1);
   }
 }
 
 body > .video-preview-container.video-preview-container--expanded {
   z-index: 3000;
+}
+
+/* macOS Electron: push chrome-top right past traffic-light window controls */
+.video-preview-container--darwin-electron.video-preview-container--expanded {
+  .big-preview-chrome__top {
+    padding-left: calc(var(--big-preview-pad-x) + 70px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video-preview-container.video-preview-container--expanded {
+    &::before,
+    &::after,
+    .thumb,
+    .preview,
+    .big-preview-chrome,
+    .preview-playback-timeline {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    &::before,
+    &::after {
+      opacity: 1;
+    }
+
+    .thumb {
+      filter: var(--big-preview-thumb-filter);
+    }
+  }
 }
 
 .fav-in-card {
@@ -1537,7 +1894,429 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 }
 
-.item-media.item-view-3 {
+// Compact single-column row list, laid out as one flex row:
+//   [preview — full row height] [name + synonym / meta, 2 lines] [rating + favorite] [menu button]
+// Rows are divided by a thin border rather than the grid gap, so the list
+// stays dense regardless of the gap-size setting. Row heights are kept in
+// sync with LIST_ROW_HEIGHT in utils/gridLayout.ts.
+// Available for media items and the tag grid (view 5).
+.item-media.item-view-5,
+.item-tag.item-view-5 {
+  margin-bottom: 0;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+
+  // Media rows use an opaque v-card that fills the item and paints over the
+  // parent outline — so the primary ring vanished on the sides (only the
+  // 1px divider gap leaked a sliver of top/bottom). Tag rows already had a
+  // transparent wrapper, which is why their selection looked correct.
+  // Draw the ring as an overlay instead, matching tags: rectangular, primary,
+  // inset to the inner edge of the row.
+  &.item--inspector-focused,
+  &.item--keyboard-cursor {
+    border-radius: 0;
+    outline: none;
+    outline-offset: 0;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      border: 2px solid rgb(var(--v-theme-primary));
+      border-radius: 0;
+      pointer-events: none;
+    }
+  }
+
+  &.item--selecting {
+    border-radius: 0;
+  }
+
+  // The selection overlay's 17px radius is sized for the rounded card view —
+  // on a flat, edge-to-edge row it read as a floating rounded pill that
+  // swallowed the row's own divider border. Flatten it to match.
+  // Same for the favorite glow: the card-sized 16px radius read as rounded
+  // corners hanging off a rectangular list row.
+  .item-select-overlay {
+    border-radius: 0;
+  }
+
+  &.favorite::after {
+    border-radius: 0;
+  }
+
+  .item_wrapper {
+    // Vuetify's .v-card sets `display: block` at the same specificity as our
+    // base `.item_wrapper{display:flex}` — whichever loads last wins the tie.
+    // State it explicitly here so this row layout never depends on that race.
+    display: flex;
+    flex-direction: row;
+    // Height is fixed per size below (not auto) so the preview can stretch
+    // to exactly fill it — a description with 2 lines of text/meta no longer
+    // grows the row taller than the thumbnail.
+    align-items: stretch;
+    border-radius: 0;
+    box-shadow: none;
+    background-color: transparent;
+    // No overflow:hidden here — this row has no radius to clip against, and
+    // clipping it squashed the menu button's hover/ripple overlay into an
+    // oval against the row's short height. The preview clips its own image.
+    transition: background-color 0.15s ease;
+  }
+
+  .item_wrapper > .v-card__underlay {
+    display: none;
+  }
+
+  .item_wrapper:hover {
+    background-color: rgba(var(--v-theme-on-surface), 0.05);
+  }
+
+  // Preview fills the row's full height, flush against the edge. Rounding
+  // lives on the outer grid container instead of on individual rows.
+  .item_preview {
+    flex: 0 0 auto;
+    height: 100%;
+    margin: 0;
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  // Tag thumbs use the category's imageAspectRatio (--tag-preview-aspect)
+  // instead of the 16:9-ish media list column.
+  .tag-list-thumb {
+    width: 100%;
+    height: 100%;
+
+    .v-img,
+    .main-img {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &.item-tag {
+    // No hover zoom on a small row thumbnail.
+    .main-img:not(.static) {
+      &:hover {
+        .v-image__image,
+        .v-img__img {
+          transform: none;
+        }
+      }
+    }
+  }
+
+  .v-progress-linear {
+    display: none;
+  }
+
+  // Name + synonym share line 1; meta is forced onto line 2 (flex-basis 100%).
+  // DOM order alone puts this after the preview and before rating/favorite —
+  // no explicit `order` needed (a stray one here previously reshuffled the row).
+  .description {
+    flex: 1 1 auto;
+    // Flex items default to min-height:auto, which refuses to shrink below
+    // content size — at small sizes that pushed 2 lines of text past the
+    // fixed row height instead of clipping. min-height:0 lets it actually
+    // stretch to (and clip at) the row height like everything else here.
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+    display: flex;
+    flex-flow: row wrap;
+    align-content: center;
+    align-items: baseline;
+    column-gap: 8px;
+    row-gap: 2px;
+    padding: 2px 10px;
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  // Name stays content-sized so the synonym sits immediately after it,
+  // not flush against the right of the row. Both can still shrink so a
+  // long name doesn't shove the synonym onto line 2.
+  .item-title {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+    line-height: 1.25;
+    font-weight: 500;
+    font-size: 0.95em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Synonym sits next to the name on line 1, but never dominates it.
+  .synonyms {
+    display: block;
+    flex: 0 1 auto;
+    max-width: 40%;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    font-size: 0.8em;
+    opacity: 0.65;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Meta (tags/pinned values/preset meta) — forced to its own line, always
+  // clipped to one row regardless of whether the "group chips" setting is on
+  // (stacked categories) or off (flat chip list).
+  .nested-tags {
+    flex: 1 0 100%;
+    max-width: 100%;
+    overflow: hidden;
+    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+
+    > div {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 6px;
+      overflow: hidden;
+      max-width: 100%;
+    }
+
+    .category {
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+      width: auto;
+      max-width: 60%;
+      flex-wrap: nowrap;
+      margin-top: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .category-name {
+      flex: 0 0 auto;
+      margin-right: 0.3em;
+      font-size: 0.82em;
+      white-space: nowrap;
+
+      .v-icon {
+        margin-right: 0;
+      }
+    }
+
+    .v-chip {
+      flex: 0 0 auto;
+      min-height: 17px !important;
+      font-size: 0.72em !important;
+    }
+  }
+
+  // Rating + favorite: their own segment, always inline (one row), between
+  // the meta block and the menu button. Icon size is set per item__size
+  // below (CSS custom properties can't self-reference to scale an inherited
+  // value, so the scaled numbers are hardcoded per size at build time).
+  .list-rating-favorite {
+    // Sitting on the row background (not over a thumbnail), the components'
+    // own inline empty-state color (#eee) is too light to read — darken it,
+    // same override mechanism as .rating-favorite-in-description below.
+    --item-rating-favorite-muted-color: #7a7a7a;
+    --item-rating-star-gap: 0px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    padding: 0 6px;
+  }
+
+  .list-rating-favorite .rating,
+  .list-rating-favorite .fav-btn {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    // .fav-btn's base rule pads it 6px top/right for the absolute-over-
+    // thumbnail placement it normally has — that offset doesn't apply here
+    // and was pushing the heart down and off-center from the stars.
+    padding: 0 !important;
+    align-self: center;
+    background-color: transparent;
+    opacity: 1;
+  }
+
+  // Extra breathing room before the heart, on top of the container's gap.
+  .list-rating-favorite .fav-btn {
+    margin-left: 6px !important;
+  }
+
+  .list-rating-favorite .rating .v-btn:not(.text-yellow-darken-2) .v-icon {
+    color: var(--item-rating-favorite-muted-color) !important;
+  }
+
+  // Match the star's muted gray unconditionally, then restore Vuetify's
+  // pink only once actually favorited (via the item's own .favorite class,
+  // rather than relying on a v-selection-control internal state class) —
+  // that state is already reliably set elsewhere (the row's favorite glow).
+  // Vuetify also dims the unchecked checkbox icon to opacity:0.6 — the star
+  // renders at full opacity, so without this override the same color still
+  // reads as a lighter gray.
+  .list-rating-favorite .fav-btn .v-icon {
+    color: var(--item-rating-favorite-muted-color) !important;
+    opacity: 1 !important;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  &.favorite .list-rating-favorite .fav-btn .v-icon {
+    color: #e91e63 !important;
+  }
+
+  .list-rating-favorite .fav-btn:hover .v-icon {
+    transform: scale(1.2);
+  }
+
+  &.favorite .list-rating-favorite .fav-btn:hover .v-icon {
+    color: #ff4081 !important;
+  }
+
+  // Quality/duration badges on the thumbnail, scaled down to match the much
+  // smaller list preview, with rounding removed (flat design, see below).
+  .duration {
+    padding: 1px 3px;
+    font-size: 0.6em;
+    border-radius: 0;
+  }
+
+  .resolution {
+    border-radius: 0;
+    transform: scale(0.75);
+    transform-origin: top left;
+  }
+
+  .bookmark {
+    top: 3px;
+    left: 3px;
+    right: auto;
+    font-size: 1.05em;
+  }
+
+  // Menu button is the last item in the row, not a floating overlay. Forced
+  // to a small fixed size so it always fits inside the row — Vuetify renders
+  // icon buttons at `--v-btn-height + 12px` (default density), so its
+  // `size="small"` (28px var) was actually a 40px button; barely fitting a
+  // compact row meant its circular hover/ripple overlay got clipped by the
+  // row's overflow:hidden, which read as a "distorted gray" hover background.
+  // 14px var here renders a 26px button, comfortably inside every size.
+  .item-menu-btn {
+    // relative, not static: it must stay a positioning context for its own
+    // absolutely-positioned children. static let Vuetify's overlay resolve
+    // against `.item` (the whole row) as its nearest positioned ancestor and
+    // stretch into a huge misshapen gray blob on hover.
+    position: relative;
+    inset: auto;
+    align-self: center;
+    flex: 0 0 auto;
+    margin: 0 4px 0 0;
+    opacity: 0.55;
+    --v-btn-height: 14px;
+    // Hover feedback is drawn on the button itself (a small circular fill
+    // matching the icon button's 50% radius) so it can never escape the
+    // button bounds the way Vuetify's overlay did. Vuetify's own overlay is
+    // kept hidden below to avoid double-highlighting.
+    background-color: transparent;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+  }
+
+  .item-menu-btn .v-btn__overlay {
+    display: none;
+  }
+
+  .item-menu-btn:hover {
+    background-color: rgba(var(--v-theme-on-surface), 0.08);
+    opacity: 1;
+  }
+
+  &:hover .item-menu-btn {
+    opacity: 1;
+  }
+
+  // Row height is fixed here (drives the preview's stretched height via
+  // align-items:stretch above); preview width alone sets its aspect ratio.
+  // Kept in sync with LIST_ROW_HEIGHT in utils/gridLayout.ts (that table
+  // adds the 1px divider border on top of these heights). The floor is
+  // raised well above XS's old 31px — that was too tight to fit the menu
+  // button and two text lines without clipping.
+  &.item__size-1 {
+    .item_wrapper { height: 44px; }
+    .item_preview { width: 78px; }
+    .list-rating-favorite { --item-rating-icon: 12px; --item-fav-icon: 13px; }
+  }
+  &.item__size-2 {
+    .item_wrapper { height: 52px; }
+    .item_preview { width: 92px; }
+    .list-rating-favorite { --item-rating-icon: 15px; --item-fav-icon: 16px; }
+  }
+  &.item__size-3 {
+    .item_wrapper { height: 60px; }
+    .item_preview { width: 107px; }
+    .list-rating-favorite { --item-rating-icon: 19px; --item-fav-icon: 20px; }
+  }
+  &.item__size-4 {
+    .item_wrapper { height: 68px; }
+    .item_preview { width: 121px; }
+    .list-rating-favorite { --item-rating-icon: 21px; --item-fav-icon: 22px; }
+  }
+  &.item__size-5 {
+    .item_wrapper { height: 76px; }
+    .item_preview { width: 135px; }
+    .list-rating-favorite { --item-rating-icon: 22px; --item-fav-icon: 24px; }
+  }
+  &.item__size-6 {
+    .item_wrapper { height: 84px; }
+    .item_preview { width: 149px; }
+    .list-rating-favorite { --item-rating-icon: 24px; --item-fav-icon: 25px; }
+  }
+}
+
+// Non-video media list previews: square, sized from the row height just like
+// tags below. Video keeps its wider 16:9 column.
+.item-media.item-view-5 {
+  @for $i from 1 through 6 {
+    &.item__size-#{$i} .item_preview {
+      width: auto;
+      height: 100%;
+      aspect-ratio: 1;
+    }
+  }
+
+  // Video: keep 16:9.
+  .item_preview:has(.video-preview-container),
+  .item_preview:has(.video-preview-host) {
+    aspect-ratio: 16 / 9;
+  }
+}
+
+.item-tag.item-view-5 {
+  @for $i from 1 through 6 {
+    &.item__size-#{$i} .item_preview {
+      width: auto;
+      height: 100%;
+      aspect-ratio: var(--tag-preview-aspect, 1);
+    }
+  }
+}
+
+// Give tag list rows a visible surface background (view-5 item_wrapper is transparent by default).
+.item-tag.item-view-5 .item_wrapper {
+  background: rgb(var(--v-theme-surface));
+}
+
+.item-media.item-view-3,
+.item-media.item-view-6 {
   .item_wrapper {
     position: relative;
     overflow: hidden;
@@ -1887,11 +2666,39 @@ body > .video-preview-container.video-preview-container--expanded {
   display: flex;
   flex-wrap: wrap;
 
+  .item.item-tag.item-view-2 {
+    &.item--selecting,
+    &.item--inspector-focused,
+    &.item--keyboard-cursor,
+    &.item--tag-drop-target {
+      border-radius: 999px;
+    }
+
+    .item-select-overlay {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      border-radius: inherit;
+    }
+
+    .item-select-btn {
+      position: relative;
+      top: auto;
+      left: auto;
+      box-sizing: border-box;
+      width: var(--tag-chip-avatar-size, 32px);
+      height: var(--tag-chip-avatar-size, 32px);
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+  }
+
   .tag-chip-view {
     display: inline-flex !important;
     align-items: stretch;
     padding-inline: 0 !important;
     padding-block: 0 !important;
+    border-radius: 999px !important;
     cursor: pointer;
     box-shadow: none !important;
     transition: transform 0.18s ease;
@@ -1928,6 +2735,7 @@ body > .video-preview-container.video-preview-container--expanded {
       height: var(--tag-chip-avatar-size) !important;
       min-width: var(--tag-chip-avatar-size) !important;
       max-width: var(--tag-chip-avatar-size) !important;
+      border-radius: 50% !important;
       box-shadow: none !important;
     }
 
@@ -1935,14 +2743,6 @@ body > .video-preview-container.video-preview-container--expanded {
       width: 100%;
       height: 100%;
       box-shadow: none !important;
-    }
-
-    &:not(.v-chip--label) .tag-chip-avatar {
-      border-radius: 50% !important;
-    }
-
-    &.v-chip--label .tag-chip-avatar {
-      border-radius: 0 !important;
     }
   }
 
@@ -1960,8 +2760,8 @@ body > .video-preview-container.video-preview-container--expanded {
   }
   .item__size {
     &-1 {
+      --tag-chip-avatar-size: 20px;
       .tag-chip-view {
-        --tag-chip-avatar-size: 20px;
         height: 20px !important;
 
         &__label {
@@ -1971,8 +2771,8 @@ body > .video-preview-container.video-preview-container--expanded {
       }
     }
     &-2 {
+      --tag-chip-avatar-size: 26px;
       .tag-chip-view {
-        --tag-chip-avatar-size: 26px;
         height: 26px !important;
 
         &__label {
@@ -1982,14 +2782,14 @@ body > .video-preview-container.video-preview-container--expanded {
       }
     }
     &-3 {
+      --tag-chip-avatar-size: 32px;
       .tag-chip-view {
-        --tag-chip-avatar-size: 32px;
         height: 32px !important;
       }
     }
     &-4 {
+      --tag-chip-avatar-size: 40px;
       .tag-chip-view {
-        --tag-chip-avatar-size: 40px;
         height: 40px !important;
       }
       .item-tag.item-view-2 {
@@ -1998,8 +2798,8 @@ body > .video-preview-container.video-preview-container--expanded {
       }
     }
     &-5 {
+      --tag-chip-avatar-size: 48px;
       .tag-chip-view {
-        --tag-chip-avatar-size: 48px;
         height: 48px !important;
       }
       .item-tag.item-view-2 {
@@ -2008,14 +2808,10 @@ body > .video-preview-container.video-preview-container--expanded {
       }
     }
     &-6 {
+      --tag-chip-avatar-size: 64px;
       .tag-chip-view {
-        --tag-chip-avatar-size: 64px;
         height: 64px !important;
         font-size: 20px !important;
-
-        &:not(.v-chip--label) {
-          border-radius: 40px !important;
-        }
       }
       .item-tag.item-view-2 {
         margin: 0 5px 16px;
@@ -2028,6 +2824,7 @@ body > .video-preview-container.video-preview-container--expanded {
   .editing-field-card {
     position: relative;
     overflow: visible;
+    border-radius: var(--edit-deck-radius, 16px) !important;
 
     &--icons {
       padding: 6px 8px !important;
@@ -2040,8 +2837,6 @@ body > .video-preview-container.video-preview-container--expanded {
     &--rating {
       display: flex !important;
       align-items: center;
-      min-height: 44px;
-      padding: 6px 10px !important;
     }
 
     // Room for the floating restore control over custom inputs.
@@ -2058,16 +2853,17 @@ body > .video-preview-container.video-preview-container--expanded {
 
 .editing-rating-field {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   min-width: 0;
+  min-height: 40px;
 
   &--identity {
     align-items: center;
     width: 100%;
     flex-wrap: nowrap;
-    gap: 8px;
-    min-height: 32px;
+    gap: 16px;
+    min-height: 40px;
 
     .editing-rating-field__name {
       margin-top: 0;
@@ -2123,7 +2919,6 @@ body > .video-preview-container.video-preview-container--expanded {
 
   &__icon {
     flex: 0 0 auto;
-    margin-top: 5px;
     margin-inline-end: 2px;
     opacity: 0.72;
   }
@@ -2153,13 +2948,12 @@ body > .video-preview-container.video-preview-container--expanded {
     flex: 0 0 auto;
     width: 1px;
     height: 20px;
-    margin-inline: 4px;
+    margin-inline: 8px;
     background: rgba(var(--v-border-color), var(--v-border-opacity));
   }
 
   &__name {
     flex: 0 0 auto;
-    margin-top: 8px;
     font-size: 0.8125rem;
     line-height: 1;
     color: rgba(var(--v-theme-on-surface), 0.6);
@@ -2167,6 +2961,7 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 
   &__hint {
+    display: none;
     max-width: 100%;
     font-size: 0.6875rem;
     line-height: 1.2;
@@ -2174,6 +2969,13 @@ body > .video-preview-container.video-preview-container--expanded {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  // Keep the resting row height in sync with other fields; reveal the hint
+  // only while interacting, matching the show-on-focus hint fields elsewhere.
+  .editing-field-card:hover &__hint,
+  .editing-field-card:focus-within &__hint {
+    display: block;
   }
 
   .v-rating {
@@ -2263,6 +3065,8 @@ body > .video-preview-container.video-preview-container--expanded {
 
     &--search {
       flex: 1 1 auto;
+      margin-left: 0;
+      margin-right: 0;
     }
 
     &--tags,
@@ -2333,7 +3137,7 @@ body > .video-preview-container.video-preview-container--expanded {
   .editing-section__toolbar {
     gap: var(--edit-deck-gap);
     margin-bottom: 12px;
-    padding: 6px var(--edit-deck-pad-x);
+    padding: 2px 8px;
     border: 1px solid rgba(var(--v-theme-primary), 0.16);
     border-radius: var(--edit-deck-radius);
     background: rgb(var(--v-theme-surface));
@@ -2408,6 +3212,14 @@ body > .video-preview-container.video-preview-container--expanded {
         line-height: 1.2 !important;
       }
 
+      // Let auto-grow textareas (e.g. bookmark) expand past the shared control height.
+      // Exclude the hidden measuring sizer: it must stay height:0 to recompute
+      // shrinkage correctly, or growth gets stuck at its last measured height.
+      &.v-textarea .v-field__input:not(.v-textarea__sizer) {
+        height: var(--v-textarea-control-height, var(--edit-deck-control-h)) !important;
+        min-height: var(--edit-deck-control-h) !important;
+      }
+
       // Filled/solo: keep floating label above the value (do not zero padding).
       .v-field--variant-filled,
       .v-field--variant-solo,
@@ -2439,12 +3251,12 @@ body > .video-preview-container.video-preview-container--expanded {
     .v-autocomplete--multiple,
     .v-combobox--multiple,
     .v-select--multiple {
-      --v-input-padding-top: 22px;
-      --v-input-padding-bottom: 6px;
+      --v-input-padding-top: 14px;
+      --v-input-padding-bottom: 4px;
 
       .v-field {
-        --v-field-padding-top: 22px;
-        --v-field-padding-bottom: 6px;
+        --v-field-padding-top: 14px;
+        --v-field-padding-bottom: 4px;
         align-items: flex-start !important;
       }
 
@@ -2453,10 +3265,12 @@ body > .video-preview-container.video-preview-container--expanded {
       }
 
       .v-field__input {
-        min-height: unset !important;
+        // Match the height of a single row of chips so the card doesn't
+        // shrink when empty.
+        min-height: 42px !important;
         font-size: 0.8125rem !important;
         line-height: 1.25 !important;
-        padding-block: 22px 6px !important;
+        padding-block: 14px 4px !important;
         flex-wrap: wrap;
         align-content: flex-start !important;
         align-items: center;
@@ -2467,7 +3281,7 @@ body > .video-preview-container.video-preview-container--expanded {
       &.v-input--dirty .v-field__input,
       .v-field--dirty .v-field__input,
       .v-field--active .v-field__input {
-        padding-top: 22px !important;
+        padding-top: 14px !important;
       }
 
       .v-chip {
@@ -2495,6 +3309,21 @@ body > .video-preview-container.video-preview-container--expanded {
     .v-btn:not(.v-btn--icon):not(.restore) {
       min-height: var(--edit-deck-control-h);
       font-size: 0.8125rem;
+    }
+
+    // Match the tags-mode toggle to the filter chips beside it. The
+    // v-btn-group itself defaults to a taller compact height than its
+    // buttons, which pins them to the top instead of centering them.
+    .editing-section__tags-mode {
+      height: 24px !important;
+      align-items: center !important;
+    }
+
+    .editing-section__tags-mode .v-btn {
+      min-height: 24px !important;
+      height: 24px !important;
+      padding-inline: 6px !important;
+      font-size: 0.75rem !important;
     }
   }
 
@@ -2711,7 +3540,11 @@ body > .video-preview-container.video-preview-container--expanded {
 .edit-dialog-media-panel {
   &__card {
     overflow: hidden;
-    border: 1px solid rgba(var(--v-theme-primary), 0.16);
+    // Vuetify's own .v-card rule sets border-width/color via longhand
+    // properties at equal specificity and loads after this file, so the
+    // shorthand `border` here loses the cascade without !important.
+    border: 1px solid rgba(var(--v-theme-primary), 0.16) !important;
+    border-radius: var(--edit-deck-radius, 16px) !important;
     background: rgb(var(--v-theme-surface));
     box-shadow:
       0 1px 0 rgba(var(--v-theme-primary), 0.04),
@@ -2965,6 +3798,9 @@ body > .video-preview-container.video-preview-container--expanded {
       opacity: 0;
       z-index: 2;
       transition: opacity 320ms ease;
+      inset: -1px;
+      width: auto;
+      height: auto;
     }
 
 
@@ -2984,6 +3820,20 @@ body > .video-preview-container.video-preview-container--expanded {
     }
 
     /* Ready without pending: reveal video. Pending keeps thumb until seek settles. */
+    &.timeline-preview-active:not(.video-preview-container--expanded) {
+      .thumb {
+        pointer-events: none;
+        transform: none !important;
+        z-index: 1;
+      }
+
+      .timeline {
+        opacity: 1 !important;
+        z-index: 2;
+        pointer-events: auto;
+      }
+    }
+
     &.is-hover-preview-ready:not(.is-hover-preview-pending):not(.video-preview-container--expanded) {
       .thumb {
         pointer-events: none;
@@ -3064,6 +3914,13 @@ body > .video-preview-container.video-preview-container--expanded {
       .v-img__img {
         object-fit: cover;
       }
+
+      &.thumb--grid-frame {
+        .grid-sprite-frame {
+          width: 100%;
+          height: 100%;
+        }
+      }
     }
 
     .preview-unavailable-notice {
@@ -3087,6 +3944,9 @@ body > .video-preview-container.video-preview-container--expanded {
       opacity: 0;
       z-index: 2;
       transition: opacity 320ms ease;
+      inset: -1px;
+      width: auto;
+      height: auto;
     }
 
 

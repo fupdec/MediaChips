@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import {VIDEO_THUMB_HEIGHT} from '../../shared/videoPreview'
+import {writeFileAtomically} from './safeFileReplace'
 
 /** Common folder sidecar cover names (Kodi / Jellyfin / Windows Explorer style). */
 export const FOLDER_THUMB_CANDIDATES = [
@@ -60,17 +61,15 @@ export async function writeFolderThumbTo(
 ): Promise<boolean> {
   try {
     const sharp = await getSharp()
-    const outDir = path.dirname(outputPath)
-    if (!fs.existsSync(outDir)) {
-      fs.mkdirSync(outDir, {recursive: true})
-    }
     const quality = Math.max(40, Math.min(95, jpegQuality))
 
-    await sharp(sourceImagePath)
-      .rotate()
-      .resize({height, withoutEnlargement: true})
-      .jpeg({quality, mozjpeg: true})
-      .toFile(outputPath)
+    await writeFileAtomically(outputPath, async (tempPath) => {
+      await sharp(sourceImagePath)
+        .rotate()
+        .resize({height, withoutEnlargement: true})
+        .jpeg({quality, mozjpeg: true})
+        .toFile(tempPath)
+    })
     return true
   } catch (error: unknown) {
     console.error(

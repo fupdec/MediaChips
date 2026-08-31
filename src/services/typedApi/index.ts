@@ -20,7 +20,8 @@ type LazyApi = typeof import('./home').homeApi &
   typeof import('./backfill').backfillApi &
   typeof import('./imports').importsApi &
   typeof import('./scrapers').scrapersApi &
-  typeof import('./tmdb').tmdbApi
+  typeof import('./tmdb').tmdbApi &
+  typeof import('./libraryReset').libraryResetApi
 
 type CoreApi = typeof coreApi
 
@@ -43,8 +44,9 @@ function loadLazyApi(): Promise<LazyApi> {
     import('./imports'),
     import('./scrapers'),
     import('./tmdb'),
+    import('./libraryReset'),
   ]).then(([
-    home, pages, media, meta, tasks, transcode, plugins, browse, localAi, backfill, imports, scrapers, tmdb,
+    home, pages, media, meta, tasks, transcode, plugins, browse, localAi, backfill, imports, scrapers, tmdb, libraryReset,
   ]) => ({
     ...home.homeApi,
     ...pages.pagesApi,
@@ -59,6 +61,7 @@ function loadLazyApi(): Promise<LazyApi> {
     ...imports.importsApi,
     ...scrapers.scrapersApi,
     ...tmdb.tmdbApi,
+    ...libraryReset.libraryResetApi,
   }))
 
   return lazyApiPromise

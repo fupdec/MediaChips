@@ -1,45 +1,22 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
-import { applySqlitePragmas } from '../pragmas'
+import { createTestDb, closeTestDb } from '../testUtils/createTestDb'
 import { createTabsRepository } from './tabs'
-import * as schema from '../schema'
-
-function createTestDb() {
-  const sqlite = new Database(':memory:')
-  applySqlitePragmas(sqlite)
-  sqlite.exec(`
-    CREATE TABLE tabs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      icon TEXT,
-      url TEXT,
-      "order" INTEGER DEFAULT 0,
-      metaId INTEGER,
-      mediaTypeId INTEGER,
-      tagId INTEGER,
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    )
-  `)
-  return {
-    sqlite,
-    drizzle: drizzle(sqlite, {schema}),
-  }
-}
 
 describe('tabs repository', () => {
   let sqlite: Database.Database
   let db: ReturnType<typeof createTestDb>['drizzle']
+  let dbPath: string
 
   beforeEach(() => {
-    const testDb = createTestDb()
+    const testDb = createTestDb('tabs')
     sqlite = testDb.sqlite
     db = testDb.drizzle
+    dbPath = testDb.dbPath
   })
 
   afterEach(() => {
-    sqlite.close()
+    closeTestDb({sqlite, dbPath})
   })
 
   it('creates, updates and deletes tabs', () => {

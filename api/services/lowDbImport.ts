@@ -29,10 +29,15 @@ import {
   normalizeLegacyId,
   sameOldId,
 } from './lowDbImportDedupe'
+import {assignUniqueNormalizedTagNames} from '../db/ensureGlobalUniqueTagNames'
 
 export {dedupeLegacyVideosByPath} from './lowDbImportDedupe'
 
 async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
+  return db.sqlite.transaction(() => importLowDbDataSync(db, obj))()
+}
+
+function importLowDbDataSync(db: ApiDb, obj: LowDbImportObject) {
   const mediaRepo = createMediaRepository(db.drizzle)
   const videoMetadataRepo = createVideoMetadataRepository(db.drizzle)
   const settingsRepo = createSettingsRepository(db.drizzle)
@@ -107,17 +112,40 @@ async function importLowDbData(db: ApiDb, obj: LowDbImportObject) {
 
   const metaIds = metaRepo.findOldIdMappings() as OldIdMapping[]
 
+  const metaNameById = new Map<number, string>()
+  for (const m of obj.meta) {
+    const mapped = metaIds.find((x) => sameOldId(x.oldId, m.oldId))
+    if (mapped?.id == null) continue
+    metaNameById.set(
+      Number(mapped.id),
+      String(m.name ?? '').trim() || `Category ${mapped.id}`,
+    )
+  }
+
+  const newTags: AnyRecord[] = []
   for (const tags of obj.tags) {
     for (const i in tags) {
       const meta = metaIds.find((x) => sameOldId(x.oldId, i))
       if (!meta) continue
 
-      const newTags = (tags as LowDbTagsByMetaId)[i].map((it: AnyRecord) => ({
-        ...it,
-        metaId: meta.id,
-      }))
-      tagsRepo.bulkCreate(newTags as Parameters<typeof tagsRepo.bulkCreate>[0])
+      const importedTags = (tags as LowDbTagsByMetaId)[i] ?? []
+      for (const it of importedTags) {
+        newTags.push({
+          ...it,
+          metaId: meta.id,
+        })
+      }
     }
+  }
+
+  const renamedTags = assignUniqueNormalizedTagNames(newTags, metaNameById)
+  if (renamedTags > 0) {
+    console.warn(
+      `LowDB import: renamed ${renamedTags} duplicate tag name(s) for global uniqueness.`,
+    )
+  }
+  if (newTags.length) {
+    tagsRepo.bulkCreate(newTags as Parameters<typeof tagsRepo.bulkCreate>[0])
   }
 
   const tagsIds = tagsRepo.findOldIdMappings() as OldIdMapping[]

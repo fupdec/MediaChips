@@ -3,15 +3,17 @@
     <v-card-text class="pa-3">
       <div class="widget-created-calendar__toolbar mb-3">
         <div class="d-flex align-center text-body-1 font-weight-medium">
-          <v-icon class="mr-2" size="20">mdi-calendar-star</v-icon>
+          <v-icon class="mr-2" size="20">mdi-calendar-plus</v-icon>
           {{ t('home.widgets.created_calendar_title') }}
         </div>
 
         <div class="d-flex align-center ga-1">
           <v-btn
+            v-tooltip:top="t('home.widgets.created_calendar_prev')"
             icon
             size="small"
             variant="text"
+            :disabled="loading"
             :aria-label="t('home.widgets.created_calendar_prev')"
             @click="shiftMonth(-1)"
           >
@@ -21,9 +23,11 @@
             {{ monthLabel }}
           </div>
           <v-btn
+            v-tooltip:top="t('home.widgets.created_calendar_next')"
             icon
             size="small"
             variant="text"
+            :disabled="loading"
             :aria-label="t('home.widgets.created_calendar_next')"
             @click="shiftMonth(1)"
           >
@@ -41,8 +45,32 @@
         </div>
       </div>
 
-      <div v-if="loading" class="text-medium-emphasis text-caption py-6 text-center">
-        {{ t('common.loading') }}
+      <div
+        v-if="loading"
+        class="widget-created-calendar__skeleton"
+        aria-hidden="true"
+      >
+        <div class="widget-created-calendar__weekdays mb-1">
+          <div
+            v-for="(label, index) in weekdayLabels"
+            :key="`weekday-skel-${index}`"
+            class="widget-created-calendar__weekday"
+          >
+            <span class="widget-created-calendar__skel-line widget-created-calendar__skel-line--weekday"/>
+          </div>
+        </div>
+        <div class="widget-created-calendar__grid">
+          <div
+            v-for="cell in calendarCells"
+            :key="`day-skel-${cell.key}`"
+            class="widget-created-calendar__day widget-created-calendar__day--skel"
+            :class="{'widget-created-calendar__day--empty': !cell.day}"
+          />
+        </div>
+        <div class="widget-created-calendar__footer-skel mt-3">
+          <span class="widget-created-calendar__skel-line widget-created-calendar__skel-line--footer"/>
+          <span class="widget-created-calendar__skel-line widget-created-calendar__skel-line--footer-btn"/>
+        </div>
       </div>
 
       <template v-else>
@@ -80,16 +108,29 @@
         </div>
 
         <div class="d-flex flex-wrap align-center justify-space-between ga-2 mt-3">
-          <div class="text-caption text-medium-emphasis">
-            <span v-if="stats.totalInMonth > 0">
+          <div class="text-caption text-medium-emphasis widget-created-calendar__footer">
+            <template v-if="stats.totalWithDate <= 0">
+              {{ t('home.widgets.created_calendar_empty_library') }}
+            </template>
+            <template v-else-if="stats.totalInMonth > 0">
               {{ t('home.widgets.created_calendar_month_total', {count: stats.totalInMonth}) }}
-            </span>
-            <span v-else>
+              <span v-if="stats.totalMissingDate > 0" class="ml-1">
+                · {{ t('home.widgets.created_calendar_missing', {count: stats.totalMissingDate}) }}
+              </span>
+            </template>
+            <template v-else>
               {{ t('home.widgets.created_calendar_empty_month') }}
-            </span>
-            <span v-if="stats.totalMissingDate > 0" class="ml-2">
-              · {{ t('home.widgets.created_calendar_missing', {count: stats.totalMissingDate}) }}
-            </span>
+              <span v-if="stats.latestMonthKey" class="ml-1">
+                ·
+                <button
+                  type="button"
+                  class="widget-created-calendar__jump"
+                  @click="jumpToLatestMonth"
+                >
+                  {{ t('home.widgets.created_calendar_jump_latest') }}
+                </button>
+              </span>
+            </template>
           </div>
           <v-btn
             size="small"
@@ -111,8 +152,8 @@ import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {useOpenMediaList} from '@/utils/openMediaList'
 import {
-  buildMediaCreatedDayFilters,
-  buildMediaCreatedMonthFilters,
+  buildLibraryAddedDayFilters,
+  buildLibraryAddedMonthFilters,
 } from '@/utils/homeMediaListFilters'
 import {shiftCalendarMonth} from '@shared/calendarMonth'
 import type {ParsedCreatedCalendarMonth} from '@shared/schemas/home'
@@ -123,7 +164,9 @@ const {openMediaList} = useOpenMediaList()
 const now = new Date()
 const year = ref(now.getFullYear())
 const month = ref(now.getMonth() + 1)
-const loading = ref(false)
+const loading = ref(true)
+let loadSeq = 0
+let didAutoJump = false
 const stats = ref<ParsedCreatedCalendarMonth>({
   year: year.value,
   month: month.value,
@@ -131,6 +174,7 @@ const stats = ref<ParsedCreatedCalendarMonth>({
   totalInMonth: 0,
   totalWithDate: 0,
   totalMissingDate: 0,
+  latestMonthKey: null,
 })
 
 const countsByDay = computed(() => {
@@ -212,56 +256,100 @@ const calendarCells = computed((): CalendarCell[] => {
 })
 
 async function loadMonth() {
+  const reqYear = year.value
+  const reqMonth = month.value
+  const seq = ++loadSeq
   loading.value = true
   try {
     const res = await typedApi.getHomeCreatedCalendar({
-      year: year.value,
-      month: month.value,
+      year: reqYear,
+      month: reqMonth,
     })
+    if (seq !== loadSeq) return
     stats.value = res.data
-    year.value = res.data.year
-    month.value = res.data.month
+    // Only sync clamp from the server while this request is still current.
+    if (year.value === reqYear && month.value === reqMonth) {
+      year.value = res.data.year
+      month.value = res.data.month
+    }
+
+    // First paint: if this month is empty, jump to the latest month with adds.
+    if (
+      !didAutoJump
+      && res.data.totalInMonth <= 0
+      && res.data.latestMonthKey
+      && year.value === reqYear
+      && month.value === reqMonth
+    ) {
+      const match = /^(\d{4})-(\d{2})$/.exec(res.data.latestMonthKey)
+      if (match) {
+        const nextYear = Number(match[1])
+        const nextMonth = Number(match[2])
+        if (nextYear !== year.value || nextMonth !== month.value) {
+          didAutoJump = true
+          year.value = nextYear
+          month.value = nextMonth
+          return
+        }
+      }
+    }
+    didAutoJump = true
   } catch (error) {
+    if (seq !== loadSeq) return
     console.error('Failed to load created calendar', error)
     stats.value = {
-      year: year.value,
-      month: month.value,
+      year: reqYear,
+      month: reqMonth,
       days: [],
       totalInMonth: 0,
       totalWithDate: 0,
       totalMissingDate: 0,
+      latestMonthKey: null,
     }
+    didAutoJump = true
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 
 function shiftMonth(delta: number) {
+  didAutoJump = true
   const next = shiftCalendarMonth(year.value, month.value, delta)
   year.value = next.year
   month.value = next.month
 }
 
+function jumpToLatestMonth() {
+  const key = stats.value.latestMonthKey
+  const match = key ? /^(\d{4})-(\d{2})$/.exec(key) : null
+  if (!match) return
+  didAutoJump = true
+  year.value = Number(match[1])
+  month.value = Number(match[2])
+}
+
 function openDay(day: string) {
+  // Same browse mode as "all by date" (createdAt + day groups), scoped to the day.
   void openMediaList({
-    sortBy: 'mediaCreatedAt',
+    sortBy: 'createdAt',
     sortDir: 'desc',
-    filters: buildMediaCreatedDayFilters(day),
+    groupBy: 'dateDay',
+    filters: buildLibraryAddedDayFilters(day),
   })
 }
 
 function openMonth() {
   void openMediaList({
-    sortBy: 'mediaCreatedAt',
+    sortBy: 'createdAt',
     sortDir: 'desc',
     groupBy: 'dateDay',
-    filters: buildMediaCreatedMonthFilters(year.value, month.value),
+    filters: buildLibraryAddedMonthFilters(year.value, month.value),
   })
 }
 
 function browseByCreated() {
   void openMediaList({
-    sortBy: 'mediaCreatedAt',
+    sortBy: 'createdAt',
     sortDir: 'desc',
     groupBy: 'dateDay',
   })
@@ -287,6 +375,32 @@ watch([year, month], () => {
   text-transform: capitalize;
 }
 
+.widget-created-calendar__footer {
+  max-width: 28rem;
+  line-height: 1.35;
+}
+
+.widget-created-calendar__footer-skel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.widget-created-calendar__jump {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: rgb(var(--v-theme-primary));
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
 .widget-created-calendar__weekdays,
 .widget-created-calendar__grid {
   display: grid;
@@ -296,6 +410,7 @@ watch([year, month], () => {
 
 .widget-created-calendar__weekday {
   text-align: center;
+  min-height: 18px;
 }
 
 .widget-created-calendar__day {
@@ -337,6 +452,13 @@ watch([year, month], () => {
   visibility: hidden;
 }
 
+.widget-created-calendar__day--skel:not(.widget-created-calendar__day--empty) {
+  visibility: visible;
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  border-color: transparent;
+  animation: widget-created-calendar-pulse 1.2s ease-in-out infinite;
+}
+
 .widget-created-calendar__day-num {
   font-size: 0.8rem;
   line-height: 1.1;
@@ -347,5 +469,38 @@ watch([year, month], () => {
   font-size: 0.65rem;
   line-height: 1;
   opacity: 0.85;
+}
+
+.widget-created-calendar__skel-line {
+  display: block;
+  border-radius: 999px;
+  background: rgba(var(--v-theme-on-surface), 0.08);
+  animation: widget-created-calendar-pulse 1.2s ease-in-out infinite;
+}
+
+.widget-created-calendar__skel-line--weekday {
+  width: 60%;
+  height: 10px;
+  margin: 4px auto;
+}
+
+.widget-created-calendar__skel-line--footer {
+  width: min(42%, 180px);
+  height: 10px;
+}
+
+.widget-created-calendar__skel-line--footer-btn {
+  width: 88px;
+  height: 10px;
+}
+
+@keyframes widget-created-calendar-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 </style>

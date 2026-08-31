@@ -5,15 +5,154 @@ All notable changes to MediaChips are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1] - 2026-08-30
+
+### Added
+
+- **Fast bulk media import** — import large libraries with a dedicated high-throughput path and progress in the tasks UI
+- **Library size paywall** — freemium uses a 100-item library cap (replacing the older index-based limit) with clearer upgrade prompts
+
+### Changed
+
+- **Global search** — default text search uses name/tag FTS only; bookmark notes and text-file content scans are opt-in (`deep`) so large libraries no longer stall on the first keystroke
+- **Database sizes in settings** — measure folder size via system `du` on macOS/Linux (much faster on huge generated-media trees) and load each database independently so smaller ones appear before the largest finishes
+- **README** — repositioned around massive local libraries with a refreshed hero screenshot
+- **Sidebar section actions** — shared edit tooltips for clearer section controls
+- **UI copy tone** — clearer, less formal strings across locales
+
+### Fixed
+
+- **Scraped posters on Windows** — normalize path-browserify roots and write thumbs atomically with EPERM retries so TPDB/TMDB poster overwrites succeed while cards are open
+- **License deactivate mismatch** — local “registered” status could disagree with the license server when fingerprints were stale; sync from the server on check/startup, and clear local registration if deactivate reports the device is already inactive
+- **Inspector media refresh** — skip metadata/filesize re-probe when the source file is missing, so opening the side panel no longer spams ffprobe errors; show a file-missing icon instead of thumbnail replace actions
+- **Linux black card thumbs** — reject empty/corrupt on-disk JPEG stubs (failed FFmpeg 6 writes) and regenerate on demand instead of serving them forever
+- **Infinite-scroll thumb storms** — allow two concurrent ffmpeg thumb/preview jobs so appending a page is less likely to stall behind a single worker
+- **Global search substrings** — match media names with LIKE substrings when FTS alone is too strict
+- **Image card thumbs** — refresh image cards after on-grid thumb generation
+- **Multi-select rating** — stop rating from leaking across selected cards
+
 ## [Unreleased]
 
 ### Added
 
 - **Player touch gestures (LAN / PWA)** — swipe left/right for next/previous; double-tap left/right halves to seek ±10s (single tap still play/pause; mouse double-click still toggles fullscreen)
-- **Inspector inline editing** — edit rating, favorite, tags, and pinned metadata directly in the browser inspector; switch between view and edit with a global setting (header toggle or Appearance); changes auto-save when switching items; full editor remains available for thumbs and scrapers
-- Home **Inbox** widget: triage queue for recently added media that still lack tags and rating (daily ritual after watch-folder imports).
-- Command palette action **Open media inbox**.
-- Product UX canvas (`docs/product-ux-canvas.md`) with priorities and status mapping.
+
+## [1.11.0] - 2026-08-29
+
+### Added
+
+- **Folders browser** — browse library and pending disk files together with back/forward history, filesystem operations, folder selection, and path synchronization after moves or renames
+- **Tag hierarchy and organization** — nested tag categories, tag reparenting, globally unique active tag names, safe Trash restore, color swatch filtering, and improved tag suggestions/path matching including CJK
+- **Library Reset** — clear media or tags from Database settings with progress and confirmation flows
+- **Session Focus tag tray** — work with multiple focused tags and apply them to the current selection
+- **Video editing** — trim videos in-player with copy/encode fallback and run cancellable video conversion jobs
+- **Home Similar improvements** — frame-based match previews, reason badges, score filtering, and more varied source items
+- **Navigation and menus** — mixed-grid keyboard navigation, unified selection controls, synced app menus, and Home widget context menus
+
+### Changed
+
+- **UI copy tone** — clearer, less formal strings across all locales (EN/RU/DE/ES/FR/PT/JA/CN): shorter prompts, toasts without “successfully”, and simpler confirmations
+- **Browser and inspector UI** — unified bottom dock, refreshed folder controls, grid layouts, settings, dialogs, and media previews
+- **Database and server startup** — database discovery, migration/schema repair, watched-folder stability, and LAN startup behavior were hardened
+- **Media processing** — improved thumbnail validation, video previews, FFmpeg conversion, and filesystem safety checks
+
+### Fixed
+
+- **LAN / browser boot spinner** — `/api/config` is available as soon as the server listens and no longer requires a login session
+- **Filesystem safety and consistency** — protect operations from symlink escapes, avoid overwrite conflicts, and keep watched-folder records stable when IDs are missing
+- **Tag and filter behavior** — improve OR filtering, tag restoration, autocomplete, path matching, and category handling
+- **Player and preview behavior** — restore timeline hover previews, keep edits synchronized, and prevent thumbnail flashing
+
+## [Unreleased]
+
+### Changed
+
+- **Global search** — default text search uses name/tag FTS only; bookmark notes and text-file content scans are opt-in (`deep`) so large libraries no longer stall on the first keystroke
+- **Database sizes in settings** — measure folder size via system `du` on macOS/Linux (much faster on huge generated-media trees) and load each database independently so smaller ones appear before the largest finishes
+
+### Fixed
+
+- **License deactivate mismatch** — local “registered” status could disagree with the license server when fingerprints were stale; sync from the server on check/startup, and clear local registration if deactivate reports the device is already inactive
+- **Inspector media refresh** — skip metadata/filesize re-probe when the source file is missing, so opening the side panel no longer spams ffprobe errors; show a file-missing icon instead of thumbnail replace actions
+- **LAN / browser boot spinner** — `/api/config` is available as soon as the server listens (not after heavy routes) and no longer requires a login session, so phones and other devices stop spinning forever on a blank page
+- **Linux black card thumbs** — reject empty/corrupt on-disk JPEG stubs (failed FFmpeg 6 writes) and regenerate on demand instead of serving them forever
+- **Infinite-scroll thumb storms** — allow two concurrent ffmpeg thumb/preview jobs so appending a page is less likely to stall behind a single worker
+
+## [1.10.0] - 2026-08-17
+
+### Added
+
+- **Markers Timeline Studio** — edit marks directly on the player timeline: drag to move, edge handles to resize, and draw a new range mark on empty track; a live draft clip mirrors the add/edit dialog while other marks dim
+- **Compact List view** — dense single-column row list (thumbnail, name, one-line meta summary, rating/favorite, menu) alongside Card/Timeline/Masonry/Minimal; works for any media type and on the tag grid
+- **Drag-to-copy tags** — drag a tag onto another media card to copy it (Shift moves); first-run feature hints
+- **Library folder browse** — browse folders in a grid with a cinematic big-preview HUD (equal insets, click-to-seek timeline, Escape to close) and folder hotkeys
+- **Library sidebar edit mode** — reorder and show/hide Home, media types, Folders, Playlists, and Markers via a pencil control
+- **Theme & gradient editor** — derive theme colors; redesigned gradient editor with full-width preview, color swatch rows, and unified apply/cancel; refined theme color dialog
+
+### Changed
+
+- **Control deck** — updated appearance and pinned-meta icons; added Review mode to the app-bar menu
+- **Grid view** — hide the image resolution overlay in card and masonry views; square 1:1 previews for non-video list items
+- **Player sidebars** — pin mark/playlist filters over scrolling lists; glass mark form; compact autocompletes and chips
+- **Markers Studio** — consolidate mark editing into the player inspector; merge favorite into the bookmark icon row; attach jump/sync controls to time fields
+- **Dependencies** — update Pinia to v4 and override `sharp`/`esbuild` to clear high-severity npm audit advisories
+
+### Fixed
+
+- **Inspector tag chips** — show names instead of IDs after values hydrate; tighten country chip spacing
+- **1.9.0 catalog bugs** — tabs, inspector, tag entry, path parse, thumbs, and hover keep their own state; player playlists load the full gallery instead of the current page
+- **LowDB migration / restore** — 0.11.x allowed the same tag name in different categories; 1.5+ requires globally unique names. Restore now renames collisions instead of failing with `tags_name_normalized_unique` (which left videos imported and tags missing). Failed restores also show an error instead of appearing to do nothing.
+
+## [1.9.0] - 2026-08-14
+
+### Added
+
+- **Review mode** — fullscreen keyboard cataloging: digits for rating, F for favorite, Q–O for pinned tags, arrows/HJKL to move; grid trailers, faces, and image originals; Inbox handoff (D = done & next)
+- **New media Inbox** — Home widget and sidebar for recently added files that still lack tags/rating, plus lost files from watched folders
+- **Inspector inline editing** — edit rating, favorite, tags, and pinned metadata in the browser inspector; view/edit toggle (header or Appearance); auto-save when switching items; full editor remains for thumbs and scrapers
+- **Trash** — soft-delete with 30-day restore for media, tags, markers, playlists, and saved views; optional nav entry; permanent-delete in confirm dialogs
+- **Saved views** — saved filters now also store sort, group-by, and card size
+- **Session focus** — pin a tag/performer as a workspace: browse with or without it, apply to the selection
+- **Home Similar** — CLIP-neighbor widget with hybrid ranking, series diversity, score floors, Continue exclusions, and a context-menu entry
+- **Home calendar** — Media Created calendar widget and empty-state discovery CTAs
+- **Tag spotlight** — one random tag on Home with tips for missing profile/media
+- **Command palette** — ⌘/Ctrl+K command mode in global search (Inbox, Review, Trash, navigation, settings)
+- **Library setup wizard** — Prepare library with phased steps and per-step ETA
+- **Idle auto-lock** — optional lock after idle minutes when password protection is on
+- **Media Created dates** — extract from EXIF/container/filesystem, then sort, filter, group, and backfill
+- **Watched folders** — folder icons, exclude paths, Inbox-first nav, and manual rescan
+- **Sticky control deck** — pin the sort/filter toolbar while scrolling
+- **Filter OR join** — AND/OR between filter rows (saved with views)
+- **Player → library** — jump to the current item in the library; persist volume/mute
+- **Folder sidecars** — prefer `folder.jpg` / `cover.jpg` next to media for thumbs
+- **Tag assignment counts** — inspector shows how many media vs nested tags use a tag
+- **Bookmark text on cards** — show bookmark notes in the card description
+
+### Changed
+
+- **Database settings** — Essential / Search & AI / Experts around the prepare-library wizard; backups, cleanup, and progress polish
+- **Settings** — grouped switches into panels; image viewer in its own card; clearer empty states
+- **Dialogs** — shared xl cards, headers, and outlined fields; bulk path-edit preview table
+- **Home widgets** — Vuetify skeletons while loading
+- **Adult scraper** — clearer result cards
+- **Filters / inspector** — denser chrome; clearer Find similar menu
+- **Tray icon** — outer outline with filled inner U
+- **Dependencies** — pin `tar` and `protobufjs` to clear critical CVEs
+
+### Fixed
+
+- **macOS Dock** — restore the main window when it is hidden or closed; Check for Updates works with the window closed
+- **File-move WebSockets** — reconnect after a cold start
+- **Windows Portable** — taskbar icon
+- **OR filters** — tag-join queries use WHERE so mixed AND/OR filters return the right rows
+- **Documentation tree** — expand/collapse plus a tooltip
+- **Player control tips** — wording and layout
+- **i18n** — French strings that broke the Vite dependency scan and saved-views copy
+
+### Upgrade notes
+
+- **Delete** now moves items to Trash for 30 days instead of removing them immediately; choose permanently delete in the confirm dialog to skip Trash
+- Existing libraries migrate on first launch (Media Created dates, saved-view join, Trash)
 
 ## [1.8.1] - 2026-08-11
 

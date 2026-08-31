@@ -18,17 +18,11 @@
     >
       <v-row align="center">
         <v-col cols="12">
-          <v-btn
-            @click="openMetaPage"
-            :title="t('actions.open_page')"
-            class="tag-meta-link"
-            rounded
-            variant="tonal"
-          >
-            <v-icon start>mdi-{{ meta.icon }}</v-icon>
-            <div class="text">{{ meta.name }}</div>
-            <v-icon end>mdi-arrow-left</v-icon>
-          </v-btn>
+          <TagPageHierarchy
+            :tag="tag"
+            :meta="meta"
+            @open-meta="openMetaPage"
+          />
         </v-col>
       </v-row>
 
@@ -66,7 +60,7 @@
             @click="toggleSessionFocus"
           >
             <v-icon start>{{ isSessionFocused ? 'mdi-bullseye-arrow' : 'mdi-bullseye' }}</v-icon>
-            {{ isSessionFocused ? t('session_focus.clear') : t('session_focus.start') }}
+            {{ isSessionFocused ? t('session_focus.remove_from_tray') : t('session_focus.add_to_tray') }}
           </v-btn>
           <v-btn @click="editMetaTag" color="primary" rounded variant="flat">
             <v-icon start>mdi-pencil</v-icon>
@@ -208,17 +202,11 @@
       >
         <v-row align="center">
           <v-col cols="12">
-            <v-btn
-              @click="openMetaPage"
-              :title="t('actions.open_page')"
-              class="tag-meta-link"
-              rounded
-              variant="tonal"
-            >
-              <v-icon start>mdi-{{ meta.icon }}</v-icon>
-              <div class="text">{{ meta.name }}</div>
-              <v-icon end>mdi-arrow-left</v-icon>
-            </v-btn>
+            <TagPageHierarchy
+              :tag="tag"
+              :meta="meta"
+              @open-meta="openMetaPage"
+            />
           </v-col>
         </v-row>
 
@@ -275,17 +263,6 @@
               <v-expansion-panel class="rounded-xl tag-panel" :key="0">
                 <v-expansion-panel-title class="tag-panel__title" ripple hide-actions style="position: relative">
                   <div class="buttons-right d-flex ga-2">
-                    <v-btn
-                      @click.stop="toggleSessionFocus"
-                      :color="isSessionFocused ? 'success' : undefined"
-                      class="pr-4"
-                      rounded
-                      size="small"
-                      variant="tonal"
-                    >
-                      <v-icon start>{{ isSessionFocused ? 'mdi-bullseye-arrow' : 'mdi-bullseye' }}</v-icon>
-                      {{ isSessionFocused ? t('session_focus.clear') : t('session_focus.start') }}
-                    </v-btn>
                     <v-btn @click.stop="editMetaTag" color="primary" class="pr-4" rounded size="small" variant="flat">
                       <v-icon start>mdi-pencil</v-icon>
                       {{ t('common.edit') }}
@@ -502,6 +479,7 @@ import {checkFileExists} from '@/services/fileService'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import TagPageGallery, {type TagPageGalleryImage} from '@/components/tags/TagPageGallery.vue'
 import TagPageQuickFilters from '@/components/tags/TagPageQuickFilters.vue'
+import TagPageHierarchy from '@/components/tags/TagPageHierarchy.vue'
 import {registerPageTagLayoutRemount, registerPageTagRefresh} from '@/composable/pageTagLayoutRemount'
 import {onMetaCatalogChanged} from '@/composable/metaCatalog'
 import path from 'path-browserify';
@@ -547,7 +525,7 @@ const itemsStore = useItemsStore()
 const playerStore = usePlayerStore()
 const dialogsStore = useDialogsStore()
 const sessionFocusStore = useSessionFocusStore()
-const {startFocus, clearFocus} = useSessionFocusActions()
+const {toggleInTray} = useSessionFocusActions()
 const {t} = useI18n()
 
 // Refs
@@ -982,15 +960,11 @@ const getCompletionStatus = async () => {
 // }
 
 const isSessionFocused = computed(() =>
-  Number(sessionFocusStore.tagId) === Number(tag.value.id) && Number(tag.value.id) > 0,
+  sessionFocusStore.hasTag(Number(tag.value.id)) && Number(tag.value.id) > 0,
 )
 
 function toggleSessionFocus() {
-  if (isSessionFocused.value) {
-    clearFocus()
-    return
-  }
-  startFocus({
+  toggleInTray({
     tagId: Number(tag.value.id),
     metaId: Number(meta.value.id),
     name: String(tag.value.name || ''),

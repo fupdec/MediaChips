@@ -29,6 +29,7 @@ function createTestDb() {
       "order" INTEGER,
       views INTEGER DEFAULT 0,
       oldId TEXT,
+      parentMetaId INTEGER,
       synonyms INTEGER DEFAULT 0,
       hidden INTEGER DEFAULT 0,
       nested INTEGER DEFAULT 0,
@@ -119,6 +120,9 @@ function createTestDb() {
       views INTEGER DEFAULT 0,
       viewedAt TEXT,
       metaId INTEGER,
+      parentTagId INTEGER,
+      deletedAt TEXT,
+      trashOriginalName TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -180,6 +184,14 @@ function createTestDb() {
       mediaTypeId INTEGER,
       tagId INTEGER,
       tabId INTEGER,
+      sortBy TEXT,
+      sortDir TEXT,
+      size INTEGER,
+      view INTEGER,
+      groupBy TEXT,
+      filtersJoin TEXT DEFAULT 'and',
+      icon TEXT,
+      deletedAt TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );

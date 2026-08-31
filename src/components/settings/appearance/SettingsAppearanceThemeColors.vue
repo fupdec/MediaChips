@@ -7,6 +7,7 @@ import SettingsCategoryDivider from "@/components/ui/SettingsCategoryDivider.vue
 import SettingsSwitch from "@/components/ui/SettingsSwitch.vue";
 import {useAppTheme} from "@/composable/useAppTheme";
 import {setOption} from '@/services/settingsService'
+import {derivePaletteFromBase} from '@/utils/themeColorDerivation'
 
 const {t} = useI18n();
 const {applyTheme} = useAppTheme();
@@ -23,9 +24,11 @@ type HeaderGradientKey = 'headerGradientLight' | 'headerGradientDark'
 
 const dialogPalette = ref(false);
 const dialogHeaderGradient = ref(false);
+const dialogGenerateTheme = ref(false);
 const colorType = ref<ThemeColorKey | null>(null);
 const palette = ref<string>("#777777");
 const gradientThemeDark = ref(false);
+const generateBaseColor = ref('#8A86F2');
 
 const SETTINGS = useSettingsStore()
 
@@ -70,6 +73,47 @@ function saveHeaderGradient(values: { themeDark?: boolean; gradient: string }) {
   applyTheme();
   setOption(values.gradient, key);
 }
+
+function getFirstGradientColor(gradient: string): string {
+  try {
+    const match = gradient.match(/#[0-9a-fA-F]{3,8}/)
+    return match ? match[0] : '#777777'
+  } catch {
+    return '#777777'
+  }
+}
+
+function openGenerateTheme() {
+  generateBaseColor.value = SETTINGS.appColorLightPrimary;
+  dialogGenerateTheme.value = true;
+}
+
+function applyGeneratedTheme(mode: 'light' | 'dark' | 'both') {
+  const base = normalizeColor(generateBaseColor.value);
+
+  if (mode === 'light' || mode === 'both') {
+    const light = derivePaletteFromBase(base, 'light');
+    SETTINGS.appColorLightHeader = light.header;
+    SETTINGS.appColorLightPrimary = light.primary;
+    SETTINGS.appColorLightSecondary = light.secondary;
+    setOption(light.header, 'appColorLightHeader');
+    setOption(light.primary, 'appColorLightPrimary');
+    setOption(light.secondary, 'appColorLightSecondary');
+  }
+
+  if (mode === 'dark' || mode === 'both') {
+    const dark = derivePaletteFromBase(base, 'dark');
+    SETTINGS.appColorDarkHeader = dark.header;
+    SETTINGS.appColorDarkPrimary = dark.primary;
+    SETTINGS.appColorDarkSecondary = dark.secondary;
+    setOption(dark.header, 'appColorDarkHeader');
+    setOption(dark.primary, 'appColorDarkPrimary');
+    setOption(dark.secondary, 'appColorDarkSecondary');
+  }
+
+  dialogGenerateTheme.value = false;
+  applyTheme();
+}
 </script>
 
 <template>
@@ -82,6 +126,20 @@ function saveHeaderGradient(values: { themeDark?: boolean; gradient: string }) {
       option="headerGradient"
     ></settings-switch>
 
+    <!-- Generate theme from single color -->
+    <div class="d-flex align-center flex-wrap mb-4 mt-2">
+      <v-btn
+        @click="openGenerateTheme"
+        variant="tonal"
+        rounded
+        color="primary"
+        class="mb-2"
+      >
+        <v-icon start>mdi-auto-fix</v-icon>
+        {{ t('settings_labels.appearance.generate_theme') }}
+      </v-btn>
+    </div>
+
     <!-- Light Theme -->
     <div class="d-flex flex-wrap align-center mb-4">
       <div class="mr-6 mb-2">
@@ -92,7 +150,7 @@ function saveHeaderGradient(values: { themeDark?: boolean; gradient: string }) {
       <v-btn
         v-if="SETTINGS.headerGradient === '1'"
         @click="openDialogHeaderGradientLight"
-        :style="{ background: SETTINGS.headerGradientLight }"
+        :color="getFirstGradientColor(SETTINGS.headerGradientLight)"
         class="mr-2 mb-2"
         rounded
         variant="flat"
@@ -147,9 +205,9 @@ function saveHeaderGradient(values: { themeDark?: boolean; gradient: string }) {
       <v-btn
         v-if="SETTINGS.headerGradient === '1'"
         @click="openDialogHeaderGradientDark"
-        :style="{ background: SETTINGS.headerGradientDark }"
+        :color="getFirstGradientColor(SETTINGS.headerGradientDark)"
         class="mr-2 mb-2"
-        variant="tonal"
+        variant="flat"
         theme="dark"
         rounded
       >
@@ -193,20 +251,107 @@ function saveHeaderGradient(values: { themeDark?: boolean; gradient: string }) {
     </div>
 
     <!-- Palette Dialog -->
-    <v-dialog v-model="dialogPalette" width="300">
-      <v-card rounded="xl">
-        <div class="pa-2">
-          <v-btn @click="applyColor" rounded="xl" color="success" variant="flat" block>
+    <v-dialog v-model="dialogPalette" width="360">
+      <v-card rounded="xl" class="pa-0">
+        <div class="palette-dialog-picker-wrap">
+          <v-color-picker
+            v-model="palette"
+            mode="hexa"
+            elevation="0"
+            class="palette-dialog-picker"
+          />
+        </div>
+        <v-divider class="palette-divider"/>
+        <div class="d-flex ga-2 pa-4">
+          <v-btn
+            @click="applyColor"
+            rounded="xl"
+            color="primary"
+            variant="flat"
+            class="flex-1"
+          >
             <v-icon start>mdi-check</v-icon>
             {{ t('common.apply') }}
           </v-btn>
+          <v-btn
+            @click="dialogPalette = false"
+            variant="outlined"
+            rounded="xl"
+          >
+            {{ t('common.cancel') }}
+          </v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
+
+    <!-- Generate Theme Dialog -->
+    <v-dialog v-model="dialogGenerateTheme" width="390">
+      <v-card rounded="xl" class="pa-0">
+        <v-card-title class="d-flex align-center pa-4 pb-0 text-body-1 font-weight-medium">
+          <v-icon start class="mr-2 text-primary">mdi-palette-swatch</v-icon>
+          {{ t('settings_labels.appearance.generate_theme') }}
+        </v-card-title>
+
+        <v-card-text class="pa-4 pb-0">
+          <p class="text-caption text-medium-emphasis mb-3">
+            {{ t('settings_labels.appearance.generate_theme_hint') }}
+          </p>
+        </v-card-text>
+
+        <div class="palette-dialog-picker-wrap mx-4">
+          <v-color-picker
+            v-model="generateBaseColor"
+            mode="hex"
+            elevation="0"
+            class="palette-dialog-picker"
+          />
         </div>
 
-        <v-color-picker
-          v-model="palette"
-          mode="hexa"
-          elevation="0"
-        />
+        <div class="d-flex flex-wrap ga-2 pa-4 pt-2">
+          <v-btn
+            @click="applyGeneratedTheme('light')"
+            color="primary"
+            variant="tonal"
+            rounded="xl"
+            size="small"
+          >
+            <v-icon start size="small">mdi-weather-sunny</v-icon>
+            {{ t('settings_labels.appearance.generate_theme_light') }}
+          </v-btn>
+
+          <v-btn
+            @click="applyGeneratedTheme('dark')"
+            color="primary"
+            variant="tonal"
+            rounded="xl"
+            size="small"
+          >
+            <v-icon start size="small">mdi-weather-night</v-icon>
+            {{ t('settings_labels.appearance.generate_theme_dark') }}
+          </v-btn>
+
+          <v-btn
+            @click="applyGeneratedTheme('both')"
+            color="primary"
+            variant="flat"
+            rounded="xl"
+            size="small"
+          >
+            <v-icon start size="small">mdi-auto-fix</v-icon>
+            {{ t('settings_labels.appearance.generate_theme_both') }}
+          </v-btn>
+        </div>
+
+        <v-divider class="palette-divider"/>
+        <v-card-actions class="pa-4 pt-3">
+          <v-btn
+            @click="dialogGenerateTheme = false"
+            variant="outlined"
+            rounded="xl"
+          >
+            {{ t('common.cancel') }}
+          </v-btn>
+        </v-card-actions>
       </v-card>
     </v-dialog>
 
@@ -219,3 +364,60 @@ function saveHeaderGradient(values: { themeDark?: boolean; gradient: string }) {
     />
   </div>
 </template>
+
+<style scoped lang="scss">
+.palette-dialog-picker-wrap {
+  margin: 12px;
+  padding: 4px;
+  border: 1px solid rgba(var(--v-theme-primary), 0.16);
+  border-radius: 18px;
+  background: rgb(var(--v-theme-surface));
+  box-shadow:
+    0 1px 0 rgba(var(--v-theme-primary), 0.04),
+    0 8px 22px -16px rgba(0, 0, 0, 0.22);
+}
+
+.palette-dialog-picker {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+
+  :deep(.v-color-picker) {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  :deep(.v-color-picker__canvas) {
+    border-radius: 12px;
+    max-width: 280px;
+    width: 100%;
+    margin: 12px auto 8px;
+    overflow: hidden;
+  }
+
+  :deep(.v-color-picker__controls) {
+    max-width: 280px;
+    margin: 0 auto;
+    padding: 4px 12px 8px;
+  }
+
+  :deep(.v-color-picker__preview) {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 4px;
+  }
+
+  :deep(.v-color-picker__input) {
+    max-width: 280px;
+    margin: 0 auto;
+  }
+}
+
+.palette-divider {
+  margin: 0 16px;
+  opacity: 0.55;
+}
+</style>

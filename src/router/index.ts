@@ -18,6 +18,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/PagePlaylists.vue'),
   },
   {
+    path: '/folders',
+    name: 'Folders',
+    component: () => import('@/pages/PageFolders.vue'),
+  },
+  {
     path: '/markers',
     name: 'Markers',
     component: () => import('@/pages/PageMarkers.vue'),

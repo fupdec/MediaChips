@@ -8,7 +8,7 @@
     :width="panelWidth"
     class="inspector-panel"
     :class="{
-      'inspector-panel--empty': !focusedItem,
+      'inspector-panel--empty': !focusedItem && !pendingDraft,
       'inspector-panel--edit': inlineEdit,
     }"
   >
@@ -38,7 +38,7 @@
           </v-btn>
 
           <v-btn
-            v-if="focusedItem"
+            v-if="focusedItem || pendingDraft"
             class="inspector-panel__close"
             icon
             variant="text"
@@ -69,7 +69,60 @@
       </div>
 
       <div
-        v-if="!focusedItem"
+        v-if="pendingDraft && !focusedItem"
+        class="inspector-panel__pending"
+      >
+        <v-icon
+          size="40"
+          class="mb-3"
+          color="success"
+        >
+          mdi-file-plus-outline
+        </v-icon>
+        <div class="inspector-panel__name text-center">
+          {{ pendingDraft.name }}
+        </div>
+        <div class="inspector-panel__path text-medium-emphasis text-center mt-1">
+          {{ pendingDraft.path }}
+        </div>
+        <div
+          v-if="pendingDraft.size != null"
+          class="text-caption text-medium-emphasis mt-1"
+        >
+          {{ pendingSizeLabel }}
+        </div>
+        <v-chip
+          class="mt-3"
+          size="small"
+          color="success"
+          variant="tonal"
+          label
+        >
+          {{ t('media.adding.browser_addable') }}
+        </v-chip>
+        <div class="d-flex flex-column ga-2 mt-4" style="width: 100%">
+          <v-btn
+            color="success"
+            variant="flat"
+            rounded="lg"
+            prepend-icon="mdi-plus"
+            @click="eventBus.emit('folders:pending-add', pendingDraft.path)"
+          >
+            {{ t('folders_browser.add_to_library') }}
+          </v-btn>
+          <v-btn
+            variant="tonal"
+            rounded="lg"
+            prepend-icon="mdi-pencil-outline"
+            @click="eventBus.emit('folders:pending-edit', pendingDraft.path)"
+          >
+            {{ t('common.editing') }}
+          </v-btn>
+        </div>
+      </div>
+
+      <div
+        v-else-if="!focusedItem"
         class="inspector-panel__empty"
       >
         <v-icon
@@ -90,7 +143,10 @@
         <div class="inspector-panel__scroll">
           <div
             class="inspector-panel__preview"
-            :class="{'inspector-panel__preview--clickable': Boolean(previewSrc)}"
+            :class="{
+              'inspector-panel__preview--clickable': Boolean(previewSrc),
+              'inspector-panel__preview--video': isVideoInspectorItem,
+            }"
             @click="openPreviewViewer"
           >
             <img
@@ -109,6 +165,69 @@
               <v-icon size="36" color="medium-emphasis">
                 {{ fallbackIcon }}
               </v-icon>
+            </div>
+
+            <!-- Overlay: crop always OK; recreate-from-video needs the source file -->
+            <div
+              v-if="isVideoInspectorItem && (previewSrc || !isFileExists)"
+              class="inspector-panel__thumb-overlay"
+              @click.stop
+            >
+              <div class="inspector-panel__thumb-overlay-actions">
+                <DialogImageEditing
+                  v-if="previewSrc"
+                  detached
+                  compact
+                  variant="flat"
+                  size="x-small"
+                  :icon-size="16"
+                  :image="previewSrc"
+                  :options="{aspectRatio: 16 / 9}"
+                  :image-path="videoThumbPath"
+                  :min-width="500"
+                  :min-height="281"
+                  @edited="onThumbEdited"
+                />
+                <v-btn
+                  v-if="!isFileExists"
+                  size="x-small"
+                  variant="flat"
+                  color="error"
+                  icon
+                  class="inspector-panel__thumb-overlay-missing"
+                  v-tooltip:top="t('image.create_thumb_source_missing')"
+                  tabindex="-1"
+                  @click.stop
+                >
+                  <v-icon size="16">mdi-file-alert</v-icon>
+                </v-btn>
+                <template v-else>
+                  <v-btn
+                    size="x-small"
+                    variant="flat"
+                    color="primary"
+                    icon
+                    v-tooltip:top="t('image.create_thumb_random')"
+                    :loading="isCreatingThumb === 'random'"
+                    :disabled="!canCreateThumb || isCreatingThumb != null"
+                    @click="createVideoThumb('random')"
+                  >
+                    <v-icon size="16">mdi-dice-5-outline</v-icon>
+                  </v-btn>
+                  <v-btn
+                    size="x-small"
+                    variant="flat"
+                    color="primary"
+                    icon
+                    v-tooltip:top="t('image.create_thumb_default')"
+                    :loading="isCreatingThumb === 'default'"
+                    :disabled="!canCreateThumb || isCreatingThumb != null"
+                    @click="createVideoThumb('default')"
+                  >
+                    <v-icon size="16">mdi-image-frame</v-icon>
+                  </v-btn>
+                </template>
+              </div>
             </div>
           </div>
 
@@ -141,11 +260,11 @@
           </div>
 
           <div
-            v-else-if="mediaFacts.length"
+            v-if="inspectorFacts.length"
             class="inspector-panel__facts"
           >
             <div
-              v-for="fact in mediaFacts"
+              v-for="fact in inspectorFacts"
               :key="fact.key"
               class="inspector-panel__fact"
             >
@@ -239,6 +358,7 @@
               >
                 <v-rating
                   v-if="itemsStore.type === 'media' || meta?.rating"
+                  :key="`inspector-rating-${focusedItem.id}`"
                   :model-value="Number(focusedItem.rating) || 0"
                   density="compact"
                   half-increments
@@ -341,7 +461,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, defineAsyncComponent, onUnmounted, ref, watch} from 'vue'
 import path from 'path-browserify'
 import dayjs from 'dayjs'
 import {useI18n} from 'vue-i18n'
@@ -356,7 +476,8 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {isWinElectronUi} from '@/utils/electronUi'
 import {setOption} from '@/services/settingsService'
-import {checkFileExists} from '@/services/fileService'
+import {checkFileExists, buildLocalFileUrl} from '@/services/fileService'
+import {typedApi} from '@/services/typedApi'
 import {
   getReadableBitrate,
   getReadableDuration,
@@ -375,6 +496,9 @@ import {
   resolveTagThumbDisplayUrl,
   isThumbUnavailable,
 } from '@/utils/thumbSource'
+import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
+import {useFoldersBrowserFocus} from '@/composable/useFoldersBrowserFocus'
+import {setNotification} from '@/services/notificationService'
 import type {MediaItem, Tag} from '@/types/stores'
 
 const props = withDefaults(defineProps<{
@@ -404,7 +528,12 @@ const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
 const listSync = useItemsListSync()
+const {focused: foldersFocus, clearFocus: clearFoldersFocus} = useFoldersBrowserFocus()
 const winElectronUi = isWinElectronUi()
+
+const DialogImageEditing = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogImageEditing.vue'),
+)
 
 const collapsed = computed(() => settingsStore.inspectorCollapsed === '1')
 const inlineEdit = computed(() => settingsStore.inspectorInlineEdit !== '0')
@@ -422,6 +551,20 @@ const expandRailTop = computed(() => {
   return top
 })
 
+/** Horizontal space (px) the inspector occupies on the right edge, used by
+  * floating elements (e.g. quick-action button) to avoid overlapping it. */
+const inspectorRightEdge = computed(() =>
+  collapsed.value ? 32 : panelWidth.value,
+)
+
+watch(inspectorRightEdge, (px) => {
+  document.documentElement.style.setProperty('--app-inspector-width', `${px}px`)
+}, {immediate: true})
+
+onUnmounted(() => {
+  document.documentElement.style.removeProperty('--app-inspector-width')
+})
+
 const thumbFailed = ref(false)
 const detectedWidth = ref(0)
 const detectedHeight = ref(0)
@@ -431,11 +574,27 @@ const galleryLoadToken = ref(0)
 const editingRef = ref<EditComponentInstance | null>(null)
 const formDirty = ref(false)
 const saving = ref(false)
+const tagAssignmentCounts = ref<{media: number; tags: number} | null>(null)
+const tagAssignmentLoadToken = ref(0)
 
 const focusedItem = computed(() => {
   const id = itemsStore.selection[0] ?? itemsStore.selected_last
   if (id == null) return null
-  return itemsStore.entities.find((item) => item.id === id) ?? null
+  // Cards are rendered from itemsOnPage; use that same live object first so
+  // inline card changes (rating/favorite) are reflected immediately here.
+  return itemsStore.itemsOnPage.find((item) => item.id === id)
+    ?? itemsStore.entities.find((item) => item.id === id)
+    ?? null
+})
+
+const pendingDraft = computed(() => (
+  foldersFocus.value?.kind === 'pending' ? foldersFocus.value : null
+))
+
+const pendingSizeLabel = computed(() => {
+  const size = pendingDraft.value?.size
+  if (size == null) return ''
+  return getReadableFileSize(size)
 })
 
 const isTag = computed(() => itemsStore.type === 'tag')
@@ -458,6 +617,69 @@ const mediaType = computed(() => {
 })
 
 const mediaPath = computed(() => String(focusedMedia.value?.path || ''))
+
+const isVideoInspectorItem = computed(() =>
+  !isTag.value &&
+  focusedMedia.value != null &&
+  isVideoMediaType(mediaType.value ?? undefined),
+)
+
+const isCreatingThumb = ref<'random' | 'default' | null>(null)
+const isFileExists = ref(true)
+
+const canCreateThumb = computed(() =>
+  Boolean(isFileExists.value && focusedMedia.value?.id != null && focusedMedia.value?.path),
+)
+
+watch(
+  mediaPath,
+  (filePath) => {
+    if (!filePath) {
+      isFileExists.value = false
+      return
+    }
+    void checkFileExists(filePath).then((exists) => {
+      if (mediaPath.value === filePath) {
+        isFileExists.value = exists
+      }
+    })
+  },
+  {immediate: true},
+)
+
+async function createVideoThumb(mode: 'random' | 'default') {
+  const media = focusedMedia.value
+  if (!media?.id || !media.path || !isFileExists.value || isCreatingThumb.value) return
+
+  isCreatingThumb.value = mode
+  try {
+    await typedApi.taskCreateThumbForVideo({
+      path: media.path,
+      id: media.id,
+      seekRatio: mode === 'random' ? Math.random() : 0.5,
+    })
+    invalidateVideoThumbCaches(media.id)
+    thumbFailed.value = false
+    itemsStore.refreshThumb(media.id)
+  } catch (e) {
+    console.error(e)
+    setNotification({
+      title: t('player.video_thumb_not_updated'),
+      text: String(e),
+      icon: 'image',
+      type: 'error',
+    })
+  } finally {
+    isCreatingThumb.value = null
+  }
+}
+
+function onThumbEdited() {
+  if (!focusedMedia.value) return
+  invalidateVideoThumbCaches(focusedMedia.value.id)
+  thumbFailed.value = false
+  itemsStore.refreshThumb(focusedMedia.value.id)
+}
 
 const tagSynonyms = computed(() => {
   if (!focusedTag.value?.synonyms) return ''
@@ -573,6 +795,21 @@ const mediaFacts = computed((): InspectorFact[] => {
   return facts
 })
 
+const tagFacts = computed((): InspectorFact[] => {
+  if (!isTag.value || !focusedTag.value) return []
+  const counts = tagAssignmentCounts.value
+  if (!counts) return []
+
+  const facts: InspectorFact[] = []
+  pushFact(facts, 'mediaAssignments', t('browser_layout.tag_assignments_media'), String(counts.media))
+  pushFact(facts, 'tagAssignments', t('browser_layout.tag_assignments_tags'), String(counts.tags))
+  return facts
+})
+
+const inspectorFacts = computed((): InspectorFact[] => (
+  isTag.value ? tagFacts.value : mediaFacts.value
+))
+
 const previewInfoLabel = computed(() => {
   if (!isTag.value) return ''
   const parts: string[] = []
@@ -595,14 +832,33 @@ const mediaThumbSrc = computed(() => {
   if (!focusedMedia.value || thumbFailed.value) return null
   if (!appStore.mediaPath) return null
 
+  const id = focusedMedia.value.id
+  // Reactive dependency: recompute when a thumbnail is regenerated/edited.
+  const bust = itemsStore.thumbRefreshKeys[Number(id)] ?? 0
+
   let folder = 'videos'
   if (isImageMediaType(mediaType.value ?? undefined)) folder = 'images'
   else if (isAudioMediaType(mediaType.value ?? undefined)) folder = 'audio'
   else if (isTextMediaType(mediaType.value ?? undefined)) folder = 'text'
   else if (!isVideoMediaType(mediaType.value ?? undefined)) folder = 'videos'
 
-  const url = resolveMediaThumbDisplayUrl(appStore.mediaPath, folder, focusedMedia.value.id)
+  if (isVideoMediaType(mediaType.value ?? undefined)) {
+    return buildLocalFileUrl(
+      path.join(appStore.mediaPath, folder, 'thumbs', `${id}.jpg`),
+      false,
+      bust,
+    )
+  }
+
+  const url = resolveMediaThumbDisplayUrl(appStore.mediaPath, folder, id)
   return url && !isThumbUnavailable(url) ? url : null
+})
+
+/** Absolute path to the video's thumbnail file, used by the image editor. */
+const videoThumbPath = computed(() => {
+  const media = focusedMedia.value
+  if (!media?.id || !appStore.mediaPath) return ''
+  return path.join(appStore.mediaPath, 'videos', 'thumbs', `${media.id}.jpg`)
 })
 
 const previewSrc = computed(() => {
@@ -665,16 +921,44 @@ function onThumbError() {
   detectedHeight.value = 0
 }
 
-watch(focusedItem, (item) => {
+async function loadTagAssignmentCounts(tag: Tag) {
+  const tagId = Number(tag.id)
+  if (!Number.isFinite(tagId) || tagId <= 0) {
+    tagAssignmentCounts.value = null
+    return
+  }
+
+  const token = ++tagAssignmentLoadToken.value
+  tagAssignmentCounts.value = null
+  try {
+    const res = await typedApi.getTagAssignmentCounts(tagId)
+    if (token !== tagAssignmentLoadToken.value) return
+    tagAssignmentCounts.value = {
+      media: Number(res.data.media) || 0,
+      tags: Number(res.data.tags) || 0,
+    }
+  } catch (error) {
+    if (token !== tagAssignmentLoadToken.value) return
+    console.log(error)
+    tagAssignmentCounts.value = null
+  }
+}
+
+watch(focusedItem, async (item, previous) => {
+  if (previous && previous.id !== item?.id) {
+    await flushEdits()
+  }
   thumbFailed.value = false
   detectedWidth.value = 0
   detectedHeight.value = 0
   galleryImages.value = []
   activeGalleryType.value = null
   formDirty.value = false
+  tagAssignmentCounts.value = null
 
   if (isTag.value && item) {
     void loadTagGallery(item as Tag)
+    void loadTagAssignmentCounts(item as Tag)
   }
 }, {immediate: true})
 
@@ -698,6 +982,7 @@ async function flushEdits(): Promise<void> {
 async function clearFocus(): Promise<void> {
   await flushEdits()
   itemsStore.clearInspectorFocus()
+  clearFoldersFocus()
 }
 
 async function toggleCollapsed(): Promise<void> {
@@ -708,6 +993,11 @@ async function toggleCollapsed(): Promise<void> {
 }
 
 async function toggleInlineEdit(): Promise<void> {
+  if (pendingDraft.value && !focusedItem.value && !inlineEdit.value) {
+    void setOption('1', 'inspectorInlineEdit')
+    eventBus.emit('folders:pending-edit', pendingDraft.value.path)
+    return
+  }
   if (inlineEdit.value) {
     await flushEdits()
     void setOption('0', 'inspectorInlineEdit')
@@ -856,7 +1146,8 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   flex-shrink: 0;
 }
 
-.inspector-panel__empty {
+.inspector-panel__empty,
+.inspector-panel__pending {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -864,6 +1155,11 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   flex: 1;
   padding: 24px 16px;
   min-height: 220px;
+}
+
+.inspector-panel__pending {
+  justify-content: flex-start;
+  padding-top: 32px;
 }
 
 .inspector-panel__preview {
@@ -876,6 +1172,48 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 
   &--clickable {
     cursor: zoom-in;
+  }
+
+  &--video {
+    position: relative;
+    background: #000;
+  }
+}
+
+.inspector-panel__thumb-overlay {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.inspector-panel__thumb-overlay-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
+
+  :deep(.v-btn) {
+    background: rgba(var(--v-theme-primary), 0.55) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  :deep(.v-btn:hover) {
+    background: rgba(var(--v-theme-primary), 0.75) !important;
+  }
+
+  :deep(.inspector-panel__thumb-overlay-missing) {
+    background: rgba(var(--v-theme-error), 0.55) !important;
+    pointer-events: auto;
+    cursor: default;
+  }
+
+  :deep(.inspector-panel__thumb-overlay-missing:hover) {
+    background: rgba(var(--v-theme-error), 0.55) !important;
   }
 }
 
@@ -1105,7 +1443,7 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
       font-size: 14px !important;
       width: 14px;
       height: 14px;
-      margin-right: 4px;
+      margin-right: 0;
     }
   }
 

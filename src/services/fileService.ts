@@ -151,7 +151,7 @@ export async function checkFileExists(filePath: string) {
 
 // Bump when /api/get-file caching semantics change so browsers drop stale
 // responses previously stored under older Cache-Control policies.
-const GET_FILE_CACHE_VERSION = '3'
+const GET_FILE_CACHE_VERSION = '4'
 
 export function buildLocalFileUrl(
   imgPath: string,
@@ -220,6 +220,11 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/** createImage historically returned 201; tolerate 200. Soft-fail path uses 202. */
+export function isCreateImageSuccessStatus(status: number | undefined): boolean {
+  return status === 201 || status === 200
+}
+
 export async function createImage(
   image: string,
   outputPath: string,
@@ -237,7 +242,7 @@ export async function createImage(
       sizes,
     })
 
-    if (lastResponse.status === 201) {
+    if (isCreateImageSuccessStatus(lastResponse.status)) {
       return lastResponse
     }
 

@@ -9,20 +9,24 @@ export function normalizeItemsView(
   const value = Number(view) || 1
 
   if (itemsType === 'media') {
+    // List view is available for every media type.
+    if (value === 5) return 5
+
     if (isVideoMediaType(mediaType)) {
       if (value === 2 || value === 4) return value
       return 1
     }
 
     if (isImageMediaType(mediaType)) {
-      return value === 3 ? 3 : 1
+      if (value === 3 || value === 6) return value
+      return 1
     }
 
     return 1
   }
 
   if (itemsType === 'tag') {
-    if (value === 2 || value === 4) return value
+    if (value === 2 || value === 4 || value === 5) return value
     return 1
   }
 

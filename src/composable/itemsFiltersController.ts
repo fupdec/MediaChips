@@ -16,6 +16,11 @@ export function registerItemsFiltersController(api: ItemsFiltersController) {
   }
 }
 
+/** True once Filters.vue has mounted and registered (after items page init). */
+export function isItemsFiltersControllerRegistered(): boolean {
+  return active != null
+}
+
 export function useItemsFiltersController(): ItemsFiltersController {
   return {
     apply: () => active?.apply(),

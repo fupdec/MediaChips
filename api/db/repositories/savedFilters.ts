@@ -1,14 +1,16 @@
-import { and, asc, eq, isNotNull, isNull } from 'drizzle-orm'
+import { and, asc, eq, isNotNull, isNull, or } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { savedFilters } from '../schema/savedFilters'
 import { nowIso } from '../utils/timestamps'
+
+const notDeleted = or(isNull(savedFilters.deletedAt), eq(savedFilters.deletedAt, ''))
 
 export type SavedFilterRow = typeof savedFilters.$inferSelect
 export type SavedFilterInsert = typeof savedFilters.$inferInsert
 
 const SAVED_FILTER_MUTABLE_COLUMNS = new Set([
   'name', 'metaId', 'mediaTypeId', 'tagId', 'tabId',
-  'sortBy', 'sortDir', 'size', 'view', 'groupBy',
+  'sortBy', 'sortDir', 'size', 'view', 'groupBy', 'filtersJoin', 'icon',
 ])
 
 function pickSavedFilterFields(data: Record<string, unknown>): Partial<SavedFilterInsert> {
@@ -33,6 +35,10 @@ function nullableText(value: unknown): string | null {
   return text.length ? text : null
 }
 
+function filtersJoinValue(value: unknown): string {
+  return value === 'or' ? 'or' : 'and'
+}
+
 export function createSavedFiltersRepository(db: DrizzleClient) {
   return {
     create(data: Partial<SavedFilterInsert>): SavedFilterRow {
@@ -49,6 +55,8 @@ export function createSavedFiltersRepository(db: DrizzleClient) {
           size: nullableNumber(data.size),
           view: nullableNumber(data.view),
           groupBy: nullableText(data.groupBy),
+          filtersJoin: filtersJoinValue(data.filtersJoin),
+          icon: nullableText(data.icon),
           createdAt: timestamp,
           updatedAt: timestamp,
         })
@@ -66,6 +74,7 @@ export function createSavedFiltersRepository(db: DrizzleClient) {
       const existing = db.select()
         .from(savedFilters)
         .where(and(
+          notDeleted,
           payload.name == null ? isNull(savedFilters.name) : eq(savedFilters.name, payload.name),
           payload.mediaTypeId == null ? isNull(savedFilters.mediaTypeId) : eq(savedFilters.mediaTypeId, payload.mediaTypeId),
           payload.metaId == null ? isNull(savedFilters.metaId) : eq(savedFilters.metaId, payload.metaId),
@@ -88,7 +97,7 @@ export function createSavedFiltersRepository(db: DrizzleClient) {
     findAllNamed(filters: Record<string, unknown> = {}): SavedFilterRow[] {
       return db.select()
         .from(savedFilters)
-        .where(isNotNull(savedFilters.name))
+        .where(and(isNotNull(savedFilters.name), notDeleted))
         .all()
         .filter((row) => {
           for (const [key, value] of Object.entries(filters)) {
@@ -106,6 +115,7 @@ export function createSavedFiltersRepository(db: DrizzleClient) {
       })
         .from(savedFilters)
         .where(and(
+          notDeleted,
           isNotNull(savedFilters.name),
           eq(savedFilters.mediaTypeId, mediaTypeId),
         ))
@@ -117,6 +127,7 @@ export function createSavedFiltersRepository(db: DrizzleClient) {
       return db.select()
         .from(savedFilters)
         .where(and(
+          notDeleted,
           isNotNull(savedFilters.name),
           eq(savedFilters.mediaTypeId, mediaTypeId),
         ))
@@ -125,9 +136,13 @@ export function createSavedFiltersRepository(db: DrizzleClient) {
     },
 
     updateById(id: number, data: Record<string, unknown>): void {
+      const picked = pickSavedFilterFields(data)
+      if (Object.prototype.hasOwnProperty.call(picked, 'filtersJoin')) {
+        picked.filtersJoin = filtersJoinValue(picked.filtersJoin)
+      }
       db.update(savedFilters)
         .set({
-          ...pickSavedFilterFields(data),
+          ...picked,
           updatedAt: nowIso(),
         })
         .where(eq(savedFilters.id, id))

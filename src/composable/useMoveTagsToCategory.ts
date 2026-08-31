@@ -1,4 +1,4 @@
-import {useRouter} from 'vue-router'
+import router from '@/router'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
@@ -25,7 +25,6 @@ export type MoveTagsOptions = {
 }
 
 export function useMoveTagsToCategory() {
-  const router = useRouter()
   const appStore = useAppStore()
   const itemsStore = useItemsStore()
   const settingsStore = useSettingsStore()

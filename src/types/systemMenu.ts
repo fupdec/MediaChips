@@ -1,4 +1,14 @@
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
+import {
+  APP_MENU_GAP_SIZE_LABELS,
+  APP_MENU_LOCALE_NATIVE_NAMES,
+  APP_MENU_LOCALES,
+} from '@shared/electron/appMenuI18n'
+import {
+  APP_MENU_GAP_SIZES,
+  APP_MENU_THEMES,
+  type AppMenuSettingAction,
+} from '@shared/electron/appMenuState'
 
 export type SystemMenuAction =
   | 'addMedia'
@@ -35,6 +45,7 @@ export type SystemMenuAction =
   | 'website'
   | 'toggleDevTools'
   | 'about'
+  | AppMenuSettingAction
 
 export interface SystemMenuItemConfig {
   action?: SystemMenuAction
@@ -42,7 +53,9 @@ export interface SystemMenuItemConfig {
   icon?: string
   hotkey?: string
   labelKey?: string
-  disabled?: () => boolean
+  label?: string
+  checkable?: boolean
+  submenu?: SystemMenuItemConfig[]
 }
 
 export interface SystemMenuConfig {
@@ -51,6 +64,29 @@ export interface SystemMenuConfig {
   items: SystemMenuItemConfig[]
 }
 
+const LANGUAGE_ITEMS: SystemMenuItemConfig[] = APP_MENU_LOCALES.map((code) => ({
+  action: `setLocale:${code}`,
+  label: APP_MENU_LOCALE_NATIVE_NAMES[code],
+  checkable: true,
+}))
+
+const THEME_ITEMS: SystemMenuItemConfig[] = APP_MENU_THEMES.map((mode) => ({
+  action: `setTheme:${mode}`,
+  icon: mode === 'system'
+    ? 'mdi-theme-light-dark'
+    : mode === 'dark'
+      ? 'mdi-weather-night'
+      : 'mdi-weather-sunny',
+  labelKey: `systemBar.theme_${mode}`,
+  checkable: true,
+}))
+
+const GAP_ITEMS: SystemMenuItemConfig[] = APP_MENU_GAP_SIZES.map((size) => ({
+  action: `setGapSize:${size}`,
+  label: APP_MENU_GAP_SIZE_LABELS[size],
+  checkable: true,
+}))
+
 export const SYSTEM_MENUS: SystemMenuConfig[] = [
   {
     id: 'app',
@@ -58,6 +94,13 @@ export const SYSTEM_MENUS: SystemMenuConfig[] = [
     items: [
       {action: 'settings', icon: 'mdi-cog', labelKey: 'systemBar.settings', hotkey: 'Ctrl+,'},
       {action: 'lock', icon: 'mdi-lock', labelKey: 'systemBar.lock'},
+      {divider: true},
+      {
+        action: 'toggleMinimizeToTray',
+        icon: 'mdi-inbox-arrow-down',
+        labelKey: 'systemBar.minimize_to_tray',
+        checkable: true,
+      },
       {divider: true},
       {action: 'restart', icon: 'mdi-restart', labelKey: 'systemBar.restart'},
       {action: 'exit', icon: 'mdi-logout', labelKey: 'common.exit', hotkey: 'Ctrl+Q'},
@@ -81,7 +124,99 @@ export const SYSTEM_MENUS: SystemMenuConfig[] = [
     items: [
       {action: 'globalSearch', icon: 'mdi-magnify', labelKey: 'systemBar.global_search', hotkey: '/'},
       {action: 'commandPalette', icon: 'mdi-console-line', labelKey: 'systemBar.command_palette', hotkey: 'Ctrl+K'},
-      {action: 'toggleTheme', icon: 'mdi-theme-light-dark', labelKey: 'systemBar.toggle_theme'},
+      {divider: true},
+      {
+        icon: 'mdi-theme-light-dark',
+        labelKey: 'systemBar.theme',
+        submenu: THEME_ITEMS,
+      },
+      {
+        icon: 'mdi-translate',
+        labelKey: 'systemBar.language',
+        submenu: LANGUAGE_ITEMS,
+      },
+      {divider: true},
+      {
+        action: 'toggleSfwMode',
+        icon: 'mdi-eye-off-outline',
+        labelKey: 'systemBar.sfw_mode',
+        checkable: true,
+      },
+      {divider: true},
+      {
+        icon: 'mdi-menu',
+        labelKey: 'systemBar.navigation',
+        submenu: [
+          {
+            action: 'toggleBottomBar',
+            icon: 'mdi-dock-bottom',
+            labelKey: 'systemBar.nav_bottom_bar',
+            checkable: true,
+          },
+          {
+            action: 'toggleNavPlaylists',
+            icon: 'mdi-playlist-play',
+            labelKey: 'systemBar.nav_playlists',
+            checkable: true,
+          },
+          {
+            action: 'toggleNavMarkers',
+            icon: 'mdi-bookmark-multiple-outline',
+            labelKey: 'systemBar.nav_markers',
+            checkable: true,
+          },
+          {
+            action: 'toggleNavTrash',
+            icon: 'mdi-delete-outline',
+            labelKey: 'systemBar.nav_trash',
+            checkable: true,
+          },
+        ],
+      },
+      {
+        action: 'toggleSidebar',
+        icon: 'mdi-view-sidebar-outline',
+        labelKey: 'systemBar.show_sidebar',
+        checkable: true,
+        hotkey: 'B',
+      },
+      {
+        action: 'toggleInspector',
+        icon: 'mdi-information-outline',
+        labelKey: 'systemBar.show_inspector',
+        checkable: true,
+        hotkey: 'I',
+      },
+      {divider: true},
+      {
+        icon: 'mdi-view-agenda-outline',
+        labelKey: 'systemBar.gap_size',
+        submenu: GAP_ITEMS,
+      },
+      {
+        icon: 'mdi-play-circle-outline',
+        labelKey: 'systemBar.playback',
+        submenu: [
+          {
+            action: 'toggleSystemPlayer',
+            icon: 'mdi-television-play',
+            labelKey: 'systemBar.system_player',
+            checkable: true,
+          },
+          {
+            action: 'toggleSeparatePlayerWindow',
+            icon: 'mdi-dock-window',
+            labelKey: 'systemBar.separate_player_window',
+            checkable: true,
+          },
+          {
+            action: 'togglePreviewSound',
+            icon: 'mdi-volume-high',
+            labelKey: 'systemBar.preview_sound',
+            checkable: true,
+          },
+        ],
+      },
       {divider: true},
       {action: 'zoomIn', labelKey: 'systemBar.zoom_in', hotkey: 'Ctrl++'},
       {action: 'zoomOut', labelKey: 'systemBar.zoom_out', hotkey: 'Ctrl+-'},

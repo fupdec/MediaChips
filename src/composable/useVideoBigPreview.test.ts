@@ -49,6 +49,28 @@ describe('useVideoBigPreview', () => {
     expect(element.animate).toHaveBeenCalled()
   })
 
+  it('skips web animations when reduced motion is preferred', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('prefers-reduced-motion'),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }))
+
+    const element = document.createElement('div')
+    element.animate = vi.fn(() => ({
+      finished: Promise.resolve(),
+      cancel: vi.fn(),
+    })) as unknown as typeof element.animate
+
+    const controller = useVideoBigPreview()
+    await expect(controller.expand(element, {top: 10, left: 20, width: 100, height: 60})).resolves.toBe(true)
+    expect(element.animate).not.toHaveBeenCalled()
+    expect(controller.phase.value).toBe('expanded')
+
+    vi.unstubAllGlobals()
+  })
+
   it('returns fullscreen viewport rect', () => {
     vi.stubGlobal('innerWidth', 1920)
     vi.stubGlobal('innerHeight', 1080)
@@ -59,5 +81,7 @@ describe('useVideoBigPreview', () => {
       width: 1920,
       height: 1080,
     })
+
+    vi.unstubAllGlobals()
   })
 })

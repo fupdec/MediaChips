@@ -69,21 +69,24 @@
         :prepend-icon="showIcons ? `mdi-${field.icon}` : ''"
         :disabled="disabled"
         :rules="[numberRules]"
+        :precision="null"
         control-variant="split"
         hide-details="auto"
         clearable
         variant="filled"
       />
 
-      <v-text-field
+      <v-textarea
         v-else-if="field.type === 'string'"
-        :model-value="value"
+        :model-value="typeof value === 'string' ? value : value == null ? '' : String(value)"
         @update:model-value="$emit('update:value', $event)"
         :label="field.name"
         :prepend-icon="showIcons ? `mdi-${field.icon}` : ''"
         :disabled="disabled"
         hide-details="auto"
         clearable
+        auto-grow
+        rows="1"
         variant="filled"
       />
 

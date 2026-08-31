@@ -193,9 +193,10 @@ const updateSpotlight = async () => {
   const visual = (el.querySelector('.tag-chip-view, .item_wrapper') as HTMLElement | null) || el
   const box = visual.getBoundingClientRect()
   const styles = window.getComputedStyle(visual)
-  const radius = styles.borderRadius && styles.borderRadius !== '0px'
-    ? styles.borderRadius
-    : '16px'
+  // Respect the target's real radius — list rows are flat (border-radius: 0),
+  // so the spotlight must be rectangular too. Only fall back for elements with
+  // no radius at all.
+  const radius = styles.borderRadius || '16px'
 
   spotlightRect.value = {
     left: box.left - SPOTLIGHT_PAD,

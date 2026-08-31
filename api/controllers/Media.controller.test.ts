@@ -164,6 +164,8 @@ describe('Media.controller', () => {
       direction: undefined,
       find_duplicates: true,
       duplicates_by: 'path',
+      includeNavigation: false,
+      skipTotals: false,
     })
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({ids: [1, 2, 3]})
@@ -229,6 +231,7 @@ describe('Media.controller', () => {
       body: {
         id: 5,
         with_file: true,
+        permanent: true,
       },
     } as ApiRequest
     const res = createResponse()
@@ -245,7 +248,7 @@ describe('Media.controller', () => {
     expect(deleteById).toHaveBeenCalledWith(5)
     expect(invalidateMediaDerivedCaches).toHaveBeenCalled()
     expect(res.statusCode).toBe(200)
-    expect(res.body).toEqual({deletedIds: [5], zipFileDeleted: false})
+    expect(res.body).toEqual({deletedIds: [5], softDeleted: false, zipFileDeleted: false})
   })
 
   it('deletes entire ZIP gallery when delete_zip_gallery is set', async () => {
@@ -275,7 +278,7 @@ describe('Media.controller', () => {
     expect(deleteById).toHaveBeenCalledWith(6)
     expect(unlinkResolvedPath).not.toHaveBeenCalled()
     expect(res.statusCode).toBe(200)
-    expect(res.body).toEqual({deletedIds: [5, 6], zipFileDeleted: false})
+    expect(res.body).toEqual({deletedIds: [5, 6], softDeleted: false, zipFileDeleted: false})
   })
 
   it('deletes ZIP archive from disk when delete_zip_file is set', async () => {
@@ -302,7 +305,7 @@ describe('Media.controller', () => {
 
     expect(unlinkResolvedPath).toHaveBeenCalledWith('/media/album.zip')
     expect(res.statusCode).toBe(200)
-    expect(res.body).toEqual({deletedIds: [5], zipFileDeleted: true})
+    expect(res.body).toEqual({deletedIds: [5], softDeleted: false, zipFileDeleted: true})
   })
 
   it('counts media linked to a tag', () => {

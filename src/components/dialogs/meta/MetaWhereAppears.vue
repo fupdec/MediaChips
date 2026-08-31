@@ -15,56 +15,69 @@
           {{ t('meta.settings.pinned_to_media_types_hint') }}
         </div>
 
-        <div class="d-flex flex-wrap ga-2 mb-2">
-          <v-chip
-            v-for="item in assignedMedia"
-            :key="item.mediaTypeId"
-            :model-value="true"
-            closable
-            close-icon="mdi-close"
-            variant="outlined"
-            size="small"
-            @click:close="askRemoveMedia(item)"
-          >
-            <v-icon start size="16">mdi-{{ item.mediaType?.icon || 'file' }}</v-icon>
-            {{ mediaTypeLabel(item) }}
-          </v-chip>
-
-          <div
-            v-if="!assignedMedia.length"
-            class="text-caption text-medium-emphasis"
-          >
-            {{ t('meta.settings.where_appears_empty') }}
-          </div>
-        </div>
-
-        <v-menu
-          v-if="availableMediaTypes.length"
-          :close-on-content-click="true"
-          location="bottom start"
+        <v-alert
+          v-if="isGroupCategory"
+          type="info"
+          variant="tonal"
+          density="compact"
+          rounded="xl"
+          class="text-caption mb-3"
         >
-          <template #activator="{ props: menuProps }">
-            <v-btn
-              v-bind="menuProps"
+          {{ t('meta.settings.group_cannot_pin_to_media') }}
+        </v-alert>
+
+        <template v-else>
+          <div class="d-flex flex-wrap ga-2 mb-2">
+            <v-chip
+              v-for="item in assignedMedia"
+              :key="item.mediaTypeId"
+              :model-value="true"
+              closable
+              close-icon="mdi-close"
+              variant="outlined"
               size="small"
-              variant="tonal"
-              color="primary"
-              rounded="lg"
-              prepend-icon="mdi-plus"
+              @click:close="askRemoveMedia(item)"
             >
-              {{ t('meta.settings.add_to_media_type') }}
-            </v-btn>
-          </template>
-          <v-list density="compact" min-width="220" max-height="280" class="overflow-y-auto">
-            <v-list-item
-              v-for="mt in availableMediaTypes"
-              :key="mt.id"
-              :prepend-icon="`mdi-${mt.icon || 'file'}`"
-              :title="getMediaTypeName(mt, t)"
-              @click="addMediaAssignment(mt)"
-            />
-          </v-list>
-        </v-menu>
+              <v-icon start size="16">mdi-{{ item.mediaType?.icon || 'file' }}</v-icon>
+              {{ mediaTypeLabel(item) }}
+            </v-chip>
+
+            <div
+              v-if="!assignedMedia.length"
+              class="text-caption text-medium-emphasis"
+            >
+              {{ t('meta.settings.where_appears_empty') }}
+            </div>
+          </div>
+
+          <v-menu
+            v-if="availableMediaTypes.length"
+            :close-on-content-click="true"
+            location="bottom start"
+          >
+            <template #activator="{ props: menuProps }">
+              <v-btn
+                v-bind="menuProps"
+                size="small"
+                variant="tonal"
+                color="primary"
+                rounded="lg"
+                prepend-icon="mdi-plus"
+              >
+                {{ t('meta.settings.add_to_media_type') }}
+              </v-btn>
+            </template>
+            <v-list density="compact" min-width="220" max-height="280" class="overflow-y-auto">
+              <v-list-item
+                v-for="mt in availableMediaTypes"
+                :key="mt.id"
+                :prepend-icon="`mdi-${mt.icon || 'file'}`"
+                :title="getMediaTypeName(mt, t)"
+                @click="addMediaAssignment(mt)"
+              />
+            </v-list>
+          </v-menu>
+        </template>
       </SettingsSection>
 
       <SettingsSection padded>
@@ -180,7 +193,10 @@ import {useAppStore} from '@/stores/app'
 import {useMetaAssignment} from '@/composable/useMetaAssignment'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {typedApi} from '@/services/typedApi'
+import {setNotification} from '@/services/notificationService'
+import {getApiErrorMessage} from '@/types/vue'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
+import {isTagCategoryGroup, isTagCategoryLeaf} from '@/utils/tagCategoryTree'
 import SettingsSection from '@/components/ui/SettingsSection.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
@@ -233,18 +249,22 @@ const createFieldDialog = ref(false)
 
 const mediaTypes = computed(() => appStore.mediaTypes || [])
 const isArrayMeta = computed(() => props.meta.type === 'array')
+const isGroupCategory = computed(() =>
+  isArrayMeta.value && isTagCategoryGroup(props.meta, allMeta.value.length ? allMeta.value : appStore.meta || []),
+)
 
 const assignedMediaIds = computed(() => new Set(assignedMedia.value.map((a) => Number(a.mediaTypeId))))
 const assignedParentIds = computed(() => new Set(assignedParents.value.map((p) => p.id)))
 
-const availableMediaTypes = computed(() =>
-  mediaTypes.value.filter((mt) => !assignedMediaIds.value.has(Number(mt.id))),
-)
+const availableMediaTypes = computed(() => {
+  if (isGroupCategory.value) return []
+  return mediaTypes.value.filter((mt) => !assignedMediaIds.value.has(Number(mt.id)))
+})
 
 const availableParentCategories = computed(() =>
   orderBy(
     allMeta.value.filter((item) =>
-      item.type === 'array'
+      isTagCategoryLeaf(item, allMeta.value)
       && item.id !== props.meta.id
       && !assignedParentIds.value.has(item.id),
     ),
@@ -252,6 +272,13 @@ const availableParentCategories = computed(() =>
     ['asc', 'asc'],
   ),
 )
+
+const notifyAssignmentError = (error: unknown, fallbackKey: string) => {
+  setNotification({
+    type: 'error',
+    text: getApiErrorMessage(error, t(fallbackKey)),
+  })
+}
 
 const mediaTypeLabel = (item: MetaInMediaTypeAssignment) => {
   const mt = item.mediaType || mediaTypes.value.find((m) => m.id === item.mediaTypeId)
@@ -335,12 +362,13 @@ const refresh = async () => {
 }
 
 const addMediaAssignment = async (mt: MediaType) => {
-  if (!props.meta?.id || !mt.id) return
+  if (!props.meta?.id || !mt.id || isGroupCategory.value) return
   try {
     await pinMetaToMediaType(props.meta.id, mt.id, assignedMedia.value.length)
     await refresh()
   } catch (e) {
     console.error('Error assigning field to media type:', e)
+    notifyAssignmentError(e, 'meta.settings.pin_to_media_failed')
   }
 }
 
@@ -351,6 +379,7 @@ const addParentAssignment = async (category: Meta) => {
     await refresh()
   } catch (e) {
     console.error('Error pinning field to tag category:', e)
+    notifyAssignmentError(e, 'meta.settings.pin_to_category_failed')
   }
 }
 
@@ -361,6 +390,7 @@ const addChildField = async (field: Meta) => {
     await refresh()
   } catch (e) {
     console.error('Error pinning child field:', e)
+    notifyAssignmentError(e, 'meta.settings.pin_child_failed')
   }
 }
 
@@ -414,6 +444,7 @@ const executeConfirm = async () => {
     await refresh()
   } catch (e) {
     console.error('Error removing assignment:', e)
+    notifyAssignmentError(e, 'meta.settings.unpin_failed')
   }
 }
 
