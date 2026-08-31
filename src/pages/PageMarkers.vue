@@ -310,7 +310,7 @@
     </div>
 
     <div
-      v-if="marksStore.marksOnPage.length && !marksStore.hasMore && marksStore.totalFiltered > 0"
+      v-if="marksStore.marksOnPage.length && !marksStore.hasMore && marksStore.totalFiltered > 0 && mainScrollOverflowing"
       class="scroll-top-after-items d-flex justify-center my-8"
     >
       <v-btn
@@ -489,6 +489,7 @@ import {MARK_SORT_PARAMS} from '@/utils/markSort'
 import {scrollMainTo} from '@/utils/mainScroll'
 import useMarkImageGenerator from '@/composable/GeneratingThumbsForMarks'
 import {useStickyControlDeck} from '@/composable/useStickyControlDeck'
+import {useMainScrollOverflow} from '@/composable/useMainScrollOverflow'
 import ItemMarker from '@/components/items/ItemMarker.vue'
 import Loading from '@/components/elements/Loading.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
@@ -536,6 +537,15 @@ const {
   stickyControlDeck,
   toggleStickyControlDeck,
 } = useStickyControlDeck()
+
+const {mainScrollOverflowing} = useMainScrollOverflow({
+  watchSources: [
+    () => marksStore.marksOnPage.length,
+    () => marksStore.hasMore,
+    () => marksStore.totalFiltered,
+  ],
+})
+
 /** Selection order (first selected = first in reel). */
 const selectedOrder = ref<number[]>([])
 const selectedMarkCache = ref(new Map<number, MarkItem>())

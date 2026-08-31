@@ -291,7 +291,7 @@
     </div>
 
     <div
-      v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd"
+      v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd && mainScrollOverflowing"
       class="scroll-top-after-items"
     >
       <v-btn
@@ -511,6 +511,7 @@ import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {useStickyControlDeck} from '@/composable/useStickyControlDeck'
+import {useMainScrollOverflow} from '@/composable/useMainScrollOverflow'
 import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
@@ -680,6 +681,14 @@ const {pageInitialized, itemsRenderKey} = useItemsPageEvents({
   maybeLoadMoreIfNearBottom,
   refreshScrollRoot,
   loadNextInfinitePage,
+})
+
+const {mainScrollOverflowing} = useMainScrollOverflow({
+  watchSources: [
+    () => itemsStore.itemsOnPage.length,
+    () => pageInitialized.value,
+    () => infiniteScrollReachedEnd.value,
+  ],
 })
 
 // Компьютеды
