@@ -11,7 +11,7 @@
       variant="flat"
     >
       <!-- String -->
-      <v-text-field
+      <v-textarea
         v-if="type === 'string'"
         v-model="stringValue"
         :label="fieldName"
@@ -19,6 +19,8 @@
         :prepend-icon="fieldIcon"
         persistent-hint
         clearable
+        auto-grow
+        rows="1"
         variant="filled"
         hide-details="auto"
       />
