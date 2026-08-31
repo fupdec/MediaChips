@@ -429,6 +429,22 @@ export const tasksApi = {
     }))
   },
 
+  streamMergeLibrary(
+    body: {sourceDatabaseId: string, copyGeneratedAssets?: boolean},
+    options: {signal?: AbortSignal},
+    onEvent: (event: GenerationStreamEvent) => void,
+  ) {
+    return postApiNdjsonStream(
+      API_ROUTES.taskStreamMergeLibrary,
+      {
+        body,
+        signal: options.signal,
+        errorMessage: 'Library merge request failed',
+      },
+      onEvent,
+    )
+  },
+
   clearGeneratedData(body: {imageType: string}) {
     return apiClient.post(API_ROUTES.taskClearData, body)
   },

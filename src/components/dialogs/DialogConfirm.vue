@@ -11,17 +11,18 @@
     >
       <v-card-text
         class="confirm-dialog__body text-center px-6"
-        :class="variant === 'delete' ? 'pt-6' : 'pt-8'"
+        :class="(variant === 'delete' || variant === 'warning') ? 'pt-6' : 'pt-8'"
       >
         <div
-          v-if="variant === 'delete'"
-          class="confirm-dialog__icon confirm-dialog__icon--error mb-4"
+          v-if="variant === 'delete' || variant === 'warning'"
+          class="confirm-dialog__icon mb-4"
+          :class="variant === 'delete' ? 'confirm-dialog__icon--error' : 'confirm-dialog__icon--warning'"
           aria-hidden="true"
         >
           <v-icon
             icon="mdi-alert-outline"
             size="28"
-            color="error"
+            :color="variant === 'delete' ? 'error' : 'warning'"
           />
         </div>
 
@@ -86,7 +87,7 @@
         <v-spacer />
 
         <v-btn
-          :color="variant === 'delete' ? 'error' : 'success'"
+          :color="confirmColor"
           variant="flat"
           rounded="pill"
           class="px-5"
@@ -94,7 +95,7 @@
           @click="confirm"
         >
           <v-icon
-            icon="mdi-check"
+            :icon="confirmIcon"
             start
           />
           {{ confirmLabel }}
@@ -127,7 +128,7 @@ const props = withDefaults(defineProps<{
   text?: string
   persistent?: boolean
   closable?: boolean
-  variant?: 'confirm' | 'delete'
+  variant?: 'confirm' | 'delete' | 'warning'
   checkBoxText?: string
   checkBox?: boolean
   checkBox2Text?: string
@@ -164,16 +165,26 @@ const phraseMatches = computed(() => {
 })
 
 const isPersistent = computed(() =>
-  props.persistent || props.variant === 'delete',
+  props.persistent || props.variant === 'delete' || props.variant === 'warning',
 )
 
 const cancelLabel = computed(() =>
-  props.variant === 'delete' ? t('common.cancel') : t('common.no'),
+  props.variant === 'confirm' ? t('common.no') : t('common.cancel'),
 )
 
-const confirmLabel = computed(() =>
-  props.variant === 'delete' ? t('common.delete') : t('common.yes'),
-)
+const confirmLabel = computed(() => {
+  if (props.variant === 'delete') return t('common.delete')
+  if (props.variant === 'warning') return t('common.confirm')
+  return t('common.yes')
+})
+
+const confirmColor = computed(() => {
+  if (props.variant === 'delete') return 'error'
+  if (props.variant === 'warning') return 'warning'
+  return 'success'
+})
+
+const confirmIcon = computed(() => 'mdi-check')
 
 const model = computed({
   get: () => props.dialog,
@@ -239,6 +250,11 @@ pre {
 .confirm-dialog__icon--error {
   color: rgb(var(--v-theme-error));
   background: rgba(var(--v-theme-error), 0.12);
+}
+
+.confirm-dialog__icon--warning {
+  color: rgb(var(--v-theme-warning));
+  background: rgba(var(--v-theme-warning), 0.12);
 }
 
 .confirm-dialog__text {

@@ -150,6 +150,7 @@ export const API_ROUTES = {
   taskGetDatabaseSizes: '/api/Task/getDatabaseSizes',
   taskDeleteDb: '/api/Task/deleteDb',
   taskDuplicateDb: '/api/Task/duplicateDb',
+  taskStreamMergeLibrary: '/api/Task/streamMergeLibrary',
   taskClearData: '/api/Task/clearData',
   taskGetFolderSize: '/api/Task/getFolderSize',
   taskParsePathTags: '/api/Task/parsePathTags',

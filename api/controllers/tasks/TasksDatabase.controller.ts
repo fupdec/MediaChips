@@ -1,5 +1,5 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import { sendAsClientError, sendBadRequest, sendControllerError, sendOk } from '../../types/errors'
+import { sendAsClientError, sendBadRequest, sendControllerError, sendOk, apiErrorMessage } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import type { DatabaseSizesResponse } from '@shared/api/responses'
 import fs from 'fs'
@@ -10,6 +10,12 @@ import { getAppConfigPath } from '../../utils/appConfigPath'
 import { loadConfigFile, createDefaultConfig } from '../../../app/server/configFile'
 import { getDirectorySize } from '../../services/directorySize'
 import { copyDatabaseDirectory } from '../../services/duplicateDatabase'
+import { importLibraryIntoActive } from '../../services/libraryMerge'
+import {
+  createStreamAbortSignal,
+  setNdjsonStreamHeaders,
+  writeNdjson,
+} from './ndjsonStreamRunner'
 
 export default function createTasksDatabaseController(shared: TaskControllerShared) {
   const {db, resolveGeneratedFolderPath} = shared
@@ -171,9 +177,83 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
     }
   }
 
+  const streamMergeLibrary = async function (req: ApiRequest, res: ApiResponse) {
+    const writeEvent = (event: Record<string, unknown>) => writeNdjson(res, event)
+
+    try {
+      setNdjsonStreamHeaders(res)
+
+      const sourceDatabaseId = String(req.body?.sourceDatabaseId ?? '').trim()
+      const databasesPath = db.path_databases ?? ''
+      if (!sourceDatabaseId || !databasesPath) {
+        writeEvent({type: 'error', message: 'Source database id required'})
+        res.end()
+        return
+      }
+
+      if (db.config?.id && String(db.config.id) === sourceDatabaseId) {
+        writeEvent({type: 'error', message: 'Cannot import a library into itself'})
+        res.end()
+        return
+      }
+
+      const configPath = getAppConfigPath()
+      const loaded = loadConfigFile(configPath)
+      const config = loaded.config || createDefaultConfig()
+      const sourceEntry = (config.databases || []).find((entry) => entry.id === sourceDatabaseId)
+      if (!sourceEntry) {
+        writeEvent({type: 'error', message: 'Source database not found in config'})
+        res.end()
+        return
+      }
+
+      const sourceDir = path.join(databasesPath, sourceDatabaseId)
+      const sourceDbFile = path.join(sourceDir, 'db.sqlite')
+      if (!fs.existsSync(sourceDbFile)) {
+        writeEvent({type: 'error', message: 'Source database file not found'})
+        res.end()
+        return
+      }
+
+      const copyGeneratedAssets = req.body?.copyGeneratedAssets !== false
+        && req.body?.copyGeneratedAssets !== 0
+        && req.body?.copyGeneratedAssets !== '0'
+
+      const isAborted = createStreamAbortSignal(req, res)
+
+      writeEvent({
+        type: 'progress',
+        phase: 'starting',
+        processed: 0,
+        total: 0,
+      })
+
+      const result = await importLibraryIntoActive(
+        db,
+        sourceDatabaseId,
+        {copyGeneratedAssets},
+        (event) => writeEvent(event as unknown as Record<string, unknown>),
+        isAborted,
+      )
+
+      writeEvent({
+        type: 'complete',
+        ...result,
+      })
+      res.end()
+    } catch (err) {
+      writeEvent({
+        type: 'error',
+        message: apiErrorMessage(err) || 'Library merge failed',
+      })
+      res.end()
+    }
+  }
+
   return {
     deleteDb,
     duplicateDb,
+    streamMergeLibrary,
     getDatabaseSizes,
     getFolderSize,
     clearData,

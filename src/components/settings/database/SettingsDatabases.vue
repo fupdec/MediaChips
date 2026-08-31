@@ -112,11 +112,24 @@
 
         <div class="databases-card__actions" @click.stop>
           <v-btn
+            v-if="!item.active"
+            icon
+            variant="text"
+            size="small"
+            rounded="pill"
+            :aria-label="t('settings_labels.database.import_into_active')"
+            v-tooltip:top="t('settings_labels.database.import_into_active')"
+            @click="confirmImportIntoActive(item)"
+          >
+            <v-icon icon="mdi-database-import-outline" size="18"/>
+          </v-btn>
+          <v-btn
             icon
             variant="text"
             size="small"
             rounded="pill"
             :aria-label="t('settings_labels.database.duplicate_database')"
+            v-tooltip:top="t('settings_labels.database.duplicate_database')"
             @click="openDuplicate(item)"
           >
             <v-icon icon="mdi-content-copy" size="18"/>
@@ -127,6 +140,7 @@
             size="small"
             rounded="pill"
             :aria-label="t('common.edit')"
+            v-tooltip:top="t('common.edit')"
             @click="openEdit(item)"
           >
             <v-icon icon="mdi-pencil" size="18"/>
@@ -139,6 +153,7 @@
             rounded="pill"
             color="error"
             :aria-label="t('common.remove')"
+            v-tooltip:top="t('common.remove')"
             @click="confirmRemoving(item)"
           >
             <v-icon icon="mdi-delete-outline" size="18"/>
@@ -420,6 +435,108 @@ function openActivate(item: DatabaseEntry) {
   dialogActivateConfirm.value = true
 }
 
+async function confirmImportIntoActive(item: DatabaseEntry) {
+  if (item.active) return
+
+  dialogsStore.confirm.variant = 'warning'
+  dialogsStore.confirm.checkBox = false
+  dialogsStore.confirm.checkBox2 = false
+  dialogsStore.confirm.checkBoxText = ''
+  dialogsStore.confirm.checkBox2Text = ''
+  dialogsStore.confirm.checkBox2RequiresPrimary = false
+  dialogsStore.confirm.text = t('settings_labels.database.import_library_confirm', {
+    name: item.name,
+  })
+  dialogsStore.confirm.show = true
+  dialogsStore.confirm.action = async () => {
+    await runImportIntoActive(item)
+  }
+}
+
+async function runImportIntoActive(item: DatabaseEntry) {
+  dialogsStore.process.show = true
+  dialogsStore.process.text = t('settings_labels.database.importing_library_progress')
+
+  const abortController = new AbortController()
+  let lastError = ''
+  let summary: {
+    mediaMatched?: number
+    mediaCreated?: number
+    tagsCreated?: number
+    linksAdded?: number
+  } | null = null
+
+  try {
+    await typedApi.streamMergeLibrary(
+      {sourceDatabaseId: item.id, copyGeneratedAssets: true},
+      {signal: abortController.signal},
+      (event) => {
+        if (event.type === 'progress') {
+          const phase = event.phase ? String(event.phase) : ''
+          const processed = Number(event.processed) || 0
+          const total = Number(event.total) || 0
+          const progress = total > 0 ? ` (${processed}/${total})` : ''
+          dialogsStore.process.text = `${t('settings_labels.database.importing_library_progress')} ${phase}${progress}`
+        } else if (event.type === 'complete') {
+          const complete = event as typeof event & {
+            mediaMatched?: number
+            mediaCreated?: number
+            tagsCreated?: number
+            linksAdded?: number
+          }
+          summary = {
+            mediaMatched: Number(complete.mediaMatched) || 0,
+            mediaCreated: Number(complete.mediaCreated) || 0,
+            tagsCreated: Number(complete.tagsCreated) || 0,
+            linksAdded: Number(complete.linksAdded) || 0,
+          }
+        } else if (event.type === 'error') {
+          lastError = String(event.message || t('settings_labels.database.import_library_failed'))
+        }
+      },
+    )
+
+    if (lastError) {
+      setNotification({type: 'error', text: lastError})
+      return
+    }
+
+    setNotification({
+      type: 'success',
+      text: t('settings_labels.database.import_library_done', {
+        matched: summary?.mediaMatched ?? 0,
+        created: summary?.mediaCreated ?? 0,
+        tags: summary?.tagsCreated ?? 0,
+        links: summary?.linksAdded ?? 0,
+      }),
+    })
+  } catch (error) {
+    console.error('Failed to import library:', error)
+    if (summary && !lastError) {
+      setNotification({
+        type: 'success',
+        text: t('settings_labels.database.import_library_done', {
+          matched: summary.mediaMatched ?? 0,
+          created: summary.mediaCreated ?? 0,
+          tags: summary.tagsCreated ?? 0,
+          links: summary.linksAdded ?? 0,
+        }),
+      })
+      return
+    }
+    const message = error instanceof Error ? error.message : ''
+    setNotification({
+      type: 'error',
+      text: /failed to fetch|networkerror|load failed/i.test(message)
+        ? t('settings_labels.database.import_library_connection_lost')
+        : (message || t('settings_labels.database.import_library_failed')),
+    })
+  } finally {
+    dialogsStore.process.show = false
+    dialogsStore.process.text = null
+  }
+}
+
 function changeIcon(selectedIcon: string) {
   dbIcon.value = selectedIcon
 }
@@ -588,6 +705,12 @@ async function activateDb() {
 async function confirmRemoving(item: DatabaseEntry) {
   db.value = item
 
+  dialogsStore.confirm.variant = 'delete'
+  dialogsStore.confirm.checkBox = false
+  dialogsStore.confirm.checkBox2 = false
+  dialogsStore.confirm.checkBoxText = ''
+  dialogsStore.confirm.checkBox2Text = ''
+  dialogsStore.confirm.checkBox2RequiresPrimary = false
   dialogsStore.confirm.text = 'The database will be permanently deleted. \n Are you sure?'
   dialogsStore.confirm.show = true
   dialogsStore.confirm.action = async () => {

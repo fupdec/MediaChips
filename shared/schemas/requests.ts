@@ -342,6 +342,11 @@ export const DuplicateDbRequestSchema = z.object({
   includeGeneratedCache: z.boolean().optional(),
 })
 
+export const MergeLibraryRequestSchema = z.object({
+  sourceDatabaseId: z.string().min(1),
+  copyGeneratedAssets: z.boolean().optional(),
+})
+
 export const FolderSizeRequestSchema = z.object({
   folder: z.string().min(1),
 })
