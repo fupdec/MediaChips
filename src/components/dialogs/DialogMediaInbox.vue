@@ -96,6 +96,17 @@
             <v-icon size="36" color="success">mdi-inbox-outline</v-icon>
             <div class="text-subtitle-2 mt-1">{{ t('media_inbox.empty_new') }}</div>
             <div class="text-caption text-medium-emphasis mt-1">{{ t('media_inbox.empty_new_hint') }}</div>
+            <v-btn
+              class="mt-3"
+              color="primary"
+              variant="tonal"
+              rounded="xl"
+              size="small"
+              prepend-icon="mdi-folder-eye-outline"
+              @click="openWatchedFolders"
+            >
+              {{ t('onboarding.open_watched_folders') }}
+            </v-btn>
           </div>
 
           <v-expansion-panels v-else v-model="newPanel" multiple density="compact">
@@ -394,6 +405,11 @@ function groupMediaTypeLabel(group: MediaInboxNewGroup) {
 
 function close() {
   inboxStore.close()
+}
+
+async function openWatchedFolders() {
+  close()
+  await router.push({path: '/settings', query: {section: 'watched_folders'}})
 }
 
 function onDialogToggle(value: boolean) {

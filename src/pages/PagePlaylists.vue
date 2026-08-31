@@ -268,6 +268,18 @@
       <v-img src="/images/no-data.svg" max-height="40vh" class="my-4" contain></v-img>
       <div class="text-h6 mb-1">{{ t('empty_states.no_items_title') }}</div>
       <div class="text--secondary">{{ t('empty_states.no_items_add_first') }}</div>
+      <div class="mt-4 d-flex justify-center">
+        <v-btn
+          color="success"
+          variant="flat"
+          rounded="xl"
+          size="large"
+          @click="dialogPlaylistAdd = true"
+        >
+          <v-icon start>mdi-playlist-plus</v-icon>
+          {{ t('playlists.add_new_playlist') }}
+        </v-btn>
+      </div>
     </div>
 
     <div v-else class="playlists-grid">

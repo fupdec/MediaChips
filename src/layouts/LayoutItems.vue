@@ -344,38 +344,17 @@
           button-size="large"
           button-variant="flat"
         />
-        <template v-if="items_type === 'media'">
-          <v-btn
-            color="primary"
-            variant="tonal"
-            rounded="xl"
-            size="large"
-            @click="openPrepareLibrary"
-          >
-            <v-icon start>mdi-auto-fix</v-icon>
-            {{ t('empty_states.prepare_library') }}
-          </v-btn>
-          <v-btn
-            color="primary"
-            variant="tonal"
-            rounded="xl"
-            size="large"
-            @click="openEmptySearch"
-          >
-            <v-icon start>mdi-magnify</v-icon>
-            {{ t('empty_states.search') }}
-          </v-btn>
-          <v-btn
-            color="primary"
-            variant="text"
-            rounded="xl"
-            size="large"
-            @click="browseByMediaCreated"
-          >
-            <v-icon start>mdi-calendar-plus</v-icon>
-            {{ t('empty_states.browse_media_created') }}
-          </v-btn>
-        </template>
+        <v-btn
+          v-if="items_type === 'media' && showPrepareLibraryCta"
+          color="primary"
+          variant="tonal"
+          rounded="xl"
+          size="large"
+          @click="openPrepareLibrary"
+        >
+          <v-icon start>mdi-auto-fix</v-icon>
+          {{ t('empty_states.prepare_library') }}
+        </v-btn>
       </div>
     </div>
 
@@ -479,9 +458,11 @@ import {useItemsPage} from '@/composable/useItemsPage'
 import {useItemsPageInit} from '@/composable/useItemsPageInit'
 import {useItemsPageEvents} from '@/composable/useItemsPageEvents'
 import useVideoImageGenerator from '@/composable/GeneratingThumbsForVideos'
-import {useAppShell} from '@/composable/appShell'
-import {openLibrarySetupWizardQuery} from '@/composable/useLibrarySetupWizard'
-import {useOpenMediaList} from '@/utils/openMediaList'
+import {
+  isEssentialLibrarySetupPending,
+  openLibrarySetupWizardQuery,
+} from '@/composable/useLibrarySetupWizard'
+import {typedApi} from '@/services/typedApi'
 import type {ItemsPageProps, ItemsPageType} from '@/types/itemsPage'
 import type {MediaType} from '@/types/media'
 import type {Meta} from '@/types/stores'
@@ -546,23 +527,27 @@ const filtersController = useItemsFiltersController()
 const pageCommands = useItemsPageCommands()
 const {t, locale} = useI18n()
 const router = useRouter()
-const appShell = useAppShell()
-const {openMediaList} = useOpenMediaList()
+const showPrepareLibraryCta = ref(false)
+let prepareLibraryHealthSeq = 0
 
 function openPrepareLibrary() {
   void router.push({path: '/settings', query: openLibrarySetupWizardQuery()})
 }
 
-function openEmptySearch() {
-  appShell.showGlobalSearch()
-}
-
-function browseByMediaCreated() {
-  void openMediaList({
-    sortBy: 'createdAt',
-    sortDir: 'desc',
-    groupBy: 'dateDay',
-  })
+async function refreshPrepareLibraryCta() {
+  const seq = ++prepareLibraryHealthSeq
+  if (props.items_type !== 'media') {
+    showPrepareLibraryCta.value = false
+    return
+  }
+  try {
+    const response = await typedApi.getHomeHealth()
+    if (seq !== prepareLibraryHealthSeq) return
+    showPrepareLibraryCta.value = isEssentialLibrarySetupPending(response.data)
+  } catch {
+    if (seq !== prepareLibraryHealthSeq) return
+    showPrepareLibraryCta.value = false
+  }
 }
 
 // Константы из Vuetify
@@ -690,6 +675,15 @@ const {mainScrollOverflowing} = useMainScrollOverflow({
     () => infiniteScrollReachedEnd.value,
   ],
 })
+
+watch(
+  () => pageInitialized.value && total.value === 0 && total.value === totalInDb.value,
+  (isTrulyEmpty) => {
+    if (isTrulyEmpty) void refreshPrepareLibraryCta()
+    else showPrepareLibraryCta.value = false
+  },
+  {immediate: true},
+)
 
 // Компьютеды
 const ITEMS = computed(() => itemsStore)

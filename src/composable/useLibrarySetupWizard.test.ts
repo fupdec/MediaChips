@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import {
   buildLibrarySetupPhases,
+  isEssentialLibrarySetupPending,
   isLibrarySetupPhaseId,
   nextLibrarySetupPhase,
   openLibrarySetupWizardQuery,
@@ -47,6 +48,13 @@ describe('useLibrarySetupWizard', () => {
     expect(phases[0].etaSeconds).toBeGreaterThan(0)
     expect(phases[1].etaSeconds).toBeGreaterThan(0)
     expect(nextLibrarySetupPhase(phases)?.id).toBe('visuals')
+    expect(isEssentialLibrarySetupPending(health)).toBe(true)
+  })
+
+  it('reports essential setup complete when only optional work remains', () => {
+    const health = emptyHomeHealthUi()
+    health.faces = {total: 4, pending: 4, generated: 0}
+    expect(isEssentialLibrarySetupPending(health)).toBe(false)
   })
 
   it('maps fix stages to wizard phases', () => {

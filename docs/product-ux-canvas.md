@@ -14,7 +14,7 @@
 | New media Inbox | Done (v1) | Home widget + triage queue (untagged + unrated); palette action |
 | Command palette (⌘K) | Done | Global search commands mode |
 | Inline edit in Inspector | Partial | Edit still opens dialogs |
-| Empty states → CTAs | Partial | Some next-step dialogs; not universal |
+| Empty states → CTAs | Done (v1) | Media/tags/playlists/markers + Home Similar/Spotlight/Calendar + Inbox empty → one primary next step |
 | Saved views (filter+sort+group+card) | Partial | Saved filters only |
 | Created-at calendar | Partial | Sort/filter/group by `mediaCreatedAt`; no calendar UI |
 | Review / keyboard tagging | Missing | — |

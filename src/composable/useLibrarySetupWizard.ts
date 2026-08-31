@@ -276,6 +276,11 @@ export function nextLibrarySetupPhase(phases: LibrarySetupPhase[]): LibrarySetup
     || null
 }
 
+/** True when visuals / reliability / search still have pending setup work. */
+export function isEssentialLibrarySetupPending(health: HomeHealthData): boolean {
+  return buildLibrarySetupPhases(health).some((phase) => phase.id !== 'optional' && !phase.done)
+}
+
 export function primaryPrepareLibraryLabelKey(
   stages: LibraryHealthFixStage[],
   phases: LibrarySetupPhase[],

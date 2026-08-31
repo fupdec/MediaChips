@@ -102,7 +102,18 @@
       v-else-if="!spotlight?.tag"
       class="widget-tag-spotlight__empty text-medium-emphasis text-caption"
     >
-      {{ t('home.widgets.tag_spotlight_empty') }}
+      <div>{{ t('home.widgets.tag_spotlight_empty') }}</div>
+      <v-btn
+        class="mt-2"
+        size="small"
+        color="success"
+        variant="flat"
+        rounded="xl"
+        prepend-icon="mdi-plus"
+        @click="openCreateTag"
+      >
+        {{ t('appbar.buttons.add_tags') }}
+      </v-btn>
     </div>
 
     <div
@@ -346,6 +357,7 @@ import path from 'path-browserify'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 import {typedApi} from '@/services/typedApi'
 import {checkFileExists} from '@/services/fileService'
+import {useAppShell} from '@/composable/appShell'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
@@ -373,6 +385,7 @@ const store = useAppStore()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
 const router = useRouter()
+const appShell = useAppShell()
 const {t, locale} = useI18n()
 
 const loading = ref(true)
@@ -554,6 +567,10 @@ async function loadSpotlight(excludeTagId?: number | null) {
 
 function reshuffle() {
   void loadSpotlight(spotlight.value?.tag?.id ?? null)
+}
+
+function openCreateTag() {
+  appShell.openTagsAddWithNames({})
 }
 
 function resolveMetaForTag(metaId?: number | null): Meta | null {

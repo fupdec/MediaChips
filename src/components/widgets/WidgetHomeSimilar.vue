@@ -1,8 +1,5 @@
 <template>
-  <section
-    v-if="loading || seedItem || items.length"
-    class="widget-home-similar mb-6"
-  >
+  <section class="widget-home-similar mb-6">
     <div class="d-flex align-center justify-space-between mb-3">
       <div class="d-flex align-center text-h6">
         <v-icon class="mr-2" size="24">mdi-creation-outline</v-icon>
@@ -11,6 +8,7 @@
 
       <div class="d-flex align-center ga-1">
         <v-btn
+          v-if="seedItem || items.length"
           v-tooltip:top="t('home.widgets.reshuffle')"
           @click="reshuffle"
           :loading="loading"
@@ -68,7 +66,7 @@
     </div>
 
     <div
-      v-else
+      v-else-if="loading"
       class="widget-home-similar__scroll"
       aria-hidden="true"
     >
@@ -79,16 +77,36 @@
         :seed="index === 1"
       />
     </div>
+
+    <div
+      v-else
+      class="widget-home-similar__empty text-medium-emphasis text-caption"
+    >
+      <div>{{ t('home.widgets.similar_empty') }}</div>
+      <v-btn
+        class="mt-2"
+        size="small"
+        color="primary"
+        variant="tonal"
+        rounded="xl"
+        prepend-icon="mdi-auto-fix"
+        @click="openPrepareSimilar"
+      >
+        {{ t('empty_states.prepare_library') }}
+      </v-btn>
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import {onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useRouter} from 'vue-router'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useOpenMediaList} from '@/utils/openMediaList'
+import {openLibrarySetupWizardQuery} from '@/composable/useLibrarySetupWizard'
 import {loadHomeMediaThumbs} from '@/utils/homeMediaThumbs'
 import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {openTextMedia} from '@/utils/openTextMedia'
@@ -105,6 +123,7 @@ const props = withDefaults(defineProps<{
 })
 
 const {t} = useI18n()
+const router = useRouter()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const {openMediaList} = useOpenMediaList()
@@ -191,6 +210,13 @@ function reshuffle() {
   void loadSimilar(Number.isFinite(currentId) && currentId > 0 ? currentId : null)
 }
 
+function openPrepareSimilar() {
+  void router.push({
+    path: '/settings',
+    query: openLibrarySetupWizardQuery('search'),
+  })
+}
+
 watch(() => props.limit, () => {
   void loadSimilar()
 })
@@ -225,6 +251,10 @@ onMounted(() => {
     justify-content: center;
     width: 28px;
     opacity: 0.7;
+  }
+
+  &__empty {
+    padding: 8px 2px 4px;
   }
 }
 </style>

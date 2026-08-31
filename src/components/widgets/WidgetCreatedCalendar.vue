@@ -133,6 +133,17 @@
             </template>
           </div>
           <v-btn
+            v-if="stats.totalWithDate <= 0"
+            size="small"
+            color="success"
+            variant="tonal"
+            rounded
+            @click="openAddMedia"
+          >
+            {{ t('empty_states.add_media') }}
+          </v-btn>
+          <v-btn
+            v-else
             size="small"
             variant="text"
             rounded
@@ -150,6 +161,7 @@
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
+import {useAppShell} from '@/composable/appShell'
 import {useOpenMediaList} from '@/utils/openMediaList'
 import {
   buildLibraryAddedDayFilters,
@@ -160,6 +172,7 @@ import type {ParsedCreatedCalendarMonth} from '@shared/schemas/home'
 
 const {t, locale} = useI18n()
 const {openMediaList} = useOpenMediaList()
+const appShell = useAppShell()
 
 const now = new Date()
 const year = ref(now.getFullYear())
@@ -353,6 +366,10 @@ function browseByCreated() {
     sortDir: 'desc',
     groupBy: 'dateDay',
   })
+}
+
+function openAddMedia() {
+  appShell.showAddMediaDialog()
 }
 
 watch([year, month], () => {
