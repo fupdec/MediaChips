@@ -688,6 +688,9 @@ const sendForm = async () => {
         if (created.type === 'array') {
           createdMeta.value = created
           nextStepsDialog.value = true
+        } else {
+          // Any field type can be pinned to media types — open pinning right away.
+          emit('request-edit', {meta: created, tab: 'where' as EditTab})
         }
         return
       }
