@@ -10,7 +10,6 @@ import { promises as fs } from 'fs'
 import { createMediaRepository } from '../../api/db/repositories/media'
 import {
   isPathInsideFolder,
-  pathsEquivalent,
   normalizeMediaPath,
 } from '../../api/utils/normalizeUserPath'
 import {
@@ -19,7 +18,8 @@ import {
 } from '../../api/utils/mediaExtensions'
 import { isPathUnderExcluded } from '../../api/utils/watchedFolderExcludes'
 
-const pathsMatch = (left: string, right: string) => pathsEquivalent(left, right)
+/** Keep inbox/WS payloads small — full totals stay in newTotal/lostTotal. */
+export const MAX_WATCHER_REPORT_PATHS = 500
 
 /** Stable lowercase key for O(1) path set membership (slash-normalized). */
 function pathSyncKey(value: string): string {
@@ -45,27 +45,6 @@ function sortPaths(paths: string[]): string[] {
 
 function sortLost(entries: WatcherFileEntry[]): WatcherFileEntry[] {
   return [...entries].sort((a, b) => String(a.path).localeCompare(String(b.path)))
-}
-
-function findEquivalentPath(target: string, paths: string[]): string | null {
-  const targetKey = pathSyncKey(target)
-  for (const candidate of paths) {
-    if (pathSyncKey(candidate) === targetKey || pathsMatch(candidate, target)) {
-      return candidate
-    }
-  }
-  return null
-}
-
-function findEquivalentEntry(target: string, entries: WatcherFileEntry[]): WatcherFileEntry | null {
-  const targetKey = pathSyncKey(target)
-  for (const entry of entries) {
-    const entryPath = String(entry.path)
-    if (pathSyncKey(entryPath) === targetKey || pathsMatch(entryPath, target)) {
-      return entry
-    }
-  }
-  return null
 }
 
 async function findFilesRecursive(
@@ -163,11 +142,17 @@ function recomputeDiff(state: TypeSyncState): void {
 function buildReport(folderState: FolderSyncState): WatcherFolderReport {
   return {
     folder: folderState.folder,
-    files: folderState.types.map((typeState) => ({
-      type: typeState.type,
-      lost: sortLost(typeState.lostEntries),
-      new: sortPaths(typeState.newPaths),
-    })),
+    files: folderState.types.map((typeState) => {
+      const newSorted = sortPaths(typeState.newPaths)
+      const lostSorted = sortLost(typeState.lostEntries)
+      return {
+        type: typeState.type,
+        new: newSorted.slice(0, MAX_WATCHER_REPORT_PATHS),
+        lost: lostSorted.slice(0, MAX_WATCHER_REPORT_PATHS),
+        newTotal: newSorted.length,
+        lostTotal: lostSorted.length,
+      }
+    }),
   }
 }
 
@@ -176,9 +161,18 @@ function mapMediaRowsToDbEntries(
   folderPath: string,
   mediaTypeId: number | string,
 ): WatcherFileEntry[] {
+  const folderKey = pathSyncKey(folderPath).replace(/\/+$/, '')
+  const prefix = `${folderKey}/`
+  const typeId = Number(mediaTypeId)
+
   return mediaRows
-    .filter((row) => Number(row.mediaTypeId) === Number(mediaTypeId))
-    .filter((row) => row.path && isPathInsideFolder(String(row.path), folderPath))
+    .filter((row) => Number(row.mediaTypeId) === typeId)
+    .filter((row) => {
+      if (!row.path) return false
+      const key = pathSyncKey(String(row.path))
+      // Cheap prefix check — repo already scopes under folder; avoid path.resolve per row.
+      return key === folderKey || key.startsWith(prefix)
+    })
     .map((row) => ({path: normalizeMediaPath(String(row.path)), id: row.id}))
 }
 
@@ -250,16 +244,20 @@ class WatcherSyncEngine {
 
   async fullSync(folders: WatchedFolderEntry[]): Promise<WatcherFolderReport[]> {
     this.setFolders(folders)
+    const t0 = Date.now()
 
     for (const folderState of this.folderStates) {
       const folderPath = folderState.folder.path
       const folderTypeIds = folderState.types.map((typeState) => typeState.type.id)
+      const tDb = Date.now()
       const mediaRows = await loadMediaForFolder(this.db, folderPath, folderTypeIds)
       const unionExtensions = getUnionExtensions(folderState.folder.types || [])
       const excludedPaths = folderState.folder.excludedPaths || []
+      const tWalk = Date.now()
       const filesInFolder = unionExtensions.length
         ? await findFilesRecursive(folderPath, unionExtensions, excludedPaths)
         : []
+      const tDiff = Date.now()
 
       for (const typeState of folderState.types) {
         typeState.fsPaths = filesInFolder.filter(
@@ -272,12 +270,19 @@ class WatcherSyncEngine {
         ).filter((entry) => !isPathUnderExcluded(String(entry.path), excludedPaths))
         recomputeDiff(typeState)
       }
+
+      console.log(
+        `[watcher] fullSync ${folderPath}: db=${mediaRows.length} fs=${filesInFolder.length} `
+        + `dbMs=${tWalk - tDb} walkMs=${tDiff - tWalk} diffMs=${Date.now() - tDiff} totalMs=${Date.now() - t0}`,
+      )
     }
 
     return this.getReports()
   }
 
   async refreshDbPaths(): Promise<WatcherFolderReport[]> {
+    const t0 = Date.now()
+
     for (const folderState of this.folderStates) {
       const folderPath = folderState.folder.path
       const folderTypeIds = folderState.types.map((typeState) => typeState.type.id)
@@ -295,21 +300,32 @@ class WatcherSyncEngine {
         await this.reconcileFsPathsWithDb(typeState)
         recomputeDiff(typeState)
       }
+
+      console.log(
+        `[watcher] refreshDb ${folderPath}: db=${mediaRows.length} totalMs=${Date.now() - t0}`,
+      )
     }
 
     return this.getReports()
   }
 
   private async reconcileFsPathsWithDb(typeState: TypeSyncState): Promise<void> {
+    // O(n+m) Set membership — linear findEquivalentPath here is O(n*m) and freezes
+    // refresh after fullSync on large libraries (~25k Downloads).
+    const fsKeys = buildPathSyncKeySet(typeState.fsPaths)
+
     for (const entry of typeState.dbEntries) {
       const entryPath = String(entry.path)
-      if (findEquivalentPath(entryPath, typeState.fsPaths)) {
+      const entryKey = pathSyncKey(entryPath)
+      if (fsKeys.has(entryKey)) {
         continue
       }
 
       try {
         await fs.access(entryPath)
-        typeState.fsPaths.push(normalizeMediaPath(entryPath))
+        const normalized = normalizeMediaPath(entryPath)
+        typeState.fsPaths.push(normalized)
+        fsKeys.add(pathSyncKey(normalized))
       } catch {
         // File is genuinely missing from disk.
       }
@@ -322,6 +338,7 @@ class WatcherSyncEngine {
       return false
     }
 
+    const fileKey = pathSyncKey(filePath)
     let changed = false
 
     for (const folderState of this.folderStates) {
@@ -339,9 +356,9 @@ class WatcherSyncEngine {
         }
 
         if (event === 'add') {
-          changed = this.applyFileAdded(typeState, filePath) || changed
+          changed = this.applyFileAdded(typeState, filePath, fileKey) || changed
         } else {
-          changed = this.applyFileRemoved(typeState, filePath) || changed
+          changed = this.applyFileRemoved(typeState, filePath, fileKey) || changed
         }
       }
     }
@@ -349,42 +366,58 @@ class WatcherSyncEngine {
     return changed
   }
 
-  private applyFileAdded(typeState: TypeSyncState, filePath: string): boolean {
-    const existingFsPath = findEquivalentPath(filePath, typeState.fsPaths)
-    if (!existingFsPath) {
+  private applyFileAdded(
+    typeState: TypeSyncState,
+    filePath: string,
+    fileKey: string,
+  ): boolean {
+    const fsKeys = buildPathSyncKeySet(typeState.fsPaths)
+    const hadFs = fsKeys.has(fileKey)
+    if (!hadFs) {
       typeState.fsPaths.push(filePath)
     }
 
-    const dbEntry = findEquivalentEntry(filePath, typeState.dbEntries)
+    const dbEntry = typeState.dbEntries.find((entry) => pathSyncKey(String(entry.path)) === fileKey)
     if (dbEntry) {
-      typeState.lostEntries = typeState.lostEntries.filter((entry) => !pathsMatch(String(entry.path), filePath))
-      typeState.newPaths = typeState.newPaths.filter((pathValue) => !pathsMatch(pathValue, filePath))
+      typeState.lostEntries = typeState.lostEntries.filter(
+        (entry) => pathSyncKey(String(entry.path)) !== fileKey,
+      )
+      typeState.newPaths = typeState.newPaths.filter(
+        (pathValue) => pathSyncKey(pathValue) !== fileKey,
+      )
       return true
     }
 
-    if (!findEquivalentPath(filePath, typeState.newPaths)) {
+    const newKeys = buildPathSyncKeySet(typeState.newPaths)
+    if (!newKeys.has(fileKey)) {
       typeState.newPaths.push(filePath)
       return true
     }
 
-    return Boolean(existingFsPath)
+    return hadFs
   }
 
-  private applyFileRemoved(typeState: TypeSyncState, filePath: string): boolean {
-    const fsPath = findEquivalentPath(filePath, typeState.fsPaths)
-    if (fsPath) {
-      typeState.fsPaths = typeState.fsPaths.filter((pathValue) => !pathsMatch(pathValue, filePath))
+  private applyFileRemoved(
+    typeState: TypeSyncState,
+    filePath: string,
+    fileKey: string,
+  ): boolean {
+    const hadFs = typeState.fsPaths.some((pathValue) => pathSyncKey(pathValue) === fileKey)
+    if (hadFs) {
+      typeState.fsPaths = typeState.fsPaths.filter((pathValue) => pathSyncKey(pathValue) !== fileKey)
     }
 
-    typeState.newPaths = typeState.newPaths.filter((pathValue) => !pathsMatch(pathValue, filePath))
+    typeState.newPaths = typeState.newPaths.filter((pathValue) => pathSyncKey(pathValue) !== fileKey)
 
-    const dbEntry = findEquivalentEntry(filePath, typeState.dbEntries)
-    if (dbEntry && !findEquivalentEntry(filePath, typeState.lostEntries)) {
+    const dbEntry = typeState.dbEntries.find((entry) => pathSyncKey(String(entry.path)) === fileKey)
+    const alreadyLost = dbEntry
+      && typeState.lostEntries.some((entry) => pathSyncKey(String(entry.path)) === fileKey)
+    if (dbEntry && !alreadyLost) {
       typeState.lostEntries.push(dbEntry)
       return true
     }
 
-    return Boolean(fsPath || dbEntry)
+    return Boolean(hadFs || dbEntry)
   }
 }
 

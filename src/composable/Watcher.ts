@@ -33,6 +33,7 @@ export function useWatcher(apiUrl: string) {
   let scanStartNotificationId: number | null = null
   let watcherEventsEnabled = false
   let pendingStartFolders: WatchedFolderEntry[] | null = null
+  let busySafetyTimer: ReturnType<typeof setTimeout> | undefined
 
   const enableWatcherEvents = (): void => {
     watcherEventsEnabled = true
@@ -87,6 +88,7 @@ export function useWatcher(apiUrl: string) {
 
       watcherStore.ws.onmessage = (msg: MessageEvent<string>) => {
         watcherStore.busy = false
+        clearTimeout(busySafetyTimer)
         try {
           const parsedMsg = parseWatcherInboundMessage(JSON.parse(msg.data))
           console.log('WebSocket message received:', parsedMsg.type)
@@ -227,12 +229,15 @@ export function useWatcher(apiUrl: string) {
   const stopWatcher = (): void => {
     if (!watcherStore.ws || watcherStore.ws.readyState !== WebSocket.OPEN) {
       console.log('WebSocket not open, cannot send stop message')
+      watcherStore.busy = false
       return
     }
 
     sendMessage({
       type: 'stop',
     })
+    // stop must not leave the settings spinner spinning while waiting for `closed`
+    watcherStore.busy = false
   }
 
   const sendMessage = (data: WatcherWsPayload): void => {
@@ -243,7 +248,21 @@ export function useWatcher(apiUrl: string) {
     }
 
     try {
-      watcherStore.busy = true
+      const expectBusy = data.type === 'start'
+        || data.type === 'update'
+        || data.type === 'rescan'
+        || data.type === 'refresh'
+      if (expectBusy) {
+        watcherStore.busy = true
+        clearTimeout(busySafetyTimer)
+        // Large folders can take a while; still unblock UI if the server never replies.
+        busySafetyTimer = setTimeout(() => {
+          if (watcherStore.busy) {
+            console.warn('Watcher busy flag cleared after timeout')
+            watcherStore.busy = false
+          }
+        }, 60_000)
+      }
       const stringData = JSON.stringify(data)
       console.log('Sending WebSocket message:', data.type)
       watcherStore.ws.send(stringData)
@@ -292,6 +311,7 @@ export function useWatcher(apiUrl: string) {
     }
     clearTimeout(watchTimeout)
     clearTimeout(foldersWatchTimeout)
+    clearTimeout(busySafetyTimer)
   })
 
   return {

@@ -66,6 +66,9 @@ export interface WatcherFolderReport {
     type: WatchedMediaTypeEntry
     lost: WatcherFileEntry[]
     new: string[]
+    /** Full counts when `new`/`lost` arrays are truncated for the wire. */
+    newTotal?: number
+    lostTotal?: number
   }>
 }
 

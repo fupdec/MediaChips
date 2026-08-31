@@ -29,8 +29,8 @@ export function buildWatcherScanSummary(reports: WatcherFolderReport[]): Watcher
     let lostCount = 0
 
     for (const group of report.files) {
-      newCount += group.new.length
-      lostCount += group.lost.length
+      newCount += group.newTotal ?? group.new.length
+      lostCount += group.lostTotal ?? group.lost.length
     }
 
     return {

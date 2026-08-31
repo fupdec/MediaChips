@@ -153,6 +153,20 @@ export function countMediaInboxNew(
   entries: WatcherFilesEntry[] = [],
   ignoredPaths: string[] = [],
 ): number {
+  // Prefer server totals when path lists are truncated for WS payload size.
+  let total = 0
+  let usedTotals = false
+  for (const entry of entries) {
+    for (const group of entry.files || []) {
+      if (typeof group.newTotal === 'number') {
+        total += group.newTotal
+        usedTotals = true
+      }
+    }
+  }
+  if (usedTotals) {
+    return total
+  }
   return collectMediaInboxNewItems(entries, ignoredPaths).length
 }
 

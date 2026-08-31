@@ -12,8 +12,8 @@ export function getWatcherBadgeCounts(
   let lostCount = 0
 
   for (const group of files) {
-    newCount += group.new?.length ?? 0
-    lostCount += group.lost?.length ?? 0
+    newCount += group.newTotal ?? group.new?.length ?? 0
+    lostCount += group.lostTotal ?? group.lost?.length ?? 0
   }
 
   return { new: newCount, lost: lostCount }

@@ -27,6 +27,20 @@ describe('getWatcherBadgeCounts', () => {
     expect(getWatcherBadgeCounts(files)).toEqual({new: 3, lost: 2})
   })
 
+  it('prefers newTotal/lostTotal when arrays are truncated', () => {
+    const files: WatcherFileChangeGroup[] = [
+      {
+        type: videoType,
+        new: ['a'],
+        lost: [{id: 1, path: 'b'}],
+        newTotal: 50,
+        lostTotal: 12,
+      },
+    ]
+
+    expect(getWatcherBadgeCounts(files)).toEqual({new: 50, lost: 12})
+  })
+
   it('treats missing arrays as zero', () => {
     const files = [{type: videoType} as WatcherFileChangeGroup]
 

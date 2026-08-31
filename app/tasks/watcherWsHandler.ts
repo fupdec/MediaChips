@@ -125,6 +125,13 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
 
       try {
         await syncEngine.fullSync(watchedFolders)
+        // fullSync is authoritative — discard FS events queued during the walk.
+        if (pendingFileEvents.length) {
+          console.log(
+            `[watcher] dropping ${pendingFileEvents.length} file events queued during fullSync`,
+          )
+          pendingFileEvents = []
+        }
         sendReports()
       } catch (error: unknown) {
         scanFailed = true
@@ -132,10 +139,6 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
         console.error('Error in watcher full sync:', errorMessage(error))
       } finally {
         isProcessing = false
-
-        if (processPendingFileEvents()) {
-          sendReports()
-        }
 
         if (pendingFullSync) {
           pendingFullSync = false

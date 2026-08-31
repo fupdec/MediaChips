@@ -34,7 +34,7 @@
               <div v-if="panel !== index">
                 <v-chip
                   v-if="item.new.length"
-                  :text="t('watcher.folder.new_count', {count: item.new.length})"
+                  :text="t('watcher.folder.new_count', {count: item.newTotal ?? item.new.length})"
                   color="success"
                   class="px-2 ml-2"
                   size="small"
@@ -42,7 +42,7 @@
                 />
                 <v-chip
                   v-if="item.lost.length"
-                  :text="t('watcher.folder.lost_count', {count: item.lost.length})"
+                  :text="t('watcher.folder.lost_count', {count: item.lostTotal ?? item.lost.length})"
                   color="error"
                   class="px-2 ml-2"
                   size="small"
@@ -56,7 +56,7 @@
                 class="mb-4">
                 <v-card-actions>
                   <v-chip
-                    :text="t('watcher.folder.new_count', {count: item.new.length})"
+                    :text="t('watcher.folder.new_count', {count: item.newTotal ?? item.new.length})"
                     color="success"
                     class="mb-2"
                     size="small"
@@ -102,7 +102,7 @@
               <div v-if="item.lost.length > 0">
                 <v-card-actions>
                   <v-chip
-                    :text="t('watcher.folder.lost_count', {count: item.lost.length})"
+                    :text="t('watcher.folder.lost_count', {count: item.lostTotal ?? item.lost.length})"
                     color="error"
                     class="mb-2"
                     variant="flat"

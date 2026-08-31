@@ -12,6 +12,9 @@ export interface WatcherFileChangeGroup {
   type: MediaType
   new: string[]
   lost: Array<{ id: number; path: string; [key: string]: unknown }>
+  /** Present when the server truncated `new` / `lost` for payload size. */
+  newTotal?: number
+  lostTotal?: number
 }
 
 export interface WatcherFilesEntry {

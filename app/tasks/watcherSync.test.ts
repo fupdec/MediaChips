@@ -84,6 +84,67 @@ describe('recomputeDiff', () => {
   })
 })
 
+describe('getReports truncation', () => {
+  it('caps new/lost paths but keeps totals', async () => {
+    findPathEntriesByMediaTypeIdsUnderFolder.mockReturnValue([])
+
+    const engine = new WatcherSyncEngine({} as never)
+    engine.setFolders([{
+      path: '/folder-a',
+      types: [{id: 10, extensions: 'mp4'}],
+    }])
+
+    for (let i = 0; i < 600; i++) {
+      engine.applyFileEvent('add', `/folder-a/f_${i}.mp4`)
+    }
+
+    const report = engine.getReports()[0]?.files[0]
+    expect(report?.newTotal).toBe(600)
+    expect(report?.new.length).toBe(500)
+    expect(report?.lostTotal).toBe(0)
+  })
+})
+
+describe('refreshDbPaths reconcile', () => {
+  it('reconciles large db/fs sets without quadratic blowup', async () => {
+    const n = 15_000
+    findPathEntriesByMediaTypeIdsUnderFolder.mockReturnValue(
+      Array.from({length: n}, (_, i) => ({
+        id: i,
+        mediaTypeId: 10,
+        path: `/folder-a/f_${i}.mp4`,
+      })),
+    )
+
+    const engine = new WatcherSyncEngine({} as never)
+    engine.setFolders([{
+      path: '/folder-a',
+      types: [{id: 10, extensions: 'mp4'}],
+    }])
+
+    // Pretend a prior fullSync already populated fs paths (all but last 2 present).
+    const folderState = (engine as unknown as {
+      folderStates: Array<{types: Array<{fsPaths: string[]}>}>
+    }).folderStates[0]
+    folderState.types[0].fsPaths = Array.from(
+      {length: n - 2},
+      (_, i) => `/folder-a/f_${i}.mp4`,
+    )
+
+    const accessSpy = vi.spyOn(fs, 'access').mockResolvedValue(undefined)
+
+    const t0 = Date.now()
+    await engine.refreshDbPaths()
+    const elapsed = Date.now() - t0
+
+    expect(elapsed).toBeLessThan(2000)
+    // Only the two missing paths should need access checks.
+    expect(accessSpy).toHaveBeenCalledTimes(2)
+
+    accessSpy.mockRestore()
+  })
+})
+
 describe('WatcherSyncEngine', () => {
   beforeEach(() => {
     vi.clearAllMocks()
