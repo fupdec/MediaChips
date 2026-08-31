@@ -3,6 +3,8 @@ import { promises as fs } from 'fs'
 import {
   WatcherSyncEngine,
   mapMediaRowsToDbEntries,
+  recomputeDiff,
+  pathSyncKey,
 } from './watcherSync'
 
 const findPathEntriesByMediaTypeIdsUnderFolder = vi.fn()
@@ -28,6 +30,57 @@ describe('mapMediaRowsToDbEntries', () => {
     expect(entries).toEqual([
       {id: 1, path: '/watched/movie.mp4'},
     ])
+  })
+})
+
+describe('recomputeDiff', () => {
+  it('matches known and unknown paths in linear time for large sets', () => {
+    const n = 20_000
+    const fsPaths = Array.from({length: n}, (_, i) => `/media/clip_${i}.mp4`)
+    const dbEntries = Array.from({length: n}, (_, i) => ({
+      id: i,
+      path: i < n - 3 ? `/media/clip_${i}.mp4` : `/media/gone_${i}.mp4`,
+    }))
+
+    const state = {
+      type: {id: 1, extensions: 'mp4'},
+      extensions: ['mp4'],
+      fsPaths,
+      dbEntries,
+      newPaths: [] as string[],
+      lostEntries: [] as Array<{id: number; path: string}>,
+    }
+
+    const t0 = Date.now()
+    recomputeDiff(state)
+    const elapsed = Date.now() - t0
+
+    expect(elapsed).toBeLessThan(1500)
+    expect(state.newPaths).toEqual([
+      `/media/clip_${n - 3}.mp4`,
+      `/media/clip_${n - 2}.mp4`,
+      `/media/clip_${n - 1}.mp4`,
+    ])
+    expect(state.lostEntries.map((entry) => entry.path)).toEqual([
+      `/media/gone_${n - 3}.mp4`,
+      `/media/gone_${n - 2}.mp4`,
+      `/media/gone_${n - 1}.mp4`,
+    ])
+  })
+
+  it('treats path case as the same sync key', () => {
+    expect(pathSyncKey('/Media/A.MP4')).toBe(pathSyncKey('/media/a.mp4'))
+    const state = {
+      type: {id: 1, extensions: 'mp4'},
+      extensions: ['mp4'],
+      fsPaths: ['/Media/A.mp4'],
+      dbEntries: [{id: 1, path: '/media/a.mp4'}],
+      newPaths: [] as string[],
+      lostEntries: [] as Array<{id: number; path: string}>,
+    }
+    recomputeDiff(state)
+    expect(state.newPaths).toEqual([])
+    expect(state.lostEntries).toEqual([])
   })
 })
 

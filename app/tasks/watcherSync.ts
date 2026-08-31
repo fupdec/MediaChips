@@ -21,6 +21,20 @@ import { isPathUnderExcluded } from '../../api/utils/watchedFolderExcludes'
 
 const pathsMatch = (left: string, right: string) => pathsEquivalent(left, right)
 
+/** Stable lowercase key for O(1) path set membership (slash-normalized). */
+function pathSyncKey(value: string): string {
+  return normalizeMediaPath(value).replace(/\\/g, '/').toLowerCase()
+}
+
+function buildPathSyncKeySet(paths: Iterable<string>): Set<string> {
+  const keys = new Set<string>()
+  for (const value of paths) {
+    if (!value) continue
+    keys.add(pathSyncKey(value))
+  }
+  return keys
+}
+
 function parseExtensions(extensions: string): string[] {
   return parseMediaExtensions(extensions)
 }
@@ -34,8 +48,9 @@ function sortLost(entries: WatcherFileEntry[]): WatcherFileEntry[] {
 }
 
 function findEquivalentPath(target: string, paths: string[]): string | null {
+  const targetKey = pathSyncKey(target)
   for (const candidate of paths) {
-    if (pathsMatch(candidate, target)) {
+    if (pathSyncKey(candidate) === targetKey || pathsMatch(candidate, target)) {
       return candidate
     }
   }
@@ -43,8 +58,10 @@ function findEquivalentPath(target: string, paths: string[]): string | null {
 }
 
 function findEquivalentEntry(target: string, entries: WatcherFileEntry[]): WatcherFileEntry | null {
+  const targetKey = pathSyncKey(target)
   for (const entry of entries) {
-    if (pathsMatch(String(entry.path), target)) {
+    const entryPath = String(entry.path)
+    if (pathSyncKey(entryPath) === targetKey || pathsMatch(entryPath, target)) {
       return entry
     }
   }
@@ -132,11 +149,14 @@ interface FolderSyncState {
 }
 
 function recomputeDiff(state: TypeSyncState): void {
-  state.newPaths = state.fsPaths.filter(
-    (fsPath) => !state.dbEntries.some((entry) => pathsMatch(String(entry.path), fsPath)),
-  )
+  // O(n+m) via normalized keys — nested pathsMatch loops are O(n*m) and freeze
+  // the event loop on large watched trees (~25k Downloads + library rows).
+  const dbKeys = buildPathSyncKeySet(state.dbEntries.map((entry) => String(entry.path)))
+  const fsKeys = buildPathSyncKeySet(state.fsPaths)
+
+  state.newPaths = state.fsPaths.filter((fsPath) => !dbKeys.has(pathSyncKey(fsPath)))
   state.lostEntries = state.dbEntries.filter(
-    (entry) => !state.fsPaths.some((fsPath) => pathsMatch(String(entry.path), fsPath)),
+    (entry) => !fsKeys.has(pathSyncKey(String(entry.path))),
   )
 }
 
@@ -374,4 +394,7 @@ export {
   mapMediaRowsToDbEntries,
   parseExtensions,
   fileMatchesExtensions,
+  recomputeDiff,
+  pathSyncKey,
+  buildPathSyncKeySet,
 }
