@@ -51,16 +51,26 @@
 
           <div class="d-flex align-center flex-nowrap ga-2 items-control-deck__controls">
             <v-btn
+              v-if="smAndDown"
               color="success"
               variant="flat"
               size="small"
-              :icon="smAndDown"
-              :rounded="smAndDown ? undefined : 'xl'"
+              icon
               v-tooltip:top="t('playlists.add_new_playlist')"
               @click="dialogPlaylistAdd = true"
             >
-              <v-icon size="18" :start="!smAndDown">mdi-playlist-plus</v-icon>
-              <span v-if="!smAndDown">{{ t('playlists.add_new_playlist') }}</span>
+              <v-icon size="18">mdi-playlist-plus</v-icon>
+            </v-btn>
+            <v-btn
+              v-else
+              color="success"
+              variant="flat"
+              size="small"
+              rounded="xl"
+              @click="dialogPlaylistAdd = true"
+            >
+              <v-icon size="18" start>mdi-playlist-plus</v-icon>
+              {{ t('playlists.add_new_playlist') }}
             </v-btn>
           </div>
         </div>
@@ -75,28 +85,48 @@
         </div>
         <div class="d-flex align-center flex-nowrap ga-2">
           <v-btn
+            v-if="smAndDown"
             color="primary"
             variant="tonal"
             size="small"
-            :icon="smAndDown"
-            :rounded="smAndDown ? undefined : 'xl'"
+            icon
             v-tooltip:top="t('playlists.smart_playlists_docs')"
             @click="showSmartPlaylistsDocs"
           >
-            <v-icon size="18" :start="!smAndDown">mdi-help-circle-outline</v-icon>
-            <span v-if="!smAndDown">{{ t('playlists.smart_playlists_docs') }}</span>
+            <v-icon size="18">mdi-help-circle-outline</v-icon>
           </v-btn>
           <v-btn
+            v-else
+            color="primary"
+            variant="tonal"
+            size="small"
+            rounded="xl"
+            @click="showSmartPlaylistsDocs"
+          >
+            <v-icon size="18" start>mdi-help-circle-outline</v-icon>
+            {{ t('playlists.smart_playlists_docs') }}
+          </v-btn>
+          <v-btn
+            v-if="smAndDown"
             color="success"
             variant="flat"
             size="small"
-            :icon="smAndDown"
-            :rounded="smAndDown ? undefined : 'xl'"
+            icon
             v-tooltip:top="t('playlists.create_smart_playlist')"
             @click="dialogPlaylistMix = true"
           >
-            <v-icon size="18" :start="!smAndDown">mdi-playlist-plus</v-icon>
-            <span v-if="!smAndDown">{{ t('playlists.create_smart_playlist') }}</span>
+            <v-icon size="18">mdi-playlist-plus</v-icon>
+          </v-btn>
+          <v-btn
+            v-else
+            color="success"
+            variant="flat"
+            size="small"
+            rounded="xl"
+            @click="dialogPlaylistMix = true"
+          >
+            <v-icon size="18" start>mdi-playlist-plus</v-icon>
+            {{ t('playlists.create_smart_playlist') }}
           </v-btn>
         </div>
       </div>
