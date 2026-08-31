@@ -21,7 +21,7 @@
         v-if="isVideoMedia"
         :media="item"
         :is-file-exists="isFileExists"
-        :thumb-url="thumb || undefined"
+        :thumb-url="usableThumb || undefined"
         preview-host="compact"
         :play-time="continuePlayTime"
         @update-big-preview="bigPreview = $event"
@@ -224,6 +224,13 @@ const displayTitle = computed(() =>
 )
 
 const brokenThumb = ref(false)
+
+/** Real thumb URL only — never force unavailable into ItemPreviewVideo (blocks on-demand create). */
+const usableThumb = computed(() => {
+  if (brokenThumb.value) return null
+  if (isThumbUnavailable(props.thumb)) return null
+  return props.thumb || null
+})
 
 const displayThumb = computed(() => {
   if (brokenThumb.value) return IMAGE_UNAVAILABLE_URL

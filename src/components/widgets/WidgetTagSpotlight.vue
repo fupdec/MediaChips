@@ -546,8 +546,8 @@ async function loadSpotlight(excludeTagId?: number | null) {
       tagImage.value = ''
     }
 
-    if (sampleMedia.value.length && store.dbPath) {
-      await loadHomeMediaThumbs(sampleMedia.value, store.mediaTypes, store.dbPath)
+    if (sampleMedia.value.length && store.mediaPath) {
+      await loadHomeMediaThumbs(sampleMedia.value, store.mediaTypes, store.mediaPath)
     }
 
     if (LOCAL_AI_UI_ENABLED && res.data.tag) {
