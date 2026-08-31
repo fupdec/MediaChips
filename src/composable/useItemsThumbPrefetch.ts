@@ -3,7 +3,7 @@ import { debounce } from '@/utils/debounce'
 import { useAppStore } from '@/stores/app'
 import { useItemsStore } from '@/stores/items'
 import { useSettingsStore } from '@/stores/settings'
-import { isImageMediaType, getMediaDeleteAssetFolder } from '@/utils/mediaType'
+import { isImageMediaType, isVideoMediaType, getMediaDeleteAssetFolder } from '@/utils/mediaType'
 import { loadMediaThumbUrls } from '@/utils/mediaThumbLoader'
 import { loadTagThumbUrls } from '@/utils/tagThumbLoader'
 import {
@@ -14,14 +14,17 @@ import {
 } from '@/utils/thumbDisplayCache'
 import { CARD_THUMB_MAX_EDGE } from '@/utils/thumbSource'
 import { visibleItemIds } from '@/utils/visibleItemsWindow'
-import { enqueueEnsureImageDimensions } from '@/utils/imageDimensionsEnsure'
+import {
+  enqueueQuietMetaBackfillMany,
+  needsQuietMetaBackfill,
+} from '@/utils/quietMediaBackfill'
 import { warmDisplayImageUrl } from '@/utils/probeImageUrl'
 import { mapWithConcurrency } from '@/utils/mapWithConcurrency'
 import type { MediaType } from '@/types/media'
 import type { MediaItem, Tag } from '@/types/stores'
 
-/** Cap how many missing-dimension probes we start per prefetch pass. */
-const DIMENSION_ENSURE_MAX = 8
+/** Cap quiet lite-import metadata ids queued per prefetch pass. */
+const QUIET_BACKFILL_MAX = 32
 
 const PREFETCH_FALLBACK_LIMIT = 80
 const PREFETCH_AHEAD_LIMIT = 64
@@ -104,17 +107,14 @@ export function useItemsThumbPrefetch({
       const folder = getMediaDeleteAssetFolder(mediaType.value)
       if (!folder || !appStore.mediaPath) return
 
-      if (isImageMediaType(mediaType.value)) {
-        const missingDims = list
-          .filter((item) => {
-            const width = Number((item as MediaItem).width) || 0
-            const height = Number((item as MediaItem).height) || 0
-            return width <= 0 || height <= 0
-          })
-          .slice(0, DIMENSION_ENSURE_MAX)
-        for (const item of missingDims) {
-          void enqueueEnsureImageDimensions(Number(item.id))
-        }
+      if (isImageMediaType(mediaType.value) || isVideoMediaType(mediaType.value)) {
+        const pendingIds = list
+          .filter((item) => needsQuietMetaBackfill(item as MediaItem))
+          .slice(0, QUIET_BACKFILL_MAX)
+          .map((item) => Number(item.id))
+          .filter((id) => Number.isFinite(id) && id > 0)
+        // One debounced bulk HTTP call for missing width/height (no task UI).
+        if (pendingIds.length) enqueueQuietMetaBackfillMany(pendingIds)
       }
 
       const isTimelineView = Number(itemsStore.view) === 2

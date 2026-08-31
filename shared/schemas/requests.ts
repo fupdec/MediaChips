@@ -310,6 +310,11 @@ export const UpdateMediaInfoRequestSchema = z.object({
   id: z.union([z.number(), z.string()]),
 })
 
+/** Quiet lite-import metadata backfill — no thumbs, batched probe. */
+export const EnsureMediaMetadataBulkRequestSchema = z.object({
+  ids: z.array(z.union([z.number(), z.string()])).min(1).max(64),
+})
+
 export const SearchMediaByPathRequestSchema = z.object({
   query: z.string().optional(),
   path: z.string().optional(),

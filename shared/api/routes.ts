@@ -105,6 +105,7 @@ export const API_ROUTES = {
   taskCreateMarkThumb: '/api/Task/createMarkThumbForMark',
   taskUpdateMediaInfo: '/api/Task/updateMediaInfo',
   taskEnsureImageDimensions: '/api/Task/ensureImageDimensions',
+  taskEnsureMediaMetadataBulk: '/api/Task/ensureMediaMetadataBulk',
   taskOpenPath: '/api/Task/openPath',
   taskOpenInExternalPlayer: '/api/Task/openInExternalPlayer',
   tagsInMedia: '/api/TagsInMedia',

@@ -60,17 +60,24 @@ export const FILMSTRIP_THUMB_MAX_EDGE = 144
 export async function loadFilmstripThumbDisplayUrl(
   media: MediaWithPath | null | undefined,
   mediaPath: string,
+  {cacheBust = false as boolean | number} = {},
 ): Promise<string> {
   if (!media?.id) return IMAGE_UNAVAILABLE_URL
 
   const key = mediaThumbKey('images-filmstrip', media.id)
-  const cached = getCachedThumb(key)
-  if (isPersistentThumbUrl(cached)) return cached!
+  if (!cacheBust) {
+    const cached = getCachedThumb(key)
+    if (isPersistentThumbUrl(cached)) return cached!
+  }
 
   const thumbPath = path.join(mediaPath, 'images/thumbs', `${media.id}.jpg`)
-  const url = buildLocalFileUrl(thumbPath, false, false, {maxEdge: FILMSTRIP_THUMB_MAX_EDGE})
-  setCachedThumb(key, url)
-  return url
+  // Do not cache here — callers must probe first so 404 URLs never stick in the LRU.
+  return buildLocalFileUrl(
+    thumbPath,
+    false,
+    cacheBust,
+    {maxEdge: FILMSTRIP_THUMB_MAX_EDGE},
+  )
 }
 
 /** Longest edge for ImageViewer / neighbor warm — full original loads on strong zoom. */

@@ -366,10 +366,84 @@ function createMediaPostProcessor({
     }
   }
 
+  /**
+   * Metadata-only backfill (width/height/duration/…) — no thumb generation.
+   * Used for quiet batched repair after fast/lite import.
+   */
+  async function ensureMediaMetadata(
+    media: {id?: unknown; path?: unknown; filesize?: unknown},
+    mediaType: MediaTypeLike,
+  ): Promise<{
+    id: number
+    width: number
+    height: number
+    duration: number
+    filesize: number
+    codec?: string | null
+    bitrate?: number | null
+    fps?: number | null
+    orientation?: number
+  } | null> {
+    const mediaId = Number(media.id)
+    const mediaPath = String(media.path || '')
+    if (!mediaId || !mediaPath) return null
+
+    if (isImageMediaType(mediaType)) {
+      const dims = await ensureImageDimensions(media)
+      if (!dims) return null
+      const row = mediaRepo.findById(mediaId)
+      return {
+        id: mediaId,
+        width: dims.width,
+        height: dims.height,
+        duration: 0,
+        filesize: Number(row?.filesize) || Number(media.filesize) || 0,
+        orientation: dims.orientation,
+      }
+    }
+
+    if (isVideoMediaType(mediaType) || isAudioMediaType(mediaType)) {
+      if (isVideoMediaType(mediaType)) {
+        await refreshVideoMedia(mediaId, mediaPath)
+      } else {
+        // Duration/codec only — skip cover extraction for quiet bulk passes.
+        const metadata = await getAudioMetadata(mediaPath)
+        if (metadata) {
+          videoMetadataRepo.upsert({
+            mediaId,
+            duration: metadata.duration,
+            bitrate: metadata.bitrate,
+            codec: metadata.codec,
+            title: metadata.title || null,
+            artist: metadata.artist || null,
+            album: metadata.album || null,
+          })
+        }
+        await applyMediaCreatedAt(mediaId, mediaPath, 'audio')
+      }
+
+      const meta = videoMetadataRepo.findByMediaId(mediaId)
+      const row = mediaRepo.findById(mediaId)
+      return {
+        id: mediaId,
+        width: Number(meta?.width) || 0,
+        height: Number(meta?.height) || 0,
+        duration: Number(meta?.duration) || 0,
+        filesize: Number(row?.filesize) || Number(media.filesize) || 0,
+        codec: meta?.codec ?? null,
+        bitrate: meta?.bitrate ?? null,
+        fps: meta?.fps ?? null,
+      }
+    }
+
+    return null
+  }
+
   return {
     processNewMedia,
     refreshMediaInfo,
     ensureImageDimensions,
+    ensureMediaMetadata,
   }
 }
 

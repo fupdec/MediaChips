@@ -6,17 +6,21 @@ import type {ApiRequest, ApiResponse} from '../../types/http'
 
 const {
   findMediaById,
+  findByIds,
   updateById,
   findMediaTypeById,
   refreshMediaInfo,
+  ensureMediaMetadata,
   fileExists,
   resolveExistingPath,
   statSync,
 } = vi.hoisted(() => ({
   findMediaById: vi.fn(),
+  findByIds: vi.fn(),
   updateById: vi.fn(),
   findMediaTypeById: vi.fn(),
   refreshMediaInfo: vi.fn(),
+  ensureMediaMetadata: vi.fn(),
   fileExists: vi.fn(),
   resolveExistingPath: vi.fn(),
   statSync: vi.fn(),
@@ -37,6 +41,7 @@ vi.mock('fs', async (importOriginal) => {
 vi.mock('../../db/repositories/media', () => ({
   createMediaRepository: () => ({
     findById: findMediaById,
+    findByIds,
     updateById,
     findByPathVariants: vi.fn(),
     findByBasenameFilesizeAndMediaType: vi.fn(),
@@ -57,6 +62,7 @@ vi.mock('../../services/mediaPostProcess', () => ({
     refreshMediaInfo,
     processNewMedia: vi.fn(),
     ensureImageDimensions: vi.fn(),
+    ensureMediaMetadata,
   }),
 }))
 
@@ -147,5 +153,46 @@ describe('TasksMedia.controller updateMediaInfo', () => {
     expect(res.statusCode).toBe(200)
     expect(refreshMediaInfo).toHaveBeenCalledWith(media, {id: 1, type: 'video'})
     expect(updateById).toHaveBeenCalledWith(22810, {filesize: 1234})
+  })
+})
+
+describe('TasksMedia.controller ensureMediaMetadataBulk', () => {
+  const controller = createTasksMediaController(createShared())
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('probes a batch and returns metadata items', async () => {
+    findByIds.mockReturnValue([
+      {id: 1, path: '/a.jpg', mediaTypeId: 2, filesize: 10},
+      {id: 2, path: '/b.mp4', mediaTypeId: 1, filesize: 20},
+    ])
+    findMediaTypeById.mockImplementation((id: number) => (
+      id === 2 ? {id: 2, type: 'image'} : {id: 1, type: 'video'}
+    ))
+    fileExists.mockResolvedValue(true)
+    resolveExistingPath.mockImplementation(async (p: string) => p)
+    statSync.mockReturnValue({size: 99})
+    ensureMediaMetadata.mockImplementation(async (media: {id: number}) => ({
+      id: media.id,
+      width: 100,
+      height: 50,
+      duration: media.id === 2 ? 12 : 0,
+      filesize: 99,
+    }))
+
+    const req = {body: {ids: [1, 2, 2]}} as ApiRequest
+    const res = createResponse()
+    await controller.ensureMediaMetadataBulk(req, res)
+
+    expect(res.statusCode).toBe(200)
+    expect(ensureMediaMetadata).toHaveBeenCalledTimes(2)
+    expect(res.body).toEqual({
+      items: [
+        {id: 1, width: 100, height: 50, duration: 0, filesize: 99},
+        {id: 2, width: 100, height: 50, duration: 12, filesize: 99},
+      ],
+    })
   })
 })

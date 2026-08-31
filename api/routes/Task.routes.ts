@@ -15,6 +15,7 @@ import {
   OpenInExternalPlayerRequestSchema,
   GetFileListRequestSchema,
   UpdateMediaInfoRequestSchema,
+  EnsureMediaMetadataBulkRequestSchema,
   SearchMediaByPathRequestSchema,
   UpdateMediaMultipleRequestSchema,
   DatabaseSizesRequestSchema,
@@ -163,6 +164,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
 
   register('post', '/updateMediaInfo', 'updateMediaInfo', validateBody(UpdateMediaInfoRequestSchema))
   register('post', '/ensureImageDimensions', 'ensureImageDimensions', validateBody(UpdateMediaInfoRequestSchema))
+  register('post', '/ensureMediaMetadataBulk', 'ensureMediaMetadataBulk', validateBody(EnsureMediaMetadataBulkRequestSchema))
   register('post', '/createThumbForVideo', 'createThumbForVideo', validateBody(VideoPreviewTaskRequestSchema))
   register('post', '/createThumb', 'createThumb', validateBody(CreateThumbRequestSchema))
   register('post', '/createMarkThumbForMark', 'createMarkThumbForMark', validateBody(CreateMarkThumbRequestSchema))

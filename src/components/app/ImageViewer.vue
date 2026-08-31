@@ -276,6 +276,7 @@
               class="image-viewer__image"
               draggable="false"
               alt=""
+              @error="onStageImageError"
             />
           </Transition>
         </div>
@@ -460,6 +461,7 @@
                       class="image-viewer__filmstrip-thumb"
                       draggable="false"
                       alt=""
+                      @error="onFilmstripThumbError(item)"
                     />
                     <span v-else class="image-viewer__filmstrip-placeholder" />
                   </button>
@@ -553,10 +555,19 @@ import {
   loadFullImageDisplayUrl,
   revokeImageObjectUrl,
 } from '@/utils/imageSource'
-import {warmDisplayImageUrl} from '@/utils/probeImageUrl'
-import {enqueueEnsureImageDimensions} from '@/utils/imageDimensionsEnsure'
+import {warmDisplayImageUrl, probeDisplayImageUrl} from '@/utils/probeImageUrl'
+import {
+  enqueueQuietImageBackfill,
+  enqueueImageThumbAndMeta,
+  needsQuietImageBackfill,
+  isEmptyMediaSource,
+} from '@/utils/quietMediaBackfill'
 import {mapWithConcurrency} from '@/utils/mapWithConcurrency'
-import {getCachedThumb, mediaThumbKey, isPersistentThumbUrl} from '@/utils/thumbDisplayCache'
+import {
+  mediaThumbKey,
+  invalidateCachedThumb,
+  setCachedThumb,
+} from '@/utils/thumbDisplayCache'
 import {checkFileExists} from '@/services/fileService'
 import {getReadableFileSize} from '@/services/formatUtils'
 import {openPath} from '@/services/shellService'
@@ -615,6 +626,8 @@ const filmstripViewportWidth = ref(0)
 const filmstripNetworkAllowed = ref(false)
 /** True while the stage shows a maxEdge downscale (not the original file). */
 const showingViewerSized = ref(false)
+/** Avoid infinite filmstrip regen loops on persistent missing files. */
+const filmstripRegenAttempted = new Set<number>()
 let originalUpgradeToken = 0
 let filmstripLoadToken = 0
 let filmstripResizeObserver: ResizeObserver | null = null
@@ -1053,6 +1066,12 @@ const prefetchNeighborThumbs = () => {
       void (async () => {
         try {
           const thumb = await loadThumbDisplayUrl(media, appStore.mediaPath)
+          if (!thumb || thumb.includes('unavailable.png')) return
+          if (!(await probeDisplayImageUrl(thumb))) {
+            invalidateCachedThumb(mediaThumbKey('images', id))
+            void enqueueImageThumbAndMeta(id)
+            return
+          }
           rememberNeighborUrl(entry, thumb, 'thumb')
           if (entry.thumb) await warmDisplayImageUrl(entry.thumb)
         } catch (error) {
@@ -1156,14 +1175,20 @@ const loadCurrentImage = async () => {
 
   if (!previewSrc && !cachedNeighbor?.full && !cachedNeighbor?.thumb) {
     try {
-      const thumbSrc = adoptLoadedSrc(
-        await loadThumbDisplayUrl(image, appStore.mediaPath),
-        token,
-      )
-      if (thumbSrc) {
-        setDisplaySrc(thumbSrc, {owned: true, key: transitionKey})
-        viewer.setLoading(false)
-        if (token === loadToken) prefetchNeighborThumbs()
+      const rawThumb = await loadThumbDisplayUrl(image, appStore.mediaPath)
+      const thumbSrc = adoptLoadedSrc(rawThumb, token)
+      // Only paint an intermediate thumb when the file actually exists — otherwise
+      // the stage stays black/broken until full load (or forever if full fails).
+      if (thumbSrc && token === loadToken && await probeDisplayImageUrl(thumbSrc)) {
+        if (token === loadToken) {
+          setDisplaySrc(thumbSrc, {owned: true, key: transitionKey})
+          viewer.setLoading(false)
+          prefetchNeighborThumbs()
+        }
+      } else if (image.id != null) {
+        invalidateCachedThumb(mediaThumbKey('images', Number(image.id)))
+        invalidateCachedThumb(mediaThumbKey('images-filmstrip', Number(image.id)))
+        void enqueueImageThumbAndMeta(Number(image.id))
       }
     } catch (error) {
       console.error('Failed to load image thumbnail for viewer:', error)
@@ -1197,13 +1222,55 @@ const loadCurrentImage = async () => {
       filmstripNetworkAllowed.value = true
       void ensureFilmstripThumbs()
 
-      const width = Number(image.width) || 0
-      const height = Number(image.height) || 0
-      if (width <= 0 || height <= 0) {
-        void enqueueEnsureImageDimensions(Number(image.id))
+      // Lite rows: quietly create thumb + metadata for filmstrip.
+      if (image.id != null && needsQuietImageBackfill(image)) {
+        const mediaId = Number(image.id)
+        void enqueueQuietImageBackfill(mediaId).then((ok) => {
+          if (!ok || token !== loadToken || !viewer.active) return
+          invalidateCachedThumb(mediaThumbKey('images', mediaId))
+          invalidateCachedThumb(mediaThumbKey('images-filmstrip', mediaId))
+          const filmKey = `media:${mediaId}`
+          if (filmstripThumbs.value[filmKey]) {
+            const next = {...filmstripThumbs.value}
+            delete next[filmKey]
+            filmstripThumbs.value = next
+          }
+          void ensureFilmstripThumbs()
+        })
       }
     }
   }
+}
+
+const onStageImageError = () => {
+  if (!viewer.active) return
+  const image = viewer.currentImage
+  const token = loadToken
+  const transitionKey = currentTransitionKey()
+
+  void (async () => {
+    // Prefer the original file when an intermediate thumb URL 404s.
+    if (image?.path) {
+      try {
+        const fullSrc = adoptLoadedSrc(await loadFullImageDisplayUrl(image), token)
+        if (token !== loadToken) return
+        if (fullSrc && await probeDisplayImageUrl(fullSrc)) {
+          if (token !== loadToken) return
+          setDisplaySrc(fullSrc, {owned: true, key: transitionKey})
+          showingViewerSized.value = fullSrc.includes('maxEdge=')
+          loadFailed.value = false
+          return
+        }
+      } catch (error) {
+        console.error('Stage image fallback failed:', error)
+      }
+    }
+
+    if (token !== loadToken) return
+    clearObjectUrl()
+    loadFailed.value = true
+    if (image?.id != null) void enqueueImageThumbAndMeta(Number(image.id))
+  })()
 }
 
 const stopSlideshowTimer = () => {
@@ -1463,6 +1530,7 @@ const clearFilmstripThumbs = () => {
     if (src.startsWith('blob:')) revokeImageObjectUrl(src)
   }
   filmstripThumbs.value = {}
+  filmstripRegenAttempted.clear()
 }
 
 const pruneFilmstripThumbs = (keepKeys: Set<string>) => {
@@ -1475,6 +1543,56 @@ const pruneFilmstripThumbs = (keepKeys: Set<string>) => {
     if (src.startsWith('blob:')) revokeImageObjectUrl(src)
   }
   filmstripThumbs.value = next
+}
+
+const paintFilmstripThumb = (key: string, url: string) => {
+  if (!url || url.includes('unavailable.png')) return
+  filmstripThumbs.value = {...filmstripThumbs.value, [key]: url}
+}
+
+const repairFilmstripThumb = async (item: FilmstripItem, token: number) => {
+  if (item.id == null || !viewer.active) return
+  if (filmstripRegenAttempted.has(item.id)) return
+
+  const media = itemsStore.resolveMediaById(item.id)
+    || (viewer.fallbackImage?.id === item.id ? viewer.fallbackImage : null)
+  if (isEmptyMediaSource(media)) {
+    filmstripRegenAttempted.add(item.id)
+    return
+  }
+
+  filmstripRegenAttempted.add(item.id)
+
+  invalidateCachedThumb(mediaThumbKey('images', item.id))
+  invalidateCachedThumb(mediaThumbKey('images-filmstrip', item.id))
+
+  const ok = await enqueueImageThumbAndMeta(item.id)
+  if (!ok || token !== filmstripLoadToken || !viewer.active) return
+
+  const thumb = await loadFilmstripThumbDisplayUrl(
+    {id: item.id},
+    appStore.mediaPath,
+    {cacheBust: Date.now()},
+  )
+  if (!thumb || thumb.includes('unavailable.png')) return
+  if (!(await probeDisplayImageUrl(thumb))) return
+  if (token !== filmstripLoadToken || !viewer.active) return
+
+  setCachedThumb(mediaThumbKey('images-filmstrip', item.id), thumb)
+  paintFilmstripThumb(item.key, thumb)
+}
+
+const onFilmstripThumbError = (item: FilmstripItem) => {
+  // Drop the broken src immediately so the browser broken-image icon never sticks.
+  if (filmstripThumbs.value[item.key]) {
+    const next = {...filmstripThumbs.value}
+    delete next[item.key]
+    filmstripThumbs.value = next
+  }
+  if (item.id != null) {
+    invalidateCachedThumb(mediaThumbKey('images-filmstrip', item.id))
+  }
+  void repairFilmstripThumb(item, filmstripLoadToken)
 }
 
 const ensureFilmstripThumbs = async () => {
@@ -1505,17 +1623,10 @@ const ensureFilmstripThumbs = async () => {
     }
 
     if (item.id == null) continue
-
-    const cached = getCachedThumb(mediaThumbKey('images-filmstrip', item.id))
-    if (isPersistentThumbUrl(cached)) {
-      next[item.key] = cached!
-      continue
-    }
-
     toResolve.push(item)
   }
 
-  // Paint cache hits immediately, then fill the rest in parallel.
+  // Paint source-mode / already-known cells immediately; resolve the rest after probe.
   if (token === filmstripLoadToken) {
     filmstripThumbs.value = {...next}
   }
@@ -1540,6 +1651,18 @@ const ensureFilmstripThumbs = async () => {
       try {
         const thumb = await loadFilmstripThumbDisplayUrl(media, appStore.mediaPath)
         if (!thumb || thumb.includes('unavailable.png')) return null
+
+        const exists = await probeDisplayImageUrl(thumb)
+        if (token !== filmstripLoadToken) return null
+
+        if (!exists) {
+          invalidateCachedThumb(mediaThumbKey('images-filmstrip', item.id))
+          void repairFilmstripThumb(item, token)
+          return null
+        }
+
+        setCachedThumb(mediaThumbKey('images-filmstrip', item.id), thumb)
+
         // Decode-warm only near the playhead; far cells can lazy-decode on paint.
         if (Math.abs(item.index - activeIndex) <= FILMSTRIP_OVERSCAN) {
           void warmDisplayImageUrl(thumb)

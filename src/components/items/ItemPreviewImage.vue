@@ -39,7 +39,6 @@
 
 <script setup lang="ts">
 import {ref, computed, watch, onMounted, onBeforeUnmount} from 'vue'
-import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import { loadImageDisplayUrl, revokeImageObjectUrl, IMAGE_UNAVAILABLE_URL } from '@/utils/imageSource'
@@ -51,7 +50,7 @@ import {
   mediaThumbKey,
   setCachedThumb,
 } from '@/utils/thumbDisplayCache'
-import {enqueueImageThumbRegen} from '@/utils/imageThumbRegen'
+import {enqueueImageThumbAndMeta, isEmptyMediaSource} from '@/utils/quietMediaBackfill'
 import {probeDisplayImageUrl} from '@/utils/probeImageUrl'
 import {galleryPerfCounters} from '@/utils/galleryPerfCounters'
 import type {MediaItem} from '@/types/stores'
@@ -142,9 +141,12 @@ const onThumbLoad = () => {
 
 const regenerateThumb = async () => {
   if (!props.previewActive) return
-  await enqueueImageThumbRegen(Number(props.media.id), () =>
-    typedApi.updateMediaInfo(props.media.id).then(() => undefined),
-  )
+  if (isEmptyMediaSource(props.media)) return
+  // Quiet: create thumb + sync width/height into the store (no task toast).
+  await enqueueImageThumbAndMeta(Number(props.media.id))
+  // refreshThumb inside backfill clears this flag — keep it latched so a
+  // mid-reload probe miss cannot start another regen storm.
+  thumbRegenAttempted = true
 }
 
 const reloadThumbAfterRegen = async (generation: number) => {
@@ -162,6 +164,7 @@ const reloadThumbAfterRegen = async (generation: number) => {
  */
 const maybeCreateMissingThumb = async (src: string, generation: number) => {
   if (!props.isFileExists || !props.previewActive || thumbRegenAttempted) return
+  if (isEmptyMediaSource(props.media)) return
   if (!src || src.includes('unavailable.png')) return
 
   const exists = await probeDisplayImageUrl(src)
@@ -193,7 +196,7 @@ const handleThumbError = async () => {
   const generation = loadGeneration
 
   // Missing thumb on disk (common after fast/lite import): generate, then show it.
-  if (!thumbRegenAttempted && props.isFileExists) {
+  if (!thumbRegenAttempted && props.isFileExists && !isEmptyMediaSource(props.media)) {
     thumbRegenAttempted = true
     try {
       await regenerateThumb()
@@ -278,7 +281,13 @@ const loadThumb = async ({cacheBust = false, preferFull = false} = {}) => {
 
     // Generated thumbs live under mediaPath even when the source file is missing.
     // Skip regen when the card left the viewport (generation bump / preview off).
-    if (props.isFileExists && props.previewActive && generation === loadGeneration && !thumbRegenAttempted) {
+    if (
+      props.isFileExists
+      && props.previewActive
+      && generation === loadGeneration
+      && !thumbRegenAttempted
+      && !isEmptyMediaSource(props.media)
+    ) {
       try {
         thumbRegenAttempted = true
         await regenerateThumb()

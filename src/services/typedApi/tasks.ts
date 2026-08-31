@@ -194,6 +194,22 @@ export const tasksApi = {
     )
   },
 
+  ensureMediaMetadataBulk(ids: number[]) {
+    return apiClient.post<{
+      items: Array<{
+        id: number
+        width: number
+        height: number
+        duration: number
+        filesize: number
+        codec?: string | null
+        bitrate?: number | null
+        fps?: number | null
+        orientation?: number
+      }>
+    }>(API_ROUTES.taskEnsureMediaMetadataBulk, {ids})
+  },
+
   openPath(body: { path: string; isDir?: boolean }) {
     return apiClient.post(API_ROUTES.taskOpenPath, body)
   },

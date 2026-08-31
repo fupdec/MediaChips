@@ -47,6 +47,10 @@ import { ffprobe, resolveFfprobeDuration } from '../../utils/ffmpeg'
 import { isUsableDuration } from '../../utils/ffprobeMath'
 import { probeVideoMetadata } from '../../services/videoMetadataProbe'
 import { isImageMediaType } from '../../utils/mediaType'
+import { mapWithConcurrency } from '../../services/thumbEncoding'
+
+/** Parallel ffprobe / image-meta reads inside one bulk request. */
+const ENSURE_MEDIA_METADATA_BULK_CONCURRENCY = 4
 
 export default function createTasksMediaController(shared: TaskControllerShared) {
   const {
@@ -489,6 +493,74 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     }
   }
 
+  const ensureMediaMetadataBulk = async (req: ApiRequest, res: ApiResponse) => {
+    const rawIds = Array.isArray(req.body.ids) ? req.body.ids as unknown[] : []
+    const ids = [...new Set(
+      rawIds
+        .map((value) => Number(value))
+        .filter((id): id is number => Number.isFinite(id) && id > 0),
+    )].slice(0, 64)
+
+    try {
+      if (!ids.length) {
+        sendOk(res, {items: []})
+        return
+      }
+
+      const mediaById = new Map(
+        mediaRepo.findByIds(ids).map((row) => [Number(row.id), row]),
+      )
+      const typeCache = new Map<number, ReturnType<typeof mediaTypesRepo.findById>>()
+      const {isVirtualZipPath, getZipEntryInfo} = await import('../../services/zipGallery')
+
+      const items = await mapWithConcurrency(ids, ENSURE_MEDIA_METADATA_BULK_CONCURRENCY, async (mediaId) => {
+        const media = mediaById.get(mediaId)
+        if (!media) return null
+
+        const mediaPath = String(media.path || '')
+        if (!mediaPath || !(await fileExists(mediaPath))) return null
+
+        const typeId = Number(media.mediaTypeId) || 0
+        let mediaType = typeCache.get(typeId)
+        if (mediaType === undefined && typeId) {
+          mediaType = mediaTypesRepo.findById(typeId)
+          typeCache.set(typeId, mediaType)
+        }
+
+        try {
+          let filesize = Number(media.filesize) || 0
+          if (!isVirtualZipPath(mediaPath)) {
+            const resolved = await resolveExistingPath(mediaPath)
+            if (resolved) {
+              const stats = fs.statSync(resolved)
+              filesize = stats.size
+              mediaRepo.updateById(mediaId, {filesize})
+            }
+          } else {
+            const entryInfo = await getZipEntryInfo(mediaPath)
+            if (entryInfo?.filesize != null) {
+              filesize = entryInfo.filesize
+              mediaRepo.updateById(mediaId, {filesize})
+            }
+          }
+
+          const info = await mediaPostProcess.ensureMediaMetadata(
+            {...media, filesize},
+            mediaType,
+          )
+          return info
+        } catch (error) {
+          console.error(`ensureMediaMetadata failed for ${mediaId}:`, error)
+          return null
+        }
+      })
+
+      sendOk(res, {items: items.filter(Boolean)})
+    } catch (error) {
+      sendAsClientError(res, error, 'Some error occurred while backfilling media metadata.')
+    }
+  }
+
   const searchMediaByPath = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = mediaRepo.searchByPathLike(String(req.body.query || ''))
@@ -568,6 +640,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
     addMediaBulk,
     updateMediaInfo,
     ensureImageDimensions,
+    ensureMediaMetadataBulk,
     searchMediaByPath,
     updateMediaMultiple,
     getMostPopularWordsFromMedia,
