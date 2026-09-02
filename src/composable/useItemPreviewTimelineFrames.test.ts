@@ -123,4 +123,82 @@ describe('useItemPreviewTimelineFrames', () => {
     await vi.waitFor(() => expect(gridSpriteUrl.value).toContain('7.jpg'))
     expect(runImageProbe).toHaveBeenCalled()
   })
+
+  it('does not re-probe an already loaded timeline sprite', async () => {
+    const isMounted = ref(true)
+    const isTaskRunning = ref(true)
+    const getImg = vi.fn(async () => {})
+    const runImageProbe = vi.fn(async () => true)
+
+    const {gridSpriteUrl, initFrames} = useItemPreviewTimelineFrames({
+      media: {id: 9} as never,
+      isFileExists: true,
+      isMounted: () => isMounted.value,
+      isViewTimeline: true,
+      showTimelinePreview: false,
+      mediaDuration: 100,
+      durationLabel: '01:40',
+      mediaAspectRatio: 16 / 9,
+      isTaskRunning: () => isTaskRunning.value,
+      mediaPath: '/media',
+      itemsView: 2,
+      previewActive: true,
+      thumb: ref(null),
+      resolveThumbFallback: () => null,
+      getImg,
+      runImageProbe,
+      getStoryEl: () => null,
+      getStoryWrapperEl: () => null,
+    })
+
+    await vi.waitFor(() => expect(gridSpriteUrl.value).toContain('grids'))
+    const probesAfterLoad = runImageProbe.mock.calls.length
+    const getImgAfterLoad = getImg.mock.calls.length
+
+    await initFrames()
+    expect(runImageProbe).toHaveBeenCalledTimes(probesAfterLoad)
+    expect(getImg).toHaveBeenCalledTimes(getImgAfterLoad)
+
+    isTaskRunning.value = false
+    await nextTick()
+    expect(runImageProbe).toHaveBeenCalledTimes(probesAfterLoad)
+    expect(getImg).toHaveBeenCalledTimes(getImgAfterLoad)
+  })
+
+  it('keeps an existing sprite when a later probe fails', async () => {
+    const isMounted = ref(true)
+    let probeOk = true
+    const runImageProbe = vi.fn(async () => probeOk)
+
+    const {gridSpriteUrl, ensureGridSpriteLoaded} = useItemPreviewTimelineFrames({
+      media: {id: 11} as never,
+      isFileExists: true,
+      isMounted: () => isMounted.value,
+      isViewTimeline: true,
+      showTimelinePreview: false,
+      mediaDuration: 100,
+      durationLabel: '01:40',
+      mediaAspectRatio: 16 / 9,
+      isTaskRunning: false,
+      mediaPath: '/media',
+      itemsView: 2,
+      previewActive: true,
+      thumb: ref(null),
+      resolveThumbFallback: () => null,
+      getImg: vi.fn(async () => {}),
+      runImageProbe,
+      getStoryEl: () => null,
+      getStoryWrapperEl: () => null,
+    })
+
+    await vi.waitFor(() => expect(gridSpriteUrl.value).toContain('grids'))
+    const loadedUrl = gridSpriteUrl.value
+    probeOk = false
+    await expect(ensureGridSpriteLoaded({force: true})).resolves.toBe(false)
+    expect(gridSpriteUrl.value).toBeNull()
+
+    gridSpriteUrl.value = loadedUrl
+    await expect(ensureGridSpriteLoaded()).resolves.toBe(true)
+    expect(gridSpriteUrl.value).toBe(loadedUrl)
+  })
 })

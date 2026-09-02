@@ -138,7 +138,10 @@ export function assertValidMetaParent(tx: TreeTx, metaId: number, parentMetaId: 
   if (!row) {
     throw new TagCategoryTreeError(404, 'Tag category was not found', 'not_found')
   }
+  // Clearing / confirming a null parent is a no-op for non-categories (e.g. meta
+  // field Apply payloads that accidentally include parentMetaId: null).
   if (row.type !== 'array') {
+    if (parentMetaId == null) return
     throw new TagCategoryTreeError(400, 'Only tag categories can be nested', 'not_array')
   }
   if (parentMetaId == null) return

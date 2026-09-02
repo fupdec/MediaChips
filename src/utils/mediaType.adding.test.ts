@@ -21,6 +21,15 @@ describe('resolveTargetMediaTypesForAdding', () => {
   it('filters to selected ids', () => {
     expect(resolveTargetMediaTypesForAdding(types, [2]).map((item) => item.id)).toEqual([2])
   })
+
+  it('includes hidden managed types when explicitly selected', () => {
+    const withHidden = [
+      ...types,
+      {id: 4, type: 'text', name: 'Texts', extensions: 'txt', order: 4, hidden: true},
+    ] as MediaType[]
+    expect(resolveTargetMediaTypesForAdding(withHidden, []).map((item) => item.id)).toEqual([1, 2, 3])
+    expect(resolveTargetMediaTypesForAdding(withHidden, [1, 4]).map((item) => item.id)).toEqual([1, 4])
+  })
 })
 
 describe('bucketFilesByMediaType', () => {

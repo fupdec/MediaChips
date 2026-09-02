@@ -660,8 +660,14 @@ const sendForm = async () => {
   }
 
   try {
+    // Nesting is managed elsewhere (tag category board). Never send parentMetaId
+    // from this dialog — a copied Meta row always has the key (often null), and
+    // the API treats any parentMetaId as a reparent request.
     const payload = props.editMode && props.meta?.id
-      ? metaSettings.value
+      ? (() => {
+          const {parentMetaId: _ignored, ...settings} = metaSettings.value
+          return settings
+        })()
       : buildMetaCreatePayload()
 
     const response = props.editMode && props.meta?.id

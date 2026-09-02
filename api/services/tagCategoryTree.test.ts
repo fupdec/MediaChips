@@ -86,4 +86,31 @@ describe('tagCategoryTree', () => {
       })
     }).toThrow(TagCategoryTreeError)
   })
+
+  it('allows clearing parentMetaId on non-array meta fields', () => {
+    const {drizzle} = db()
+    const field = drizzle.insert(meta).values({
+      type: 'string',
+      name: 'Title',
+      ...stamp(),
+    }).returning().get()
+
+    expect(() => {
+      drizzle.transaction((tx) => {
+        reparentMeta(tx, field.id, null)
+      })
+    }).not.toThrow()
+
+    const category = drizzle.insert(meta).values({
+      type: 'array',
+      name: 'Tags',
+      ...stamp(),
+    }).returning().get()
+
+    expect(() => {
+      drizzle.transaction((tx) => {
+        reparentMeta(tx, field.id, category.id)
+      })
+    }).toThrow(TagCategoryTreeError)
+  })
 })

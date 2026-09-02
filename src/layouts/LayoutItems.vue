@@ -333,18 +333,34 @@
       <div class="text-h6 mb-1">{{ t('empty_states.no_items_title') }}</div>
       <div class="text-medium-emphasis">
         {{ items_type === 'media'
-          ? t('empty_states.no_items_media_hint')
+          ? t('empty_states.choose_library_folder_hint')
           : t('empty_states.no_items_tags_hint') }}
       </div>
-      <div class="text-caption text-medium-emphasis mt-2">
-        {{ t('empty_states.search_hint') }}
+      <div
+        v-if="items_type === 'media'"
+        class="text-caption text-medium-emphasis mt-2"
+      >
+        {{ t('empty_states.choose_library_folder_privacy') }}
       </div>
       <div class="mt-4 d-flex justify-center flex-wrap ga-2">
+        <v-btn
+          v-if="items_type === 'media'"
+          color="success"
+          variant="flat"
+          rounded="xl"
+          size="large"
+          :loading="choosingLibraryFolder"
+          :disabled="choosingLibraryFolder"
+          @click="onChooseLibraryFolder"
+        >
+          <v-icon start>mdi-folder-plus-outline</v-icon>
+          {{ t('empty_states.choose_library_folder') }}
+        </v-btn>
         <DialogMediaAdding
           v-if="items_type === 'media'"
-          button-color="success"
+          button-color="primary"
           button-size="large"
-          button-variant="flat"
+          button-variant="tonal"
         />
         <TagsAdd
           v-else-if="items_type === 'tag'"
@@ -353,17 +369,6 @@
           button-size="large"
           button-variant="flat"
         />
-        <v-btn
-          v-if="items_type === 'media' && showPrepareLibraryCta"
-          color="primary"
-          variant="tonal"
-          rounded="xl"
-          size="large"
-          @click="openPrepareLibrary"
-        >
-          <v-icon start>mdi-auto-fix</v-icon>
-          {{ t('empty_states.prepare_library') }}
-        </v-btn>
       </div>
     </div>
 
@@ -455,7 +460,6 @@
 
 <script setup lang="ts">
 import {ref, computed, watch, onMounted, onBeforeUnmount, nextTick} from 'vue'
-import {useRouter} from 'vue-router'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
@@ -467,11 +471,6 @@ import {useItemsPage} from '@/composable/useItemsPage'
 import {useItemsPageInit} from '@/composable/useItemsPageInit'
 import {useItemsPageEvents} from '@/composable/useItemsPageEvents'
 import useVideoImageGenerator from '@/composable/GeneratingThumbsForVideos'
-import {
-  isEssentialLibrarySetupPending,
-  openLibrarySetupWizardQuery,
-} from '@/composable/useLibrarySetupWizard'
-import {typedApi} from '@/services/typedApi'
 import type {ItemsPageProps, ItemsPageType} from '@/types/itemsPage'
 import type {MediaType} from '@/types/media'
 import type {Meta} from '@/types/stores'
@@ -493,6 +492,8 @@ import TagsAdd from '@/components/app/appbar/elements/TagsAdd.vue'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import SettingsMediaTypeAddedMeta from '@/components/settings/SettingsMediaTypeAddedMeta.vue'
 import MetaSettingsPinned from '@/components/dialogs/meta/MetaSettingsPinned.vue'
+import {chooseLibraryFolderAndImport} from '@/composable/useChooseLibraryFolder'
+import {ensureSilentStarterMetaForEmptyLibrary} from '@/composable/useEmptyLibraryLanding'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {isVideoMediaType, isImageMediaType} from '@/utils/mediaType'
 import {getReadableFileSize} from '@/services/formatUtils'
@@ -535,27 +536,15 @@ const appStore = useAppStore()
 const filtersController = useItemsFiltersController()
 const pageCommands = useItemsPageCommands()
 const {t, locale} = useI18n()
-const router = useRouter()
-const showPrepareLibraryCta = ref(false)
-let prepareLibraryHealthSeq = 0
+const choosingLibraryFolder = ref(false)
 
-function openPrepareLibrary() {
-  void router.push({path: '/settings', query: openLibrarySetupWizardQuery()})
-}
-
-async function refreshPrepareLibraryCta() {
-  const seq = ++prepareLibraryHealthSeq
-  if (props.items_type !== 'media') {
-    showPrepareLibraryCta.value = false
-    return
-  }
+async function onChooseLibraryFolder() {
+  if (choosingLibraryFolder.value) return
+  choosingLibraryFolder.value = true
   try {
-    const response = await typedApi.getHomeHealth()
-    if (seq !== prepareLibraryHealthSeq) return
-    showPrepareLibraryCta.value = isEssentialLibrarySetupPending(response.data)
-  } catch {
-    if (seq !== prepareLibraryHealthSeq) return
-    showPrepareLibraryCta.value = false
+    await chooseLibraryFolderAndImport()
+  } finally {
+    choosingLibraryFolder.value = false
   }
 }
 
@@ -688,8 +677,9 @@ const {mainScrollOverflowing} = useMainScrollOverflow({
 watch(
   () => pageInitialized.value && total.value === 0 && total.value === totalInDb.value,
   (isTrulyEmpty) => {
-    if (isTrulyEmpty) void refreshPrepareLibraryCta()
-    else showPrepareLibraryCta.value = false
+    if (isTrulyEmpty && props.items_type === 'media') {
+      void ensureSilentStarterMetaForEmptyLibrary()
+    }
   },
   {immediate: true},
 )

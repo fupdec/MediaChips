@@ -61,6 +61,10 @@ export interface MediaAddingState {
   directFiles: string[]
   /** When true, successful adds are queued into the media Inbox pending-review list. */
   fromInbox: boolean
+  /**
+   * After a successful import, register this folder path as watched.
+   */
+  watchFolderAfterImport: string | null
 }
 
 export const useTasksStore = defineStore('useTasksStore', {
@@ -104,6 +108,7 @@ export const useTasksStore = defineStore('useTasksStore', {
       skipFileScan: false,
       directFiles: [],
       fromInbox: false,
+      watchFolderAfterImport: null,
     } as MediaAddingState,
   }),
   actions: {

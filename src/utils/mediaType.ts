@@ -154,15 +154,33 @@ export function getMenuOrderedMediaTypes(mediaTypes: MediaType[] | null | undefi
     })
 }
 
-/** Empty/omitted `selectedIds` → all managed (video/image/audio/text) types. */
+/** All managed types including hidden (for choose-library-folder imports). */
+export function getManagedMediaTypesIncludingHidden(
+  mediaTypes: MediaType[] | null | undefined,
+): MediaType[] {
+  return [...(mediaTypes || [])]
+    .filter(isManagedMediaType)
+    .sort((a, b) => {
+      const orderDiff = (a.order ?? 0) - (b.order ?? 0)
+      if (orderDiff !== 0) return orderDiff
+      return String(a.name || '').localeCompare(String(b.name || ''))
+    })
+}
+
+/**
+ * Empty/omitted `selectedIds` → visible managed types (normal Add media).
+ * Explicit `selectedIds` may include hidden managed types (choose-library-folder).
+ */
 export function resolveTargetMediaTypesForAdding(
   mediaTypes: MediaType[] | null | undefined,
   selectedIds: number[] | null | undefined,
 ): MediaType[] {
-  const ordered = getMenuOrderedMediaTypes(mediaTypes).filter(isManagedMediaType)
-  if (!selectedIds?.length) return ordered
+  if (!selectedIds?.length) {
+    return getMenuOrderedMediaTypes(mediaTypes).filter(isManagedMediaType)
+  }
   const idSet = new Set(selectedIds.map(Number).filter((id) => Number.isFinite(id)))
-  return ordered.filter((item) => idSet.has(Number(item.id)))
+  return getManagedMediaTypesIncludingHidden(mediaTypes)
+    .filter((item) => idSet.has(Number(item.id)))
 }
 
 export function combineMediaTypeExtensions(mediaTypes: MediaType[]): string {

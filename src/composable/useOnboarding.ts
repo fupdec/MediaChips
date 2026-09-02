@@ -6,7 +6,8 @@ import { persistOnboardingConfig } from '@/services/onboardingConfig'
 import { openWhatsNewIfNeeded } from '@/composable/useWhatsNew'
 import { i18n } from '@/i18n/loadLocale'
 
-export const ONBOARDING_STEP_COUNT = 4
+/** Single welcome dialog — shown once per app install (app config). */
+export const ONBOARDING_STEP_COUNT = 1
 const ONBOARDING_NOTIFICATION_SOURCE = 'onboarding'
 
 function clampStep(step: number): number {
@@ -106,7 +107,6 @@ export function syncOnboardingNotification(): void {
   }
 
   const t = i18n.global.t
-  const step = getOnboardingStep()
   const store = useNotificationsStore()
 
   removeOnboardingNotification()
@@ -115,10 +115,7 @@ export function syncOnboardingNotification(): void {
     source: ONBOARDING_NOTIFICATION_SOURCE,
     type: 'info',
     title: t('onboarding.notification.title'),
-    text: t('onboarding.notification.text', {
-      current: step + 1,
-      total: ONBOARDING_STEP_COUNT,
-    }),
+    text: t('onboarding.notification.text'),
     timeout: 0,
     icon: 'flag',
     actions: [

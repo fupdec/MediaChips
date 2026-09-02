@@ -442,9 +442,9 @@ const {
   isEmbeddedHost: () => isEmbeddedHost.value,
   isMounted: () => isMounted.value,
   mediaPath: () => store.mediaPath,
-  onThumbRefreshed: () => {
-    if (isViewTimeline.value) {
-      void initTimelineFrames()
+  onThumbRefreshed: ({shouldRegenerate}) => {
+    if (isViewTimeline.value && shouldRegenerate) {
+      void initTimelineFrames({force: true})
     }
   },
 })

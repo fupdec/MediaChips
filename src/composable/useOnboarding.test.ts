@@ -121,7 +121,7 @@ describe('useOnboarding', () => {
     expect(persistOnboardingConfig).toHaveBeenCalledWith({
       onboardingCompleted: '1',
       onboardingPaused: '0',
-      onboardingStep: '3',
+      onboardingStep: '0',
     })
   })
 
@@ -132,11 +132,11 @@ describe('useOnboarding', () => {
     settings.onboardingCompleted = '0'
     dialogs.onboarding.show = true
 
-    await dismissOnboarding(2)
+    await dismissOnboarding(0)
 
     expect(dialogs.onboarding.show).toBe(false)
     expect(persistOnboardingConfig).toHaveBeenCalledWith({
-      onboardingStep: '2',
+      onboardingStep: '0',
       onboardingPaused: '1',
     })
     expect(notifications.notifications.some((item) => item.source === 'onboarding')).toBe(true)

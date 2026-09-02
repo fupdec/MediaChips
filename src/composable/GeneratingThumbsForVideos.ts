@@ -1,8 +1,10 @@
 import {ref, watch, onBeforeUnmount} from 'vue'
+import path from 'path-browserify'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
+import {useAppStore} from '@/stores/app'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {typedApi} from '@/services/typedApi'
@@ -17,11 +19,22 @@ interface GeneratorState {
   stopped: boolean
 }
 
+function isGridAlreadyExistsError(error: unknown): boolean {
+  const err = error as {response?: {data?: {message?: string}}; message?: string} | null
+  const message = String(err?.response?.data?.message || err?.message || error || '')
+  return /already exists/i.test(message)
+}
+
+function gridFilePath(mediaPath: string, mediaId: number): string {
+  return path.join(mediaPath, 'videos', 'grids', `${mediaId}.jpg`)
+}
+
 export default function useVideoImageGenerator() {
   const {t} = useI18n()
   const tasksStore = useTasksStore()
   const itemsStore = useItemsStore()
   const settingsStore = useSettingsStore()
+  const appStore = useAppStore()
   const eventBus = useEventBus()
   const listSync = useItemsListSync()
 
@@ -46,8 +59,26 @@ export default function useVideoImageGenerator() {
     })
   }
 
+  const filterVideosMissingGrids = async (videos: MediaItem[]): Promise<MediaItem[]> => {
+    const mediaPath = appStore.mediaPath
+    if (!mediaPath || !videos.length) return videos
+
+    const paths = videos.map((video) => gridFilePath(mediaPath, Number(video.id)))
+    try {
+      const response = await typedApi.checkFilesExist(paths)
+      const results = response.data?.results || {}
+      return videos.filter((video, index) => results[paths[index]] !== true)
+    } catch {
+      // If the existence check fails, fall back to createGrid (server skips existing).
+      return videos
+    }
+  }
+
   const createGrids = async (videos: MediaItem[]): Promise<void> => {
     if (grid.value.active) return
+
+    const missing = await filterVideosMissingGrids(videos)
+    if (!missing.length) return
 
     grid.value.active = true
     grid.value.stopped = false
@@ -63,13 +94,13 @@ export default function useVideoImageGenerator() {
 
     try {
       let completed = 0
-      for (const video of videos) {
+      for (const video of missing) {
         if (grid.value.stopped) break
 
         completed++
         tasksStore.updateTask(taskId, {
-          subtitle: t('tasks_text.of_total', {completed, total: videos.length}),
-          progress: (completed / videos.length) * 100,
+          subtitle: t('tasks_text.of_total', {completed, total: missing.length}),
+          progress: (completed / missing.length) * 100,
         })
 
         try {
@@ -84,6 +115,9 @@ export default function useVideoImageGenerator() {
             type: 'media',
           })
         } catch (error) {
+          if (isGridAlreadyExistsError(error)) {
+            continue
+          }
           console.error(`Failed to create grid for video ${video.id}:`, error)
         }
       }

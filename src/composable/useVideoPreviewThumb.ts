@@ -39,7 +39,8 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
   const thumbLoadStarted = ref(false)
   const thumbFallbackStage = ref(0)
 
-  let thumbProbeController: AbortController | null = null
+  /** In-flight probes — abort only on clear/pause, never when starting another probe. */
+  const thumbProbeControllers = new Set<AbortController>()
 
   const media = computed(() => toValue(options.media))
   const usesExternalThumb = computed(() => {
@@ -51,14 +52,25 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
   )
 
   const abortThumbProbe = () => {
-    thumbProbeController?.abort()
-    thumbProbeController = null
+    for (const controller of thumbProbeControllers) {
+      controller.abort()
+    }
+    thumbProbeControllers.clear()
   }
 
+  /**
+   * Concurrent thumb + grid probes must not cancel each other: abort resolves as
+   * false and timeline code treated that as "grid missing", clearing sprites and
+   * re-triggering createGrid.
+   */
   const runImageProbe = async (url: string) => {
-    abortThumbProbe()
-    thumbProbeController = new AbortController()
-    return probeDisplayImageUrl(url, thumbProbeController.signal)
+    const controller = new AbortController()
+    thumbProbeControllers.add(controller)
+    try {
+      return await probeDisplayImageUrl(url, controller.signal)
+    } finally {
+      thumbProbeControllers.delete(controller)
+    }
   }
 
   const clearThumbState = () => {

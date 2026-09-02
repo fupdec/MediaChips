@@ -170,21 +170,31 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
     }
   }
 
-  const ensureGridSpriteLoaded = async () => {
+  const ensureGridSpriteLoaded = async ({force = false}: {force?: boolean} = {}) => {
     const media = toValue(options.media)
     if (!media?.id) return false
 
+    const gridUrl = resolveGridSpriteDisplayUrl(toValue(options.mediaPath), media.id)
+    if (!gridUrl) {
+      storyUsesThumbFallback.value = true
+      gridSpriteUrl.value = null
+      return false
+    }
+
+    // Already painted this sprite — skip re-probe / createGrid (avoids flicker).
+    if (!force && gridSpriteUrl.value === gridUrl && !storyUsesThumbFallback.value) {
+      return true
+    }
+
     gridLoading.value = true
     try {
-      const gridUrl = resolveGridSpriteDisplayUrl(toValue(options.mediaPath), media.id)
-      if (!gridUrl) {
-        storyUsesThumbFallback.value = true
-        gridSpriteUrl.value = null
-        return false
-      }
-
       let hasGrid = await options.runImageProbe(gridUrl)
       if (!hasGrid) {
+        // Keep a previously loaded sprite if a concurrent probe aborted/failed.
+        if (!force && gridSpriteUrl.value) {
+          storyUsesThumbFallback.value = false
+          return true
+        }
         // Keep the poster visible while the on-demand grid is generated.
         storyUsesThumbFallback.value = true
         gridSpriteUrl.value = null
@@ -199,6 +209,10 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
         hasGrid = await options.runImageProbe(gridUrl)
       }
       if (!hasGrid) {
+        if (!force && gridSpriteUrl.value) {
+          storyUsesThumbFallback.value = false
+          return true
+        }
         storyUsesThumbFallback.value = true
         gridSpriteUrl.value = null
         return false
@@ -213,22 +227,27 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
     }
   }
 
-  const initFrames = async () => {
+  const initFrames = async ({force = false}: {force?: boolean} = {}) => {
     const token = ++initFramesToken
     const timelineActive = toValue(options.isViewTimeline) || toValue(options.showTimelinePreview)
     if (!toValue(options.isMounted) || !toValue(options.media)?.id || !timelineActive) {
       return
     }
 
+    // Sprite already ready — avoid getImg/probe churn from task/thumb watchers.
+    if (!force && gridSpriteUrl.value && !storyUsesThumbFallback.value) {
+      return
+    }
+
     await options.getImg()
     if (token !== initFramesToken || !(toValue(options.isViewTimeline) || toValue(options.showTimelinePreview))) return
-    await ensureGridSpriteLoaded()
+    await ensureGridSpriteLoaded({force})
   }
 
   const handleUpdateVideoFrames: Handler = (event) => {
     const id = Number(event)
     if (Number(toValue(options.media).id) === id && (toValue(options.isViewTimeline) || toValue(options.showTimelinePreview))) {
-      void initFrames()
+      void initFrames({force: true})
     }
   }
 
@@ -267,7 +286,12 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
   )
 
   watch(() => toValue(options.isTaskRunning), (running, wasRunning) => {
-    if (wasRunning && !running && (toValue(options.isViewTimeline) || toValue(options.showTimelinePreview))) {
+    if (
+      wasRunning
+      && !running
+      && (toValue(options.isViewTimeline) || toValue(options.showTimelinePreview))
+      && (storyUsesThumbFallback.value || !gridSpriteUrl.value)
+    ) {
       void initFrames()
     }
   })

@@ -154,6 +154,14 @@
       @confirm="onMoveFolderConfirm"
     />
 
+    <DialogBrowseFolder
+      v-if="chooseLibraryFolderDialogOpen"
+      v-model="chooseLibraryFolderDialogOpen"
+      :header="t('empty_states.choose_library_folder')"
+      :confirm-text="t('empty_states.choose_library_folder')"
+      @confirm="onChooseLibraryFolderConfirm"
+    />
+
     <DialogOrganizeMediaByTag v-if="operationsStore.create_folder_move_media.dialog"/>
 
     <DialogMigration v-if="operationsStore.migrationLowDb.dialog"/>
@@ -229,6 +237,7 @@ import {useBrowserLayoutHotkeys} from '@/composable/useBrowserLayoutHotkeys'
 import {useItemsSelectionHotkeys} from '@/composable/useItemsSelectionHotkeys'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {registerAppShellHandler} from '@/composable/appShell'
+import {useChooseLibraryFolderDialog} from '@/composable/useChooseLibraryFolder'
 import {useWatchFolderRiskGateState} from '@/composable/useWatchFolderRiskGate'
 import {eventBus} from '@/utils/eventBus'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
@@ -474,6 +483,9 @@ const adultUiAvailable = computed(() =>
 const tmdbUiAvailable = computed(() =>
   pluginsStore.enabledPluginIds.includes('mediachips.tmdb'),
 )
+
+const {open: chooseLibraryFolderDialogOpen, onConfirm: onChooseLibraryFolderConfirm} = useChooseLibraryFolderDialog()
+const watchFolderRiskOpen = computed(() => useWatchFolderRiskGateState().open)
 
 const closeApp = () => {
   if (window.electronAPI?.send) {

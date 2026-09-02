@@ -28,6 +28,7 @@ import {
 } from '@/composable/appCatalogs'
 import {useAppUpdater} from '@/composable/useAppUpdater'
 import {openOnboardingIfNeeded} from '@/composable/useOnboarding'
+import {landEmptyLibraryAfterReady, isLibraryEmpty} from '@/composable/useEmptyLibraryLanding'
 import {openWhatsNewIfNeeded} from '@/composable/useWhatsNew'
 import {migrateOnboardingFromDbIfNeeded} from '@/services/onboardingConfig'
 import {
@@ -507,8 +508,12 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     await initSettings()
     await loadMainAppData()
     if (!store.isServerError) {
-      await router.push('/')
       await markAppReady()
+      if (await isLibraryEmpty()) {
+        await landEmptyLibraryAfterReady()
+      } else {
+        await router.push('/')
+      }
     }
   }
 
@@ -567,6 +572,9 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     if (!operationsStore.migrationLowDb.dialog) {
       openOnboardingIfNeeded(isPlayerWindow.value)
       void openWhatsNewIfNeeded(isPlayerWindow.value)
+      if (!isPlayerWindow.value) {
+        void landEmptyLibraryAfterReady()
+      }
     }
     await nextTick()
   }

@@ -18,6 +18,12 @@
 
           <div v-if="tab === 'general'">
             <SettingsList>
+              <SettingsGroupLabel
+                :title="t('settings.groups.app')"
+                icon="application-cog-outline"
+                accent
+              />
+
               <SettingsSection id="settings-general">
                 <SettingsGeneral/>
               </SettingsSection>
@@ -30,7 +36,11 @@
                 <SettingsLogin/>
               </SettingsSection>
 
-              <SettingsGroupLabel :title="t('settings.groups.playback')"/>
+              <SettingsGroupLabel
+                :title="t('settings.groups.playback')"
+                icon="play-circle-outline"
+                accent
+              />
 
               <SettingsSection id="settings-video-player">
                 <SettingsVideoPlayer/>
@@ -41,7 +51,11 @@
               </SettingsSection>
 
               <template v-if="LOCAL_AI_UI_ENABLED">
-                <SettingsGroupLabel :title="t('settings.groups.local_ai')"/>
+                <SettingsGroupLabel
+                  :title="t('settings.groups.local_ai')"
+                  icon="brain"
+                  accent
+                />
                 <SettingsLocalAi/>
               </template>
             </SettingsList>
@@ -49,6 +63,12 @@
 
           <div v-else-if="tab === 'appearance'">
             <SettingsList>
+              <SettingsGroupLabel
+                :title="t('settings.groups.theme')"
+                icon="theme-light-dark"
+                accent
+              />
+
               <SettingsSection id="settings-appearance-theme" padded>
                 <SettingsAppearanceDarkMode/>
                 <SettingsAppearanceZoom/>
@@ -58,6 +78,12 @@
                 <SettingsAppearanceThemeColors/>
               </SettingsSection>
 
+              <SettingsGroupLabel
+                :title="t('settings.groups.display')"
+                icon="view-grid-outline"
+                accent
+              />
+
               <SettingsSection id="settings-appearance-cards" padded>
                 <SettingsAppearanceCards/>
               </SettingsSection>
@@ -66,9 +92,21 @@
                 <SettingsAppearancePage/>
               </SettingsSection>
 
+              <SettingsGroupLabel
+                :title="t('settings.groups.viewers')"
+                icon="image-outline"
+                accent
+              />
+
               <SettingsSection id="settings-appearance-image-viewer">
                 <SettingsAppearanceImageViewer/>
               </SettingsSection>
+
+              <SettingsGroupLabel
+                :title="t('settings.groups.content_safety')"
+                icon="eye-off-outline"
+                accent
+              />
 
               <SettingsSection id="settings-appearance-sfw">
                 <SettingsSfwMode/>
@@ -78,6 +116,12 @@
 
           <div v-else-if="tab === 'library'">
             <SettingsList>
+              <SettingsGroupLabel
+                :title="t('settings.groups.catalog')"
+                icon="bookshelf"
+                accent
+              />
+
               <SettingsSection id="settings-tag-categories">
                 <SettingsTagCategories/>
               </SettingsSection>
@@ -139,9 +183,21 @@
 
           <div v-else-if="tab === 'files'">
             <SettingsList>
+              <SettingsGroupLabel
+                :title="t('settings.groups.files_watch')"
+                icon="folder-eye-outline"
+                accent
+              />
+
               <SettingsSection id="settings-watched-folders">
                 <SettingsWatchedFolders/>
               </SettingsSection>
+
+              <SettingsGroupLabel
+                :title="t('settings.groups.files_paths')"
+                icon="folder-move-outline"
+                accent
+              />
 
               <SettingsSection id="settings-bulk-paths">
                 <SettingsBulkPathEditing/>

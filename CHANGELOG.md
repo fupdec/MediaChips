@@ -5,6 +5,46 @@ All notable changes to MediaChips are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.12.0] - 2026-09-02
+
+### Added
+
+- **Choose library folder** — empty libraries land on media with a primary “choose folder” CTA; import fills the library and registers the folder as watched (including unhiding media types that received files)
+- **Import from another library** — merge another registered database into the active one (match-or-create media, remap tags/links/playlists) with a confirm warning and NDJSON progress
+- **Watched folders → @parcel/watcher** — replace broken chokidar globs with a parcel native watcher, plus a risk gate before adding large folders
+- **Empty states → next step** — empty media/playlists/inbox/home widgets offer one primary CTA instead of dead-end copy
+- **Player touch gestures (LAN / PWA)** — swipe left/right for next/previous; double-tap left/right halves to seek ±10s
+- **Multiline text metadata** — string meta fields auto-grow like bookmark notes in edit, bulk edit, and previews
+- **Loading skeletons** — view-aware shimmer skeletons for folder browse and media library grids
+- **Quiet post-import backfill** — after fast import, quietly probe missing image/video metadata and create missing thumbs (including home widgets)
+
+### Changed
+
+- **Onboarding** — single welcome dialog; after continue, empty libraries go straight to choosing a library folder
+- **Folders / playlists / markers decks** — path-row folder actions, optional filter panels, mix-from-phrase in a dialog, create-smart-playlist action
+- **Sidebar** — pin Settings / Inbox / Trash below the scrollable tags list; drop the System section header
+- **Settings grouping** — clearer section labels (theme, cards, viewers, catalog, watching, paths)
+- **Header gradient** — enabled by default instead of a solid color
+- **Starter Gender tags** — only Male and Female
+- **README** — lead with chips, tags, filters, and previews; scale as secondary proof
+
+### Fixed
+
+- **Large watched folders** — O(n) sync/diff and capped WS payloads so Downloads-sized trees no longer freeze Settings or the UI
+- **Import process totals** — keep the full added count when the dialog list is capped; refresh sidebar counts after import
+- **Timeline / video grids** — stop concurrent thumb+grid probes from cancelling each other and re-triggering createGrid; skip grids that already exist on disk
+- **Atomic generated images** — temp-file + retry replace for thumbs, grids, marks, faces, and folder covers on all platforms
+- **Inbox lost files** — stop watcher DB refresh from wiping filesystem paths (false “lost” entries)
+- **Metadata pinning** — allow any metadata field to be pinned to media types; block only group tag categories
+- **Tag category parent** — ignore accidental `parentMetaId: null` on non-category meta Apply payloads
+- **Scroll-to-top** — show only when the list exceeds one viewport
+- **Feedback** — send structured OS version via `systemVersion`
+- **Country picker** — UK nations and missing ISO/extra entries
+- **Watch-folder risk meter** — lighter background for contrast
+- **Playlist tooltips** — hide when button labels are already visible
+
 ## [1.11.1] - 2026-08-30
 
 ### Added
@@ -31,13 +71,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Image card thumbs** — refresh image cards after on-grid thumb generation
 - **Multi-select rating** — stop rating from leaking across selected cards
 
-## [Unreleased]
-
-### Added
-
-- **Empty states → next step** — empty media/playlists/inbox/home widgets offer one primary CTA (add / create / prepare / watched folders) instead of dead-end copy
-- **Player touch gestures (LAN / PWA)** — swipe left/right for next/previous; double-tap left/right halves to seek ±10s (single tap still play/pause; mouse double-click still toggles fullscreen)
-
 ## [1.11.0] - 2026-08-29
 
 ### Added
@@ -63,21 +96,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Filesystem safety and consistency** — protect operations from symlink escapes, avoid overwrite conflicts, and keep watched-folder records stable when IDs are missing
 - **Tag and filter behavior** — improve OR filtering, tag restoration, autocomplete, path matching, and category handling
 - **Player and preview behavior** — restore timeline hover previews, keep edits synchronized, and prevent thumbnail flashing
-
-## [Unreleased]
-
-### Changed
-
-- **Global search** — default text search uses name/tag FTS only; bookmark notes and text-file content scans are opt-in (`deep`) so large libraries no longer stall on the first keystroke
-- **Database sizes in settings** — measure folder size via system `du` on macOS/Linux (much faster on huge generated-media trees) and load each database independently so smaller ones appear before the largest finishes
-
-### Fixed
-
-- **License deactivate mismatch** — local “registered” status could disagree with the license server when fingerprints were stale; sync from the server on check/startup, and clear local registration if deactivate reports the device is already inactive
-- **Inspector media refresh** — skip metadata/filesize re-probe when the source file is missing, so opening the side panel no longer spams ffprobe errors; show a file-missing icon instead of thumbnail replace actions
-- **LAN / browser boot spinner** — `/api/config` is available as soon as the server listens (not after heavy routes) and no longer requires a login session, so phones and other devices stop spinning forever on a blank page
-- **Linux black card thumbs** — reject empty/corrupt on-disk JPEG stubs (failed FFmpeg 6 writes) and regenerate on demand instead of serving them forever
-- **Infinite-scroll thumb storms** — allow two concurrent ffmpeg thumb/preview jobs so appending a page is less likely to stall behind a single worker
 
 ## [1.10.0] - 2026-08-17
 

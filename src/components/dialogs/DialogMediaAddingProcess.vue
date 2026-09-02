@@ -729,12 +729,6 @@ import {checkFileExists} from '@/services/fileService'
 import {useSettingsStore} from '@/stores/settings'
 import {useOperationsStore} from '@/stores/operations'
 import {parseMatchAutoBlindTagsForm} from '@/utils/faceSettingsForm'
-import {
-  ONBOARDING_STEP_COUNT,
-  openOnboarding,
-  saveOnboardingStep,
-  shouldShowOnboarding,
-} from '@/composable/useOnboarding'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {MEDIA_BULK_LITE_ADDED_CAP} from '@shared/mediaBulkImport'
@@ -2092,11 +2086,6 @@ watch(() => tasksStore.mediaAdding.dialogProcess, (open, wasOpen) => {
         tasksStore.removeTask(notificationTaskId)
         task.value.notificationTaskId = null
       }
-    }
-    if (shouldShowOnboarding(false)) {
-      void saveOnboardingStep(ONBOARDING_STEP_COUNT - 1).then(() => {
-        openOnboarding()
-      })
     }
   }
 })

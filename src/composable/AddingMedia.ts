@@ -27,13 +27,16 @@ import {
   bucketFilesByMediaType,
 } from '@/utils/mediaType'
 import {ensureStarterMeta} from '@/services/ensureStarterMeta'
-import {ONBOARDING_STEP_COUNT, saveOnboardingStep, shouldShowOnboarding} from '@/composable/useOnboarding'
 import {getApiErrorMessage} from '@/types/vue'
 import {
   FAST_IMPORT_AUTO_THRESHOLD,
   MEDIA_BULK_LITE_ADDED_CAP,
   MEDIA_BULK_LITE_HTTP_CHUNK,
 } from '@shared/mediaBulkImport'
+import {
+  registerFolderAsWatchedAfterImport,
+  unhideMediaTypesThatReceivedFiles,
+} from '@/composable/useChooseLibraryFolder'
 
 
 
@@ -139,6 +142,30 @@ const resolveMediaTypeForAdding = (
 
 let addMediaInProgress = false
 
+function resolveWatchFolderPaths(watchFlag: string | null | undefined): string[] {
+  const path = String(watchFlag || '').trim()
+  return path ? [path] : []
+}
+
+async function finalizeChooseLibraryFolderAfterImport(options: {
+  addedPaths: string[]
+  watchFlag: string | null | undefined
+  mediaTypes: MediaType[]
+  typeIds: number[]
+}): Promise<void> {
+  const watchPaths = resolveWatchFolderPaths(options.watchFlag)
+  if (options.addedPaths.length) {
+    try {
+      await unhideMediaTypesThatReceivedFiles(options.addedPaths, options.mediaTypes)
+    } catch (error) {
+      console.error('Failed to unhide media types after import:', error)
+    }
+  }
+  for (const folderPath of watchPaths) {
+    await registerFolderAsWatchedAfterImport(folderPath, options.typeIds)
+  }
+}
+
 export const useMediaAdding = () => {
   const appStore = useAppStore()
   const itemsStore = useItemsStore()
@@ -203,6 +230,7 @@ export const useMediaAdding = () => {
     const directFiles = [...task.value.directFiles]
     const savedMediaTypeId = task.value.media_type_id
     const fromInbox = Boolean(task.value.fromInbox)
+    const watchFolderAfterImport = task.value.watchFolderAfterImport
 
     task.value.active = true
     task.value.status = t('media.adding.scanning_files')
@@ -231,6 +259,7 @@ export const useMediaAdding = () => {
     task.value.skipFileScan = false
     task.value.directFiles = []
     task.value.fromInbox = false
+    task.value.watchFolderAfterImport = null
     task.value.media_type_id = savedMediaTypeId
     scheduleDesktopChromeSync()
 
@@ -393,7 +422,6 @@ export const useMediaAdding = () => {
         }
 
         const addedCount = bulkInsertedTotal
-        task.value.addedTotal = addedCount
         task.value.total = scannedTotal || targetTypes.length
         task.value.current = scannedTotal || targetTypes.length
 
@@ -447,10 +475,12 @@ export const useMediaAdding = () => {
             if (ids.length) mediaInboxStore.enqueuePendingReview(ids)
           }
 
-          if (shouldShowOnboarding(false)) {
-            await saveOnboardingStep(ONBOARDING_STEP_COUNT - 1)
-            await openMediaAddingProcess()
-          }
+          await finalizeChooseLibraryFolderAfterImport({
+            addedPaths: [...task.value.added],
+            watchFlag: watchFolderAfterImport,
+            mediaTypes: mediaTypes.value,
+            typeIds: targetTypes.map((item) => Number(item.id)).filter((id) => id > 0),
+          })
         } else {
           task.value.finished = true
           task.value.active = false
@@ -462,6 +492,13 @@ export const useMediaAdding = () => {
             title: t('media.adding.complete'),
             text: t('media.adding.no_new_media'),
             actions: [openProcessAction()],
+          })
+
+          await finalizeChooseLibraryFolderAfterImport({
+            addedPaths: [...task.value.added],
+            watchFlag: watchFolderAfterImport,
+            mediaTypes: mediaTypes.value,
+            typeIds: targetTypes.map((item) => Number(item.id)).filter((id) => id > 0),
           })
         }
 
@@ -806,10 +843,12 @@ export const useMediaAdding = () => {
           if (ids.length) mediaInboxStore.enqueuePendingReview(ids)
         }
 
-        if (shouldShowOnboarding(false)) {
-          await saveOnboardingStep(ONBOARDING_STEP_COUNT - 1)
-          await openMediaAddingProcess()
-        }
+        await finalizeChooseLibraryFolderAfterImport({
+          addedPaths: [...task.value.added],
+          watchFlag: watchFolderAfterImport,
+          mediaTypes: mediaTypes.value,
+          typeIds: targetTypes.map((item) => Number(item.id)).filter((id) => id > 0),
+        })
       } else {
         task.value.finished = true
         task.value.active = false
@@ -821,6 +860,13 @@ export const useMediaAdding = () => {
           title: t('media.adding.complete'),
           text: t('media.adding.no_new_media'),
           actions: [openProcessAction()],
+        })
+
+        await finalizeChooseLibraryFolderAfterImport({
+          addedPaths: [...task.value.added],
+          watchFlag: watchFolderAfterImport,
+          mediaTypes: mediaTypes.value,
+          typeIds: targetTypes.map((item) => Number(item.id)).filter((id) => id > 0),
         })
       }
 
