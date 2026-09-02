@@ -409,8 +409,9 @@ const save = async () => {
     listSync.getItemsFromDb({ids: [savedTagId], type: 'tag'})
   }
 
+  // Nested tag links on media cards: save() already reloaded the tags catalog and
+  // patched the edited tag card; refresh visible media so nested chips stay current.
   if (itemsStore.type === 'media') {
-    void reloadTagsCatalog()
     const mediaIds = itemsStore.itemsOnPage.map((item) => item.id)
     if (mediaIds.length) {
       listSync.getItemsFromDb({ids: mediaIds, type: 'media'})

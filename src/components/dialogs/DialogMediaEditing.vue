@@ -116,7 +116,6 @@ import EditPinnedMetaValues from "@/components/items/EditPinnedMetaValues.vue"
 import EditDialogMediaPanel from "@/components/items/EditDialogMediaPanel.vue"
 import DialogConfirm from "@/components/dialogs/DialogConfirm.vue"
 import {useItemsListSync} from '@/composable/itemsListSync'
-import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import path from 'path-browserify'
 import {
   getCurrentMediaType,
@@ -327,10 +326,7 @@ async function save() {
     }
   }
 
-  if (itemsStore.type === 'media') {
-    void reloadTagsCatalog()
-  }
-
+  // Tags catalog + wall-card tags/values are already synced inside editingComponent.save().
   forceClose()
 }
 

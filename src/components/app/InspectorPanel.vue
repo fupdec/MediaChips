@@ -473,7 +473,6 @@ import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
-import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {isWinElectronUi} from '@/utils/electronUi'
 import {setOption} from '@/services/settingsService'
 import {checkFileExists, buildLocalFileUrl} from '@/services/fileService'
@@ -1067,13 +1066,12 @@ function openPreviewViewer(): void {
 
 function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   formDirty.value = false
+  // Catalog is already reloaded in EditPinnedMetaValues.save(); refetch for
+  // authoritative tags/values (including folder-inherited links).
   listSync.getItemsFromDb({
     ids: [payload.id],
     type: payload.type,
   })
-  if (payload.type === 'media' && itemsStore.type === 'media') {
-    void reloadTagsCatalog()
-  }
 }
 </script>
 

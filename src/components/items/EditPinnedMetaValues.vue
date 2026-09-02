@@ -613,8 +613,9 @@ import type {
   ScraperTransferField,
 } from '@mediachips/plugin-adult/types/scraper'
 import {isScraperImageSlot} from '@mediachips/plugin-adult/utils/scraperPosters'
-import type {AssignedMeta, MediaItem, Meta, Tag} from '@/types/stores'
+import type {AssignedMeta, ItemTagRef, ItemValueRef, MediaItem, Meta, Tag} from '@/types/stores'
 import type { TagInTagEntry, ValueInTagEntry, EntityUpdatePayload } from '@shared/api/responses'
+import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import type {VFormInstance} from '@/types/vue'
 import {
   parseMetaBooleanValue,
@@ -1546,12 +1547,6 @@ const save = async (options?: {itemId?: number}): Promise<boolean> => {
     const endpoint = isTag.value ? 'tag' : 'media'
     await typedApi.updateEntity(endpoint, targetId, updateData)
 
-    // Keep wall cards in sync immediately (rating/favorite overlays read from the store item).
-    itemsStore.updateItem({
-      id: targetId,
-      item: updateData as Partial<MediaItem>,
-    })
-
     const tagsEndpoint = isTag.value ? 'TagsInTag' : 'TagsInMedia'
     await typedApi.deleteItemTags(tagsEndpoint, targetId)
 
@@ -1565,6 +1560,49 @@ const save = async (options?: {itemId?: number}): Promise<boolean> => {
     if (values.length > 0) {
       await typedApi.postItemValues(valuesEndpoint, values)
     }
+
+    // Chips resolve tagId → name via appStore.tags; reload first so newly created
+    // tags are visible immediately (same order as scene scrape card refresh).
+    await reloadTagsCatalog()
+
+    const cardTags: ItemTagRef[] = tags.map((entry) => ({
+      tagId: Number(entry.tagId),
+      metaId: Number(entry.metaId),
+    })).filter((entry) => Number.isFinite(entry.tagId) && Number.isFinite(entry.metaId))
+
+    const currentItemTags = (
+      itemsStore.itemsOnPage.find((item) => Number(item.id) === Number(targetId))
+      ?? itemsStore.entities.find((item) => Number(item.id) === Number(targetId))
+    )?.tags
+    const inheritedFolderTags = (currentItemTags || []).filter((entry) => entry.fromFolder)
+    if (inheritedFolderTags.length) {
+      const seen = new Set(cardTags.map((entry) => `${entry.metaId}:${entry.tagId}`))
+      for (const entry of inheritedFolderTags) {
+        const tagId = Number(entry.tagId)
+        const metaId = Number(entry.metaId)
+        if (!Number.isFinite(tagId) || !Number.isFinite(metaId)) continue
+        const key = `${metaId}:${tagId}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        cardTags.push({tagId, metaId, fromFolder: true})
+      }
+    }
+
+    const cardValues: ItemValueRef[] = values.map((entry) => ({
+      value: entry.value,
+      metaId: Number(entry.metaId),
+    })).filter((entry) => Number.isFinite(entry.metaId))
+
+    // Keep wall cards in sync immediately — entity fields and chip links.
+    // listSync.getItemsFromDb still runs after emit for an authoritative refresh.
+    itemsStore.updateItem({
+      id: targetId,
+      item: {
+        ...(updateData as Partial<MediaItem>),
+        tags: cardTags,
+        values: cardValues,
+      },
+    })
 
     if (isTag.value && props.meta) {
       refreshTagThumbDisplay(itemsStore, appStore.dbPath, props.meta.id, targetId)
