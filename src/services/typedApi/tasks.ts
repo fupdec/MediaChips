@@ -121,6 +121,10 @@ export type GenerationStreamEvent = {
   foldersRemoved?: number
   foldersCreated?: number
   imagesResized?: number
+  mediaMatched?: number
+  mediaCreated?: number
+  tagsCreated?: number
+  linksAdded?: number
   match?: unknown
   matches?: unknown[]
   item?: unknown

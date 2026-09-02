@@ -51,7 +51,7 @@ export function assertNonEmptyImageSource(input: string | Buffer, label = 'image
     size = fs.statSync(filePath).size
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Missing ${label} file: ${message}`)
+    throw Object.assign(new Error(`Missing ${label} file: ${message}`), {cause: error})
   }
   if (size <= 0) {
     throw new Error(`Empty ${label} file: ${filePath}`)

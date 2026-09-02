@@ -419,7 +419,7 @@ const isViewTimeline = computed(() =>
 )
 
 const isMounted = ref(false)
-let initTimelineFrames: () => Promise<void> = async () => {}
+let initTimelineFrames: (options?: {force?: boolean}) => Promise<void> = async () => {}
 
 const {
   thumb,

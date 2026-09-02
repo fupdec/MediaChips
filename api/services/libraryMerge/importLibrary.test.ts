@@ -56,7 +56,7 @@ describe('importLibraryIntoActive', () => {
 
   function seedSharedMetaAndTag(conn: ReturnType<typeof createDrizzleClient>, tagName: string) {
     const metaRepo = createMetaRepository(conn.drizzle)
-    const tagsRepo = createTagsRepository(conn.drizzle)
+    const tagsRepo = createTagsRepository(conn.drizzle, conn.sqlite)
     const mediaTypes = createMediaTypesRepository(conn.drizzle).findByType('video')
     const meta = metaRepo.create({
       type: 'array',
@@ -201,7 +201,7 @@ describe('importLibraryIntoActive', () => {
     const result = await importLibraryIntoActive(targetDb, 'source')
     expect(result.tagsCreated).toBe(0)
 
-    const tags = createTagsRepository(target.conn.drizzle).findAllRaw()
+    const tags = createTagsRepository(target.conn.drizzle, target.conn.sqlite).findAllRaw()
       .filter((tag) => tag.name.toLowerCase() === 'bob')
     expect(tags).toHaveLength(1)
   })

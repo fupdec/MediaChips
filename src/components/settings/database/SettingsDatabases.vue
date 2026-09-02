@@ -459,12 +459,11 @@ async function runImportIntoActive(item: DatabaseEntry) {
 
   const abortController = new AbortController()
   let lastError = ''
-  let summary: {
-    mediaMatched?: number
-    mediaCreated?: number
-    tagsCreated?: number
-    linksAdded?: number
-  } | null = null
+  let matchedCount = 0
+  let createdCount = 0
+  let tagsCount = 0
+  let linksCount = 0
+  let hasCompleteEvent = false
 
   try {
     await typedApi.streamMergeLibrary(
@@ -478,18 +477,11 @@ async function runImportIntoActive(item: DatabaseEntry) {
           const progress = total > 0 ? ` (${processed}/${total})` : ''
           dialogsStore.process.text = `${t('settings_labels.database.importing_library_progress')} ${phase}${progress}`
         } else if (event.type === 'complete') {
-          const complete = event as typeof event & {
-            mediaMatched?: number
-            mediaCreated?: number
-            tagsCreated?: number
-            linksAdded?: number
-          }
-          summary = {
-            mediaMatched: Number(complete.mediaMatched) || 0,
-            mediaCreated: Number(complete.mediaCreated) || 0,
-            tagsCreated: Number(complete.tagsCreated) || 0,
-            linksAdded: Number(complete.linksAdded) || 0,
-          }
+          hasCompleteEvent = true
+          matchedCount = Number(event.mediaMatched) || 0
+          createdCount = Number(event.mediaCreated) || 0
+          tagsCount = Number(event.tagsCreated) || 0
+          linksCount = Number(event.linksAdded) || 0
         } else if (event.type === 'error') {
           lastError = String(event.message || t('settings_labels.database.import_library_failed'))
         }
@@ -504,22 +496,22 @@ async function runImportIntoActive(item: DatabaseEntry) {
     setNotification({
       type: 'success',
       text: t('settings_labels.database.import_library_done', {
-        matched: summary?.mediaMatched ?? 0,
-        created: summary?.mediaCreated ?? 0,
-        tags: summary?.tagsCreated ?? 0,
-        links: summary?.linksAdded ?? 0,
+        matched: matchedCount,
+        created: createdCount,
+        tags: tagsCount,
+        links: linksCount,
       }),
     })
   } catch (error) {
     console.error('Failed to import library:', error)
-    if (summary && !lastError) {
+    if (hasCompleteEvent && !lastError) {
       setNotification({
         type: 'success',
         text: t('settings_labels.database.import_library_done', {
-          matched: summary.mediaMatched ?? 0,
-          created: summary.mediaCreated ?? 0,
-          tags: summary.tagsCreated ?? 0,
-          links: summary.linksAdded ?? 0,
+          matched: matchedCount,
+          created: createdCount,
+          tags: tagsCount,
+          links: linksCount,
         }),
       })
       return

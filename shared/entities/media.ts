@@ -47,6 +47,7 @@ export interface MediaItem {
   mediaTypeId?: number
   width?: number | null
   height?: number | null
+  filesize?: number | null
   thumb?: string
   views?: number
   favorite?: boolean

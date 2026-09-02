@@ -18,10 +18,10 @@ interface HomeMediaItem {
   id: number
   mediaTypeId?: number
   path?: string
-  width?: number
-  height?: number
+  width?: number | null
+  height?: number | null
   duration?: number
-  filesize?: number
+  filesize?: number | null
   thumb?: string | null
 }
 
