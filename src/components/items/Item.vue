@@ -893,6 +893,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   bumpMountedItems(-1)
   markItemHidden(Number(props.item.id))
+  // Virtual grids unmount cards without mouseleave — drop floating hover chrome.
+  hideHoverImage()
   clearEditClickSuppress()
   unsubscribeMediaTagDrag?.()
   unsubscribeMediaTagDrag = null

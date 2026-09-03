@@ -340,6 +340,23 @@ export function useVirtualGridWindow<T>(
     end = Math.min(end, dataEndRow)
 
     if (end <= start) {
+      if (
+        visibleGridStart < dataStartTop.value
+        && items.length > 0
+        && dataEndRow > dataStartRow
+      ) {
+        const keepRows = Math.ceil(viewportHeight / rh) + VIRTUAL_ROW_BUFFER
+        const keepEnd = Math.min(dataEndRow, dataStartRow + keepRows)
+        const rows: VirtualGridRow<T>[] = []
+        for (let rowIndex = dataStartRow; rowIndex < keepEnd; rowIndex += 1) {
+          rows.push(buildRow(rowIndex, cols, items, windowStart, totalCount, gapY))
+        }
+        visibleRows.value = rows
+        topSpacer.value = dataStartTop.value
+        bottomSpacer.value = Math.max(0, gridHeight - keepEnd * rh)
+        return
+      }
+
       visibleRows.value = []
       if (visibleGridStart >= dataEndTop.value) {
         topSpacer.value = dataEndTop.value
@@ -449,9 +466,30 @@ export function useVirtualGridWindow<T>(
     }
 
     if (end <= start) {
-      // Viewport sits in a phantom zone (trimmed head / unloaded tail). Keep
-      // spacers so the scrollbar extent stays correct; infinite-scroll jump
-      // reloads items for this offset via data-total-height ratio seek.
+      // Viewport sits in a phantom zone (trimmed head / unloaded tail).
+      if (
+        visibleGridStart < dataStartTop.value
+        && items.length > 0
+        && dataEndRow > dataStartRow
+      ) {
+        // Peeking into the trimmed head — keep the first loaded rows mounted so
+        // upward seeks don't flash a white sheet while the jump fetch runs.
+        const minStride = Math.max(120, Math.round(estimated * 0.6))
+        const keepRows = Math.ceil(viewportHeight / minStride) + VIRTUAL_ROW_BUFFER
+        const keepEnd = Math.min(dataEndRow, dataStartRow + keepRows)
+        const rows: VirtualGridRow<T>[] = []
+        for (let rowIndex = dataStartRow; rowIndex < keepEnd; rowIndex += 1) {
+          rows.push(buildRow(rowIndex, cols, items, windowStart, totalCount, gapY))
+        }
+        visibleRows.value = rows
+        topSpacer.value = dataStartTop.value
+        bottomSpacer.value = Math.max(
+          0,
+          gridHeight - getVariableRowOffset(keepEnd, measuredStrides, estimated),
+        )
+        return
+      }
+
       visibleRows.value = []
       if (visibleGridStart >= dataEndTop.value) {
         topSpacer.value = dataEndTop.value

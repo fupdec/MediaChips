@@ -76,6 +76,8 @@ export function shouldJumpInfiniteWindow(
   const start = Math.max(0, windowStart)
   const end = start + Math.max(0, loadedCount)
   const target = Math.max(0, targetIndex)
+  // Near upward peek (within a couple pages) still jumps — but pin-to-seek
+  // (not window top) keeps the viewport stable. Far upward always jumps.
   if (target < start) return true
   if (target >= end + pageSize * INFINITE_JUMP_AHEAD_PAGES) return true
   return false
@@ -195,6 +197,21 @@ export function resolveScrollTopForIndex(input: {
   const columnCount = Math.max(1, Math.floor(Number(input.columnCount) || 1))
   const rowHeight = Math.max(1, Number(input.rowHeight) || 320)
   return Math.max(0, layoutTop + Math.floor(index / columnCount) * rowHeight)
+}
+
+/** True when the viewport is near the loaded data-end (append zone), not deep
+ * in the filtered phantom tail (jump zone). */
+export function isNearInfiniteDataEnd(input: {
+  scrollTop: number
+  clientHeight: number
+  contentBottom: number
+  threshold?: number
+}): boolean {
+  const threshold = Math.max(0, Number(input.threshold) || 240)
+  const viewBottom = Number(input.scrollTop) + Number(input.clientHeight)
+  const bottom = Number(input.contentBottom) || 0
+  const distancePastEnd = viewBottom - bottom
+  return distancePastEnd >= -threshold && distancePastEnd <= threshold * 2
 }
 
 export function isAbortError(error: unknown): boolean {
@@ -591,7 +608,11 @@ export function useItemsPage({
       return
     }
 
-    abortPendingListFetch()
+    // Never abort an in-flight append — scroll bursts used to cancel page N and
+    // leave `page` advanced with no rows, so further scrolling appeared stuck.
+    if (!appendListPage) {
+      abortPendingListFetch()
+    }
     const requestSeq = ++listFetchSeq
     const abortController = new AbortController()
     listAbortController = abortController
@@ -600,10 +621,8 @@ export function useItemsPage({
       itemsStore.updateState({key: 'isFiltersLoaded', value: false})
       loader.value.is_busy = true
       loader.value.show = false
-    } else if (isInfiniteJump) {
-      // Keep the grid mounted; only the bottom/slot spinner should show.
-      loader.value.is_busy = true
     }
+    // Infinite jumps keep the grid mounted (isLoadingMore / slot spinner only).
 
     const postListQuery = (payload: ItemsPageListQuery, signal: AbortSignal) =>
       typedApi.postItemsList(url, payload, {signal})
@@ -691,7 +710,9 @@ export function useItemsPage({
     try {
       let response = await postListQuery(query, abortController.signal)
 
-      if (requestSeq !== listFetchSeq) {
+      // Appends must apply even if a newer append started (no abort above).
+      // Full refresh / jump may supersede — drop stale non-append responses.
+      if (!appendListPage && requestSeq !== listFetchSeq) {
         return
       }
 
@@ -738,7 +759,17 @@ export function useItemsPage({
         }
       }
     } catch (error) {
-      if (isAbortError(error) || requestSeq !== listFetchSeq) {
+      if (isAbortError(error)) {
+        // Full refresh aborted this append — rewind page so the next scroll can retry.
+        if (appendListPage && ITEMS.value.itemsOnPage.length > 0) {
+          itemsStore.updateState({
+            key: 'page',
+            value: Math.max(1, Number(ITEMS.value.page || 1) - 1),
+          })
+        }
+        return
+      }
+      if (!appendListPage && requestSeq !== listFetchSeq) {
         return
       }
 
@@ -855,21 +886,33 @@ export function useItemsPage({
   const getInfiniteContentBottom = (el: HTMLElement): number => {
     if (typeof document === 'undefined') return el.scrollHeight
 
-    // Virtual grid: load-more at end of loaded data, not filtered phantom tail.
+    // Prefer layout dataset — absolute data-end can report 0 height before paint.
+    const layoutEl = document.querySelector('.items-virtual-grid') as HTMLElement | null
+    if (layoutEl) {
+      const dataEndTop = Number(layoutEl.dataset.endTop) || 0
+      const loadedCount = Number(layoutEl.dataset.loadedCount) || 0
+      if (loadedCount > 0 && dataEndTop > 0) {
+        return getLayoutTopInScroll(layoutEl, el) + dataEndTop
+      }
+    }
+
     const dataEnd = document.querySelector('.virtual-grid-data-end') as HTMLElement | null
     if (dataEnd) {
       const elRect = el.getBoundingClientRect()
       const endRect = dataEnd.getBoundingClientRect()
-      return Math.max(0, el.scrollTop + (endRect.top - elRect.top) + dataEnd.offsetHeight)
+      return Math.max(0, el.scrollTop + (endRect.top - elRect.top) + Math.max(1, dataEnd.offsetHeight))
     }
 
-    const filteredTail = document.querySelector('.virtual-grid-spacer--tail') as HTMLElement | null
-    const bottomPx = filteredTail?.offsetHeight ?? 0
-    return Math.max(0, el.scrollHeight - bottomPx)
+    return el.scrollHeight
   }
 
   const isNearBottom = (el: HTMLElement, threshold = 240): boolean => {
-    return el.scrollTop + el.clientHeight >= getInfiniteContentBottom(el) - threshold
+    return isNearInfiniteDataEnd({
+      scrollTop: el.scrollTop,
+      clientHeight: el.clientHeight,
+      contentBottom: getInfiniteContentBottom(el),
+      threshold,
+    })
   }
 
   const getVirtualScrollTargetIndex = (el: HTMLElement): number | null => {
@@ -1064,11 +1107,14 @@ export function useItemsPage({
       return
     }
 
-    // One jump + one pin to the top of the loaded window after layout commits.
+    // Pin to the seek target immediately after the window lands. Waiting for an
+    // extra paint left a white phantom frame; pinWindowTop yanked upward seeks.
     armSeekLock()
     await nextTick()
+    scrollViewportToAbsoluteIndex(seekIndex, {pinWindowTop: false})
     await waitForPaint()
-    scrollViewportToAbsoluteIndex(seekIndex, {pinWindowTop: true})
+    // Re-pin after natural rows measure once — stride churn can drift a few px.
+    scrollViewportToAbsoluteIndex(seekIndex, {pinWindowTop: false})
     armSeekLock()
   }
 
@@ -1123,6 +1169,9 @@ export function useItemsPage({
       && (
         targetIndex >= loadedEnd - INFINITE_PREFETCH_REMAINING_ITEMS
         || targetIndex >= loadedEnd
+        // Phantom scrollbar height can make ratio seeks lag behind the visual
+        // end of loaded cards — also append when the data-end marker is near.
+        || isNearBottom(el, 600)
       )
     ) {
       void loadNextInfinitePage('user')
@@ -1211,7 +1260,7 @@ export function useItemsPage({
     if (ITEMS.value.totalFiltered <= 0) return
     if (ITEMS.value.itemsOnPage.length >= ITEMS.value.totalFiltered) return
 
-    const el = refreshScrollRoot() || getMainScrollEl()
+    const el = refreshScrollRoot() || (getMainScrollEl() as HTMLElement | null)
     if (!el) return
 
     const threshold = 240
@@ -1236,8 +1285,8 @@ export function useItemsPage({
     handler: infiniteScrolling,
     options: {
       root: scrollRoot.value,
-      // Modest lead — large margins after a seek looked like "extra pages".
-      rootMargin: '320px 0px',
+      // Lead into the data-end sentinel (absolute inside the phantom tail).
+      rootMargin: '800px 0px',
       threshold: 0,
     },
   }))
@@ -1251,8 +1300,21 @@ export function useItemsPage({
 
       const el = getMainScrollEl() as HTMLElement | null
       if (!el) return
-
       if (isSeekLocked()) return
+
+      // Sequential append wins over jump whenever the loaded data-end is near.
+      // Jump-first used to steal these scrolls (ratio seek into the phantom tail)
+      // and leave the list looking stuck.
+      if (
+        !infiniteScrollExhausted.value
+        && ITEMS.value.itemsOnPage.length < ITEMS.value.totalFiltered
+        && isNearBottom(el, 900)
+      ) {
+        clearPendingJump()
+        void loadNextInfinitePage('user')
+        return
+      }
+
       if (recoverEmptyViewport()) return
 
       const targetIndex = getVirtualScrollTargetIndex(el)
@@ -1273,6 +1335,18 @@ export function useItemsPage({
           pendingJumpTimer = null
           if (isInfiniteJumping || isLoadingMore.value || loader.value.is_busy) return
           if (isSeekLocked()) return
+          // If we drifted back near the data-end while debouncing, append instead.
+          const liveEl = getMainScrollEl() as HTMLElement | null
+          if (
+            liveEl
+            && !infiniteScrollExhausted.value
+            && ITEMS.value.itemsOnPage.length < ITEMS.value.totalFiltered
+            && isNearBottom(liveEl, 900)
+          ) {
+            infiniteLoadPending.value = false
+            void loadNextInfinitePage('user')
+            return
+          }
           const clamped = Math.min(
             Math.max(0, ITEMS.value.totalFiltered - 1),
             Math.max(0, seekIndex),
@@ -1287,11 +1361,24 @@ export function useItemsPage({
     })
   }
 
+  let mediaScrollBindAttempts = 0
+
   const bindMediaInfiniteScroll = (): void => {
     unbindMediaInfiniteScroll()
     if (!is_infinite_scroll.value) return
     mediaScrollEl = refreshScrollRoot() as HTMLElement | null
-    mediaScrollEl?.addEventListener('scroll', onMediaInfiniteScroll, {passive: true})
+    if (!mediaScrollEl) {
+      if (mediaScrollBindAttempts < 30) {
+        mediaScrollBindAttempts += 1
+        requestAnimationFrame(() => bindMediaInfiniteScroll())
+      }
+      return
+    }
+    mediaScrollBindAttempts = 0
+    mediaScrollEl.addEventListener('scroll', onMediaInfiniteScroll, {passive: true})
+    // Catch-up if the first screen is already short / sentinel already visible.
+    scheduleUserLoadIfNeeded()
+    scheduleShortViewportFill()
   }
 
   const unbindMediaInfiniteScroll = (): void => {

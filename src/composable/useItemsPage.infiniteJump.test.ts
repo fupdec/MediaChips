@@ -5,6 +5,7 @@ import {
   resolveVirtualScrollTargetIndex,
   shouldJumpInfiniteWindow,
   shouldRecoverEmptyViewport,
+  isNearInfiniteDataEnd,
   INFINITE_PAGE_SIZE,
   INFINITE_JUMP_AHEAD_PAGES,
 } from '@/composable/useItemsPage'
@@ -15,6 +16,30 @@ describe('infinite scroll jump helpers', () => {
     expect(getInfinitePageForIndex(INFINITE_PAGE_SIZE - 1)).toBe(1)
     expect(getInfinitePageForIndex(INFINITE_PAGE_SIZE)).toBe(2)
     expect(getInfinitePageForIndex(589)).toBe(Math.floor(589 / INFINITE_PAGE_SIZE) + 1)
+  })
+
+  it('treats only the band around data-end as append zone', () => {
+    const contentBottom = 10_000
+    expect(isNearInfiniteDataEnd({
+      scrollTop: 9_200,
+      clientHeight: 900,
+      contentBottom,
+      threshold: 900,
+    })).toBe(true)
+    // Deep in the phantom tail — must jump, not append.
+    expect(isNearInfiniteDataEnd({
+      scrollTop: 50_000,
+      clientHeight: 900,
+      contentBottom,
+      threshold: 900,
+    })).toBe(false)
+    // Still above the append band.
+    expect(isNearInfiniteDataEnd({
+      scrollTop: 0,
+      clientHeight: 900,
+      contentBottom,
+      threshold: 900,
+    })).toBe(false)
   })
 
   it('keeps near-end appends sequential', () => {

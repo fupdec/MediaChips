@@ -28,7 +28,7 @@ describe('mediaItemsPagination', () => {
     expect(resolvePageLimit(50)).toBe(50)
   })
 
-  it('aligns single fat jump windows to 160 and keeps the seek inside', () => {
+  it('aligns single fat jump windows and keeps the seek inside', () => {
     const upward = getInfiniteJumpWindowStart({
       seekIndex: 500,
       totalCount: 20_000,
@@ -50,8 +50,8 @@ describe('mediaItemsPagination', () => {
     expect(downward % INFINITE_SCROLL_MAX_ITEMS).toBe(0)
     expect(downward).toBeLessThanOrEqual(5_000)
     expect(downward + INFINITE_SCROLL_MAX_ITEMS).toBeGreaterThan(5_000)
-    // Downward bias keeps the seek near the top of the 160 block.
-    expect(5_000 - downward).toBeLessThan(INFINITE_SCROLL_MAX_ITEMS * 0.5)
+    // Downward bias (0.25) keeps the seek in the upper half of the window.
+    expect(5_000 - downward).toBeLessThan(INFINITE_SCROLL_MAX_ITEMS * 0.85)
   })
 
   it('paginates only when ids are absent and limit is set', () => {

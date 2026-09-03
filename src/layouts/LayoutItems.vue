@@ -188,7 +188,7 @@
     <Filters v-if="pageInitialized" :isReady="isFiltersReady"/>
 
     <ItemsBrowseSkeleton
-      v-if="loader.is_busy"
+      v-if="loader.is_busy && !ITEMS.itemsOnPage.length"
       class="items-page-grid"
       :size="ITEMS.size"
       :gap-size="SETTINGS.gapSize"
@@ -209,7 +209,7 @@
     />
 
     <ItemsMasonryGrid
-      v-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && (isMasonryGrid || isSquaresGrid)"
+      v-if="pageInitialized && ITEMS.itemsOnPage.length && (isMasonryGrid || isSquaresGrid)"
       :key="`masonry-${itemsRenderKey}`"
       :items="ITEMS.itemsOnPage"
       :items-type="listItemType"
@@ -227,7 +227,7 @@
     />
 
     <ItemsVirtualGrid
-      v-else-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && useVirtualGrid"
+      v-else-if="pageInitialized && ITEMS.itemsOnPage.length && useVirtualGrid"
       :key="`virtual-${itemsRenderKey}`"
       :items="ITEMS.itemsOnPage"
       :items-type="listItemType"
@@ -290,7 +290,7 @@
     </ItemsVirtualGrid>
 
     <div
-      v-else-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length"
+      v-else-if="pageInitialized && ITEMS.itemsOnPage.length"
       :key="`grid-${itemsRenderKey}`"
       ref="itemsGridRef"
       :class="itemsGridClasses"
@@ -967,10 +967,15 @@ const { gridStyle: itemsGridStyle } = useResponsiveGridLayout(
   itemsGridLayoutOptions,
 )
 
-/** Full-list extent for virtual scrollbar (trim window + remaining filtered). */
+/** Scrollbar extent for the virtual grid.
+ * - Paginated: this page only (never the whole library — that looked like a
+ *   broken infinite list when limit was 50 and virtualization kicked in).
+ * - Infinite: full filtered count so the thumb can seek across the library.
+ */
 const virtualTotalCount = computed(() => {
   const loaded = ITEMS.value.itemsOnPage.length
   const start = Math.max(0, infiniteWindowStart.value)
+  if (!is_infinite_scroll.value) return loaded
   const filtered = Math.max(0, Number(ITEMS.value.totalFiltered) || 0)
   return Math.max(filtered, start + loaded, loaded)
 })
@@ -1225,7 +1230,6 @@ defineEmits<{
   padding: 12px 0 24px;
   /* Loader must not steal scroll anchoring from the card grid above. */
   overflow-anchor: none;
-  contain: layout style;
 }
 
 .infinite-loader-slot {

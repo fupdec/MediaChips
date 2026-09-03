@@ -1,8 +1,11 @@
 export const INFINITE_SCROLL_FLAG_LIMIT = 101
-/** Items per infinite-scroll fetch — larger pages = fewer round-trips while scrolling. */
-export const INFINITE_SCROLL_PAGE_SIZE = 40
-/** Max items retained in the client infinite-scroll data window. */
-export const INFINITE_SCROLL_MAX_ITEMS = 160
+/**
+ * Items per infinite-scroll fetch.
+ * Keep divisible by 2–6 so windowStart stays column-aligned on common grids.
+ */
+export const INFINITE_SCROLL_PAGE_SIZE = 60
+/** Max items retained in the client infinite-scroll data window (also 2–6 aligned). */
+export const INFINITE_SCROLL_MAX_ITEMS = 180
 
 export const INFINITE_SCROLL_TRIM_ENABLED = true
 
