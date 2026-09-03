@@ -9,6 +9,7 @@ import { isAllowedOrigin } from './constants'
 import { isClientAbortError, safeJsonError } from './fileResolver'
 import { checkFilesExist } from '../../api/services/checkFilesExist'
 import { resolveVideoThumbFilePath } from '../../api/services/videoPreviewThumb'
+import { createRequestAbortSignal } from '../../api/services/requestAbortSignal'
 import { isVirtualZipPath, readZipEntryBuffer } from '../../api/services/zipGallery'
 import { resizeImageToMaxEdge } from '../../api/services/imageMedia'
 
@@ -143,7 +144,12 @@ export function registerGetFileRoutes({
         return res.status(200).end(payload)
       }
 
-      const resolvedPath = await resolveVideoThumbFilePath(originalFilePath, db, resolveFilePath)
+      const resolvedPath = await resolveVideoThumbFilePath(
+        originalFilePath,
+        db,
+        resolveFilePath,
+        {signal: createRequestAbortSignal(req, res)},
+      )
 
       if (!resolvedPath) {
         console.error('File not found:', originalFilePath)

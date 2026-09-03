@@ -33,6 +33,13 @@ export type ConversionProgressDetails = {
 
 type RunProcessOptions = {
   signal?: AbortSignal
+  /**
+   * When false, `signal` only drops the job while still queued — running
+   * ffmpeg is left alone so shared in-flight thumbs/grids can finish.
+   */
+  killOnAbort?: boolean
+  /** Higher = sooner on the shared ffmpeg/ffprobe queues. */
+  priority?: number
   duration?: number
   onProgress?: (progress: number, details?: ConversionProgressDetails) => void
 }
@@ -279,12 +286,28 @@ async function ffprobePlayability(filePath: string) {
 }
 
 async function runFfmpeg(args: string[], options: RunProcessOptions = {}) {
-  return runWithFfmpegLimit(() => runProcess(getFfmpegPath(), args, options))
+  const {priority, signal, killOnAbort = true, duration, onProgress} = options
+  return runWithFfmpegLimit(
+    () => runProcess(getFfmpegPath(), args, {
+      signal: killOnAbort ? signal : undefined,
+      duration,
+      onProgress,
+    }),
+    {priority, signal},
+  )
 }
 
 /** Progressive remux / background copy — must not block live playback ffmpeg. */
 async function runFfmpegBackground(args: string[], options: RunProcessOptions = {}) {
-  return runWithRemuxLimit(() => runProcess(getFfmpegPath(), args, options))
+  const {priority, signal, killOnAbort = true, duration, onProgress} = options
+  return runWithRemuxLimit(
+    () => runProcess(getFfmpegPath(), args, {
+      signal: killOnAbort ? signal : undefined,
+      duration,
+      onProgress,
+    }),
+    {priority, signal},
+  )
 }
 
 function isFaststartContainer(filePath: string): boolean {
@@ -425,20 +448,31 @@ async function extractVideoThumbnail({
   height = 320,
   seekRatio = 0.5,
   jpegQuality,
+  signal,
+  priority,
 }: {
   input: string
   outputPath: string
   height?: number
   seekRatio?: number
   jpegQuality?: number
+  signal?: AbortSignal
+  priority?: number
 }) {
+  if (signal?.aborted) {
+    const error = new Error('Queue task aborted')
+    error.name = 'AbortError'
+    throw error
+  }
+
   let seekSeconds = 1
 
   try {
     const {format} = await ffprobe(input)
     const duration = await resolveFfprobeDuration(input, format.duration)
     seekSeconds = resolveThumbnailSeekSeconds(duration, seekRatio)
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') throw error
     // Skip the common all-black first frame when metadata is unavailable.
   }
 
@@ -459,7 +493,9 @@ async function extractVideoThumbnail({
     }
 
     pushSingleImageOutput(args, tempPath)
-    await runFfmpeg(args)
+    // Drop while queued on client disconnect; never kill a started thumb encode
+    // (other waiters / disk cache still need the result).
+    await runFfmpeg(args, {signal, priority, killOnAbort: false})
   })
 }
 

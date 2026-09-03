@@ -4,6 +4,7 @@
 import {afterEach, describe, expect, it} from 'vitest'
 import {
   FFMPEG_QUEUE_CONCURRENCY,
+  FFMPEG_QUEUE_MAX_PENDING,
   getMediaPostProcessQueueStats,
   resetMediaPostProcessQueues,
   runWithFfmpegLimit,
@@ -34,6 +35,10 @@ describe('mediaPostProcessQueue', () => {
 
     expect(maxActive).toBe(FFMPEG_QUEUE_CONCURRENCY)
     expect(getMediaPostProcessQueueStats().ffmpeg.active).toBe(0)
+  })
+
+  it('exposes a pending cap on the live ffmpeg queue', () => {
+    expect(getMediaPostProcessQueueStats().ffmpeg.maxPending).toBe(FFMPEG_QUEUE_MAX_PENDING)
   })
 
   it('allows nested runWithFfmpegLimit without deadlock', async () => {

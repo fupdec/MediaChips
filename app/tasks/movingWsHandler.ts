@@ -24,8 +24,29 @@ import { normalizeMoveMessageItems } from './wsHelpers'
 
 export function createMovingWsHandler(db: ApiDb): WsHandler {
   return (ws: AppWebSocket, _req: Request) => {
-    const send = (payload: WsOutboundPayload) => {
+    const PROGRESS_MIN_MS = 100
+    let lastProgressAt = 0
+    let pendingProgress: WsOutboundPayload | null = null
+
+    const sendNow = (payload: WsOutboundPayload) => {
       if (ws.readyState === 1) ws.send(JSON.stringify(payload))
+    }
+
+    const flushProgress = () => {
+      if (!pendingProgress) return
+      sendNow(pendingProgress)
+      pendingProgress = null
+      lastProgressAt = Date.now()
+    }
+
+    const send = (payload: WsOutboundPayload) => {
+      if (payload.type === 'progress') {
+        pendingProgress = payload
+        if (Date.now() - lastProgressAt >= PROGRESS_MIN_MS) flushProgress()
+        return
+      }
+      flushProgress()
+      sendNow(payload)
     }
 
     const moveFiles = async (msg: MoveFilesWsMessage) => {

@@ -5,11 +5,22 @@ import { createMediaRepository } from '../db/repositories/media'
 import { resolveActiveDbFilePath } from './activeDbFileResolver'
 import { extractVideoThumbnail } from '../utils/ffmpeg'
 import { VIDEO_THUMB_HEIGHT, VIDEO_THUMB_JPEG_QUALITY } from '../../shared/videoPreview'
+import { isAbortError } from './concurrencyQueue'
 
 const THUMB_GENERATION_TIMEOUT_MS = 120_000
 /** Reject empty/corrupt stubs left by failed FFmpeg 6 single-image writes. */
 export const MIN_USABLE_VIDEO_THUMB_BYTES = 512
 const inFlight = new Map<number, Promise<string | null>>()
+
+export type VideoThumbEnsureOptions = {
+  /**
+   * If aborted before generation is joined, skip. Does not cancel shared
+   * in-flight work for other waiters (neighbor cards / cache).
+   */
+  signal?: AbortSignal
+  /** Higher = sooner on the ffmpeg queue (scroll/visible work). */
+  priority?: number
+}
 
 export function parseVideoThumbMediaId(filePath: string): number | null {
   const normalized = filePath.replace(/\\/g, '/')
@@ -72,10 +83,42 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ])
 }
 
+async function raceWithAbort<T>(
+  promise: Promise<T>,
+  signal?: AbortSignal,
+): Promise<T | null> {
+  if (!signal) return promise
+  if (signal.aborted) return null
+
+  return new Promise<T | null>((resolve, reject) => {
+    const onAbort = () => {
+      cleanup()
+      resolve(null)
+    }
+    const cleanup = () => {
+      signal.removeEventListener('abort', onAbort)
+    }
+
+    signal.addEventListener('abort', onAbort, {once: true})
+    promise.then(
+      (value) => {
+        cleanup()
+        resolve(value)
+      },
+      (error) => {
+        cleanup()
+        if (isAbortError(error)) resolve(null)
+        else reject(error)
+      },
+    )
+  })
+}
+
 async function generateVideoPreviewThumb(
   mediaId: number,
   db: ApiDb,
   resolveFilePath: (filePath: string) => string | null,
+  options: VideoThumbEnsureOptions = {},
 ): Promise<string | null> {
   const dbPath = db.path
   if (!dbPath) return null
@@ -98,16 +141,22 @@ async function generateVideoPreviewThumb(
     fs.mkdirSync(thumbsDir, {recursive: true})
   }
 
-  await withTimeout(
-    extractVideoThumbnail({
-      input: videoPath,
-      outputPath,
-      height: VIDEO_THUMB_HEIGHT,
-      jpegQuality: VIDEO_THUMB_JPEG_QUALITY,
-    }),
-    THUMB_GENERATION_TIMEOUT_MS,
-    'ffmpeg thumbnail',
-  )
+  try {
+    await withTimeout(
+      extractVideoThumbnail({
+        input: videoPath,
+        outputPath,
+        height: VIDEO_THUMB_HEIGHT,
+        jpegQuality: VIDEO_THUMB_JPEG_QUALITY,
+        priority: options.priority,
+      }),
+      THUMB_GENERATION_TIMEOUT_MS,
+      'ffmpeg thumbnail',
+    )
+  } catch (error) {
+    if (isAbortError(error)) return null
+    throw error
+  }
 
   return isUsableVideoThumbFile(outputPath) ? outputPath : null
 }
@@ -116,7 +165,10 @@ export async function ensureVideoPreviewThumb(
   mediaId: number,
   db: ApiDb,
   resolveFilePath: (filePath: string) => string | null,
+  options: VideoThumbEnsureOptions = {},
 ): Promise<string | null> {
+  if (options.signal?.aborted) return null
+
   const dbPath = db.path
   if (!dbPath) return null
 
@@ -127,21 +179,29 @@ export async function ensureVideoPreviewThumb(
   }
 
   const existing = inFlight.get(mediaId)
-  if (existing) return existing
+  if (existing) {
+    // Join shared work; caller abort only unhooks this waiter.
+    return raceWithAbort(existing, options.signal)
+  }
 
   // ffmpeg/ffprobe concurrency is enforced inside api/utils/ffmpeg.
-  const promise = generateVideoPreviewThumb(mediaId, db, resolveFilePath).finally(() => {
+  // Do not bind generation to one HTTP AbortSignal — other waiters / disk cache
+  // still need the result. Storm control is LIFO + maxPending on the queue.
+  const promise = generateVideoPreviewThumb(mediaId, db, resolveFilePath, {
+    priority: options.priority,
+  }).finally(() => {
     inFlight.delete(mediaId)
   })
 
   inFlight.set(mediaId, promise)
-  return promise
+  return raceWithAbort(promise, options.signal)
 }
 
 export async function resolveVideoThumbFilePath(
   originalFilePath: string,
   db: ApiDb,
   resolveFilePath: (filePath: string) => string | null,
+  options: VideoThumbEnsureOptions = {},
 ): Promise<string | null> {
   const existingPath = resolveFilePath(originalFilePath)
   const mediaId = parseVideoThumbMediaId(originalFilePath)
@@ -156,5 +216,5 @@ export async function resolveVideoThumbFilePath(
 
   if (mediaId == null) return null
 
-  return ensureVideoPreviewThumb(mediaId, db, resolveFilePath)
+  return ensureVideoPreviewThumb(mediaId, db, resolveFilePath, options)
 }

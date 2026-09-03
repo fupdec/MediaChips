@@ -9,6 +9,7 @@ import {
 } from '@/services/modelDownloadConsent'
 import {typedApi} from '@/services/typedApi'
 import type {BackfillKind, BackfillStreamEvent} from '@/services/typedApi/backfill'
+import {throttle} from '@/utils/throttle'
 
 export type SettingsBackfillMode = 'hash' | 'codec'
 
@@ -299,26 +300,40 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
     const currentTaskId = taskId
 
     try {
+      const publishProgress = throttle((
+        nextCounters: typeof counters.value,
+        nextPath: string,
+        nextProgress: number,
+      ) => {
+        counters.value = nextCounters
+        currentPath.value = nextPath
+        progress.value = nextProgress
+        tasksStore.updateTask(currentTaskId, {
+          subtitle: formatProgress(config, nextCounters, t),
+          progress: nextProgress,
+        })
+      }, 120)
+
       const handleEvent = (event: BackfillStreamEvent) => {
         if (event.type === 'progress') {
-          counters.value = {
-            processed: event.processed || 0,
-            total: event.total || counters.value.total,
-            done: eventDoneCount(event, config.mode),
-            missing: event.missing || 0,
-            failed: event.failed || 0,
-            skipped: event.skipped || 0,
-          }
-          currentPath.value = event.current || ''
-          progress.value = event.total
-            ? Math.min(((event.processed ?? 0) / event.total) * 100, 100)
-            : 0
-
-          tasksStore.updateTask(currentTaskId, {
-            subtitle: formatProgress(config, counters.value, t),
-            progress: progress.value,
-          })
+          publishProgress(
+            {
+              processed: event.processed || 0,
+              total: event.total || counters.value.total,
+              done: eventDoneCount(event, config.mode),
+              missing: event.missing || 0,
+              failed: event.failed || 0,
+              skipped: event.skipped || 0,
+            },
+            event.current || '',
+            event.total
+              ? Math.min(((event.processed ?? 0) / event.total) * 100, 100)
+              : 0,
+          )
+          return
         }
+
+        publishProgress.flush()
 
         if (event.type === 'complete') {
           const summary: BackfillSummary = {
@@ -365,6 +380,7 @@ export function useSettingsBackfillStream(config: SettingsBackfillConfig) {
         },
         handleEvent,
       )
+      publishProgress.cancel()
       await fetchStatus()
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error))

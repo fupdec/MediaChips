@@ -17,7 +17,7 @@ import {
 import { upsertVisualHashForMedia } from '../../services/visualHashBackfill'
 import { upsertClipEmbeddingForMedia } from '../../services/mediaClipEmbeddings'
 import { formatMarkTimestamp } from '../../../shared/markTimestamp'
-import { generateVideoGrid } from '../../services/videoGrid'
+import { ensureVideoGrid } from '../../services/videoGrid'
 import { resolveMediaIdFromGridRequest } from '../../services/videoGridRequest'
 import { isUsableVideoThumbFile } from '../../services/videoPreviewThumb'
 
@@ -113,7 +113,7 @@ export default function createTasksVideoPreviewController(shared: TaskController
 
     if (!fs.existsSync(gridPath)) {
       try {
-        const result = await generateVideoGrid(req.body, dbPath ?? '')
+        const result = await ensureVideoGrid(req.body, dbPath ?? '')
         if (result) {
           // Respond as soon as the sprite is on disk. Visual hash / CLIP can take
           // much longer (and block the ffmpeg queue for the next Review item).
