@@ -280,13 +280,32 @@ export default function (db: ApiDb) {
     }
   }
 
-  const duplicateGroups = function (req: ApiRequest, res: ApiResponse) {
+  const duplicateGroups = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<MediaDuplicateGroupsPayload>(req)
       const mediaTypeId = body.mediaTypeId == null ? null : Number(body.mediaTypeId)
+      const resolvedMediaTypeId = Number.isFinite(mediaTypeId as number) ? mediaTypeId : null
+
+      let mediaIds: number[] | null = null
+      if (Array.isArray(body.mediaIds)) {
+        mediaIds = body.mediaIds
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      } else if (Array.isArray(body.filters) && body.filters.length > 0) {
+        const idsResult = await loadFilteredMediaIds(db, {
+          mediaTypeId: resolvedMediaTypeId,
+          filters: body.filters as FilterLike[],
+          filtersJoin: body.filtersJoin,
+          find_duplicates: false,
+          skipTotals: true,
+        })
+        mediaIds = Array.isArray(idsResult?.ids) ? idsResult.ids.map(Number) : []
+      }
+
       const result = listMediaDuplicateGroups(db, {
         duplicatesBy: String(body.duplicates_by || 'filesize'),
-        mediaTypeId: Number.isFinite(mediaTypeId as number) ? mediaTypeId : null,
+        mediaTypeId: resolvedMediaTypeId,
+        mediaIds,
       })
       sendOk(res, result)
     } catch (err) {

@@ -65,6 +65,9 @@ export interface MergeMediaPayload {
 export interface MediaDuplicateGroupsPayload {
   duplicates_by?: string
   mediaTypeId?: number | string | null
+  mediaIds?: Array<number | string> | null
+  filters?: unknown[]
+  filtersJoin?: 'and' | 'or'
 }
 
 export interface MoveTagsToCategoryPayload {

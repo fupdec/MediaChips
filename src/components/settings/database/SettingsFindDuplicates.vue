@@ -64,9 +64,8 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {
   getDefaultMediaTypeId,
   getCurrentMediaType,
-  isImageMediaType,
 } from '@/utils/mediaType'
-import {getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
+import {getDuplicateMenuModes, getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
 
 const {t} = useI18n()
 const appStore = useAppStore()
@@ -86,19 +85,12 @@ const selectedMediaType = computed(() =>
   getCurrentMediaType(appStore.mediaTypes, mediaTypeId.value),
 )
 
-const modeItems = computed(() => {
-  if (isImageMediaType(selectedMediaType.value)) {
-    return [
-      {value: 'path', title: t('filters.duplicates_menu_path')},
-      {value: 'filesize', title: t('filters.duplicates_menu_filesize')},
-    ]
-  }
-  return [
-    {value: 'filesize', title: t('filters.duplicates_menu_filesize')},
-    {value: 'visualHash', title: t('filters.duplicates_menu_visual')},
-    {value: 'fingerprint', title: t('filters.duplicates_menu_fingerprint')},
-  ]
-})
+const modeItems = computed(() =>
+  getDuplicateMenuModes(selectedMediaType.value).map((mode) => ({
+    value: mode.value,
+    title: t(mode.labelKey),
+  })),
+)
 
 watch(
   [selectedMediaType, modeItems],

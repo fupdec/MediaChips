@@ -45,8 +45,10 @@
         />
 
         <v-menu
+          v-model="moreMenuOpen"
           location="bottom"
           :transition="false"
+          :close-on-content-click="false"
           content-class="app-bar-more-menu"
         >
           <template #activator="{ props: menuProps }">
@@ -74,29 +76,70 @@
               link
               prepend-icon="mdi-tab"
               :title="t('appbar.buttons.create_tab')"
-              @click="createTab"
+              @click="runFromMoreMenu(createTab)"
             />
             <v-list-item
               v-if="itemsStore.type == 'tag'"
               link
               prepend-icon="mdi-wrench-cog"
               :title="t('appbar.buttons.edit_meta')"
-              @click="editMetaFromMenu"
+              @click="runFromMoreMenu(editMetaFromMenu)"
             />
             <v-list-item
               :disabled="randomItemLoading || itemsStore.totalFiltered == 0"
               link
               prepend-icon="mdi-dice-5"
               :title="t('appbar.buttons.open_random')"
-              @click="openRandomItem"
+              @click="runFromMoreMenu(openRandomItem)"
             />
             <v-list-item
               :disabled="itemsStore.entities.length == 0"
               link
               prepend-icon="mdi-card-search-outline"
               :title="t('review_mode.open')"
-              @click="openReviewFromMenu"
+              @click="runFromMoreMenu(openReviewFromMenu)"
             />
+            <v-list-item
+              v-if="itemsStore.type === 'media'"
+              link
+              class="pr-2"
+            >
+              <template #prepend>
+                <v-icon icon="mdi-content-duplicate"/>
+              </template>
+              <v-list-item-title class="d-flex align-center justify-space-between">
+                <span>{{ duplicatesMenuLabel }}</span>
+                <v-icon size="18">mdi-menu-right</v-icon>
+              </v-list-item-title>
+              <v-menu
+                activator="parent"
+                open-on-hover
+                submenu
+                location="end"
+                :open-delay="80"
+                :close-delay="120"
+                :close-on-content-click="false"
+                content-class="app-bar-more-menu"
+              >
+                <v-list
+                  density="compact"
+                  class="context-menu"
+                  :lines="false"
+                  nav
+                  rounded="lg"
+                  min-width="200"
+                >
+                  <v-list-item
+                    v-for="mode in duplicateMenuModes"
+                    :key="mode.value"
+                    link
+                    :prepend-icon="mode.icon"
+                    :title="t(mode.labelKey)"
+                    @click="runFromMoreMenu(() => findDuplicates(mode.value))"
+                  />
+                </v-list>
+              </v-menu>
+            </v-list-item>
           </v-list>
         </v-menu>
 
@@ -193,7 +236,8 @@ import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
 import {useAppPlatform} from '@/composable/useAppPlatform'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
 import {typedApi} from '@/services/typedApi'
-import {getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
+import {getDuplicateMenuModes, getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
+import {getCurrentMediaType} from '@/utils/mediaType'
 import {getTabUrl} from '@/services/routeService'
 import {reloadTabsCatalog} from '@/composable/appCatalogs'
 import {copyCurrentPageSettingsToTab} from '@/utils/tabPageSettings'
@@ -312,6 +356,51 @@ async function syncFullscreenState() {
 }
 
 const randomItemLoading = ref(false)
+const moreMenuOpen = ref(false)
+
+const currentMediaType = computed(() =>
+  getCurrentMediaType(app.mediaTypes, itemsStore.environment.media_type_id),
+)
+
+const hasActiveScopeFilters = computed(() =>
+  (itemsStore.filters || []).some((filter) =>
+    filter.active !== false
+    && !filter.removed
+    && filter.cond != null
+    && filter.cond !== '',
+  ),
+)
+
+const duplicatesMenuLabel = computed(() =>
+  hasActiveScopeFilters.value || Boolean(itemsStore.listScopeIds?.length)
+    ? t('filters.find_duplicates_within_filtered')
+    : t('filters.find_duplicates'),
+)
+
+const duplicateMenuModes = computed(() => getDuplicateMenuModes(currentMediaType.value))
+
+function runFromMoreMenu(action: () => void | Promise<void>) {
+  moreMenuOpen.value = false
+  void action()
+}
+
+function findDuplicates(mode: string) {
+  const mediaTypeId = Number(itemsStore.environment.media_type_id)
+  const scopeIds = Array.isArray(itemsStore.listScopeIds) && itemsStore.listScopeIds.length
+    ? itemsStore.listScopeIds.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+    : null
+  const useFilters = !scopeIds && hasActiveScopeFilters.value
+
+  dialogsStore.openDuplicateReview({
+    mediaTypeId: Number.isFinite(mediaTypeId) && mediaTypeId > 0 ? mediaTypeId : null,
+    duplicatesBy: mode,
+    mediaIds: scopeIds,
+    filters: useFilters ? itemsStore.filters : null,
+    filtersJoin: useFilters
+      ? (itemsStore.filtersJoin === 'or' ? 'or' : 'and')
+      : null,
+  })
+}
 
 async function openRandomItem() {
   // If already loading, skip to avoid double-clicks.

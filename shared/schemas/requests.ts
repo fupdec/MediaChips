@@ -79,6 +79,9 @@ export const MediaSimilarHybridRequestSchema = z.object({
 export const MediaDuplicateGroupsRequestSchema = z.object({
   duplicates_by: z.string().trim().min(1).optional(),
   mediaTypeId: z.union([z.number(), z.string()]).optional().nullable(),
+  mediaIds: z.array(z.union([z.number(), z.string()])).optional().nullable(),
+  filters: z.array(FilterObjectSchema).optional(),
+  filtersJoin: z.enum(['and', 'or']).optional(),
 })
 
 export const MediaFolderBrowseRequestSchema = z.object({

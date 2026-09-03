@@ -33,7 +33,7 @@
           density="compact"
           hide-details
           color="primary"
-          class="mb-3"
+          class="mb-3 dup-review-with-file"
           :disabled="merging || loading"
           :label="t('media.dialogs.duplicate_review_with_file')"
         />
@@ -140,6 +140,12 @@
                         class="dup-review-thumb-fallback"
                       />
                     </template>
+                    <div
+                      v-if="Number(media.id) === group.survivorId"
+                      class="dup-review-keep-badge"
+                    >
+                      {{ t('media.dialogs.duplicate_review_keep') }}
+                    </div>
                   </div>
                   <div class="dup-review-meta">
                     <div class="text-caption font-weight-medium text-truncate">
@@ -150,12 +156,6 @@
                     </div>
                     <div class="text-caption text-medium-emphasis">
                       {{ formatMeta(media) }}
-                    </div>
-                    <div
-                      v-if="Number(media.id) === group.survivorId"
-                      class="text-caption text-primary"
-                    >
-                      {{ t('media.dialogs.duplicate_review_keep') }}
                     </div>
                   </div>
                 </button>
@@ -509,6 +509,9 @@ async function reload() {
     const res = await typedApi.getMediaDuplicateGroups({
       duplicates_by: duplicatesBy.value,
       mediaTypeId: Number.isFinite(mediaTypeId) && mediaTypeId > 0 ? mediaTypeId : null,
+      mediaIds: dialogsStore.duplicateReview.mediaIds,
+      filters: dialogsStore.duplicateReview.filters ?? undefined,
+      filtersJoin: dialogsStore.duplicateReview.filtersJoin ?? undefined,
     })
     const rawGroups = Array.isArray(res.data?.groups) ? res.data.groups : []
     const allIds = [...new Set(rawGroups.flatMap((group) => group.itemIds.map(Number)))]
@@ -578,6 +581,12 @@ watch(
   flex-direction: column;
 }
 
+.dup-review-with-file :deep(.v-label) {
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  opacity: 1;
+}
+
 .dup-review-group {
   box-sizing: border-box;
   padding: 0 0 12px;
@@ -607,17 +616,18 @@ watch(
 }
 
 .dup-review-card--survivor {
-  border-color: rgb(var(--v-theme-primary));
-  box-shadow: 0 0 0 1px rgb(var(--v-theme-primary));
+  border: 1px solid rgb(var(--v-theme-primary));
+  box-shadow: none;
 }
 
 .dup-review-thumb {
+  position: relative;
   height: 90px;
   background: rgba(0, 0, 0, 0.2);
   overflow: hidden;
 }
 
-.dup-review-thumb.no-file {
+.dup-review-thumb.no-file > :not(.dup-review-keep-badge) {
   opacity: 0.45;
 }
 
@@ -631,6 +641,25 @@ watch(
 
 .dup-review-thumb-fallback {
   background: rgba(var(--v-theme-surface-variant), 0.4);
+}
+
+.dup-review-keep-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-primary));
+  background: rgb(var(--v-theme-primary));
+  pointer-events: none;
+  max-width: calc(100% - 12px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dup-review-meta {
