@@ -4,6 +4,7 @@ import type { HomeMediaResponse } from '@shared/api/responses'
 import type { AxiosRequestConfig } from 'axios'
 import {
   parseExtendedStats,
+  parseHomeNavCounts,
   parseChartStats,
   parseCreatedCalendarMonth,
   parseGlobalSearchMediaResponse,
@@ -49,6 +50,13 @@ export const homeApi = {
     return apiClient.get(API_ROUTES.homeExtendedStats).then((res) => ({
       ...res,
       data: validated(parseExtendedStats, res.data),
+    }))
+  },
+
+  getHomeNavCounts() {
+    return apiClient.get(API_ROUTES.homeNavCounts).then((res) => ({
+      ...res,
+      data: validated(parseHomeNavCounts, res.data),
     }))
   },
 

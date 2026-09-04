@@ -4,7 +4,7 @@ import type {ApiDb} from '../../types/db'
 import {createDrizzleClient, closeDrizzleClient} from '../../db/client'
 import {nowIso} from '../../db/utils/timestamps'
 import * as schema from '../../db/schema'
-import {createMediaRepository, type MediaRow} from '../../db/repositories/media'
+import {createMediaRepository, type MediaMergeRow, type MediaRow} from '../../db/repositories/media'
 import {planNearDuplicateMarkIdsToDelete} from '../mediaMergeRemap'
 import {buildNullFillPatch} from './matchMedia'
 import {buildPathLookupVariants} from '../../utils/normalizeUserPath'
@@ -18,6 +18,78 @@ import type {
 
 const YIELD_EVERY = 250
 const PROGRESS_EVERY_MS = 300
+export const LIBRARY_MERGE_MEDIA_CHUNK = 500
+
+type MergeMediaRow = MediaMergeRow | MediaRow
+
+type MediaIndexes = {
+  byPath: Map<string, MergeMediaRow>
+  byContentHash: Map<string, MergeMediaRow>
+  byOshash: Map<string, MergeMediaRow>
+}
+
+function buildMediaIndexes(rows: MergeMediaRow[]): MediaIndexes {
+  const byPath = new Map<string, MergeMediaRow>()
+  const byContentHash = new Map<string, MergeMediaRow>()
+  const byOshash = new Map<string, MergeMediaRow>()
+
+  for (const row of rows) {
+    if (row.deletedAt) continue
+    if (row.path) {
+      for (const variant of buildPathLookupVariants(row.path)) {
+        byPath.set(variant.toLowerCase(), row)
+      }
+    }
+    if (row.contentHash) {
+      const typed = `${row.mediaTypeId ?? ''}::${row.contentHash}`
+      if (!byContentHash.has(typed)) byContentHash.set(typed, row)
+      if (!byContentHash.has(row.contentHash)) byContentHash.set(row.contentHash, row)
+    }
+    if (row.oshash) {
+      const typed = `${row.mediaTypeId ?? ''}::${row.oshash}`
+      if (!byOshash.has(typed)) byOshash.set(typed, row)
+      if (!byOshash.has(row.oshash)) byOshash.set(row.oshash, row)
+    }
+  }
+
+  return {byPath, byContentHash, byOshash}
+}
+
+function findInIndexes(indexes: MediaIndexes, row: MergeMediaRow): MergeMediaRow | null {
+  if (row.path) {
+    for (const variant of buildPathLookupVariants(row.path)) {
+      const hit = indexes.byPath.get(variant.toLowerCase())
+      if (hit) return hit
+    }
+  }
+  if (row.contentHash) {
+    const typed = `${row.mediaTypeId ?? ''}::${row.contentHash}`
+    const hit = indexes.byContentHash.get(typed) || indexes.byContentHash.get(row.contentHash)
+    if (hit) return hit
+  }
+  if (row.oshash) {
+    const typed = `${row.mediaTypeId ?? ''}::${row.oshash}`
+    const hit = indexes.byOshash.get(typed) || indexes.byOshash.get(row.oshash)
+    if (hit) return hit
+  }
+  return null
+}
+
+function indexMediaRow(indexes: MediaIndexes, row: MergeMediaRow) {
+  if (row.path) {
+    for (const variant of buildPathLookupVariants(row.path)) {
+      indexes.byPath.set(variant.toLowerCase(), row)
+    }
+  }
+  if (row.contentHash) {
+    indexes.byContentHash.set(`${row.mediaTypeId ?? ''}::${row.contentHash}`, row)
+    indexes.byContentHash.set(row.contentHash, row)
+  }
+  if (row.oshash) {
+    indexes.byOshash.set(`${row.mediaTypeId ?? ''}::${row.oshash}`, row)
+    indexes.byOshash.set(row.oshash, row)
+  }
+}
 
 function emptyCounts(): LibraryMergeCounts {
   return {
@@ -96,75 +168,6 @@ function createThrottledReporter(onProgress?: LibraryMergeProgressCallback) {
     onProgress?.({type: 'progress', phase, processed, total, current})
     // Flush progress writes and keep health checks alive.
     await yieldToEventLoop()
-  }
-}
-
-type MediaIndexes = {
-  byPath: Map<string, MediaRow>
-  byContentHash: Map<string, MediaRow>
-  byOshash: Map<string, MediaRow>
-}
-
-function buildMediaIndexes(rows: MediaRow[]): MediaIndexes {
-  const byPath = new Map<string, MediaRow>()
-  const byContentHash = new Map<string, MediaRow>()
-  const byOshash = new Map<string, MediaRow>()
-
-  for (const row of rows) {
-    if (row.deletedAt) continue
-    if (row.path) {
-      for (const variant of buildPathLookupVariants(row.path)) {
-        byPath.set(variant.toLowerCase(), row)
-      }
-    }
-    if (row.contentHash) {
-      const typed = `${row.mediaTypeId ?? ''}::${row.contentHash}`
-      if (!byContentHash.has(typed)) byContentHash.set(typed, row)
-      if (!byContentHash.has(row.contentHash)) byContentHash.set(row.contentHash, row)
-    }
-    if (row.oshash) {
-      const typed = `${row.mediaTypeId ?? ''}::${row.oshash}`
-      if (!byOshash.has(typed)) byOshash.set(typed, row)
-      if (!byOshash.has(row.oshash)) byOshash.set(row.oshash, row)
-    }
-  }
-
-  return {byPath, byContentHash, byOshash}
-}
-
-function findInIndexes(indexes: MediaIndexes, row: MediaRow): MediaRow | null {
-  if (row.path) {
-    for (const variant of buildPathLookupVariants(row.path)) {
-      const hit = indexes.byPath.get(variant.toLowerCase())
-      if (hit) return hit
-    }
-  }
-  if (row.contentHash) {
-    const typed = `${row.mediaTypeId ?? ''}::${row.contentHash}`
-    const hit = indexes.byContentHash.get(typed) || indexes.byContentHash.get(row.contentHash)
-    if (hit) return hit
-  }
-  if (row.oshash) {
-    const typed = `${row.mediaTypeId ?? ''}::${row.oshash}`
-    const hit = indexes.byOshash.get(typed) || indexes.byOshash.get(row.oshash)
-    if (hit) return hit
-  }
-  return null
-}
-
-function indexMediaRow(indexes: MediaIndexes, row: MediaRow) {
-  if (row.path) {
-    for (const variant of buildPathLookupVariants(row.path)) {
-      indexes.byPath.set(variant.toLowerCase(), row)
-    }
-  }
-  if (row.contentHash) {
-    indexes.byContentHash.set(`${row.mediaTypeId ?? ''}::${row.contentHash}`, row)
-    indexes.byContentHash.set(row.contentHash, row)
-  }
-  if (row.oshash) {
-    indexes.byOshash.set(`${row.mediaTypeId ?? ''}::${row.oshash}`, row)
-    indexes.byOshash.set(row.oshash, row)
   }
 }
 
@@ -444,87 +447,107 @@ export async function importLibraryIntoActive(
     }
 
     // --- media ---
-    const sourceMedia = source.select().from(schema.media).all()
-      .filter((row) => !row.deletedAt)
+    // Lean projected rows + chunked source cursor — avoid pinning two full SELECT *
+    // media tables in heap during large library merges.
     const mediaRepo = createMediaRepository(target)
-    const targetMediaRows = mediaRepo.findAllRaw()
+    const sourceMediaRepo = createMediaRepository(source)
+    const targetMediaRows = mediaRepo.findAllLeanForMerge()
     const indexes = buildMediaIndexes(targetMediaRows)
     const targetOldIds = new Set(
       targetMediaRows.filter((row) => row.oldId).map((row) => String(row.oldId)),
     )
+    // Drop the dense array; indexes hold the lean row refs we still need.
+    targetMediaRows.length = 0
 
-    await report('media', 0, sourceMedia.length, undefined, true)
-    for (let i = 0; i < sourceMedia.length; i++) {
+    const mediaChunkSize = Math.max(
+      1,
+      Math.floor(options.mediaChunkSize ?? LIBRARY_MERGE_MEDIA_CHUNK) || LIBRARY_MERGE_MEDIA_CHUNK,
+    )
+    const sourceMediaTotal = sourceMediaRepo.countActiveForMerge()
+    await report('media', 0, sourceMediaTotal, undefined, true)
+
+    let processedMedia = 0
+    let lastSourceId = 0
+    while (true) {
       if (isAborted?.()) return {...counts, ok: true, aborted: true}
-      if (i > 0 && i % YIELD_EVERY === 0) await yieldToEventLoop()
+      const chunk = sourceMediaRepo.findLeanForMergeAfterId(lastSourceId, mediaChunkSize)
+      if (!chunk.length) break
 
-      const row = sourceMedia[i]
-      const matched = findInIndexes(indexes, row)
+      for (let i = 0; i < chunk.length; i++) {
+        if (isAborted?.()) return {...counts, ok: true, aborted: true}
+        if (processedMedia > 0 && processedMedia % YIELD_EVERY === 0) await yieldToEventLoop()
 
-      if (matched) {
-        mediaMap.set(row.id, matched.id)
-        counts.mediaMatched += 1
-        const patch = buildNullFillPatch(matched, row)
-        if (matched.mediaTypeId == null && row.mediaTypeId != null) {
-          const mt = mediaTypeMap.get(row.mediaTypeId)
-          if (mt != null) patch.mediaTypeId = mt
-        }
-        if (Object.keys(patch).length) {
-          if (patch.oldId && targetOldIds.has(String(patch.oldId))) {
-            delete patch.oldId
+        const row = chunk[i]
+        lastSourceId = row.id
+        const matched = findInIndexes(indexes, row)
+
+        if (matched) {
+          mediaMap.set(row.id, matched.id)
+          counts.mediaMatched += 1
+          const patch = buildNullFillPatch(matched as MediaRow, row as MediaRow)
+          if (matched.mediaTypeId == null && row.mediaTypeId != null) {
+            const mt = mediaTypeMap.get(row.mediaTypeId)
+            if (mt != null) patch.mediaTypeId = mt
           }
-          mediaRepo.updateById(matched.id, patch)
-          Object.assign(matched, patch)
-        }
-      } else {
-        const stamp = nowIso()
-        const targetMediaTypeId = remapOrNull(mediaTypeMap, row.mediaTypeId)
-        let oldId = row.oldId
-        if (oldId && targetOldIds.has(String(oldId))) oldId = null
+          if (Object.keys(patch).length) {
+            if (patch.oldId && targetOldIds.has(String(patch.oldId))) {
+              delete patch.oldId
+            }
+            mediaRepo.updateById(matched.id, patch)
+            Object.assign(matched, patch)
+          }
+        } else {
+          const stamp = nowIso()
+          const targetMediaTypeId = remapOrNull(mediaTypeMap, row.mediaTypeId)
+          let oldId = row.oldId
+          if (oldId && targetOldIds.has(String(oldId))) oldId = null
 
-        try {
-          const created = target.insert(schema.media).values({
-            path: row.path,
-            basename: row.basename,
-            name: row.name,
-            ext: row.ext,
-            filesize: row.filesize,
-            contentHash: row.contentHash,
-            oshash: row.oshash,
-            visualHash: row.visualHash,
-            visualHashTiles: row.visualHashTiles,
-            rating: row.rating,
-            favorite: row.favorite,
-            bookmark: row.bookmark,
-            views: row.views,
-            oldId,
-            viewedAt: row.viewedAt,
-            mediaCreatedAt: row.mediaCreatedAt,
-            deletedAt: null,
-            trashOriginalPath: null,
-            trashPurgeFile: false,
-            mediaTypeId: targetMediaTypeId,
-            createdAt: row.createdAt || stamp,
-            updatedAt: stamp,
-          }).returning().get()
-          mediaMap.set(row.id, created.id)
-          createdMediaIds.add(row.id)
-          if (oldId) targetOldIds.add(String(oldId))
-          indexMediaRow(indexes, created)
-          counts.mediaCreated += 1
-        } catch (err) {
-          const again = findInIndexes(indexes, row)
-          if (again) {
-            mediaMap.set(row.id, again.id)
-            counts.mediaMatched += 1
-          } else {
-            counts.errors.push(`Media "${row.path}": ${err instanceof Error ? err.message : String(err)}`)
+          try {
+            const created = target.insert(schema.media).values({
+              path: row.path,
+              basename: row.basename,
+              name: row.name,
+              ext: row.ext,
+              filesize: row.filesize,
+              contentHash: row.contentHash,
+              oshash: row.oshash,
+              visualHash: row.visualHash,
+              visualHashTiles: row.visualHashTiles,
+              rating: row.rating,
+              favorite: row.favorite,
+              bookmark: row.bookmark,
+              views: row.views,
+              oldId,
+              viewedAt: row.viewedAt,
+              mediaCreatedAt: row.mediaCreatedAt,
+              deletedAt: null,
+              trashOriginalPath: null,
+              trashPurgeFile: false,
+              mediaTypeId: targetMediaTypeId,
+              createdAt: row.createdAt || stamp,
+              updatedAt: stamp,
+            }).returning().get()
+            mediaMap.set(row.id, created.id)
+            createdMediaIds.add(row.id)
+            if (oldId) targetOldIds.add(String(oldId))
+            indexMediaRow(indexes, created)
+            counts.mediaCreated += 1
+          } catch (err) {
+            const again = findInIndexes(indexes, row)
+            if (again) {
+              mediaMap.set(row.id, again.id)
+              counts.mediaMatched += 1
+            } else {
+              counts.errors.push(`Media "${row.path}": ${err instanceof Error ? err.message : String(err)}`)
+            }
           }
         }
+
+        processedMedia += 1
+        await report('media', processedMedia, sourceMediaTotal, row.path || undefined)
       }
-      await report('media', i + 1, sourceMedia.length, row.path || undefined)
     }
-    await report('media', sourceMedia.length, sourceMedia.length, undefined, true)
+    await report('media', processedMedia, sourceMediaTotal, undefined, true)
 
     // --- 1:1 metadata (prefer created; null-fill matched only when missing) ---
     await report('links', 0, 1, undefined, true)

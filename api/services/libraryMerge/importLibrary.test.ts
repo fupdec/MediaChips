@@ -226,4 +226,84 @@ describe('importLibraryIntoActive', () => {
   it('rejects importing the active library into itself', async () => {
     await expect(importLibraryIntoActive(targetDb, 'target')).rejects.toThrow(/itself/i)
   })
+
+  it('matches media across multiple source chunks by path and hash', async () => {
+    const sourceSeed = seedSharedMetaAndTag(source.conn, 'Dana')
+    const targetSeed = seedSharedMetaAndTag(target.conn, 'Dana')
+    const stamp = nowIso()
+    const {media} = await import('../../db/schema/media')
+
+    // Target already has path-matched + hash-matched rows (lean index).
+    target.conn.drizzle.insert(media).values({
+      path: '/videos/path-match.mp4',
+      basename: 'path-match.mp4',
+      name: 'path-match',
+      ext: 'mp4',
+      filesize: 10,
+      mediaTypeId: targetSeed.videoTypeId,
+      createdAt: stamp,
+      updatedAt: stamp,
+    }).run()
+
+    target.conn.drizzle.insert(media).values({
+      path: '/videos/other-name.mp4',
+      basename: 'other-name.mp4',
+      name: 'other-name',
+      ext: 'mp4',
+      filesize: 20,
+      contentHash: 'hash-across-chunks',
+      mediaTypeId: targetSeed.videoTypeId,
+      createdAt: stamp,
+      updatedAt: stamp,
+    }).run()
+
+    // Source: enough rows that mediaChunkSize=2 forces multiple cursor pages.
+    for (let i = 0; i < 5; i++) {
+      source.conn.drizzle.insert(media).values({
+        path: `/videos/extra-${i}.mp4`,
+        basename: `extra-${i}.mp4`,
+        name: `extra-${i}`,
+        ext: 'mp4',
+        filesize: 1,
+        mediaTypeId: sourceSeed.videoTypeId,
+        createdAt: stamp,
+        updatedAt: stamp,
+      }).run()
+    }
+
+    source.conn.drizzle.insert(media).values({
+      path: '/videos/path-match.mp4',
+      basename: 'path-match.mp4',
+      name: 'path-match',
+      ext: 'mp4',
+      filesize: 10,
+      oshash: 'fill-me',
+      mediaTypeId: sourceSeed.videoTypeId,
+      createdAt: stamp,
+      updatedAt: stamp,
+    }).run()
+
+    source.conn.drizzle.insert(media).values({
+      path: '/videos/hash-source.mp4',
+      basename: 'hash-source.mp4',
+      name: 'hash-source',
+      ext: 'mp4',
+      filesize: 20,
+      contentHash: 'hash-across-chunks',
+      mediaTypeId: sourceSeed.videoTypeId,
+      createdAt: stamp,
+      updatedAt: stamp,
+    }).run()
+
+    const result = await importLibraryIntoActive(targetDb, 'source', {mediaChunkSize: 2})
+
+    expect(result.ok).toBe(true)
+    expect(result.aborted).toBeFalsy()
+    expect(result.mediaMatched).toBe(2)
+    expect(result.mediaCreated).toBe(5)
+
+    const pathMatched = createMediaRepository(target.conn.drizzle)
+      .findByPathVariants(['/videos/path-match.mp4'])
+    expect(pathMatched?.oshash).toBe('fill-me')
+  })
 })

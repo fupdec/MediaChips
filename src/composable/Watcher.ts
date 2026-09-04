@@ -13,6 +13,7 @@ import {
   isWatcherScanCompleteMessage,
   isWatcherScanStartMessage,
   parseWatcherInboundMessage,
+  shouldClearWatcherBusyOnMessage,
 } from '@/types/watcher'
 import {
   showWatcherScanCompleteNotification,
@@ -87,11 +88,16 @@ export function useWatcher(apiUrl: string) {
       }
 
       watcherStore.ws.onmessage = (msg: MessageEvent<string>) => {
-        watcherStore.busy = false
-        clearTimeout(busySafetyTimer)
         try {
           const parsedMsg = parseWatcherInboundMessage(JSON.parse(msg.data))
           console.log('WebSocket message received:', parsedMsg.type)
+
+          // Keep busy through scanStart — only clear when the scan produces
+          // reports, completes, or the socket dies (not on the early scanStart).
+          if (shouldClearWatcherBusyOnMessage(parsedMsg.type)) {
+            watcherStore.busy = false
+            clearTimeout(busySafetyTimer)
+          }
 
           switch (parsedMsg.type) {
             case 'files':

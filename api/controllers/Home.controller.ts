@@ -5,6 +5,7 @@ import { getHomeMedia } from '../services/homeMedia'
 import { getRandomMarks } from '../services/homeMarkers'
 import { getHomeHealth, getHomeHealthLite } from '../services/homeHealth'
 import { getHomeExtendedStats } from '../services/homeExtendedStats'
+import { getHomeNavCounts } from '../services/homeNavCounts'
 import { getHomeChartStats } from '../services/homeChartStats'
 import { getHomeSimilar } from '../services/homeSimilar'
 import { getHomeTagSpotlight } from '../services/homeTagSpotlight'
@@ -79,6 +80,15 @@ export default (db: ApiDb) => {
       sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving extended stats.')
+    }
+  }
+
+  const getNavCounts = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const data = getHomeNavCounts(db)
+      sendOk(res, data)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while retrieving nav counts.')
     }
   }
 
@@ -180,6 +190,7 @@ export default (db: ApiDb) => {
     getHealth,
     getHealthLite,
     getExtendedStats,
+    getNavCounts,
     getChartStats,
     getSimilar,
     getTagSpotlight,

@@ -32,4 +32,11 @@ export const media = sqliteTable('media', {
   updatedAt: text('updatedAt').notNull(),
 }, (table) => ({
   favoriteIdIdx: index('media_favorite_id_idx').on(table.favorite, table.id),
+  mediaTypeNameIdx: index('media_media_type_id_name_idx').on(table.mediaTypeId, table.name),
+  mediaTypePathIdx: index('media_media_type_id_path_idx').on(table.mediaTypeId, table.path),
+  mediaTypeExtIdx: index('media_media_type_id_ext_idx').on(table.mediaTypeId, table.ext),
+  mediaTypeMediaCreatedAtIdx: index('media_media_type_id_media_created_at_idx').on(
+    table.mediaTypeId,
+    table.mediaCreatedAt,
+  ),
 }))

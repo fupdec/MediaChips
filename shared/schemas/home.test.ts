@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   parseExtendedStats,
+  parseHomeNavCounts,
   parseChartStats,
   parseCreatedCalendarMonth,
   parseHomeHealth,
@@ -31,6 +32,18 @@ describe('home schemas', () => {
     })
     expect(result.total).toBe(10)
     expect(result.byType?.[0]?.mediaTypeId).toBe(1)
+  })
+
+  it('parses slim nav counts', () => {
+    expect(parseHomeNavCounts({
+      byType: [{mediaTypeId: 1, count: 9}],
+      markers: 2,
+      playlists: 4,
+    })).toEqual({
+      byType: [{mediaTypeId: 1, count: 9}],
+      markers: 2,
+      playlists: 4,
+    })
   })
 
   it('parses chart stats', () => {

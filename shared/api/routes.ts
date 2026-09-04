@@ -120,6 +120,7 @@ export const API_ROUTES = {
   tasksBackupsImportBackup: '/api/TasksBackups/importBackup',
   tasksBackupsExportBackup: '/api/TasksBackups/exportBackup',
   homeExtendedStats: '/api/home/extended-stats',
+  homeNavCounts: '/api/home/nav-counts',
   homeChartStats: '/api/home/chart-stats',
   mediaGetStats: '/api/Media/get-stats',
   tagCount: '/api/Tag/count',

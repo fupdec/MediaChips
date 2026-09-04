@@ -47,4 +47,6 @@ export type LibraryMergeProgressCallback = (event: LibraryMergeProgressEvent) =>
 export type LibraryMergeOptions = {
   /** Copy generated thumbs/grids/faces/meta images for newly created entities. Default true. */
   copyGeneratedAssets?: boolean
+  /** Source media cursor page size (tests may lower this to force multi-chunk). Default 500. */
+  mediaChunkSize?: number
 }

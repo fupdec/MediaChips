@@ -16,6 +16,59 @@ export type MediaPathEntry = Pick<MediaRow, 'id' | 'path' | 'mediaTypeId'>
 export type MediaIdPathRow = Pick<MediaRow, 'id' | 'path'>
 /** Missing-media recovery — existence + oshash/size matching fields. */
 export type MediaMissingScanRow = Pick<MediaRow, 'id' | 'path' | 'filesize' | 'oshash'>
+/**
+ * Library merge match + null-fill — omits trash-only / unused columns so large
+ * imports do not pin full SELECT * rows in the path/hash indexes.
+ */
+export type MediaMergeRow = Pick<MediaRow,
+  | 'id'
+  | 'path'
+  | 'basename'
+  | 'name'
+  | 'ext'
+  | 'filesize'
+  | 'contentHash'
+  | 'oshash'
+  | 'visualHash'
+  | 'visualHashTiles'
+  | 'rating'
+  | 'favorite'
+  | 'bookmark'
+  | 'views'
+  | 'oldId'
+  | 'viewedAt'
+  | 'mediaCreatedAt'
+  | 'deletedAt'
+  | 'mediaTypeId'
+  | 'createdAt'
+  | 'updatedAt'
+>
+
+const mediaMergeColumns = {
+  id: media.id,
+  path: media.path,
+  basename: media.basename,
+  name: media.name,
+  ext: media.ext,
+  filesize: media.filesize,
+  contentHash: media.contentHash,
+  oshash: media.oshash,
+  visualHash: media.visualHash,
+  visualHashTiles: media.visualHashTiles,
+  rating: media.rating,
+  favorite: media.favorite,
+  bookmark: media.bookmark,
+  views: media.views,
+  oldId: media.oldId,
+  viewedAt: media.viewedAt,
+  mediaCreatedAt: media.mediaCreatedAt,
+  deletedAt: media.deletedAt,
+  mediaTypeId: media.mediaTypeId,
+  createdAt: media.createdAt,
+  updatedAt: media.updatedAt,
+} as const
+
+const isActiveMedia = or(isNull(media.deletedAt), eq(media.deletedAt, ''))
 
 const MEDIA_MUTABLE_COLUMNS = new Set([
   'path', 'basename', 'name', 'ext', 'filesize', 'contentHash', 'oshash', 'visualHash',
@@ -55,6 +108,31 @@ export function createMediaRepository(db: DrizzleClient) {
 
     findAllRaw(): MediaRow[] {
       return db.select().from(media).all()
+    },
+
+    /** Lean active rows for import-from-library target indexes (no trash path payloads). */
+    findAllLeanForMerge(): MediaMergeRow[] {
+      return db.select(mediaMergeColumns)
+        .from(media)
+        .where(isActiveMedia)
+        .orderBy(asc(media.id))
+        .all()
+    },
+
+    /** Chunked lean source media cursor for import-from-library matching. */
+    findLeanForMergeAfterId(lastId: number, limit: number): MediaMergeRow[] {
+      const safeLimit = Math.max(1, Math.floor(limit) || 1)
+      return db.select(mediaMergeColumns)
+        .from(media)
+        .where(and(gt(media.id, lastId), isActiveMedia))
+        .orderBy(asc(media.id))
+        .limit(safeLimit)
+        .all()
+    },
+
+    countActiveForMerge(): number {
+      const row = db.select({value: count()}).from(media).where(isActiveMedia).get()
+      return Number(row?.value || 0)
     },
 
     findAllOrderedById(): MediaRow[] {

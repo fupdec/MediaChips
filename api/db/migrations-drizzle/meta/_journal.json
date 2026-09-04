@@ -218,6 +218,13 @@
       "when": 1782858000000,
       "tag": "0030_tag_category_parent_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1782861600000,
+      "tag": "0031_list_path_indexes",
+      "breakpoints": true
     }
   ]
 }

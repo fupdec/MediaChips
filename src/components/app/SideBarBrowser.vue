@@ -495,6 +495,8 @@ const baseNavCounts = ref<Record<string, number>>({})
 const filteredMediaCounts = ref<Record<string, number>>({})
 /** Filtered markers count kept after leaving /markers until filters/search are cleared. */
 const filteredMarkersCount = ref<number | null>(null)
+let navCountsRequestToken = 0
+let navCountsTimer: ReturnType<typeof setTimeout> | null = null
 const {t} = useI18n()
 const route = useRoute()
 const appStore = useAppStore()
@@ -663,25 +665,10 @@ function syncFilteredMarkersCount() {
 }
 
 async function loadNavCounts() {
+  const token = ++navCountsRequestToken
   try {
-    const [statsResponse, dynamicPlaylistsResponse, marksResponse] = await Promise.all([
-      typedApi.getHomeExtendedStats(),
-      typedApi.getDynamicPlaylistsBasic().catch(async (error: unknown) => {
-        const status = (error as {response?: {status?: number}})?.response?.status
-        if (status === 404) {
-          return typedApi.getDynamicPlaylists().catch(() => ({data: [] as unknown[]}))
-        }
-        return {data: [] as unknown[]}
-      }),
-      typedApi.postMarkItems({
-        types: ['favorite', 'bookmark'],
-        sortBy: 'time',
-        sortDir: 'desc',
-        search: '',
-        page: 1,
-        limit: 1,
-      }).catch(() => null),
-    ])
+    const {data} = await typedApi.getHomeNavCounts()
+    if (token !== navCountsRequestToken) return
 
     const next: Record<string, number> = {}
 
@@ -689,38 +676,40 @@ async function loadNavCounts() {
       next[`media-${mediaType.id}`] = 0
     }
 
-    for (const row of statsResponse.data.byType || []) {
+    for (const row of data.byType || []) {
       const id = Number(row.mediaTypeId)
       if (!Number.isFinite(id)) continue
       next[`media-${id}`] = Number(row.count) || 0
     }
 
-    const dynamicCount = Array.isArray(dynamicPlaylistsResponse.data)
-      ? dynamicPlaylistsResponse.data.length
-      : 0
-    next.playlists = (appStore.playlists?.length || 0) + dynamicCount
-
-    if (marksResponse?.data?.total != null) {
-      next.markers = Number(marksResponse.data.total) || 0
-    } else {
-      next.markers = 0
-    }
+    next.playlists = Number(data.playlists) || 0
+    next.markers = Number(data.markers) || 0
 
     baseNavCounts.value = next
     syncFilteredMediaCount()
     syncFilteredMarkersCount()
   } catch (error) {
+    if (token !== navCountsRequestToken) return
     console.error(error)
   }
 }
 
+function scheduleLoadNavCounts() {
+  if (navCountsTimer != null) clearTimeout(navCountsTimer)
+  navCountsTimer = setTimeout(() => {
+    navCountsTimer = null
+    void loadNavCounts()
+  }, 150)
+}
+
 onMounted(() => {
   void loadNavCounts()
-  eventBus.on('library:nav-counts-changed', loadNavCounts)
+  eventBus.on('library:nav-counts-changed', scheduleLoadNavCounts)
 })
 
 onUnmounted(() => {
-  eventBus.off('library:nav-counts-changed', loadNavCounts)
+  if (navCountsTimer != null) clearTimeout(navCountsTimer)
+  eventBus.off('library:nav-counts-changed', scheduleLoadNavCounts)
 })
 
 watch(
@@ -754,7 +743,7 @@ watch(
 watch(
   () => mediaTypes.value.map((item) => item.id).join(','),
   () => {
-    void loadNavCounts()
+    scheduleLoadNavCounts()
   },
 )
 
@@ -772,7 +761,7 @@ watch(
       || path === '/'
       || prev === '/'
     )
-    if (touchesLibrary) void loadNavCounts()
+    if (touchesLibrary) scheduleLoadNavCounts()
   },
 )
 </script>

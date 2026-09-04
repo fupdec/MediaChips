@@ -353,6 +353,167 @@ function dedupeJoinTableRows(sqlite: Database.Database, table: string, columns: 
 export function repairMissingIndexes(sqlite: Database.Database): string[] {
   const repaired: string[] = []
 
+  const ensureIndex = (
+    table: string,
+    indexName: string,
+    createSql: string,
+    options?: {requireColumns?: string[]},
+  ) => {
+    if (!hasTable(sqlite, table)) return
+    if (options?.requireColumns?.some((column) => !hasColumn(sqlite, table, column))) return
+    if (hasIndex(sqlite, indexName)) return
+    sqlite.exec(createSql)
+    repaired.push(indexName)
+  }
+
+  // 0001 performance / list-sort suite
+  ensureIndex(
+    'media',
+    'media_content_hash_idx',
+    'CREATE INDEX IF NOT EXISTS "media_content_hash_idx" ON "media" ("contentHash")',
+    {requireColumns: ['contentHash']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_idx" ON "media" ("mediaTypeId")',
+    {requireColumns: ['mediaTypeId']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_id_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_id_idx" ON "media" ("mediaTypeId", "id")',
+    {requireColumns: ['mediaTypeId', 'id']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_created_at_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_created_at_idx" ON "media" ("mediaTypeId", "createdAt")',
+    {requireColumns: ['mediaTypeId', 'createdAt']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_updated_at_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_updated_at_idx" ON "media" ("mediaTypeId", "updatedAt")',
+    {requireColumns: ['mediaTypeId', 'updatedAt']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_rating_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_rating_idx" ON "media" ("mediaTypeId", "rating")',
+    {requireColumns: ['mediaTypeId', 'rating']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_viewed_at_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_viewed_at_idx" ON "media" ("mediaTypeId", "viewedAt")',
+    {requireColumns: ['mediaTypeId', 'viewedAt']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_views_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_views_idx" ON "media" ("mediaTypeId", "views")',
+    {requireColumns: ['mediaTypeId', 'views']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_favorite_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_favorite_idx" ON "media" ("mediaTypeId", "favorite")',
+    {requireColumns: ['mediaTypeId', 'favorite']},
+  )
+  ensureIndex(
+    'valuesInMedia',
+    'values_in_media_media_id_idx',
+    'CREATE INDEX IF NOT EXISTS "values_in_media_media_id_idx" ON "valuesInMedia" ("mediaId")',
+    {requireColumns: ['mediaId']},
+  )
+  ensureIndex(
+    'valuesInMedia',
+    'values_in_media_meta_media_idx',
+    'CREATE INDEX IF NOT EXISTS "values_in_media_meta_media_idx" ON "valuesInMedia" ("metaId", "mediaId")',
+    {requireColumns: ['metaId', 'mediaId']},
+  )
+  ensureIndex(
+    'mediaInPlaylists',
+    'media_in_playlists_playlist_id_idx',
+    'CREATE INDEX IF NOT EXISTS "media_in_playlists_playlist_id_idx" ON "mediaInPlaylists" ("playlistId")',
+    {requireColumns: ['playlistId']},
+  )
+  ensureIndex(
+    'filterRowsInSavedFilters',
+    'filter_rows_in_saved_filter_filter_id_idx',
+    'CREATE INDEX IF NOT EXISTS "filter_rows_in_saved_filter_filter_id_idx" ON "filterRowsInSavedFilters" ("filterId")',
+    {requireColumns: ['filterId']},
+  )
+  ensureIndex(
+    'tagsInFilterRows',
+    'tags_in_filter_row_row_id_idx',
+    'CREATE INDEX IF NOT EXISTS "tags_in_filter_row_row_id_idx" ON "tagsInFilterRows" ("rowId")',
+    {requireColumns: ['rowId']},
+  )
+
+  // 0031 list-path sorts / tag category lists
+  ensureIndex(
+    'media',
+    'media_media_type_id_name_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_name_idx" ON "media" ("mediaTypeId", "name")',
+    {requireColumns: ['mediaTypeId', 'name']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_path_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_path_idx" ON "media" ("mediaTypeId", "path")',
+    {requireColumns: ['mediaTypeId', 'path']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_ext_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_ext_idx" ON "media" ("mediaTypeId", "ext")',
+    {requireColumns: ['mediaTypeId', 'ext']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_media_created_at_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_media_created_at_idx" ON "media" ("mediaTypeId", "mediaCreatedAt")',
+    {requireColumns: ['mediaTypeId', 'mediaCreatedAt']},
+  )
+  ensureIndex(
+    'videoMetadata',
+    'video_metadata_duration_idx',
+    'CREATE INDEX IF NOT EXISTS "video_metadata_duration_idx" ON "videoMetadata" ("duration")',
+    {requireColumns: ['duration']},
+  )
+  ensureIndex(
+    'tags',
+    'tags_meta_id_id_idx',
+    'CREATE INDEX IF NOT EXISTS "tags_meta_id_id_idx" ON "tags" ("metaId", "id")',
+    {requireColumns: ['metaId', 'id']},
+  )
+  ensureIndex(
+    'tags',
+    'tags_meta_id_name_idx',
+    'CREATE INDEX IF NOT EXISTS "tags_meta_id_name_idx" ON "tags" ("metaId", "name")',
+    {requireColumns: ['metaId', 'name']},
+  )
+  ensureIndex(
+    'tags',
+    'tags_meta_id_created_at_idx',
+    'CREATE INDEX IF NOT EXISTS "tags_meta_id_created_at_idx" ON "tags" ("metaId", "createdAt")',
+    {requireColumns: ['metaId', 'createdAt']},
+  )
+  ensureIndex(
+    'tags',
+    'tags_meta_id_rating_idx',
+    'CREATE INDEX IF NOT EXISTS "tags_meta_id_rating_idx" ON "tags" ("metaId", "rating")',
+    {requireColumns: ['metaId', 'rating']},
+  )
+  ensureIndex(
+    'tags',
+    'tags_meta_id_favorite_idx',
+    'CREATE INDEX IF NOT EXISTS "tags_meta_id_favorite_idx" ON "tags" ("metaId", "favorite")',
+    {requireColumns: ['metaId', 'favorite']},
+  )
+
   if (hasTable(sqlite, 'videoMetadata') && !hasIndex(sqlite, 'video_metadata_media_id_idx')) {
     sqlite.exec(
       'CREATE UNIQUE INDEX IF NOT EXISTS "video_metadata_media_id_idx" ON "videoMetadata" ("mediaId")',
@@ -395,14 +556,22 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
     repaired.push('face_enrollments_meta_id_idx')
   }
 
-  if (hasTable(sqlite, 'media') && !hasIndex(sqlite, 'media_media_type_id_visual_hash_idx')) {
+  if (
+    hasTable(sqlite, 'media')
+    && hasColumn(sqlite, 'media', 'visualHash')
+    && !hasIndex(sqlite, 'media_media_type_id_visual_hash_idx')
+  ) {
     sqlite.exec(
       'CREATE INDEX IF NOT EXISTS "media_media_type_id_visual_hash_idx" ON "media" ("mediaTypeId", "visualHash")',
     )
     repaired.push('media_media_type_id_visual_hash_idx')
   }
 
-  if (hasTable(sqlite, 'media') && !hasIndex(sqlite, 'media_favorite_id_idx')) {
+  if (
+    hasTable(sqlite, 'media')
+    && hasColumn(sqlite, 'media', 'favorite')
+    && !hasIndex(sqlite, 'media_favorite_id_idx')
+  ) {
     sqlite.exec(
       'CREATE INDEX IF NOT EXISTS "media_favorite_id_idx" ON "media" ("favorite", "id")',
     )

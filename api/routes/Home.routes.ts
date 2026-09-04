@@ -26,6 +26,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.get('/health', Home.getHealth)
   router.get('/health-lite', Home.getHealthLite)
   router.get('/extended-stats', Home.getExtendedStats)
+  router.get('/nav-counts', Home.getNavCounts)
   router.get('/chart-stats', validateQuery(HomeChartStatsQuerySchema), Home.getChartStats)
   router.get('/created-calendar', validateQuery(HomeCreatedCalendarQuerySchema), Home.getCreatedCalendar)
   router.post('/search', validateBody(GlobalSearchRequestSchema), Home.searchGlobal)

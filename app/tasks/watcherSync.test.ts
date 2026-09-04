@@ -1,10 +1,15 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { promises as fs } from 'fs'
+import fsSync from 'fs'
+import os from 'os'
+import path from 'path'
 import {
   WatcherSyncEngine,
   mapMediaRowsToDbEntries,
   recomputeDiff,
   pathSyncKey,
+  findFilesRecursive,
+  WATCHER_WALK_YIELD_EVERY,
 } from './watcherSync'
 
 const findPathEntriesByMediaTypeIdsUnderFolder = vi.fn()
@@ -258,5 +263,98 @@ describe('WatcherSyncEngine', () => {
     expect(report?.new).toEqual([])
 
     accessSpy.mockRestore()
+  })
+
+  it('fullSync does not mark live files lost when the walk misses them', async () => {
+    findPathEntriesByMediaTypeIdsUnderFolder.mockReturnValue([
+      {id: 1, mediaTypeId: 10, path: '/folder-a/live.mp4'},
+    ])
+
+    const readdirSpy = vi.spyOn(fs, 'readdir').mockResolvedValue([] as never)
+    const accessSpy = vi.spyOn(fs, 'access').mockResolvedValue(undefined)
+
+    const engine = new WatcherSyncEngine({} as never)
+    await engine.fullSync([{
+      path: '/folder-a',
+      types: [{id: 10, extensions: 'mp4'}],
+    }])
+
+    expect(accessSpy).toHaveBeenCalledWith('/folder-a/live.mp4')
+    const report = engine.getReports()[0]?.files[0]
+    expect(report?.lost).toEqual([])
+    expect(report?.lostTotal ?? 0).toBe(0)
+
+    readdirSpy.mockRestore()
+    accessSpy.mockRestore()
+  })
+
+  it('fullSync keeps genuinely missing files in lost after reconcile', async () => {
+    findPathEntriesByMediaTypeIdsUnderFolder.mockReturnValue([
+      {id: 1, mediaTypeId: 10, path: '/folder-a/gone.mp4'},
+    ])
+
+    const readdirSpy = vi.spyOn(fs, 'readdir').mockResolvedValue([] as never)
+    const accessSpy = vi.spyOn(fs, 'access').mockRejectedValue(new Error('ENOENT'))
+
+    const engine = new WatcherSyncEngine({} as never)
+    await engine.fullSync([{
+      path: '/folder-a',
+      types: [{id: 10, extensions: 'mp4'}],
+    }])
+
+    const report = engine.getReports()[0]?.files[0]
+    expect(report?.lost).toEqual([{id: 1, path: '/folder-a/gone.mp4'}])
+
+    readdirSpy.mockRestore()
+    accessSpy.mockRestore()
+  })
+})
+
+describe('findFilesRecursive', () => {
+  let root: string
+
+  beforeEach(() => {
+    root = fsSync.mkdtempSync(path.join(os.tmpdir(), 'mc-watcher-walk-'))
+  })
+
+  afterEach(() => {
+    fsSync.rmSync(root, {recursive: true, force: true})
+  })
+
+  it('finds files deeper than the old maxDepth of 10', async () => {
+    let current = root
+    for (let i = 0; i < 12; i++) {
+      current = path.join(current, `d${i}`)
+      fsSync.mkdirSync(current)
+    }
+    const deepFile = path.join(current, 'clip.mp4')
+    fsSync.writeFileSync(deepFile, 'x')
+
+    const files = await findFilesRecursive(root, ['mp4'])
+    expect(files.some((file) => file.endsWith(`${path.sep}clip.mp4`) || file.endsWith('/clip.mp4'))).toBe(true)
+  })
+
+  it('yields the event loop while walking large flat trees', async () => {
+    const dir = path.join(root, 'flat')
+    fsSync.mkdirSync(dir)
+    const count = WATCHER_WALK_YIELD_EVERY * 2 + 50
+    for (let i = 0; i < count; i++) {
+      fsSync.writeFileSync(path.join(dir, `f_${i}.mp4`), 'x')
+    }
+
+    let ticks = 0
+    const timer = setInterval(() => {
+      ticks += 1
+    }, 1)
+
+    const t0 = Date.now()
+    const files = await findFilesRecursive(dir, ['mp4'], [], 100)
+    const elapsed = Date.now() - t0
+    clearInterval(timer)
+
+    expect(files).toHaveLength(count)
+    expect(elapsed).toBeLessThan(15_000)
+    // Interval callbacks only fire if the walk yielded the event loop.
+    expect(ticks).toBeGreaterThan(0)
   })
 })

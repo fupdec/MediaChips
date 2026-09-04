@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export const videoMetadata = sqliteTable('videoMetadata', {
   mediaId: integer('mediaId').primaryKey(),
@@ -12,4 +12,6 @@ export const videoMetadata = sqliteTable('videoMetadata', {
   title: text('title'),
   artist: text('artist'),
   album: text('album'),
-})
+}, (table) => ({
+  durationIdx: index('video_metadata_duration_idx').on(table.duration),
+}))
