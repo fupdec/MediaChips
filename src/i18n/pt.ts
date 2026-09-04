@@ -3014,6 +3014,7 @@ const pt = {
       duplicate_review_skip: 'Pular',
       duplicate_review_refresh: 'Atualizar',
       duplicate_review_empty: 'Nenhum grupo duplicado encontrado.',
+      duplicate_review_loading: 'Procurando duplicatas…',
       duplicate_review_open: 'Revise duplicatas',
       duplicate_review_with_file: 'Exclua também os arquivos perdidos do disco',
       duplicate_review_bulk_done: 'Grupo(s) {count} mesclado(s)',

@@ -3014,6 +3014,7 @@ const de = {
       duplicate_review_skip: 'Überspringen',
       duplicate_review_refresh: 'Aktualisieren',
       duplicate_review_empty: 'Keine doppelten Gruppen gefunden.',
+      duplicate_review_loading: 'Duplikate werden gesucht…',
       duplicate_review_open: 'Überprüfen Sie Duplikate',
       duplicate_review_with_file: 'Löschen Sie auch Loser-Dateien auf der Festplatte',
       duplicate_review_bulk_done: 'Zusammengeführte {count}-Gruppe(n)',

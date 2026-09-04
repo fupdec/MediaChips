@@ -3100,6 +3100,7 @@ const ru = {
       duplicate_review_skip: 'Пропустить',
       duplicate_review_refresh: 'Обновить',
       duplicate_review_empty: 'Группы дубликатов не найдены.',
+      duplicate_review_loading: 'Поиск дубликатов…',
       duplicate_review_open: 'Просмотр дубликатов',
       duplicate_review_with_file: 'Также удалить файлы проигравших на диске',
       duplicate_review_bulk_done: 'Объединено групп: {count}',

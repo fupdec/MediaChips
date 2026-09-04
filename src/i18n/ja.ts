@@ -3014,6 +3014,7 @@ const ja = {
       duplicate_review_skip: 'スキップ',
       duplicate_review_refresh: 'リフレッシュ',
       duplicate_review_empty: '重複するグループは見つかりませんでした。',
+      duplicate_review_loading: '重複を検索中…',
       duplicate_review_open: '重複をレビューする',
       duplicate_review_with_file: 'ディスク上の敗者ファイルも削除します',
       duplicate_review_bulk_done: '{count} グループを結合しました',

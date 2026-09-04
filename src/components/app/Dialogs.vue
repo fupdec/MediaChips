@@ -90,9 +90,7 @@
       v-if="dialogsStore.mediaMerge.show"
     />
 
-    <DialogDuplicateReview
-      v-if="dialogsStore.duplicateReview.show"
-    />
+    <DialogDuplicateReview />
 
     <DialogSimilarMediaWall
       v-if="dialogsStore.similarWall.show"

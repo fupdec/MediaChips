@@ -3014,6 +3014,7 @@ const fr = {
       duplicate_review_skip: 'Sauter',
       duplicate_review_refresh: 'Actualiser',
       duplicate_review_empty: 'Aucun groupe en double trouvé.',
+      duplicate_review_loading: 'Recherche de doublons…',
       duplicate_review_open: 'Vérifier les doublons',
       duplicate_review_with_file: 'Supprimez également les fichiers perdants sur le disque',
       duplicate_review_bulk_done: 'Groupe(s) {count} fusionné',

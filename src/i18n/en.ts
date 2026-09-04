@@ -3100,6 +3100,7 @@ const en = {
       duplicate_review_skip: 'Skip',
       duplicate_review_refresh: 'Refresh',
       duplicate_review_empty: 'No duplicate groups found.',
+      duplicate_review_loading: 'Scanning for duplicates…',
       duplicate_review_open: 'Review duplicates',
       duplicate_review_with_file: 'Also delete loser files on disk',
       duplicate_review_bulk_done: 'Merged {count} group(s)',

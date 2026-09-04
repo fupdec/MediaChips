@@ -3014,6 +3014,7 @@ const cn = {
       duplicate_review_skip: '跳过',
       duplicate_review_refresh: '刷新',
       duplicate_review_empty: '未找到重复的组。',
+      duplicate_review_loading: '正在扫描重复项…',
       duplicate_review_open: '检查重复项',
       duplicate_review_with_file: '同时删除磁盘上的失败文件',
       duplicate_review_bulk_done: '合并的 {count} 组',

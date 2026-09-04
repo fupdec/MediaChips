@@ -1,13 +1,15 @@
 <template>
   <v-dialog
-    v-if="dialogsStore.duplicateReview.show"
     :model-value="dialogsStore.duplicateReview.show"
     @update:model-value="onDialogToggle"
     width="960"
     scrollable
     persistent
   >
-    <v-card class="dup-review-root">
+    <v-card
+      v-if="dialogsStore.duplicateReview.show"
+      class="dup-review-root"
+    >
       <DialogHeader
         :header="t('media.dialogs.duplicate_review_title')"
         :subheader="headerSub"
@@ -39,18 +41,25 @@
         />
 
         <div
-          v-if="!loading && !error && !visibleGroups.length"
+          v-if="loading"
+          class="dup-review-loading py-8"
+        >
+          <v-progress-linear
+            indeterminate
+            color="primary"
+            class="mb-3"
+          />
+          <div class="text-medium-emphasis text-body-2 text-center">
+            {{ t('media.dialogs.duplicate_review_loading') }}
+          </div>
+        </div>
+
+        <div
+          v-else-if="!error && !visibleGroups.length"
           class="text-medium-emphasis text-body-2 py-6 text-center"
         >
           {{ t('media.dialogs.duplicate_review_empty') }}
         </div>
-
-        <v-progress-linear
-          v-else-if="loading && !visibleGroups.length"
-          indeterminate
-          color="primary"
-          class="mb-4"
-        />
 
         <v-virtual-scroll
           v-else-if="visibleGroups.length"
@@ -242,11 +251,14 @@ const visibleGroups = computed(() =>
   groups.value.filter((group) => !skippedKeys.value.has(group.key)),
 )
 
-const headerSub = computed(() =>
-  `${modeLabel.value} · ${t('media.dialogs.duplicate_review_groups_count', {
+const headerSub = computed(() => {
+  if (loading.value) {
+    return t('media.dialogs.duplicate_review_loading')
+  }
+  return `${modeLabel.value} · ${t('media.dialogs.duplicate_review_groups_count', {
     count: visibleGroups.value.length,
-  })}`,
-)
+  })}`
+})
 
 const headerButtons = computed(() => [
   {
@@ -557,6 +569,11 @@ watch(
       skippedKeys.value = new Set()
       merging.value = false
       withFile.value = false
+      error.value = ''
+      groups.value = []
+      thumbs.value = {}
+      fileExistsById.value = {}
+      loading.value = true
       void reload()
     }
   },

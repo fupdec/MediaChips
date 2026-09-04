@@ -3014,6 +3014,7 @@ const es = {
       duplicate_review_skip: 'Saltar',
       duplicate_review_refresh: 'Actualizar',
       duplicate_review_empty: 'No se encontraron grupos duplicados.',
+      duplicate_review_loading: 'Buscando duplicados…',
       duplicate_review_open: 'Revisar duplicados',
       duplicate_review_with_file: 'También elimine los archivos perdedores en el disco.',
       duplicate_review_bulk_done: 'Grupo(s) {count} fusionados',
