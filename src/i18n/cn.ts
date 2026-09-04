@@ -2070,6 +2070,8 @@ const cn = {
       rating_favorite_description: '在描述中显示评分和收藏',
       group_chips_description: '在卡片描述中分组标签片',
       show_default_metadata: '显示默认元数据',
+      show_bookmark_on_card: '在卡片上显示书签',
+      show_thumb_resolution: '在缩略图上显示分辨率',
       label_chips_default_metadata: '默认元数据使用带标签的标签片',
       filesize: '文件大小',
       duration: '时长',

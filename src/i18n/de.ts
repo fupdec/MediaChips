@@ -2070,6 +2070,8 @@ const de = {
       rating_favorite_description: 'Bewertung und Favorit in der Beschreibung',
       group_chips_description: 'Gruppenchips in der Kartenbeschreibung',
       show_default_metadata: 'Standardmetadaten anzeigen',
+      show_bookmark_on_card: 'Lesezeichen auf Karten anzeigen',
+      show_thumb_resolution: 'Auflösung auf Miniaturansichten anzeigen',
       label_chips_default_metadata: 'Label-Chips werden für Standardmetadaten verwendet',
       filesize: 'Dateigröße',
       duration: 'Dauer',

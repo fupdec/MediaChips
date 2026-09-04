@@ -182,7 +182,7 @@
       </div>
 
       <v-icon
-        v-if="!isImageOnlyView && item.bookmark"
+        v-if="!isImageOnlyView && item.bookmark && settingsStore.show_bookmark_on_card === '1'"
         :title="item.bookmark"
         icon="mdi-bookmark"
         class="bookmark"

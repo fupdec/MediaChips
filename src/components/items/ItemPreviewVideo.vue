@@ -80,7 +80,10 @@
 
       <div v-if="!isCompactHost && !isImageOnlyView" class="duration">{{ duration }}</div>
 
-      <div v-if="!isCompactHost && !isImageOnlyView" class="resolution">
+      <div
+        v-if="!isCompactHost && !isImageOnlyView && settingsStore.show_thumb_resolution === '1'"
+        class="resolution"
+      >
         <div :class="quality.toLowerCase()"
           class="text">
           {{ quality }}
@@ -278,7 +281,10 @@
         </div>
 
         <div class="story-header">
-          <div class="resolution">
+          <div
+            v-if="settingsStore.show_thumb_resolution === '1'"
+            class="resolution"
+          >
             <div :class="quality.toLowerCase()"
               class="text">
               {{ quality }}

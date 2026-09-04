@@ -2070,6 +2070,8 @@ const pt = {
       rating_favorite_description: 'Avaliação e favorito na descrição',
       group_chips_description: 'Agrupar fichas na descrição do cartão',
       show_default_metadata: 'Mostrar metadados padrão',
+      show_bookmark_on_card: 'Mostrar marcador nos cartões',
+      show_thumb_resolution: 'Mostrar resolução nas miniaturas',
       label_chips_default_metadata: 'Chips de rótulo usados para metadados padrão',
       filesize: 'Tamanho do arquivo',
       duration: 'Duração',

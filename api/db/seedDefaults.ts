@@ -47,6 +47,8 @@ const MIGRATION_SETTINGS = [
   {option: 'ratingAndFavoriteInCard', value: '1'},
   {option: 'group_chips_in_card_description', value: '1'},
   {option: 'show_preset_metadata_in_card', value: '1'},
+  {option: 'show_bookmark_on_card', value: '1'},
+  {option: 'show_thumb_resolution', value: '1'},
   {option: 'count_number_of_views', value: '1'},
   {option: 'system_dark_mode', value: '1'},
   {option: 'open_player_in_separate_window', value: '0'},

@@ -2150,6 +2150,8 @@ const ru = {
       rating_favorite_description: 'Рейтинг и избранное в описании',
       group_chips_description: 'Группировать чипы в описании карточки',
       show_default_metadata: 'Показывать метаданные по умолчанию',
+      show_bookmark_on_card: 'Показывать закладку на карточках',
+      show_thumb_resolution: 'Показывать разрешение на миниатюрах',
       label_chips_default_metadata: 'Использовать чипы с подписями для метаданных по умолчанию',
       filesize: 'Размер файла',
       duration: 'Длительность',

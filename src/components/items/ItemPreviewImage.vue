@@ -41,6 +41,7 @@
 import {ref, computed, watch, onMounted, onBeforeUnmount} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
+import {useSettingsStore} from '@/stores/settings'
 import { loadImageDisplayUrl, revokeImageObjectUrl, IMAGE_UNAVAILABLE_URL } from '@/utils/imageSource'
 import {getMediaAspectRatio} from '@/utils/gridLayout'
 import {
@@ -66,6 +67,7 @@ const props = withDefaults(defineProps<{
 
 const store = useAppStore()
 const itemsStore = useItemsStore()
+const settingsStore = useSettingsStore()
 
 const thumb = ref<string | null>(null)
 const isMounted = ref(false)
@@ -123,7 +125,8 @@ const resolutionLabel = computed(() =>
 )
 
 const showResolution = computed(() =>
-  mediaWidth.value > 0 && mediaHeight.value > 0
+  settingsStore.show_thumb_resolution === '1'
+  && mediaWidth.value > 0 && mediaHeight.value > 0
   && !isViewCard.value
   && !isViewMasonry.value
   && !isViewSquares.value

@@ -2070,6 +2070,8 @@ const ja = {
       rating_favorite_description: '説明内の評価とお気に入り',
       group_chips_description: 'カード説明のグループチップ',
       show_default_metadata: 'デフォルトのメタデータを表示する',
+      show_bookmark_on_card: 'カードにブックマークを表示',
+      show_thumb_resolution: 'サムネイルに解像度を表示',
       label_chips_default_metadata: 'デフォルトのメタデータに使用するラベル チップ',
       filesize: 'ファイルサイズ',
       duration: '間隔',

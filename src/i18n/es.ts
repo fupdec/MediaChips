@@ -2070,6 +2070,8 @@ const es = {
       rating_favorite_description: 'Calificación y favorito en la descripción',
       group_chips_description: 'Agrupar chips en la descripción de la tarjeta',
       show_default_metadata: 'Mostrar metadatos predeterminados',
+      show_bookmark_on_card: 'Mostrar marcador en las tarjetas',
+      show_thumb_resolution: 'Mostrar resolución en las miniaturas',
       label_chips_default_metadata: 'Usar chips con etiqueta para metadatos predeterminados',
       filesize: 'Tamaño de archivo',
       duration: 'Duración',

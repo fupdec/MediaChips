@@ -229,6 +229,10 @@ export type SettingsState = {
   ratingAndFavoriteInCard: string
   group_chips_in_card_description: string
   show_preset_metadata_in_card: string
+  /** '1' shows the bookmark icon overlay on media cards. */
+  show_bookmark_on_card: string
+  /** '1' shows resolution badges on video/image thumbnails. */
+  show_thumb_resolution: string
   count_number_of_views: string
   meta_sort_mode: string
   meta_group_by: string
@@ -380,6 +384,8 @@ export const defaultSettingsState = (): SettingsState => ({
   ratingAndFavoriteInCard: '1',
   group_chips_in_card_description: '1',
   show_preset_metadata_in_card: '1',
+  show_bookmark_on_card: '1',
+  show_thumb_resolution: '1',
   count_number_of_views: '1',
   meta_sort_mode: 'menu',
   meta_group_by: 'none',

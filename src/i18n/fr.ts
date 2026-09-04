@@ -2070,6 +2070,8 @@ const fr = {
       rating_favorite_description: 'Note et favori dans la description',
       group_chips_description: 'Regrouper les jetons dans la description de la carte',
       show_default_metadata: 'Afficher les métadonnées par défaut',
+      show_bookmark_on_card: 'Afficher le signet sur les cartes',
+      show_thumb_resolution: 'Afficher la résolution sur les miniatures',
       label_chips_default_metadata: 'Utilisation des puces d\'étiquettes pour les métadonnées par défaut',
       filesize: 'Taille du fichier',
       duration: 'Durée',

@@ -67,6 +67,16 @@ const chips_default_data: Array<{icon: string; textKey: string; value: DefaultMe
       :title="t('settings_labels.appearance.show_default_metadata')"
       option="show_preset_metadata_in_card"
     />
+
+    <settings-switch
+      :title="t('settings_labels.appearance.show_bookmark_on_card')"
+      option="show_bookmark_on_card"
+    />
+
+    <settings-switch
+      :title="t('settings_labels.appearance.show_thumb_resolution')"
+      option="show_thumb_resolution"
+    />
   </SettingsGroupPanel>
 
   <SettingsGroupPanel

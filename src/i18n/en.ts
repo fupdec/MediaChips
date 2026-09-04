@@ -2150,6 +2150,8 @@ const en = {
       rating_favorite_description: 'Rating and favorite in description',
       group_chips_description: 'Group chips in card description',
       show_default_metadata: 'Show default metadata',
+      show_bookmark_on_card: 'Show bookmark on cards',
+      show_thumb_resolution: 'Show resolution on thumbnails',
       label_chips_default_metadata: 'Label chips use for default metadata',
       filesize: 'Filesize',
       duration: 'Duration',
