@@ -1,17 +1,22 @@
-import { expect, type Page } from '@playwright/test'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
+import {expect, type APIRequestContext, type Page} from '@playwright/test'
+
+const TINY_JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xd9])
 
 export async function waitForBlockingOverlaysToClose(page: Page) {
-  await expect(page.locator('.v-overlay--active')).toHaveCount(0, { timeout: 15_000 })
+  await expect(page.locator('.v-overlay--active')).toHaveCount(0, {timeout: 15_000})
 }
 
 export async function dismissOnboardingIfVisible(page: Page) {
-  const skipButton = page.getByRole('button', { name: /^(skip|omitir|пропустить|跳过)$/i })
+  const skipButton = page.getByRole('button', {name: /^(skip|omitir|пропустить|跳过)$/i})
   const deadline = Date.now() + 20_000
 
   while (Date.now() < deadline) {
     if (await skipButton.isVisible().catch(() => false)) {
       await skipButton.click()
-      await expect(skipButton).toBeHidden({ timeout: 15_000 })
+      await expect(skipButton).toBeHidden({timeout: 15_000})
       await waitForBlockingOverlaysToClose(page)
       return
     }
@@ -35,8 +40,8 @@ export async function dismissOnboardingIfVisible(page: Page) {
 }
 
 export async function waitForAppShell(page: Page) {
-  await expect(page.locator('#app')).toBeVisible({ timeout: 30_000 })
-  await expect(page.locator('.v-application')).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator('#app')).toBeVisible({timeout: 30_000})
+  await expect(page.locator('.v-application')).toBeVisible({timeout: 30_000})
 }
 
 export async function openSettingsTab(page: Page, tabId: string) {
@@ -44,4 +49,111 @@ export async function openSettingsTab(page: Page, tabId: string) {
   await waitForAppShell(page)
   await dismissOnboardingIfVisible(page)
   await page.locator(`#${tabId}`).click()
+}
+
+export type MediaTypeRow = {
+  id: number
+  type?: string | null
+  name?: string | null
+  extensions?: string | null
+}
+
+export async function getImageMediaType(request: APIRequestContext): Promise<MediaTypeRow> {
+  const response = await request.get('/api/MediaType')
+  expect(response.ok()).toBeTruthy()
+  const types = await response.json() as MediaTypeRow[]
+  const image = types.find((row) => String(row.type || '').toLowerCase() === 'image')
+  expect(image?.id).toBeTruthy()
+  return image!
+}
+
+export function writeTinyJpegDir(count: number, prefix = 'mc-e2e-import-'): {dir: string; cleanup: () => void} {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix))
+  for (let i = 0; i < count; i += 1) {
+    fs.writeFileSync(
+      path.join(dir, `smoke-${String(i).padStart(3, '0')}.jpg`),
+      TINY_JPEG,
+    )
+  }
+  return {
+    dir,
+    cleanup: () => fs.rmSync(dir, {recursive: true, force: true}),
+  }
+}
+
+export async function bulkImportRoots(
+  request: APIRequestContext,
+  options: {type: number | MediaTypeRow; roots: string[]},
+) {
+  const type = typeof options.type === 'number'
+    ? options.type
+    : {id: options.type.id, type: options.type.type, extensions: options.type.extensions}
+  const response = await request.post('/api/Task/addMediaBulk', {
+    data: {
+      mode: 'lite',
+      type,
+      roots: options.roots,
+    },
+    timeout: 120_000,
+  })
+  expect(response.ok()).toBeTruthy()
+  return response.json() as Promise<{
+    scanned: number
+    inserted: number
+    skipped: number
+    errors: string[]
+  }>
+}
+
+export async function listMediaItems(
+  request: APIRequestContext,
+  body: {mediaTypeId: number; page?: number; limit?: number; skipTotals?: boolean},
+) {
+  const response = await request.post('/api/Media/items', {
+    data: {
+      mediaTypeId: body.mediaTypeId,
+      page: body.page ?? 1,
+      limit: body.limit ?? 60,
+      skipTotals: body.skipTotals ?? true,
+      sortBy: 'id',
+      direction: 'desc',
+    },
+  })
+  expect(response.ok()).toBeTruthy()
+  return response.json() as Promise<{
+    results?: unknown[]
+    items?: unknown[]
+    total?: number
+    [key: string]: unknown
+  }>
+}
+
+export async function createWatchedFolder(
+  request: APIRequestContext,
+  options: {path: string; types: number[]; name?: string},
+) {
+  const response = await request.post('/api/WatchedFolder', {
+    data: {
+      folder: {
+        path: options.path,
+        name: options.name ?? 'e2e-watched',
+        watch: true,
+      },
+      types: options.types,
+    },
+  })
+  expect(response.status()).toBe(201)
+}
+
+export async function assessWatchedFolder(request: APIRequestContext, folderPath: string) {
+  const response = await request.post('/api/WatchedFolder/assess', {
+    data: {path: folderPath},
+  })
+  expect(response.ok()).toBeTruthy()
+  return response.json() as Promise<{
+    path: string
+    fileCount: number
+    grade?: string
+    [key: string]: unknown
+  }>
 }

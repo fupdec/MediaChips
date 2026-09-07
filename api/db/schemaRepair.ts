@@ -514,6 +514,20 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
     {requireColumns: ['metaId', 'favorite']},
   )
 
+  // 0004 / 0007 — duplicate-scan helpers (migrations exist; repair for legacy DBs)
+  ensureIndex(
+    'media',
+    'media_media_type_id_basename_filesize_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_basename_filesize_idx" ON "media" ("mediaTypeId", "basename", "filesize")',
+    {requireColumns: ['mediaTypeId', 'basename', 'filesize']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_oshash_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_oshash_idx" ON "media" ("mediaTypeId", "oshash")',
+    {requireColumns: ['mediaTypeId', 'oshash']},
+  )
+
   if (hasTable(sqlite, 'videoMetadata') && !hasIndex(sqlite, 'video_metadata_media_id_idx')) {
     sqlite.exec(
       'CREATE UNIQUE INDEX IF NOT EXISTS "video_metadata_media_id_idx" ON "videoMetadata" ("mediaId")',

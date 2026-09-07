@@ -30,6 +30,8 @@
     "portable": "node scripts/dist.mjs --win-portable",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
+    "bench:media-fixture": "tsx scripts/seed-media-fixture.ts",
+    "test:scale": "MC_SCALE=1 node scripts/ensure-sqlite-tests.mjs && MC_SCALE=1 vitest run api/services/mediaScaleFixture.test.ts",
     "test": "node scripts/ensure-sqlite-tests.mjs && vitest run",
     "test:plugin-adult": "vitest run packages/plugin-adult",
     "test:plugin-stash": "vitest run packages/plugin-stash",
