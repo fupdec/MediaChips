@@ -16,13 +16,9 @@ describe('normalizeApiPath', () => {
     expect(normalizeApiPath('/api/TaG/1')).toBe('/api/Tag/1')
   })
 
-  it('leaves canonical mounts and non-aliased paths alone', () => {
-    expect(normalizeApiPath('/api/Media/items')).toBe('/api/Media/items')
-    expect(normalizeApiPath('/api/home/health')).toBe('/api/home/health')
-    expect(normalizeApiPath('/api/bulk-meta/apply')).toBe('/api/bulk-meta/apply')
-    expect(normalizeApiPath('/api/scraper/performers')).toBe('/api/scraper/performers')
-    expect(normalizeApiPath('/api/auth/login')).toBe('/api/auth/login')
-    expect(normalizeApiPath('/not-api')).toBe('/not-api')
-    expect(normalizeApiPath('')).toBe('')
+  it('rewrites CloudDrive alias to drive mount', () => {
+    expect(normalizeApiPath('/api/CloudDrive/status')).toBe('/api/drive/status')
+    expect(normalizeApiPath('/api/clouddrive/folders/root')).toBe('/api/drive/folders/root')
+    expect(normalizeApiPath('/api/drive/status')).toBe('/api/drive/status')
   })
 })

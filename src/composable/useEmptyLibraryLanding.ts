@@ -49,7 +49,15 @@ export async function navigateToLibraryIfEmpty(): Promise<void> {
   const mediaTypeId = getDefaultMediaTypeId(app.mediaTypes)
   const route = router.currentRoute.value
 
-  if (route.path === '/media' || route.path === '/meta') return
+  // Keep settings / spike routes when the user opened them directly.
+  if (
+    route.path === '/media'
+    || route.path === '/meta'
+    || route.path === '/settings'
+    || route.path === '/drive-spike'
+  ) {
+    return
+  }
 
   if (mediaTypeId) {
     await router.replace({path: '/media', query: {mediaTypeId: String(mediaTypeId)}})

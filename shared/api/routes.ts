@@ -416,6 +416,23 @@ export function apiVideoTranscodeStream(id: number | string) {
   return `/api/video/${id}/transcode/stream`
 }
 
+/** Phase 1 Google Drive spike helpers */
+export function apiDriveStatus() {
+  return '/api/drive/status'
+}
+
+export function apiDriveOAuthStart() {
+  return '/api/drive/oauth/start'
+}
+
+export function apiDriveFolder(folderId: string = 'root') {
+  return `/api/drive/folders/${encodeURIComponent(folderId)}`
+}
+
+export function apiDriveFileStream(fileId: string) {
+  return `/api/drive/files/${encodeURIComponent(fileId)}/stream`
+}
+
 export function apiTmdbMovie(id: number | string) {
   return `${API_ROUTES.tmdbMovie}/${id}`
 }

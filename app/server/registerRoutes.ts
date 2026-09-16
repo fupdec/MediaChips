@@ -32,6 +32,7 @@ import registerValuesInTag from '../../api/routes/ValuesInTag.routes'
 import registerValuesInMedia from '../../api/routes/ValuesInMedia.routes'
 import registerVideoMetadata from '../../api/routes/VideoMetadata.routes'
 import registerWatchedFolder from '../../api/routes/WatchedFolder.routes'
+import registerCloudDrive from '../../api/routes/CloudDrive.routes'
 import { isSfwBuild } from '../../shared/buildFlags'
 import { bindPluginMainRuntime } from '../../api/services/pluginMainRuntime'
 
@@ -155,6 +156,8 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'ValuesInMedia.routes', register: registerValuesInMedia },
     { routeFile: 'VideoMetadata.routes', register: registerVideoMetadata },
     { routeFile: 'WatchedFolder.routes', register: registerWatchedFolder },
+    // Phase 1 Drive spike — OAuth + list + Range proxy (optional; mock without creds).
+    { routeFile: 'CloudDrive.routes', register: registerCloudDrive },
   )
 
   return registrars
