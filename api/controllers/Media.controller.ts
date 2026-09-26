@@ -284,7 +284,8 @@ export default function (db: ApiDb) {
     try {
       const body = getRequestBody<MediaDuplicateGroupsPayload>(req)
       const mediaTypeId = body.mediaTypeId == null ? null : Number(body.mediaTypeId)
-      const resolvedMediaTypeId = Number.isFinite(mediaTypeId as number) ? mediaTypeId : null
+      const resolvedMediaTypeId =
+        mediaTypeId != null && Number.isFinite(mediaTypeId) ? mediaTypeId : undefined
 
       let mediaIds: number[] | null = null
       if (Array.isArray(body.mediaIds)) {
