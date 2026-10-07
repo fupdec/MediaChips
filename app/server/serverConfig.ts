@@ -8,6 +8,7 @@ import { loadConfigFile, createDefaultConfig, saveConfigFile } from './configFil
 import { resolveListenPort } from './ports'
 import { pickPublicHost } from './publicHost'
 import { discoverDatabaseEntries } from './databaseDiscovery'
+import { migrateLegacyDatabasesFolder, assertLegacyLibraryAvailable } from './legacyStorageMigration'
 
 /** Prefer MEDIA_CHIPS_DATA_DIR so Electron-spawned Node children never need process.electron_app. */
 export function resolveServerAppFolder(options: {
@@ -36,19 +37,6 @@ export function resolveServerAppFolder(options: {
   const getUserDataPath = options.getUserDataPath
     || (() => process.electron_app!.getPath('userData'))
   return {appFolder: getUserDataPath(), usedDataDir: false}
-}
-
-function migrateLegacyDatabasesFolder(appFolder: string) {
-  const oldDbPath = path.join(appFolder, 'databases')
-  const newDbPath = path.join(appFolder, 'app_storage')
-  if (!fs.existsSync(oldDbPath)) return
-
-  try {
-    fs.renameSync(oldDbPath, newDbPath)
-    console.log('Data successfully preserved and moved to app_storage')
-  } catch (err: unknown) {
-    console.error('Error while preserving data:', err)
-  }
 }
 
 function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
@@ -123,6 +111,7 @@ function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
 
   const discoveredDatabases = discoverDatabaseEntries(databasesPath, config.databases)
   if (discoveredDatabases.length > 0) {
+    if (loadResult.source === 'default') config.databases = []
     config.databases.push(...discoveredDatabases)
     console.log('\x1b[33m%s\x1b[0m', `Discovered ${discoveredDatabases.length} database(s) on disk`)
   }
@@ -142,6 +131,8 @@ function initializeServerConfig({getBestLocalIp, getAllIps}: NetworkHelpers) {
     console.error('\x1b[31m%s\x1b[0m', '❌ Failed to determine active database')
     config.path = path.join(databasesPath, config.databases[0]?.id || 'default')
   }
+
+  if (app_folder) assertLegacyLibraryAvailable(app_folder, config.path!)
 
   saveConfigFile(configPath, config)
   console.log('\x1b[32m%s\x1b[0m', `✅ Config saved. Primary IP: ${bestIp}, Port: ${config.port}`)
