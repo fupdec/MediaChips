@@ -71,7 +71,10 @@
 
       <v-card class="tag-panel tag-panel--flat mt-4" rounded="xl" variant="outlined">
         <v-card-title class="d-flex align-center justify-space-between">
-          <span>{{ t('meta.fields.metadata') }}</span>
+          <span class="tag-metadata-heading d-inline-flex align-center ga-2">
+            <v-icon size="20" aria-hidden="true">mdi-card-text-outline</v-icon>
+            <span>{{ t('meta.fields.metadata') }}</span>
+          </span>
           <v-progress-linear
             :model-value="completionStatus"
             height="4"
@@ -93,87 +96,123 @@
         </v-card-text>
       </v-card>
 
-      <div v-if="showPlayClips" class="tag-play-clips mt-4 d-flex align-center ga-2 flex-wrap">
-        <v-btn
-          color="primary"
-          rounded
-          variant="flat"
-          :loading="playingClips"
-          :disabled="clipCount === 0 || playingClips || exportingClips"
-          @click="playClips('time')"
-        >
-          <v-icon start>mdi-playlist-play</v-icon>
-          {{ t('tags.play_clips', {count: clipCount}) }}
-        </v-btn>
-        <v-menu>
-          <template #activator="{ props: menuProps }">
-            <v-btn
-              v-bind="menuProps"
-              color="primary"
-              rounded
-              variant="tonal"
-              icon
-              :disabled="clipCount === 0 || playingClips || exportingClips"
+      <v-card v-if="showPlayClips && clipCount > 0" class="tag-panel tag-clips-panel mt-4" rounded="xl" variant="flat">
+        <v-card-title class="tag-clips-panel__title d-flex align-center flex-nowrap ga-2">
+          <v-icon size="20" aria-hidden="true">mdi-movie-open-play-outline</v-icon>
+          <v-tooltip location="top" :text="clipsDisabledReason" :disabled="!clipsDisabledReason">
+            <template #activator="{ props: hintProps }">
+              <h2 v-bind="hintProps" :tabindex="clipsDisabledReason ? 0 : undefined">
+                {{ t('tags.clips') }}<span v-if="clipCount > 1"> ({{ clipCount }})</span>
+              </h2>
+            </template>
+          </v-tooltip>
+        </v-card-title>
+        <v-card-text class="tag-play-clips d-flex align-center ga-2 flex-wrap">
+          <div class="tag-play-clips__group" :class="{ 'tag-play-clips__group--empty': clipCount === 0 }" role="group" :aria-label="t('tags.play_clips_label')">
+            <span
+              class="tag-play-clips__action"
+              :class="{ 'tag-play-clips__action--disabled': Boolean(clipsDisabledReason) }"
             >
-              <v-icon>mdi-menu-down</v-icon>
-            </v-btn>
-          </template>
-          <v-list density="compact">
-            <v-list-item
-              :title="t('tags.play_clips_in_order')"
-              prepend-icon="mdi-sort-clock-ascending-outline"
-              @click="playClips('time')"
-            />
-            <v-list-item
-              :title="t('tags.play_clips_shuffle')"
-              prepend-icon="mdi-shuffle-variant"
-              @click="playClips('shuffle')"
-            />
-          </v-list>
-        </v-menu>
-        <v-btn
-          color="secondary"
-          rounded
-          variant="tonal"
-          :loading="exportingClips"
-          :disabled="clipCount === 0 || playingClips || exportingClips"
-          @click="exportClips('time')"
-        >
-          <v-icon start>mdi-export</v-icon>
-          {{ t('tags.export_clips', {count: clipCount}) }}
-        </v-btn>
-        <v-menu>
-          <template #activator="{ props: menuProps }">
-            <v-btn
-              v-bind="menuProps"
-              color="secondary"
-              rounded
-              variant="tonal"
-              icon
-              :disabled="clipCount === 0 || playingClips || exportingClips"
+              <v-btn
+                color="primary"
+                variant="flat"
+                size="small"
+                :loading="playingClips"
+                :disabled="Boolean(clipsDisabledReason)"
+                @click="playClips('time')"
+              >
+                <v-icon start>mdi-playlist-play</v-icon>
+                {{ t('tags.play_clips_label') }}
+              </v-btn>
+            </span>
+            <v-menu>
+              <template #activator="{ props: menuProps }">
+                <span
+                  class="tag-play-clips__action"
+                  :class="{ 'tag-play-clips__action--disabled': Boolean(clipsDisabledReason) }"
+                >
+                  <v-btn
+                    v-bind="menuProps"
+                    color="primary"
+                    variant="flat"
+                    size="small"
+                    icon
+                    :disabled="Boolean(clipsDisabledReason)"
+                  >
+                    <v-icon>mdi-menu-down</v-icon>
+                  </v-btn>
+                </span>
+              </template>
+              <v-list density="compact" class="tag-clips-menu">
+                <v-list-item
+                  :title="t('tags.play_clips_in_order')"
+                  prepend-icon="mdi-sort-clock-ascending-outline"
+                  @click="playClips('time')"
+                />
+                <v-list-item
+                  :title="t('tags.play_clips_shuffle')"
+                  prepend-icon="mdi-shuffle-variant"
+                  @click="playClips('shuffle')"
+                />
+              </v-list>
+            </v-menu>
+          </div>
+          <div class="tag-play-clips__group" :class="{ 'tag-play-clips__group--empty': clipCount === 0 }" role="group" :aria-label="t('tags.export_clips_label')">
+            <span
+              class="tag-play-clips__action"
+              :class="{ 'tag-play-clips__action--disabled': Boolean(clipsDisabledReason) }"
             >
-              <v-icon>mdi-menu-down</v-icon>
-            </v-btn>
-          </template>
-          <v-list density="compact">
-            <v-list-item
-              :title="t('tags.play_clips_in_order')"
-              prepend-icon="mdi-sort-clock-ascending-outline"
-              @click="exportClips('time')"
-            />
-            <v-list-item
-              :title="t('tags.play_clips_shuffle')"
-              prepend-icon="mdi-shuffle-variant"
-              @click="exportClips('shuffle')"
-            />
-            <v-list-item
-              :title="t('markers.export_mode_folder')"
-              prepend-icon="mdi-folder-multiple-outline"
-              @click="exportClips('time', 'folder')"
-            />
-          </v-list>
-        </v-menu>
-      </div>
+              <v-btn
+                color="secondary"
+                variant="flat"
+                size="small"
+                :loading="exportingClips"
+                :disabled="Boolean(clipsDisabledReason)"
+                @click="exportClips('time')"
+              >
+                <v-icon start>mdi-export</v-icon>
+                {{ t('tags.export_clips_label') }}
+              </v-btn>
+            </span>
+            <v-menu>
+              <template #activator="{ props: menuProps }">
+                <span
+                  class="tag-play-clips__action"
+                  :class="{ 'tag-play-clips__action--disabled': Boolean(clipsDisabledReason) }"
+                >
+                  <v-btn
+                    v-bind="menuProps"
+                    color="secondary"
+                    variant="flat"
+                    size="small"
+                    icon
+                    :disabled="Boolean(clipsDisabledReason)"
+                  >
+                    <v-icon>mdi-menu-down</v-icon>
+                  </v-btn>
+                </span>
+              </template>
+              <v-list density="compact" class="tag-clips-menu">
+                <v-list-item
+                  :title="t('tags.play_clips_in_order')"
+                  prepend-icon="mdi-sort-clock-ascending-outline"
+                  @click="exportClips('time')"
+                />
+                <v-list-item
+                  :title="t('tags.play_clips_shuffle')"
+                  prepend-icon="mdi-shuffle-variant"
+                  @click="exportClips('shuffle')"
+                />
+                <v-list-item
+                  :title="t('markers.export_mode_folder')"
+                  prepend-icon="mdi-folder-multiple-outline"
+                  @click="exportClips('time', 'folder')"
+                />
+              </v-list>
+            </v-menu>
+          </div>
+        </v-card-text>
+      </v-card>
     </v-container>
 
     <v-responsive
@@ -282,7 +321,10 @@
                     </v-btn>
                   </div>
 
-                  <div class="meta-card-name">{{ t('meta.fields.metadata') }}</div>
+                  <div class="meta-card-name tag-metadata-heading d-inline-flex align-center ga-2">
+                    <v-icon size="20" aria-hidden="true">mdi-card-text-outline</v-icon>
+                    <span>{{ t('meta.fields.metadata') }}</span>
+                  </div>
                   <v-progress-linear
                     :model-value="completionStatus"
                     height="2"
@@ -311,87 +353,123 @@
               </v-expansion-panel>
             </v-expansion-panels>
 
-            <div v-if="showPlayClips" class="tag-play-clips mt-4 d-flex align-center ga-2 flex-wrap">
-              <v-btn
-                color="primary"
-                rounded
-                variant="flat"
-                :loading="playingClips"
-                :disabled="clipCount === 0 || playingClips || exportingClips"
-                @click="playClips('time')"
-              >
-                <v-icon start>mdi-playlist-play</v-icon>
-                {{ t('tags.play_clips', {count: clipCount}) }}
-              </v-btn>
-              <v-menu>
-                <template #activator="{ props: menuProps }">
-                  <v-btn
-                    v-bind="menuProps"
-                    color="primary"
-                    rounded
-                    variant="tonal"
-                    icon
-                    :disabled="clipCount === 0 || playingClips || exportingClips"
+            <v-card v-if="showPlayClips && clipCount > 0" class="tag-panel tag-clips-panel mt-4" rounded="xl" variant="flat">
+              <v-card-title class="tag-clips-panel__title d-flex align-center flex-nowrap ga-2">
+                <v-icon size="20" aria-hidden="true">mdi-movie-open-play-outline</v-icon>
+                <v-tooltip location="top" :text="clipsDisabledReason" :disabled="!clipsDisabledReason">
+                  <template #activator="{ props: hintProps }">
+                    <h2 v-bind="hintProps" :tabindex="clipsDisabledReason ? 0 : undefined">
+                      {{ t('tags.clips') }}<span v-if="clipCount > 1"> ({{ clipCount }})</span>
+                    </h2>
+                  </template>
+                </v-tooltip>
+              </v-card-title>
+              <v-card-text class="tag-play-clips d-flex align-center ga-2 flex-wrap">
+                <div class="tag-play-clips__group" :class="{ 'tag-play-clips__group--empty': clipCount === 0 }" role="group" :aria-label="t('tags.play_clips_label')">
+                  <span
+                    class="tag-play-clips__action"
+                    :class="{ 'tag-play-clips__action--disabled': Boolean(clipsDisabledReason) }"
                   >
-                    <v-icon>mdi-menu-down</v-icon>
-                  </v-btn>
-                </template>
-                <v-list density="compact">
-                  <v-list-item
-                    :title="t('tags.play_clips_in_order')"
-                    prepend-icon="mdi-sort-clock-ascending-outline"
-                    @click="playClips('time')"
-                  />
-                  <v-list-item
-                    :title="t('tags.play_clips_shuffle')"
-                    prepend-icon="mdi-shuffle-variant"
-                    @click="playClips('shuffle')"
-                  />
-                </v-list>
-              </v-menu>
-              <v-btn
-                color="secondary"
-                rounded
-                variant="tonal"
-                :loading="exportingClips"
-                :disabled="clipCount === 0 || playingClips || exportingClips"
-                @click="exportClips('time')"
-              >
-                <v-icon start>mdi-export</v-icon>
-                {{ t('tags.export_clips', {count: clipCount}) }}
-              </v-btn>
-              <v-menu>
-                <template #activator="{ props: menuProps }">
-                  <v-btn
-                    v-bind="menuProps"
-                    color="secondary"
-                    rounded
-                    variant="tonal"
-                    icon
-                    :disabled="clipCount === 0 || playingClips || exportingClips"
+                    <v-btn
+                      color="primary"
+                      variant="flat"
+                      size="small"
+                      :loading="playingClips"
+                      :disabled="Boolean(clipsDisabledReason)"
+                      @click="playClips('time')"
+                    >
+                      <v-icon start>mdi-playlist-play</v-icon>
+                      {{ t('tags.play_clips_label') }}
+                    </v-btn>
+                  </span>
+                  <v-menu>
+                    <template #activator="{ props: menuProps }">
+                      <span
+                        class="tag-play-clips__action"
+                        :class="{ 'tag-play-clips__action--disabled': Boolean(clipsDisabledReason) }"
+                      >
+                        <v-btn
+                          v-bind="menuProps"
+                          color="primary"
+                          variant="flat"
+                          size="small"
+                          icon
+                          :disabled="Boolean(clipsDisabledReason)"
+                        >
+                          <v-icon>mdi-menu-down</v-icon>
+                        </v-btn>
+                      </span>
+                    </template>
+                    <v-list density="compact" class="tag-clips-menu">
+                      <v-list-item
+                        :title="t('tags.play_clips_in_order')"
+                        prepend-icon="mdi-sort-clock-ascending-outline"
+                        @click="playClips('time')"
+                      />
+                      <v-list-item
+                        :title="t('tags.play_clips_shuffle')"
+                        prepend-icon="mdi-shuffle-variant"
+                        @click="playClips('shuffle')"
+                      />
+                    </v-list>
+                  </v-menu>
+                </div>
+                <div class="tag-play-clips__group" :class="{ 'tag-play-clips__group--empty': clipCount === 0 }" role="group" :aria-label="t('tags.export_clips_label')">
+                  <span
+                    class="tag-play-clips__action"
+                    :class="{ 'tag-play-clips__action--disabled': Boolean(clipsDisabledReason) }"
                   >
-                    <v-icon>mdi-menu-down</v-icon>
-                  </v-btn>
-                </template>
-                <v-list density="compact">
-                  <v-list-item
-                    :title="t('tags.play_clips_in_order')"
-                    prepend-icon="mdi-sort-clock-ascending-outline"
-                    @click="exportClips('time')"
-                  />
-                  <v-list-item
-                    :title="t('tags.play_clips_shuffle')"
-                    prepend-icon="mdi-shuffle-variant"
-                    @click="exportClips('shuffle')"
-                  />
-                  <v-list-item
-                    :title="t('markers.export_mode_folder')"
-                    prepend-icon="mdi-folder-multiple-outline"
-                    @click="exportClips('time', 'folder')"
-                  />
-                </v-list>
-              </v-menu>
-            </div>
+                    <v-btn
+                      color="secondary"
+                      variant="flat"
+                      size="small"
+                      :loading="exportingClips"
+                      :disabled="Boolean(clipsDisabledReason)"
+                      @click="exportClips('time')"
+                    >
+                      <v-icon start>mdi-export</v-icon>
+                      {{ t('tags.export_clips_label') }}
+                    </v-btn>
+                  </span>
+                  <v-menu>
+                    <template #activator="{ props: menuProps }">
+                      <span
+                        class="tag-play-clips__action"
+                        :class="{ 'tag-play-clips__action--disabled': Boolean(clipsDisabledReason) }"
+                      >
+                        <v-btn
+                          v-bind="menuProps"
+                          color="secondary"
+                          variant="flat"
+                          size="small"
+                          icon
+                          :disabled="Boolean(clipsDisabledReason)"
+                        >
+                          <v-icon>mdi-menu-down</v-icon>
+                        </v-btn>
+                      </span>
+                    </template>
+                    <v-list density="compact" class="tag-clips-menu">
+                      <v-list-item
+                        :title="t('tags.play_clips_in_order')"
+                        prepend-icon="mdi-sort-clock-ascending-outline"
+                        @click="exportClips('time')"
+                      />
+                      <v-list-item
+                        :title="t('tags.play_clips_shuffle')"
+                        prepend-icon="mdi-shuffle-variant"
+                        @click="exportClips('shuffle')"
+                      />
+                      <v-list-item
+                        :title="t('markers.export_mode_folder')"
+                        prepend-icon="mdi-folder-multiple-outline"
+                        @click="exportClips('time', 'folder')"
+                      />
+                    </v-list>
+                  </v-menu>
+                </div>
+              </v-card-text>
+            </v-card>
           </v-col>
         </v-row>
       </v-container>
@@ -580,6 +658,12 @@ const galleryFileExists = ref<Record<TagGalleryImageType, boolean>>({
 const clipCount = ref(0)
 const playingClips = ref(false)
 const exportingClips = ref(false)
+const clipsDisabledReason = computed(() => {
+  if (exportingClips.value) return t('tags.clips_disabled_exporting')
+  if (playingClips.value) return t('tags.clips_disabled_playing')
+  if (clipCount.value === 0) return t('tags.play_clips_empty_text')
+  return ''
+})
 
 function prefersReducedMotion(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
