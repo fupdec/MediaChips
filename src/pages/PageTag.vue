@@ -190,10 +190,23 @@
     >
       <div
         v-if="headerBackgroundSrc"
-        :class="['bg-image', {'bg-header': is_header_exists}]"
+        ref="headerBgClip"
+        class="tag-header__bg"
         aria-hidden="true"
       >
-        <v-img :key="upd" :src="headerBackgroundSrc" cover />
+        <div
+          :class="['bg-image', {'bg-header': is_header_exists, 'bg-image--parallax': headerParallaxActive}]"
+          :style="headerParallaxStyle"
+        >
+          <v-img
+            v-if="is_header_exists"
+            :key="`fill-${upd}`"
+            class="bg-image__fill"
+            :src="headerBackgroundSrc"
+            cover
+          />
+          <v-img :key="upd" :src="headerBackgroundSrc" :cover="!is_header_exists" />
+        </div>
       </div>
 
       <v-container
@@ -496,6 +509,12 @@ import {
 } from '@/utils/tagPageDesign'
 import { DEFAULT_TAG_COLOR, isDefaultTagColor } from '@/utils/colorFromImage'
 import { hexToRgba } from '@/services/formatUtils'
+import {getMainScrollEl} from '@/utils/mainScroll'
+import {
+  TAG_HEADER_PARALLAX_OVERSCAN,
+  TAG_HEADER_PARALLAX_RATE,
+  tagHeaderParallaxOffset,
+} from '@/utils/tagHeaderParallax'
 import type { Meta, Tag, AssignedMeta } from '@/types/stores'
 import type { MediaType } from '@/types/media'
 import type { MetaInMediaTypeAssignment } from '@/types/metaAssignment'
@@ -562,6 +581,10 @@ const clipCount = ref(0)
 const playingClips = ref(false)
 const exportingClips = ref(false)
 
+function prefersReducedMotion(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
 function getErrorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
@@ -622,6 +645,22 @@ const headerFallbackColor = computed(() => {
   return DEFAULT_TAG_COLOR
 })
 const headerUsesColorBg = computed(() => Boolean(headerFallbackColor.value))
+const headerBgClip = ref<HTMLElement | null>(null)
+const nativeHeaderParallax = typeof CSS !== 'undefined'
+  && CSS.supports('animation-timeline', '--tag-header')
+  && CSS.supports('view-timeline-name', '--tag-header')
+  && CSS.supports('animation-range', 'exit-crossing 0% exit-crossing 100%')
+const headerParallaxActive = computed(() => Boolean(headerBackgroundSrc.value) && !prefersReducedMotion())
+const headerParallaxStyle = computed(() => {
+  if (!headerParallaxActive.value) return undefined
+
+  return {
+    inset: `-${TAG_HEADER_PARALLAX_OVERSCAN * 100}% ${is_header_exists.value ? '0' : '-12%'}`,
+    '--tag-header-image-height': `${100 / (1 + 2 * TAG_HEADER_PARALLAX_OVERSCAN)}%`,
+    '--tag-header-parallax-end': `${Math.min(TAG_HEADER_PARALLAX_RATE, TAG_HEADER_PARALLAX_OVERSCAN) / (1 + 2 * TAG_HEADER_PARALLAX_OVERSCAN) * 100}%`,
+    transform: 'translate3d(0, var(--tag-header-parallax-offset, 0px), 0)',
+  }
+})
 const headerBackgroundStyle = computed(() => {
   if (!headerFallbackColor.value) return undefined
 
@@ -1072,6 +1111,43 @@ const handleUpdateLayoutItems = () => {
 let unregisterLayoutRemount: (() => void) | null = null
 let unregisterPageTagRefresh: (() => void) | null = null
 let unsubscribeMetaCatalog: (() => void) | null = null
+let headerScrollEl: HTMLElement | null = null
+let headerParallaxFrame = 0
+
+function updateHeaderParallax(): void {
+  headerParallaxFrame = 0
+  if (!headerParallaxActive.value) {
+    headerBgClip.value?.style.removeProperty('--tag-header-parallax-offset')
+    return
+  }
+
+  const clip = headerBgClip.value
+  const scroller = headerScrollEl
+  if (!clip || !scroller) return
+
+  const scrollRect = scroller.getBoundingClientRect()
+  const clipRect = clip.getBoundingClientRect()
+  const headerTop = clipRect.top - scrollRect.top + scroller.scrollTop
+  const traveled = scroller.scrollTop - headerTop
+  const next = tagHeaderParallaxOffset(traveled, clip.offsetHeight)
+  // Apply in this animation frame, without waiting for a Vue render on scroll.
+  clip.style.setProperty('--tag-header-parallax-offset', `${next}px`)
+}
+
+function scheduleHeaderParallax(): void {
+  if (nativeHeaderParallax) return
+  if (headerParallaxFrame) return
+  headerParallaxFrame = requestAnimationFrame(updateHeaderParallax)
+}
+
+function bindHeaderParallaxScroll(): void {
+  if (nativeHeaderParallax) return
+  const next = getMainScrollEl()
+  if (!(next instanceof HTMLElement) || next === headerScrollEl) return
+  headerScrollEl?.removeEventListener('scroll', scheduleHeaderParallax)
+  headerScrollEl = next
+  headerScrollEl.addEventListener('scroll', scheduleHeaderParallax, {passive: true})
+}
 
 const handleGetMeta = async () => {
   if (!is_init.value || !meta.value.id) return
@@ -1099,6 +1175,7 @@ const reloadTagPage = async () => {
   is_init.value = false
   applyRouteContext()
   await init()
+  scheduleHeaderParallax()
 }
 
 // Lifecycle
@@ -1113,6 +1190,9 @@ onMounted(async () => {
   })
 
   panel.value = [0]
+  bindHeaderParallaxScroll()
+  scheduleHeaderParallax()
+  window.addEventListener('resize', scheduleHeaderParallax, {passive: true})
 })
 
 onBeforeUnmount(() => {
@@ -1122,6 +1202,27 @@ onBeforeUnmount(() => {
   unregisterPageTagRefresh = null
   unsubscribeMetaCatalog?.()
   unsubscribeMetaCatalog = null
+  headerScrollEl?.removeEventListener('scroll', scheduleHeaderParallax)
+  headerScrollEl = null
+  window.removeEventListener('resize', scheduleHeaderParallax)
+  if (headerParallaxFrame) cancelAnimationFrame(headerParallaxFrame)
+})
+
+watch(headerBgClip, (clip) => {
+  if (!clip) {
+    return
+  }
+  bindHeaderParallaxScroll()
+  scheduleHeaderParallax()
+})
+
+watch(headerParallaxActive, (active) => {
+  if (!active) {
+    headerBgClip.value?.style.removeProperty('--tag-header-parallax-offset')
+    return
+  }
+  bindHeaderParallaxScroll()
+  scheduleHeaderParallax()
 })
 
 watch(

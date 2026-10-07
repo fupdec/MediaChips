@@ -52,6 +52,13 @@
   .nested-tags {
     font-size: 1.1rem;
   }
+  .tag-header__bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+  }
   .bg-image {
     filter: blur(8px) brightness(0.75);
     position: absolute;
@@ -68,6 +75,47 @@
   .bg-header {
     filter: brightness(0.75);
   }
+  .bg-image__fill {
+    // Fill the space exposed as the fitted header image moves with parallax.
+    position: absolute;
+    inset: 0;
+  }
+  .bg-header > .v-img:not(.bg-image__fill) .v-img__img {
+    // Fit to the header frame's height, rather than the oversized moving layer.
+    height: var(--tag-header-image-height, 100%);
+    width: auto;
+    max-width: none;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .bg-image--parallax {
+    will-change: transform;
+  }
+
+  // Follow the header crossing the scrollport, independent of grid height and
+  // JavaScript work mounting virtual rows. Keep the JS fallback for older engines.
+  @supports (view-timeline-name: --tag-header) and (animation-timeline: --tag-header) and (animation-range: exit-crossing 0% exit-crossing 100%) {
+    view-timeline-name: --tag-header;
+    view-timeline-axis: block;
+    view-timeline-inset: 0;
+
+    .bg-image--parallax {
+      animation: tag-header-parallax linear both;
+      animation-timeline: --tag-header;
+      animation-range: exit-crossing 0% exit-crossing 100%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bg-image--parallax {
+      animation: none;
+      --tag-header-image-height: 100% !important;
+      inset: 0 !important;
+      transform: none !important;
+    }
+  }
+
   &.tag-header--has-bg {
     .tag-meta-link {
       color: rgba(255, 255, 255, 0.95);
@@ -119,6 +167,15 @@
     line-height: 1;
     font-size: 4rem;
     z-index: 1;
+  }
+}
+
+@keyframes tag-header-parallax {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, var(--tag-header-parallax-end), 0);
   }
 }
 
