@@ -62,7 +62,7 @@
           :file-extensions="fileExtensions"
           :show-selection="!pathInput && (multiple || fileExtensions.length > 0)"
           @update:path="onBrowsePath"
-          @update:selected-paths="selectedPaths = $event"
+          @update:selected-paths="onSelectedPaths"
           @select-place="onBrowsePath"
         />
 
@@ -221,6 +221,15 @@ function defaultBrowsePath(list: BrowsePlace[]): string {
     || list.find((place) => place.id === 'videos')?.path
     || list[0]?.path
     || ''
+}
+
+function onSelectedPaths(paths: string[]) {
+  if (!props.multiple && props.fileExtensions.length && paths.length > 1) {
+    const added = paths.find(path => !selectedPaths.value.includes(path))
+    selectedPaths.value = [added || paths[0]]
+  } else {
+    selectedPaths.value = paths
+  }
 }
 
 function onBrowsePath(path: string) {

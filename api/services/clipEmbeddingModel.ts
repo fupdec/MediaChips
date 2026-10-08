@@ -1,3 +1,4 @@
+import {CLIP_REQUIRED_FILES} from '../../shared/manualModels'
 import type {ApiDb} from '../types/db'
 import type {ModelStatus} from '../types/mlModels'
 import {projectPath} from '../../shared/projectRoot'
@@ -72,24 +73,10 @@ function getModelCacheDir(db: ApiDb) {
 }
 
 function hasDownloadedClipModel(db: ApiDb) {
-  const cacheDir = getModelCacheDir(db)
-  if (!fs.existsSync(cacheDir)) return false
-
-  const stack = [cacheDir]
-  while (stack.length) {
-    const dir = stack.pop()
-    if (!dir) continue
-    const entries = fs.readdirSync(dir, {withFileTypes: true})
-    for (const entry of entries) {
-      const entryPath = path.join(dir, entry.name)
-      if (entry.isDirectory()) stack.push(entryPath)
-      else if (/\.(onnx|json|txt)$/i.test(entry.name) && entryPath.includes('clip-vit-base-patch32')) {
-        return true
-      }
-    }
-  }
-
-  return false
+  return CLIP_REQUIRED_FILES.every(file => {
+    const target = path.join(getModelCacheDir(db), CLIP_EMBEDDING_MODEL, file)
+    return fs.existsSync(target) && fs.statSync(target).size > 0
+  })
 }
 
 async function loadClipEmbeddingRuntime(db: ApiDb): Promise<ClipRuntime> {
@@ -112,8 +99,9 @@ async function loadClipEmbeddingRuntime(db: ApiDb): Promise<ClipRuntime> {
       } = require('@xenova/transformers')
 
       env.cacheDir = cacheDir
-      env.localModelPath = bundledDir || cacheDir
-      env.allowRemoteModels = true
+      const localReady = hasDownloadedClipModel(db)
+      env.localModelPath = localReady ? cacheDir : (bundledDir || cacheDir)
+      env.allowRemoteModels = !localReady
       env.allowLocalModels = true
 
       const [tokenizer, textModel, processor, visionModel] = await Promise.all([
@@ -253,7 +241,7 @@ function getClipEmbeddingStatus(db: ApiDb, enabled = true): ModelStatus {
   if (!enabled) return {status: 'disabled', model: CLIP_EMBEDDING_MODEL}
   if (runtime) return {status: 'loaded', model: CLIP_EMBEDDING_MODEL, path: getModelCacheDir(db)}
   if (loadingPromise) return {status: 'loading', model: CLIP_EMBEDDING_MODEL, path: getModelCacheDir(db)}
-  if (lastError) {
+  if (lastError && !hasDownloadedClipModel(db)) {
     return {
       status: 'error',
       model: CLIP_EMBEDDING_MODEL,
@@ -278,3 +266,7 @@ export {
   hasDownloadedClipModel,
   loadClipEmbeddingRuntime,
 }
+
+export function clearModelImportError() { lastError = null }
+
+export function isModelImportBusy() { return Boolean(runtime || loadingPromise) }

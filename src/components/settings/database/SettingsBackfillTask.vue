@@ -39,7 +39,12 @@
         <span class="text-caption">{{ missingHint }}</span>
       </v-alert>
 
-      <div class="d-flex flex-wrap ga-2">
+      <div class="d-flex flex-wrap align-center ga-2">
+        <ModelDownloadMenu v-if="config.kind === 'clipEmbedding'" :kinds="['clip']" size="default" :disabled="active || modelBusy" @installed="refreshStatus" v-slot="{importing}">
+          <v-btn color="primary" rounded :loading="modelBusy" :disabled="active || importing" @click="downloadClip">
+            <v-icon icon="mdi-download" start/>{{ t('media.adding.download_video_recognition_model') }}
+          </v-btn>
+        </ModelDownloadMenu>
         <v-btn
           v-if="!active"
           :disabled="!canStart"
@@ -84,7 +89,10 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import ModelDownloadMenu from '@/components/ui/ModelDownloadMenu.vue'
+import {typedApi} from '@/services/typedApi'
+import {ensureModelsDownloaded} from '@/services/modelDownloadConsent'
+import {computed, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
 import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
@@ -99,6 +107,16 @@ const props = defineProps<{
 }>()
 
 const {t} = useI18n()
+const modelBusy = ref(false)
+async function downloadClip() {
+  modelBusy.value = true
+  try {
+    await ensureModelsDownloaded({explicit: true, t, models: [{kind: 'clip', name: t('ai.models.clip'), sizeMb: 150,
+      download: async onProgress => { await typedApi.downloadClipModel({}, onProgress) },
+    }]})
+    await refreshStatus()
+  } finally { modelBusy.value = false }
+}
 
 const {
   config,

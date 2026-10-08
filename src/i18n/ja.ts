@@ -865,6 +865,18 @@ const ja = {
   },
   ai: {
     models: {
+      manual_settings: "手動インストールの設定を開く",
+      manual_options: "モデルのダウンロードとインポート",
+      download_browser: "ブラウザーでダウンロード",
+      import_file: "モデルファイルをインポート",
+      import_done: "モデルをインポートしました",
+      manual_hint: "GGUF/ONNX：ダウンロードしたファイルまたは ZIP をインポートします。CLIP：onnx フォルダーを保持して、表示されたファイルを ZIP にまとめてください。",
+      localAi: "ローカル AI アシスタント",
+      faceDetect: "顔検出",
+      faceEmbed: "顔認識",
+      faceAlign: "顔の位置合わせ",
+      faceGender: "性別推定モデル",
+
       confirm_one: '<b>{name}</b> (~{size} MB) をダウンロードして続行しますか？モデルはこのコンピューターにローカル保存されます。',
       confirm_many: '続行するにはこれらのモデルをダウンロードしますか？<br>{list}<br>このコンピューターにローカル保存されます。',
       list_item: '• {name} (~{size} MB)',

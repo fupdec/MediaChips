@@ -439,3 +439,7 @@ export async function* iterateLocalAiChat(
     yield {type: 'error', message: lastError.message}
   }
 }
+
+export function clearModelImportError() { lastError = null }
+
+export function isModelImportBusy() { return Boolean(loadedModel || loadingPromise || downloadPromise) }

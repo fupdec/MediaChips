@@ -83,11 +83,17 @@ export const localAiApi = {
     signal: AbortSignal,
     onEvent: (event: LocalAiStreamEvent) => void,
   ) {
-    return postApiNdjsonStream(
+    let completed = false
+    return postApiNdjsonStream<LocalAiStreamEvent>(
       API_ROUTES.taskStreamDownloadLocalAi,
       {signal, errorMessage: 'Local AI download failed'},
-      onEvent,
-    )
+      (event) => {
+        onEvent(event)
+        if (event.type === 'error') throw new Error(event.message || 'Local AI download failed')
+        if (event.type === 'aborted') { const error = new Error('aborted'); error.name = 'AbortError'; throw error }
+        if (event.type === 'done') completed = true
+      },
+    ).then(() => { if (!completed) throw new Error('Local AI download did not complete') })
   },
 
   streamLocalAiChat(

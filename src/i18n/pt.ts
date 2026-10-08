@@ -865,6 +865,18 @@ const pt = {
   },
   ai: {
     models: {
+      manual_settings: "Abrir configurações para instalação manual",
+      manual_options: "Download e importação de modelos",
+      download_browser: "Baixar pelo navegador",
+      import_file: "Importar arquivo de modelo",
+      import_done: "Modelo importado com sucesso",
+      manual_hint: "GGUF/ONNX: importe o arquivo baixado ou ZIP. Para CLIP, compacte os arquivos indicados em um ZIP mantendo a pasta onnx.",
+      localAi: "Assistente de IA local",
+      faceDetect: "Detecção de rostos",
+      faceEmbed: "Reconhecimento facial",
+      faceAlign: "Alinhamento facial",
+      faceGender: "Modelo de gênero facial",
+
       confirm_one: 'Baixar <b>{name}</b> (~{size} MB) para continuar? O modelo será armazenado localmente neste computador.',
       confirm_many: 'Baixar estes modelos para continuar?<br>{list}<br>Eles serão armazenados localmente neste computador.',
       list_item: '• {name} (~{size} MB)',

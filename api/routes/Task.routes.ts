@@ -1,3 +1,10 @@
+import fs from 'fs'
+import path from 'path'
+import {Transform} from 'stream'
+import {pipeline} from 'stream/promises'
+import {MANUAL_MODELS, type ManualModelKind} from '../../shared/manualModels'
+import {getFaceModelsRoot} from '../services/faceOrtRuntime'
+import {installManualModel} from '../services/manualModelImport'
 import type { ApiDb } from '../types/db'
 import type { Express, NextFunction, Request, RequestHandler, Response, Router } from 'express'
 import { apiErrorMessage, apiErrorStack } from '../types/errors'
@@ -88,6 +95,67 @@ function loadMigrateHandlers(db: ApiDb): TaskHandlers | null {
 
 export default function registerRoutes(app: Express, db: ApiDb) {
   const router = express.Router()
+
+  const importingModels = new Set<string>()
+  router.post('/importModel', async (req, res) => {
+    const kind = String(req.query.kind || '')
+    if (!Object.prototype.hasOwnProperty.call(MANUAL_MODELS, kind) || (!req.is('application/octet-stream') && !req.is('application/json'))) {
+      res.status(400).json({message: 'Invalid model or upload type'})
+      return
+    }
+    if (importingModels.has(kind)) {
+      res.status(409).json({message: 'A model import is already in progress'})
+      return
+    }
+    importingModels.add(kind)
+    const modelsRoot = getFaceModelsRoot(db)
+    let temporary: string | undefined
+    try {
+      const reset = {
+        localAi: () => import('../services/localLlm'),
+        clip: () => import('../services/clipEmbeddingModel'),
+        faceDetect: () => import('../services/faceDetector'),
+        faceEmbed: () => import('../services/faceEmbedRuntime'),
+        faceAlign: () => import('../services/faceAlign'),
+        faceGender: () => import('../services/faceGender'),
+      }
+      const service = await reset[kind as ManualModelKind]()
+      if (service.isModelImportBusy()) throw new Error('Model is in use or loading. Stop the task or restart the app before importing.')
+      await fs.promises.mkdir(modelsRoot, {recursive: true})
+      let upload: string
+      let zipped: boolean
+      if (req.is('application/json')) {
+        const source = req.body?.path
+        if (typeof source !== 'string' || !path.isAbsolute(source)) throw new Error('Expected an absolute model file path')
+        upload = await fs.promises.realpath(source)
+        const info = await fs.promises.stat(upload)
+        if (!info.isFile() || info.size > 2 * 1024 ** 3) throw new Error('Invalid model file or file exceeds 2 GB')
+        const extension = path.extname(upload).toLowerCase()
+        const allowed = kind === 'clip' ? ['.zip'] : kind === 'localAi' ? ['.gguf', '.zip'] : ['.onnx', '.zip']
+        if (!allowed.includes(extension)) throw new Error('Unsupported model file format')
+        zipped = extension === '.zip'
+      } else {
+        temporary = await fs.promises.mkdtemp(path.join(modelsRoot, '.upload-'))
+        let bytes = 0
+        const limit = new Transform({transform(chunk, _encoding, callback) {
+          bytes += chunk.length
+          callback(bytes > 2 * 1024 ** 3 ? new Error('Upload exceeds 2 GB') : null, chunk)
+        }})
+        upload = path.join(temporary, 'model')
+        await pipeline(req, limit, fs.createWriteStream(upload))
+        zipped = req.query.zip === '1'
+      }
+      if (service.isModelImportBusy()) throw new Error('Model is in use or loading. Stop the task before importing.')
+      await installManualModel(upload, zipped, kind as ManualModelKind, modelsRoot)
+      if ('clearModelImportError' in service) service.clearModelImportError()
+      res.json({installed: true})
+    } catch (error) {
+      if (!res.destroyed) res.status(400).json({message: apiErrorMessage(error)})
+    } finally {
+      importingModels.delete(kind)
+      if (temporary) await fs.promises.rm(temporary, {recursive: true, force: true})
+    }
+  })
 
   let taskHandlers: TaskHandlers | null = null
   const getTask = (): TaskHandlers => {

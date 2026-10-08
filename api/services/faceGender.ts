@@ -151,3 +151,5 @@ export {
   loadGenderModel,
   prepareGenderModel,
 }
+
+export function isModelImportBusy() { return Boolean(genderSession || genderLoading) }

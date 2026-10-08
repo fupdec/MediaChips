@@ -516,3 +516,7 @@ export {
   purgeOtherMediaFaceCrops,
   saveFaceCrop,
 }
+
+export function clearModelImportError() { lastError = null }
+
+export function isModelImportBusy() { return Boolean(session || loadingPromise) }

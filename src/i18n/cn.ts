@@ -865,6 +865,18 @@ const cn = {
   },
   ai: {
     models: {
+      manual_settings: "打开设置以手动安装",
+      manual_options: "模型下载与导入",
+      download_browser: "在浏览器中下载",
+      import_file: "导入模型文件",
+      import_done: "模型已成功导入",
+      manual_hint: "GGUF/ONNX：导入已下载的文件或 ZIP。CLIP：将列出的文件打包为 ZIP，保留 onnx 文件夹。",
+      localAi: "本地 AI 助手",
+      faceDetect: "人脸检测",
+      faceEmbed: "人脸识别",
+      faceAlign: "人脸对齐",
+      faceGender: "性别识别模型",
+
       confirm_one: '下载 <b>{name}</b>（约 {size} MB）以继续？模型将保存在本机。',
       confirm_many: '下载以下模型以继续？<br>{list}<br>模型将保存在本机。',
       list_item: '• {name}（约 {size} MB）',

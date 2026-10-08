@@ -941,6 +941,18 @@ const ru = {
   },
   ai: {
     models: {
+      manual_settings: "Открыть настройки для ручной установки",
+      manual_options: "Загрузка и импорт модели",
+      download_browser: "Скачать через браузер",
+      import_file: "Добавить файл модели",
+      import_done: "Модель успешно установлена",
+      manual_hint: "GGUF/ONNX: выберите скачанный файл или ZIP. Для CLIP упакуйте перечисленные файлы в ZIP, сохранив папку onnx.",
+      localAi: "Локальный AI-помощник",
+      faceDetect: "Обнаружение лиц",
+      faceEmbed: "Распознавание лиц",
+      faceAlign: "Выравнивание лиц",
+      faceGender: "Определение пола",
+
       confirm_one: 'Скачать <b>{name}</b> (~{size} МБ), чтобы продолжить? Модель сохранится локально на этом компьютере.',
       confirm_many: 'Скачать эти модели, чтобы продолжить?<br>{list}<br>Они сохранятся локально на этом компьютере.',
       list_item: '• {name} (~{size} МБ)',
@@ -2751,7 +2763,7 @@ const ru = {
       visual_hash_backfill_progress: 'Обработано: {processed}/{total} · hashed: {hashed} · нет файла: {missing} · ошибок: {failed} · пропущено: {skipped}',
       visual_hash_backfill_complete: 'Готово: {hashed} hashed, {missing} без файла, {failed} ошибок, {skipped} пропущено',
       clip_embedding_backfill: 'CLIP семантический индекс',
-      clip_embedding_backfill_hint: 'Строит CLIP-эмбеддинги по тайлам video grid (3×3) / image thumbs для семантического поиска и «семантически похожих». Сетки дают ~9× больше сэмплов сцен, чем один thumb. Сначала скачайте CLIP-модель и сгенерируйте превью, если pending остаётся 0. После обновления перезапустите прогон, чтобы обновить tile-индекс.',
+      clip_embedding_backfill_hint: 'Индексирует кадры из сетки превью видео (3×3) и миниатюры изображений для поиска по смыслу и поиска похожих файлов. Сетка содержит примерно в 9 раз больше кадров, чем одна миниатюра. Если число ожидающих файлов остаётся нулевым, сначала скачайте модель CLIP и создайте превью. После обновления приложения повторите индексацию, чтобы обновить индекс кадров.',
       clip_embedding_backfill_status: '{hashed} из {total} превью проиндексировано ({pending} ожидают)',
       clip_embedding_backfill_start: 'Запустить прогон',
       clip_embedding_backfill_recalculate: 'Пересчитать все CLIP-эмбеддинги',

@@ -941,6 +941,18 @@ const en = {
   },
   ai: {
     models: {
+      manual_settings: "Open settings for manual installation",
+      manual_options: "Model download and import",
+      download_browser: "Download in browser",
+      import_file: "Import model file",
+      import_done: "Model imported successfully",
+      manual_hint: "GGUF/ONNX: import the downloaded file or ZIP. CLIP: ZIP the listed files, keeping the onnx folder.",
+      localAi: "Local AI assistant",
+      faceDetect: "Face detection",
+      faceEmbed: "Face recognition",
+      faceAlign: "Face alignment",
+      faceGender: "Face gender model",
+
       confirm_one: 'Download <b>{name}</b> (~{size} MB) to continue? The model is stored locally on this computer.',
       confirm_many: 'Download these models to continue?<br>{list}<br>They are stored locally on this computer.',
       list_item: '• {name} (~{size} MB)',

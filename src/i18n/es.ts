@@ -865,6 +865,18 @@ const es = {
   },
   ai: {
     models: {
+      manual_settings: "Abrir ajustes para la instalación manual",
+      manual_options: "Descarga e importación de modelos",
+      download_browser: "Descargar en el navegador",
+      import_file: "Importar archivo de modelo",
+      import_done: "Modelo importado correctamente",
+      manual_hint: "GGUF/ONNX: importa el archivo descargado o ZIP. Para CLIP, comprime los archivos indicados en un ZIP conservando la carpeta onnx.",
+      localAi: "Asistente de IA local",
+      faceDetect: "Detección de rostros",
+      faceEmbed: "Reconocimiento facial",
+      faceAlign: "Alineación facial",
+      faceGender: "Modelo de género facial",
+
       confirm_one: '¿Descargar <b>{name}</b> (~{size} MB) para continuar? El modelo se guardará localmente en este equipo.',
       confirm_many: '¿Descargar estos modelos para continuar?<br>{list}<br>Se guardarán localmente en este equipo.',
       list_item: '• {name} (~{size} MB)',

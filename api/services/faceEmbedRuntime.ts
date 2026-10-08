@@ -190,3 +190,7 @@ export async function embedImage(
   if (!embeddingTensor) throw new Error('Face embed model returned no embedding.')
   return l2Normalize(embeddingTensor.data as Float32Array)
 }
+
+export function clearModelImportError() { lastError = null }
+
+export function isModelImportBusy() { return Boolean(embedSession || loadingPromise) }

@@ -58,7 +58,7 @@ export function downloadHttpFile(
     headers = {},
     onProgress,
     signal,
-    timeoutMs,
+    timeoutMs = 60_000,
     minBytes,
     maxRedirects = 32,
     redirectDepth = 0,
@@ -119,6 +119,8 @@ export function downloadHttpFile(
       const fail = (error: unknown) => {
         if (settled) return
         settled = true
+        file.destroy()
+        response.destroy()
         unlinkQuiet(tmpPath)
         reject(error instanceof Error ? error : new Error(String(error)))
       }
@@ -140,6 +142,10 @@ export function downloadHttpFile(
         file.close(() => {
           if (settled) return
           try {
+            if (total != null && loaded !== total) {
+              fail(new Error(`Incomplete download of ${errorLabel} (${loaded}/${total} bytes)`))
+              return
+            }
             if (minBytes != null) {
               const size = fs.statSync(tmpPath).size
               if (size < minBytes) {
@@ -159,6 +165,8 @@ export function downloadHttpFile(
       })
       file.on('error', fail)
       response.on('error', fail)
+      response.on('aborted', () => fail(new Error(`Download connection closed while downloading ${errorLabel}`)))
+      request.on('error', fail)
     })
 
     if (timeoutMs != null) {
