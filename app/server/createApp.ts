@@ -33,7 +33,7 @@ function createExpressApp() {
       return
     }
 
-    const url = req.originalUrl || req.url
+    const url = (req.originalUrl || req.url).replace(/([?&](?:token|session|code|state|oauthState)=)[^&]*/gi, '$1[redacted]')
     const isTranscodeStream = req.method === 'GET' && /\/api\/video\/\d+\/transcode\/stream(?:\?|$)/.test(url)
     const isQuietRoute = /^\/api\/(?:get-file|check-file|check-files|health|ping|auth\/status)(?:\?|$)/.test(url.split('?')[0])
 

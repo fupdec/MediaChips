@@ -15,8 +15,9 @@ function readTokenFile(filePath: string): DriveOAuthTokens | null {
 }
 
 function writeTokenFile(filePath: string, tokens: DriveOAuthTokens): void {
-  fs.mkdirSync(path.dirname(filePath), {recursive: true})
-  fs.writeFileSync(filePath, JSON.stringify(tokens, null, 2), 'utf8')
+  fs.mkdirSync(path.dirname(filePath), {recursive: true, mode: 0o700})
+  fs.writeFileSync(filePath, JSON.stringify(tokens, null, 2), {encoding: 'utf8', mode: 0o600})
+  fs.chmodSync(filePath, 0o600)
 }
 
 function clearTokenFile(filePath: string): void {
@@ -28,8 +29,7 @@ function clearTokenFile(filePath: string): void {
 }
 
 /**
- * Tiny file-backed token store for the spike (API/Electron process only).
- * Not encrypted — Phase 2 should move to OS keychain / safer storage.
+ * Private host-local token store (API/Electron process only).
  */
 function createTokenStore(filePath: string) {
   let memory: DriveOAuthTokens | null = readTokenFile(filePath)
@@ -39,8 +39,8 @@ function createTokenStore(filePath: string) {
       return memory
     },
     set(tokens: DriveOAuthTokens): void {
-      memory = tokens
       writeTokenFile(filePath, tokens)
+      memory = tokens
     },
     clear(): void {
       memory = null

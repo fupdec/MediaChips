@@ -13,6 +13,7 @@ import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
 import {buildMarkPayload} from '@/utils/markAdding'
 import {getMarkImagePath} from '@/utils/markThumb'
+import {saveWebVideoCurrentFrame} from '@/services/webVideoFrames'
 import {invalidateFileExistsCache} from '@/services/fileService'
 import {isWinElectronUi} from '@/utils/electronUi'
 import {usePlayerHotkeys} from '@/composable/usePlayerHotkeys'
@@ -26,7 +27,10 @@ import {
 } from '@/composable/usePlayerTransportPlayback'
 import {getTranscodePlayerStatus} from '@/utils/playerTranscodeStatus'
 import {setNotification} from '@/services/notificationService'
-import {openPath as openFilePath} from '@/services/shellService'
+import {openPath as openFilePath, openExternal} from '@/services/shellService'
+import {isWebVideoPath} from '@shared/webVideo'
+import {isRemoteMediaPath, isNasMediaPath, parseNasMediaPath} from '@shared/remoteMedia'
+import {isDriveMediaPath} from '@shared/cloudDrive'
 import {
   loadPlayerVolumePrefs,
   persistPlayerMuted,
@@ -80,6 +84,7 @@ export function usePlayerSession() {
     bindVideoElement,
     getMarks,
     loadSrc,
+    reloadWebVideo,
     updatePlaybackTime,
     clearLiveTranscodeHandlers,
     changeLiveTranscodeMaxHeight,
@@ -138,10 +143,13 @@ export function usePlayerSession() {
   })
   const fileExtension = computed(() => {
     if (!video.value?.path) return ''
-    const ext = path.extname(video.value.path)
+    const ext = path.extname(parseNasMediaPath(video.value.path)?.relativePath || video.value.path)
     return ext ? ext.slice(1).toUpperCase() : ''
   })
   const formatErrorMessage = computed(() => {
+    if (isRemoteMediaPath(playerStore.media?.path)) {
+      return playerStore.transcodeError || t(isDriveMediaPath(playerStore.media?.path) ? 'drive.playback_error' : isNasMediaPath(playerStore.media?.path) ? 'nas.playback_error' : 'media.adding.web_video_playback_error')
+    }
     if (playerStore.transcodeError) {
       return `${t('player.transcode_error')}: ${playerStore.transcodeError}`
     }
@@ -224,6 +232,11 @@ export function usePlayerSession() {
     playerStore.bufferedRanges = []
     playerStore.isLiveStreamSeeking = false
     playerStore.isStreamWaiting = false
+    playerStore.webVideoLoading = false
+    playerStore.webVideoQualities = []
+    playerStore.webVideoQuality = null
+    playerStore.webVideoAdaptive = false
+    playerStore.webVideoFrameReady = false
     playerStore.clearBackgroundStatus()
     isReady.value = false
 
@@ -271,7 +284,11 @@ export function usePlayerSession() {
   }))
 
   const openPath = () => {
-    if (!video.value?.path) return
+    if (!video.value?.path || isNasMediaPath(video.value.path)) return
+    if (isWebVideoPath(video.value.path)) {
+      void openExternal(video.value.path)
+      return
+    }
     openFilePath(video.value.path, false)
   }
 
@@ -441,6 +458,7 @@ export function usePlayerSession() {
   }, 5)
 
   const openAddingMark = (type?: string) => {
+    if (!playerStore.isLibraryMedia) return
     playerStore.studioMode = true
     playerStore.marksVisible = true
     playerStore.selectedMarkId = null
@@ -500,7 +518,10 @@ export function usePlayerSession() {
           await addTagToMedia(mark.tagId, Number(adding.meta?.id) || undefined)
         }
         try {
-          await typedApi.createMarkThumb({
+          if (isRemoteMediaPath(video.value.path)) {
+            await saveWebVideoCurrentFrame({video: playerStore.player, mediaId: video.value.id, mediaPath: video.value.path,
+              markId: editId, expectedTime: mark.time})
+          } else await typedApi.createMarkThumb({
             markId: editId,
             mediaId: video.value.id,
             overwrite: true,
@@ -519,6 +540,15 @@ export function usePlayerSession() {
       } else {
         const created = await typedApi.createMark(mark)
         savedId = Number(created.data?.id) || null
+        if (savedId && isRemoteMediaPath(video.value.path)) {
+          try {
+            if (await saveWebVideoCurrentFrame({video: playerStore.player, mediaId: video.value.id, mediaPath: video.value.path,
+              markId: savedId, expectedTime: mark.time})) {
+              invalidateFileExistsCache(getMarkImagePath(appStore.mediaPath, savedId))
+              eventBus.emit('updateMarkImage', savedId)
+            }
+          } catch { /* A marker is useful even when its image cannot be captured. */ }
+        }
 
         if (mark.tagId) {
           await addTagToMedia(mark.tagId, Number(adding.meta?.id) || undefined)
@@ -561,6 +591,7 @@ export function usePlayerSession() {
   }
 
   const editMark = (mark: PlayerMark) => {
+    if (!playerStore.isLibraryMedia) return
     if (
       dialogsStore.markAdding.show
       && Number(dialogsStore.markAdding.editId) === Number(mark.id)
@@ -572,7 +603,7 @@ export function usePlayerSession() {
   }
 
   const removeMark = async (mark: PlayerMark) => {
-    if (!mark.id) return
+    if (!playerStore.isLibraryMedia || !mark.id) return
     try {
       await typedApi.deleteMark(mark.id)
       await getMarks(video.value)
@@ -701,6 +732,7 @@ export function usePlayerSession() {
     formatErrorMessage,
     showPlaybackError,
     closePlayer,
+    reloadWebVideo,
     changeLiveTranscodeMaxHeight,
     disableLiveTranscode,
     stopSmoothScroll,

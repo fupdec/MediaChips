@@ -26,10 +26,18 @@ const FILE_MIME_TYPES = {
   '.heic': 'image/heic',
   '.avif': 'image/avif',
   '.mp4': 'video/mp4',
+  '.m4v': 'video/mp4',
+  '.mov': 'video/quicktime',
+  '.mkv': 'video/x-matroska',
   '.webm': 'video/webm',
-  '.ogg': 'video/ogg',
+  '.ogg': 'audio/ogg',
+  '.ogv': 'video/ogg',
   '.mp3': 'audio/mpeg',
   '.wav': 'audio/wav',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
+  '.flac': 'audio/flac',
+  '.opus': 'audio/ogg',
 } as const
 
 const VIEWER_RESIZE_EXTS = new Set([

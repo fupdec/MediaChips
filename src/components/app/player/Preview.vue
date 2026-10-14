@@ -3,6 +3,7 @@
     v-show="shouldShowPreview"
     :style="previewStyle"
     class="preview text-center"
+    :class="{'preview--time-only': playerStore.isWebVideo}"
   >
     <div
       v-if="useTimelineFrames && gridFrameStyle"
@@ -11,7 +12,7 @@
       :style="gridFrameStyle"
     />
     <video
-      v-else-if="!useTimelineFrames"
+      v-else-if="!useTimelineFrames && !playerStore.isWebVideo"
       ref="preview"
       muted
       preload="metadata"
@@ -73,13 +74,17 @@ const gridGenRequestedFor = ref<number | null>(null)
 const gridFrameCacheBust = ref(0)
 const gridFrameFailed = ref(false)
 
-const useTimelineFrames = computed(() => playerStore.usesLiveTranscode)
+const useTimelineFrames = computed(() => playerStore.usesLiveTranscode && !playerStore.isWebVideo)
 
 const aspectRatio = computed(() =>
   getPlayerPreviewAspectRatio(playerStore.playlist, playerStore.nowPlaying),
 )
 
 const previewStyle = computed(() => {
+  if (playerStore.isWebVideo) return {
+    left: `clamp(40px, ${playerStore.progress_hover ?? 0}%, calc(100% - 40px))`,
+    transform: 'translateX(-50%)',
+  }
   const ratio = aspectRatio.value
   const hover = playerStore.progress_hover ?? 0
   const halfWidth = `calc(15vh * ${ratio} / 2 + 10px)`
@@ -94,6 +99,7 @@ const previewStyle = computed(() => {
 const shouldShowPreview = computed(() => {
   return Boolean(playerStore.media?.id) &&
     playerStore.is_file_exists &&
+    !playerStore.webVideoLoading &&
     playerStore.progress_hover != null &&
     !playerStore.is_mark_hover
 })
@@ -172,7 +178,7 @@ const showTimelineGenerating = computed(() =>
 
 const requestGridGeneration = () => {
   const media = playerStore.media
-  if (!media?.id || !media.path) return
+  if (!media?.id || !media.path || playerStore.isWebVideo) return
   if (gridGenRequestedFor.value === media.id) return
 
   gridGenRequestedFor.value = media.id
@@ -210,7 +216,7 @@ const probeGridSprite = async () => {
 }
 
 const syncPreviewFrame = () => {
-  if (useTimelineFrames.value || playerStore.progress_hover == null) return
+  if (useTimelineFrames.value || playerStore.isWebVideo || playerStore.progress_hover == null) return
 
   const video = preview.value
   const playerSrc = playerStore.player?.src
@@ -232,7 +238,7 @@ const syncPreviewFrame = () => {
 const throttledSyncPreviewFrame = throttle(syncPreviewFrame, 80, {leading: true, trailing: true})
 
 watch(
-  () => (playerStore.usesLiveTranscode ? playerStore.media?.id : null),
+  () => (useTimelineFrames.value ? playerStore.media?.id : null),
   (mediaId) => {
     if (mediaId == null) return
     void probeGridSprite()

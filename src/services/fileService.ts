@@ -6,6 +6,8 @@ import { typedApi } from '@/services/typedApi'
 import { checkFileExistsElectron, isElectron } from '@/services/electronBridge'
 import { queueFileExistenceCheck } from '@/utils/fileExistenceBatcher'
 import { isViteDevProxyMode } from '@/utils/apiBaseUrl'
+import {parseDriveMediaPath} from '@shared/cloudDrive'
+import {isRemoteMediaPath} from '@shared/remoteMedia'
 
 const NEGATIVE_CACHE_TTL_MS = 60_000
 const POSITIVE_CACHE_TTL_MS = 5 * 60_000
@@ -107,6 +109,8 @@ async function checkFileExistsRemote(filePath: string) {
 }
 
 export async function checkFileExists(filePath: string) {
+  // URL-backed library entries are resolved on playback, not probed on disk.
+  if (isRemoteMediaPath(filePath)) return true
   const normalized = normalizePastedFilePath(filePath)
   filePath = typeof normalized === 'string' ? normalized : filePath
   if (!filePath) return false
@@ -159,6 +163,11 @@ export function buildLocalFileUrl(
   cacheBust: boolean | number = false,
   options?: {maxEdge?: number},
 ): string {
+  const driveFileId = parseDriveMediaPath(imgPath)
+  if (driveFileId) {
+    const token = getAuthToken()
+    return buildApiUrl(`/api/drive/files/${driveFileId}/stream`) + (token ? `?token=${encodeURIComponent(token)}` : '')
+  }
   const params = new URLSearchParams()
   params.set('url', imgPath)
   params.set('cv', GET_FILE_CACHE_VERSION)

@@ -9,6 +9,7 @@ import {openPath} from '@/services/shellService'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {canApplyTrim, clampTrimValue, normalizeTrimRange} from '@shared/playerTrim'
 import {isVirtualZipPath} from '@shared/zipPath'
+import {isRemoteMediaPath} from '@shared/remoteMedia'
 import {getApiErrorMessage} from '@/types/vue'
 import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import {invalidateFileExistsCache} from '@/services/fileService'
@@ -32,6 +33,7 @@ export function usePlayerTrim(session: PlayerSessionContext | null) {
     && playerStore.is_file_exists
     && Boolean(video.value?.path)
     && !isVirtualZipPath(String(video.value?.path || ''))
+    && !isRemoteMediaPath(video.value?.path)
   ))
 
   let pollTimer: ReturnType<typeof setInterval> | null = null

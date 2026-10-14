@@ -71,10 +71,11 @@
       </div>
 
       <div
-        v-if="status && !status.mock && !status.authenticated"
+        v-if="status && !status.mock"
         class="d-flex flex-wrap ga-2 mt-3"
       >
         <v-btn
+          v-if="!status.authenticated"
           color="primary"
           size="small"
           rounded
@@ -84,13 +85,19 @@
           Connect Google Drive
         </v-btn>
         <v-btn
+          v-else
           size="small"
           variant="text"
-          :disabled="!status.authenticated"
           @click="logoutDrive"
         >
           Disconnect
         </v-btn>
+        <span
+          v-if="oauthWaiting"
+          class="text-caption text-medium-emphasis align-self-center"
+        >
+          Waiting for Google sign-in…
+        </span>
       </div>
     </SettingsGroupPanel>
 
@@ -195,7 +202,8 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, ref} from 'vue'
+import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
+import {useRoute, useRouter} from 'vue-router'
 import SettingsTabHeader from '@/components/settings/SettingsTabHeader.vue'
 import SettingsGroupPanel from '@/components/ui/SettingsGroupPanel.vue'
 import {apiClient, buildApiUrl} from '@/services/apiClient'
@@ -206,6 +214,9 @@ import {
   apiDriveOAuthStart,
   apiDriveStatus,
 } from '@shared/api/routes'
+
+const route = useRoute()
+const router = useRouter()
 
 type DriveStatus = {
   configured: boolean
@@ -237,6 +248,8 @@ const status = ref<DriveStatus | null>(null)
 const statusLoading = ref(false)
 const statusError = ref('')
 const oauthLoading = ref(false)
+const oauthWaiting = ref(false)
+let oauthPollTimer: ReturnType<typeof setInterval> | null = null
 
 const folderId = ref('root')
 const folderStack = ref<{id: string; name: string}[]>([])
@@ -270,18 +283,41 @@ function fileSubtitle(file: DriveFileEntry) {
   return bits.join(' · ')
 }
 
+function stopOAuthPoll() {
+  oauthWaiting.value = false
+  if (oauthPollTimer) {
+    clearInterval(oauthPollTimer)
+    oauthPollTimer = null
+  }
+}
+
 async function refreshStatus() {
   statusLoading.value = true
   statusError.value = ''
   try {
     const {data} = await apiClient.get<DriveStatus>(apiDriveStatus())
     status.value = data
+    if (data.authenticated) {
+      stopOAuthPoll()
+    }
   } catch (err: unknown) {
     status.value = null
     statusError.value = err instanceof Error ? err.message : String(err)
   } finally {
     statusLoading.value = false
   }
+}
+
+function startOAuthPoll() {
+  stopOAuthPoll()
+  oauthWaiting.value = true
+  oauthPollTimer = setInterval(() => {
+    void refreshStatus().then(() => {
+      if (status.value?.authenticated) {
+        void openFolder('root', true)
+      }
+    })
+  }, 1500)
 }
 
 async function openFolder(id: string, resetStack = false) {
@@ -321,7 +357,14 @@ async function startOAuth() {
   oauthLoading.value = true
   try {
     const {data} = await apiClient.get<{url: string}>(apiDriveOAuthStart())
-    if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer')
+    if (!data?.url) {
+      statusError.value = 'OAuth start did not return a URL'
+      return
+    }
+    // Same-tab navigate so the OAuth callback can redirect back to /drive-spike
+    // and remount with fresh status. Also poll in case a popup/blocker path is used.
+    startOAuthPoll()
+    window.location.assign(data.url)
   } catch (err: unknown) {
     statusError.value = err instanceof Error ? err.message : String(err)
   } finally {
@@ -343,9 +386,34 @@ function onVideoError() {
     'Video element failed to load. In mock mode that is expected for decode; check Network for 206 Range on seek. In live mode confirm auth and mime type.'
 }
 
+async function consumeOAuthQuery() {
+  const flag = route.query.drive_oauth
+  if (!flag) return
+  if (flag === 'error') {
+    const message = typeof route.query.message === 'string' ? route.query.message : 'OAuth failed'
+    statusError.value = message
+  }
+  await router.replace({path: '/drive-spike', query: {}})
+}
+
+function onWindowFocus() {
+  if (!status.value?.authenticated) {
+    void refreshStatus().then(() => {
+      if (status.value?.authenticated) void openFolder('root', true)
+    })
+  }
+}
+
 onMounted(async () => {
+  window.addEventListener('focus', onWindowFocus)
+  await consumeOAuthQuery()
   await refreshStatus()
   await openFolder('root', true)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('focus', onWindowFocus)
+  stopOAuthPoll()
 })
 </script>
 

@@ -172,6 +172,16 @@ export function repairSchemaColumns(sqlite: Database.Database): string[] {
 }
 
 const MISSING_TABLE_DDL: Record<string, string> = {
+  sourceConnections: `CREATE TABLE "sourceConnections" (
+    "id" text PRIMARY KEY NOT NULL, "config" text NOT NULL,
+    "credentialRef" text NOT NULL, "createdAt" text NOT NULL
+  )`,
+  mediaLocations: `CREATE TABLE "mediaLocations" (
+    "id" text PRIMARY KEY NOT NULL,
+    "mediaId" integer NOT NULL REFERENCES "media"("id") ON DELETE CASCADE,
+    "connectionId" text NOT NULL REFERENCES "sourceConnections"("id"),
+    "resourceKey" text NOT NULL, "version" text NOT NULL
+  )`,
   imageMetadata: `CREATE TABLE "imageMetadata" (
     "mediaId" integer PRIMARY KEY NOT NULL,
     "width" integer DEFAULT 0,
@@ -365,6 +375,11 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
     sqlite.exec(createSql)
     repaired.push(indexName)
   }
+
+  ensureIndex('mediaLocations', 'media_locations_resource_idx',
+    'CREATE UNIQUE INDEX IF NOT EXISTS "media_locations_resource_idx" ON "mediaLocations" ("connectionId", "resourceKey", "version")')
+  ensureIndex('mediaLocations', 'media_locations_media_idx',
+    'CREATE INDEX IF NOT EXISTS "media_locations_media_idx" ON "mediaLocations" ("mediaId")')
 
   // 0001 performance / list-sort suite
   ensureIndex(

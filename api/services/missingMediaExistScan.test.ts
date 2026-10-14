@@ -8,6 +8,15 @@ import {
 } from './missingMediaExistScan'
 
 describe('collectMissingMediaByPathExist', () => {
+  it('does not scan URL-backed videos as local files', async () => {
+    const pathExists = vi.fn(async () => false)
+    const missing = await collectMissingMediaByPathExist([
+      {path: 'https://xhamster.com/videos/test-xhAb12'},
+      {path: '/missing.mp4'},
+    ], {pathExists})
+    expect(missing).toEqual([{path: '/missing.mp4'}])
+    expect(pathExists).toHaveBeenCalledTimes(1)
+  })
   it('returns missing rows in input order', async () => {
     const pathExists = vi.fn(async (filePath: string) => filePath !== '/missing.mp4')
     const missing = await collectMissingMediaByPathExist([

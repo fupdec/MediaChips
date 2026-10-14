@@ -1,7 +1,9 @@
 import type {Request, Response} from 'express'
 import {Readable} from 'stream'
+import {pipeline} from 'stream/promises'
 import {isClientAbortError} from '../../../app/server/fileResolver'
 import type {DriveTransport} from './types'
+import {driveMediaContentType} from '../../../shared/cloudDrive'
 
 function headerValue(headers: Record<string, string | undefined>, name: string): string | undefined {
   return headers[name.toLowerCase()] || headers[name]
@@ -26,8 +28,8 @@ async function streamDriveFile(
   try {
     meta = await transport.getFileMeta(fileId)
   } catch (err: unknown) {
-    const status = (err as {status?: number})?.status || 404
-    res.status(status).json({
+    const status = (err as {status?: number; response?: {status?: number}})?.status || (err as {response?: {status?: number}})?.response?.status || 404
+    res.status(status === 401 ? 409 : status).json({
       message: err instanceof Error ? err.message : 'Drive file not found',
     })
     return
@@ -35,20 +37,26 @@ async function streamDriveFile(
 
   if (meta.mimeType?.startsWith('application/vnd.google-apps.')) {
     res.status(415).json({
-      message: 'Google Docs/Sheets/etc. are not streamable as binary media; export is out of spike scope',
+      message: 'Google Docs/Sheets/etc. are not streamable as binary media; only binary media can be streamed',
       mimeType: meta.mimeType,
     })
     return
   }
 
-  const contentType = meta.mimeType || fallbackContentType
+  const contentType = driveMediaContentType(meta.name, meta.mimeType || fallbackContentType)
+  if (!/^(video\/|audio\/|image\/(jpeg|png|gif|webp|avif|bmp)$)/.test(contentType)) {
+    res.status(415).json({message: 'Only video, audio and supported raster images can be streamed.'})
+    return
+  }
   const downloaded = await transport.downloadFile(fileId, rangeValue)
 
-  const upstreamType = headerValue(downloaded.headers, 'content-type') || contentType
+  const upstreamType = contentType
   const contentLength = headerValue(downloaded.headers, 'content-length')
   const contentRange = headerValue(downloaded.headers, 'content-range')
 
   const head: Record<string, string | number> = {
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff',
     'Content-Type': upstreamType,
     'Accept-Ranges': 'bytes',
   }
@@ -65,19 +73,13 @@ async function streamDriveFile(
   }
 
   const stream = body as Readable
-  stream.on('error', (streamErr: NodeJS.ErrnoException) => {
-    if (!isClientAbortError(streamErr)) {
-      console.error('Drive stream error:', streamErr)
-    }
-    stream.destroy()
-    if (!res.headersSent) {
-      res.status(500).end()
-    } else {
-      res.destroy()
-    }
-  })
-  req.on('close', () => stream.destroy())
-  stream.pipe(res)
+  const abort = () => stream.destroy()
+  res.once('close', abort)
+  try { await pipeline(stream, res) }
+  catch (err) {
+    if (!isClientAbortError(err as NodeJS.ErrnoException) && !res.destroyed) throw err
+  } finally { res.removeListener('close', abort) }
+
 }
 
 export {streamDriveFile}

@@ -1,4 +1,5 @@
 import path from 'path-browserify'
+import {isDriveMediaPath} from '@shared/cloudDrive'
 import { buildLocalFileUrl } from '@/services/fileService'
 import {
   getCachedThumb,
@@ -20,6 +21,7 @@ export async function loadImageDisplayUrl(
   { preferFull = false, cacheBust = false } = {},
 ): Promise<string> {
   if (!media?.id) return IMAGE_UNAVAILABLE_URL
+  if (isDriveMediaPath(media.path)) return buildLocalFileUrl(media.path!, true)
 
   if (!cacheBust && !preferFull) {
     const cached = getCachedThumb(mediaThumbKey('images', media.id))
@@ -40,6 +42,7 @@ export async function loadThumbDisplayUrl(
   mediaPath: string,
 ): Promise<string> {
   if (!media?.id) return IMAGE_UNAVAILABLE_URL
+  if (isDriveMediaPath(media.path)) return buildLocalFileUrl(media.path!, true)
 
   const key = mediaThumbKey('images', media.id)
   const cached = getCachedThumb(key)
@@ -63,6 +66,7 @@ export async function loadFilmstripThumbDisplayUrl(
   {cacheBust = false as boolean | number} = {},
 ): Promise<string> {
   if (!media?.id) return IMAGE_UNAVAILABLE_URL
+  if (isDriveMediaPath(media.path)) return buildLocalFileUrl(media.path!, true)
 
   const key = mediaThumbKey('images-filmstrip', media.id)
   if (!cacheBust) {

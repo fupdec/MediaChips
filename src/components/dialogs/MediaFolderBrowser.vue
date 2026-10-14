@@ -1,7 +1,7 @@
 <template>
   <div
     class="media-folder-browser"
-    :class="{'media-folder-browser--fill': fillHeight}"
+    :class="{'media-folder-browser--fill': fillHeight, 'media-folder-browser--entry-actions': Boolean($slots.entryActions)}"
   >
     <div class="media-folder-browser__panel">
       <div class="media-folder-browser__toolbar">
@@ -10,7 +10,7 @@
             <button
               type="button"
               class="media-folder-browser__nav-btn"
-              :disabled="loading || !canGoBack"
+              :disabled="loading || disabled || !canGoBack"
               :aria-label="t('folders_browser.back')"
               @click="goHistoryBack"
             >
@@ -19,7 +19,7 @@
             <button
               type="button"
               class="media-folder-browser__nav-btn"
-              :disabled="loading || !canGoForward"
+              :disabled="loading || disabled || !canGoForward"
               :aria-label="t('folders_browser.forward')"
               @click="goHistoryForward"
             >
@@ -28,7 +28,7 @@
             <button
               type="button"
               class="media-folder-browser__nav-btn"
-              :disabled="loading || !canGoUp"
+              :disabled="loading || disabled || !canGoUp"
               :aria-label="t('media.adding.browser_up')"
               @click="goUp"
             >
@@ -40,6 +40,7 @@
                 aria-hidden="true"
               />
               <v-menu
+                :disabled="loading || disabled"
                 location="bottom start"
                 content-class="media-folder-browser__places-menu"
               >
@@ -63,11 +64,21 @@
                     :title="placeLabel(place)"
                     :active="activePlaceId === place.id"
                     slim
+                    :disabled="loading || disabled"
                     @click="emit('selectPlace', place.path)"
                   />
                 </v-list>
               </v-menu>
             </template>
+            <button
+              type="button"
+              class="media-folder-browser__nav-btn"
+              :disabled="loading || disabled"
+              :aria-label="t('folders_browser.refresh')"
+              @click="refresh"
+            >
+              <v-icon size="16" icon="mdi-refresh"/>
+            </button>
           </div>
 
           <nav
@@ -88,7 +99,7 @@
                 type="button"
                 class="media-folder-browser__path-seg"
                 :class="{'media-folder-browser__path-seg--current': index === breadcrumbItems.length - 1}"
-                :disabled="loading"
+                :disabled="loading || disabled"
                 :title="item.path"
                 @click="navigateTo(item.path)"
               >
@@ -99,7 +110,7 @@
         </div>
 
         <div
-          v-if="showSelection || enableFolderTags"
+          v-if="enableFolderTags || (showSelection && !isFilePicker)"
           class="media-folder-browser__actions"
         >
           <FolderTagsMenu
@@ -115,7 +126,7 @@
                 color="primary"
                 rounded="xl"
                 icon
-                :disabled="loading || !currentPath"
+                :disabled="loading || disabled || !currentPath"
                 v-tooltip:top="t('media.adding.folder_tags_edit')"
               >
                 <v-icon size="18" icon="mdi-tag-multiple-outline"/>
@@ -141,34 +152,16 @@
             color="primary"
             rounded="xl"
             icon
-            :disabled="loading || !currentPath"
+            :disabled="loading || disabled || !currentPath"
             v-tooltip:top="t('media.adding.browser_select_folder')"
             @click="selectCurrentFolder"
           >
             <v-icon size="18" icon="mdi-folder-check-outline"/>
           </v-btn>
-          <v-btn
-            v-if="showSelection"
-            size="small"
-            variant="tonal"
-            rounded="xl"
-            icon
-            :disabled="loading || !selectedPaths.size"
-            v-tooltip:top="t('media.adding.browser_clear_selection')"
-            @click="clearSelection"
-          >
-            <v-icon size="18" icon="mdi-select-off"/>
-          </v-btn>
-        </div>
-
-        <div
-          v-if="showSelection && selectedPaths.size"
-          class="media-folder-browser__selected-count"
-        >
-          {{ t('media.adding.browser_selected_count', {count: selectedPaths.size}) }}
         </div>
 
         <v-menu
+          :disabled="disabled"
           location="bottom end"
           :close-on-content-click="false"
           content-class="media-folder-browser__places-menu media-folder-browser__view-menu"
@@ -262,15 +255,8 @@
       </v-alert>
 
       <div class="media-folder-browser__list">
-        <FoldersBrowseSkeleton
-          v-if="loading"
-          class="media-folder-browser__skeleton"
-          view-mode="list"
-          :size="3"
-          gap-size="compact"
-        />
         <div
-          v-else-if="!visibleEntries.length"
+          v-if="!loading && !visibleEntries.length"
           class="media-folder-browser__empty"
         >
           {{ t('media.adding.browser_empty') }}
@@ -282,6 +268,7 @@
           >
             <button
               type="button"
+              :disabled="loading"
               class="media-folder-browser__col media-folder-browser__col--name media-folder-browser__sort"
               :class="{'media-folder-browser__sort--active': sortKey === 'name'}"
               @click="toggleSort('name')"
@@ -295,6 +282,7 @@
             </button>
             <button
               type="button"
+              :disabled="loading"
               class="media-folder-browser__col media-folder-browser__col--size media-folder-browser__sort"
               :class="{'media-folder-browser__sort--active': sortKey === 'size'}"
               @click="toggleSort('size')"
@@ -308,6 +296,7 @@
             </button>
             <button
               type="button"
+              :disabled="loading"
               class="media-folder-browser__col media-folder-browser__col--mtime media-folder-browser__sort"
               :class="{'media-folder-browser__sort--active': sortKey === 'mtime'}"
               @click="toggleSort('mtime')"
@@ -325,6 +314,51 @@
             />
           </div>
           <v-list
+            v-if="loading"
+            class="py-0 media-folder-browser__skeleton"
+            role="status"
+            aria-busy="true"
+            :aria-label="t('common.loading')"
+          >
+            <v-list-item
+              v-for="(row, index) in skeletonRows"
+              :key="index"
+              rounded="0"
+              aria-hidden="true"
+            >
+              <template #prepend>
+                <span v-if="showSelection" class="media-folder-browser__skeleton-check media-folder-browser__check">
+                  <span class="media-folder-browser__bone media-folder-browser__bone--check"/>
+                </span>
+                <v-icon
+                  :icon="row.isDirectory ? 'mdi-folder' : 'mdi-file-outline'"
+                  class="media-folder-browser__icon media-folder-browser__skeleton-icon"
+                />
+              </template>
+              <div class="media-folder-browser__row-body">
+                <span class="media-folder-browser__col media-folder-browser__col--name">
+                  <span class="media-folder-browser__bone" :style="{width: `${row.nameWidth}px`, maxWidth: `${row.namePercent}%`}"/>
+                </span>
+                <span class="media-folder-browser__col media-folder-browser__col--size">
+                  <span class="media-folder-browser__bone" :class="{'media-folder-browser__bone--dash': row.isDirectory}"
+                    :style="{width: row.isDirectory ? '8px' : `${row.sizeWidth}px`}"/>
+                </span>
+                <span class="media-folder-browser__col media-folder-browser__col--mtime">
+                  <span class="media-folder-browser__bone media-folder-browser__bone--date"/>
+                </span>
+                <span v-if="!foldersOnly && !isFilePicker" class="media-folder-browser__col media-folder-browser__col--status">
+                  <span v-if="!row.isDirectory" class="media-folder-browser__bone media-folder-browser__bone--badge"/>
+                </span>
+              </div>
+              <template v-if="$slots.entryActions" #append>
+                <div class="media-folder-browser__entry-actions">
+                  <span v-if="!row.isDirectory" class="media-folder-browser__bone media-folder-browser__bone--action"/>
+                </div>
+              </template>
+            </v-list-item>
+          </v-list>
+          <v-list
+            v-else
             density="compact"
             class="py-0"
           >
@@ -332,7 +366,7 @@
               v-for="entry in visibleEntries"
               :key="entry.path"
               :active="selectedPaths.has(entry.path)"
-              :disabled="entry.inLibrary && !entry.isDirectory"
+              :disabled="disabled || (entry.inLibrary && !entry.isDirectory && !isFilePicker && !$slots.entryActions)"
               rounded="0"
               @click="onEntryActivate(entry)"
             >
@@ -340,7 +374,7 @@
                 <v-checkbox
                   v-if="showSelection"
                   :model-value="selectedPaths.has(entry.path)"
-                  :disabled="(entry.inLibrary && !entry.isDirectory && !isFilePicker) || (isFilePicker && entry.isDirectory)"
+                  :disabled="disabled || (selectAddableOnly && !entry.isDirectory && !entry.addable) || (entry.inLibrary && !entry.isDirectory && !isFilePicker) || (isFilePicker && entry.isDirectory)"
                   density="compact"
                   hide-details
                   class="mt-0 media-folder-browser__check"
@@ -416,11 +450,46 @@
                   </v-chip>
                 </span>
               </div>
+              <template v-if="$slots.entryActions" #append>
+                <div class="media-folder-browser__entry-actions">
+                  <slot name="entryActions" :entry="entry" :loading="loading"/>
+                </div>
+              </template>
             </v-list-item>
           </v-list>
         </template>
       </div>
+      <div v-if="showSelection" class="media-folder-browser__selection-bar">
+        <span class="media-folder-browser__selected-count" aria-live="polite">
+          {{ t('media.adding.browser_selected_count', {count: selectedPaths.size}) }}
+        </span>
+        <div class="media-folder-browser__selection-actions">
+          <v-btn v-if="!isFilePicker" size="small" variant="text" rounded="lg"
+                 :disabled="loading || disabled || !selectableEntries.length || allVisibleSelected"
+                 @click="selectAll">
+            {{ t('media.adding.browser_select_all') }}
+          </v-btn>
+          <v-btn size="small" variant="text" rounded="lg" icon
+                 :disabled="loading || disabled || !selectedPaths.size"
+                 :aria-label="t('media.adding.browser_clear_selection')"
+                 v-tooltip:top="t('media.adding.browser_clear_selection')" @click="clearSelection">
+            <v-icon size="18" icon="mdi-select-off"/>
+          </v-btn>
+          <v-btn size="small" variant="text" rounded="lg" icon
+                 :disabled="loading || disabled"
+                 :aria-label="t('media.adding.browser_edit_selection')"
+                 aria-haspopup="dialog"
+                 v-tooltip:top="t('media.adding.browser_edit_selection')" @click="editSelection">
+            <v-icon size="18" icon="mdi-playlist-edit"/>
+          </v-btn>
+        </div>
+      </div>
     </div>
+
+    <DialogSelectedPaths v-if="showSelection" v-model="selectionEditorOpen"
+                         :selected-paths="props.selectedPaths" :disabled="loading || disabled"
+                         :file-picker="isFilePicker" :hint="selectionHint"
+                         @update:selected-paths="emitSelection(new Set($event))"/>
 
     <DialogFolderTagsManager
       v-if="enableFolderTags"
@@ -430,15 +499,15 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
-import type {BrowseDirectoryEntry, BrowsePlace} from '@/services/typedApi/browse'
+import type {BrowseDirectoryEntry, BrowseDirectoryLoader, BrowseDirectoryResult, BrowsePlace} from '@/services/typedApi/browse'
 import {getReadableFileSize} from '@/services/formatUtils'
 import {getApiErrorMessage} from '@/types/vue'
 import FolderTagsMenu from '@/components/dialogs/FolderTagsMenu.vue'
 import DialogFolderTagsManager from '@/components/dialogs/DialogFolderTagsManager.vue'
-import FoldersBrowseSkeleton from '@/components/folders/FoldersBrowseSkeleton.vue'
+import DialogSelectedPaths from '@/components/dialogs/DialogSelectedPaths.vue'
 import {
   canGoFolderHistoryBack,
   canGoFolderHistoryForward,
@@ -449,6 +518,13 @@ import {
 } from '@/utils/folderNavHistory'
 
 const props = withDefaults(defineProps<{
+  /** Optional provider: the same browser can display remote files. */
+  directoryLoader?: BrowseDirectoryLoader
+  /** Display provider folder names instead of opaque remote IDs. */
+  pathTitles?: Record<string, string>
+  errorMessage?: (error: unknown) => string
+  disabled?: boolean
+  selectAddableOnly?: boolean
   baseUrl: string
   path: string
   extensions?: string
@@ -461,6 +537,8 @@ const props = withDefaults(defineProps<{
   fileExtensions?: string[]
   /** Show row checkboxes and selection toolbar actions. */
   showSelection?: boolean
+  /** Optional provider-specific path instructions in the selection dialog. */
+  selectionHint?: string
   /** Stretch list to fill parent height (side panel). */
   fillHeight?: boolean
   /** Allow editing / viewing tags on folders. */
@@ -479,9 +557,19 @@ const emit = defineEmits<{
   'update:path': [value: string]
   'update:selectedPaths': [value: string[]]
   selectPlace: [path: string]
+  visibleEntries: [entries: BrowseDirectoryEntry[]]
+  loading: [loading: boolean]
+  showHidden: [showHidden: boolean]
 }>()
 
 const {t} = useI18n()
+
+const skeletonRows = computed(() => [132, 92, 176, 212, 148, 248, 108, 184, 224, 160].map((nameWidth, index) => ({
+  nameWidth,
+  namePercent: [58, 40, 72, 86, 62, 94, 46, 76, 90, 66][index],
+  sizeWidth: [38, 48, 42, 54][index % 4],
+  isDirectory: props.foldersOnly || index < 3,
+})))
 
 const loading = ref(false)
 const error = ref('')
@@ -558,6 +646,11 @@ async function reloadFolderTags() {
 }
 
 const selectedPaths = computed(() => new Set(props.selectedPaths))
+const selectionEditorOpen = ref(false)
+function editSelection() {
+  if (props.disabled || loading.value) return
+  selectionEditorOpen.value = true
+}
 
 /** Windows/Linux: classic yellow; macOS: Finder-like blue. */
 const isMacServer = computed(() => serverPlatform.value === 'darwin')
@@ -610,6 +703,16 @@ const visibleEntries = computed(() => {
   })
 })
 
+const selectableEntries = computed(() => visibleEntries.value.filter(entry =>
+  entry.isDirectory || ((!props.selectAddableOnly || entry.addable) && !entry.inLibrary),
+))
+const allVisibleSelected = computed(() => selectableEntries.value.every(entry => selectedPaths.value.has(entry.path)))
+
+function selectAll() {
+  if (props.disabled || loading.value || isFilePicker.value) return
+  emitSelection(new Set([...selectedPaths.value, ...selectableEntries.value.map(entry => entry.path)]))
+}
+
 const breadcrumbItems = computed(() => {
   const root = rootPath.value
   const current = currentPath.value || props.path
@@ -622,14 +725,14 @@ const breadcrumbItems = computed(() => {
     ? ''
     : current.slice(root.length).replace(/^[/\\]+/, '')
   const parts = relative ? relative.split(/[/\\]/).filter(Boolean) : []
-  const items = [{title: root.split(/[/\\]/).filter(Boolean).pop() || root, path: root}]
+  const items = [{title: props.pathTitles?.[root] || root.split(/[/\\]/).filter(Boolean).pop() || root, path: root}]
 
   let cursor = root
   for (const part of parts) {
     cursor = cursor.endsWith('/') || cursor.endsWith('\\')
       ? `${cursor}${part}`
       : `${cursor}${separator}${part}`
-    items.push({title: part, path: cursor})
+    items.push({title: props.pathTitles?.[cursor] || part, path: cursor})
   }
   return items
 })
@@ -679,16 +782,20 @@ function toggleSort(key: SortKey) {
   sortDesc.value = key !== 'name'
 }
 
+let loadGeneration = 0
+onBeforeUnmount(() => { loadGeneration++ })
+
 async function loadDirectory(targetPath: string) {
   if (!targetPath) return
+  const request = ++loadGeneration
   loading.value = true
   error.value = ''
   try {
-    const {data} = await typedApi.listBrowseDirectory({
-      path: targetPath,
-      extensions: props.extensions,
-      showHidden: showHidden.value,
-    })
+    const input = {path: targetPath, extensions: props.extensions, showHidden: showHidden.value}
+    const data: BrowseDirectoryResult = props.directoryLoader
+      ? await props.directoryLoader(input)
+      : (await typedApi.listBrowseDirectory(input)).data
+    if (request !== loadGeneration) return
     currentPath.value = data.currentPath
     parentPath.value = data.parentPath
     rootPath.value = data.rootPath
@@ -700,17 +807,18 @@ async function loadDirectory(targetPath: string) {
     }
     await reloadFolderTags()
   } catch (err: unknown) {
-    const message = getApiErrorMessage(err, t('media.adding.browser_load_error'))
+    if (request !== loadGeneration) return
+    const message = props.errorMessage?.(err) || getApiErrorMessage(err, t('media.adding.browser_load_error'))
     error.value = message
     entries.value = []
     folderTagsByPath.value = {}
   } finally {
-    loading.value = false
+    if (request === loadGeneration) loading.value = false
   }
 }
 
 function navigateTo(targetPath: string | null | undefined) {
-  if (!targetPath || loading.value) return
+  if (!targetPath || loading.value || props.disabled) return
   emit('update:path', targetPath)
 }
 
@@ -734,7 +842,7 @@ function recordBrowseHistory(path: string) {
 }
 
 function goHistoryBack() {
-  if (!canGoBack.value || loading.value) return
+  if (!canGoBack.value || loading.value || props.disabled) return
   const stepped = stepFolderNavHistory(browseHistory.value, -1)
   if (!stepped?.path) return
   suppressBrowseHistory = true
@@ -743,7 +851,7 @@ function goHistoryBack() {
 }
 
 function goHistoryForward() {
-  if (!canGoForward.value || loading.value) return
+  if (!canGoForward.value || loading.value || props.disabled) return
   const stepped = stepFolderNavHistory(browseHistory.value, 1)
   if (!stepped?.path) return
   suppressBrowseHistory = true
@@ -752,7 +860,7 @@ function goHistoryForward() {
 }
 
 function goUp() {
-  if (!canGoUp.value || loading.value) return
+  if (!canGoUp.value || loading.value || props.disabled) return
   navigateTo(parentPath.value)
 }
 
@@ -769,6 +877,7 @@ function emitSelection(next: Set<string>) {
 }
 
 function toggleEntry(entry: BrowseDirectoryEntry, checked: boolean) {
+  if (props.disabled || loading.value || (props.selectAddableOnly && !entry.isDirectory && !entry.addable)) return
   if (entry.inLibrary && !entry.isDirectory && !isFilePicker.value) return
   const next = new Set(selectedPaths.value)
   // File picker: keep a single selected file
@@ -782,6 +891,7 @@ function toggleEntry(entry: BrowseDirectoryEntry, checked: boolean) {
 }
 
 function onEntryActivate(entry: BrowseDirectoryEntry) {
+  if (props.disabled || loading.value) return
   if (entry.isDirectory) {
     navigateTo(entry.path)
     return
@@ -800,23 +910,31 @@ function onEntryActivate(entry: BrowseDirectoryEntry) {
 }
 
 function selectCurrentFolder() {
-  if (!currentPath.value) return
+  if (!currentPath.value || props.disabled || loading.value) return
   const next = new Set(selectedPaths.value)
   next.add(currentPath.value)
   emitSelection(next)
 }
 
 function clearSelection() {
+  if (props.disabled || loading.value) return
   emitSelection(new Set())
 }
 
 watch(
-  () => [props.path, props.extensions, props.baseUrl, showHidden.value] as const,
+  () => [props.path, props.extensions, props.baseUrl, showHidden.value, props.directoryLoader] as const,
   ([nextPath]) => {
     if (nextPath) void loadDirectory(nextPath)
   },
   {immediate: true},
 )
+async function refresh() {
+  if (!props.disabled) await loadDirectory(currentPath.value || props.path)
+}
+defineExpose({refresh})
+watch(visibleEntries, value => emit('visibleEntries', value), {immediate: true})
+watch(loading, value => emit('loading', value), {immediate: true})
+watch(showHidden, value => emit('showHidden', value))
 </script>
 
 <style scoped>
@@ -871,6 +989,10 @@ watch(
   color: rgb(var(--v-theme-primary));
   cursor: pointer;
   transition: background-color 140ms ease, color 140ms ease;
+}
+
+.media-folder-browser__nav-btn + .media-folder-browser__nav-btn {
+  margin-inline-start: 1px;
 }
 
 .media-folder-browser__nav-btn .v-icon {
@@ -992,6 +1114,23 @@ watch(
   white-space: nowrap;
 }
 
+.media-folder-browser__selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(var(--v-theme-primary), 0.1);
+  background: rgba(var(--v-theme-primary), 0.035);
+}
+
+.media-folder-browser__selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
 .media-folder-browser__view-btn--on {
   background: rgba(var(--v-theme-primary), 0.18) !important;
 }
@@ -1022,6 +1161,16 @@ watch(
   padding-left: 72px;
 }
 
+.media-folder-browser--entry-actions .media-folder-browser__header {
+  padding-right: 64px;
+}
+
+.media-folder-browser__entry-actions {
+  width: 32px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .media-folder-browser__sort {
   display: inline-flex;
   align-items: center;
@@ -1041,6 +1190,10 @@ watch(
 .media-folder-browser__sort:hover,
 .media-folder-browser__sort--active {
   color: rgba(var(--v-theme-on-surface), 0.9);
+}
+
+.media-folder-browser__sort:disabled {
+  cursor: default;
 }
 
 .media-folder-browser__col--size.media-folder-browser__sort,
@@ -1101,9 +1254,77 @@ watch(
   font-size: 0.8125rem;
 }
 
-.media-folder-browser__skeleton {
-  padding: 8px 10px 12px;
-  min-height: 0;
+.media-folder-browser__skeleton-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 30px;
+}
+
+.media-folder-browser__skeleton-icon {
+  opacity: 0.22;
+}
+
+.media-folder-browser__bone {
+  position: relative;
+  display: block;
+  max-width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(var(--v-theme-on-surface), 0.08);
+}
+
+.media-folder-browser__bone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(var(--v-theme-on-surface), 0.09) 50%, transparent 80%);
+  animation: media-folder-browser-shimmer 1.6s ease-in-out infinite;
+}
+
+.media-folder-browser__col--size .media-folder-browser__bone,
+.media-folder-browser__col--mtime .media-folder-browser__bone {
+  margin-left: auto;
+}
+
+.media-folder-browser__bone--check {
+  width: 16px;
+  height: 16px;
+  background: transparent;
+  border: 2px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+
+.media-folder-browser__bone--date {
+  width: 112px;
+}
+
+.media-folder-browser__bone--dash {
+  height: 2px;
+}
+
+.media-folder-browser__bone--badge {
+  width: 68px;
+  height: 18px;
+}
+
+.media-folder-browser__bone--action {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+
+@keyframes media-folder-browser-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-folder-browser__bone::after {
+    animation: none;
+    display: none;
+  }
 }
 
 .media-folder-browser__check {
@@ -1184,6 +1405,20 @@ watch(
 
   .media-folder-browser__col--status {
     width: 84px;
+  }
+}
+
+@media (max-width: 600px) {
+  .media-folder-browser__toolbar {
+    flex-wrap: wrap;
+  }
+
+  .media-folder-browser__nav {
+    flex: 1 0 100%;
+  }
+
+  .media-folder-browser--entry-actions .media-folder-browser__col--status {
+    display: none;
   }
 }
 </style>

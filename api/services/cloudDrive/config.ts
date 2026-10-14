@@ -1,8 +1,13 @@
 import path from 'path'
-import {projectPath} from '../../../shared/projectRoot'
+import os from 'os'
+import fs from 'fs'
+import {FIXED_PORT} from '../../../app/server/ports'
+import {createNasCredentialStore} from '../nas/credentials'
+import {DriveConfigurationSchema, normalizeDriveClientSecret} from '../../../shared/cloudDrive'
 import type {DriveConfig} from './types'
+import {validateOAuthClient} from './oauth'
 
-/** Drive.readonly is enough for list + Range download in the Phase 1 spike. */
+/** Read-only access supports browsing and streaming without changing Drive files. */
 export const DRIVE_SPIKE_SCOPES = [
   'https://www.googleapis.com/auth/drive.readonly',
 ] as const
@@ -17,26 +22,26 @@ function resolveTokenStorePath(): string {
   if (process.env.MEDIA_CHIPS_DRIVE_TOKEN_PATH?.trim()) {
     return path.resolve(process.env.MEDIA_CHIPS_DRIVE_TOKEN_PATH.trim())
   }
-  if (process.versions.electron && process.app_folder) {
-    return path.join(process.app_folder, 'drive-oauth-tokens.json')
-  }
-  return projectPath('public', 'drive-oauth-tokens.json')
+  return path.join(driveDataDirectory(), 'tokens.json')
 }
 
 /**
- * Reads Google OAuth + Drive spike settings from env.
- * Real credentials are supplied by the user later; mock mode keeps CI/dev usable.
+ * Read private connection settings, falling back to environment configuration.
+ * Mock mode is explicitly opt-in for development and tests.
  */
 function getDriveConfig(): DriveConfig {
-  const clientId = (process.env.GOOGLE_OAUTH_CLIENT_ID || '').trim()
-  const clientSecret = (process.env.GOOGLE_OAUTH_CLIENT_SECRET || '').trim()
+  let saved: {clientId?: string; clientSecret?: string; redirectUri?: string} = {}
+  const vault = driveConfigVault()
+  if (vault.has(CONFIG_ID)) { try { saved = JSON.parse(vault.get(CONFIG_ID).password || '{}') } catch { /* Allow configuration recovery. */ } }
+  const clientId = (saved.clientId || process.env.GOOGLE_OAUTH_CLIENT_ID || '').trim()
+  const clientSecret = normalizeDriveClientSecret(saved.clientSecret || process.env.GOOGLE_OAUTH_CLIENT_SECRET || '')
   const redirectUri = (
-    process.env.GOOGLE_OAUTH_REDIRECT_URI ||
-    'http://localhost:3000/api/drive/oauth/callback'
+    saved.redirectUri || process.env.GOOGLE_OAUTH_REDIRECT_URI ||
+    `http://localhost:${FIXED_PORT}/api/drive/oauth/callback`
   ).trim()
   const mockForced = envFlag('MEDIA_CHIPS_DRIVE_MOCK')
   const hasCreds = Boolean(clientId && clientSecret)
-  const mock = mockForced || !hasCreds
+  const mock = mockForced
 
   return {
     clientId,
@@ -49,4 +54,19 @@ function getDriveConfig(): DriveConfig {
   }
 }
 
-export {getDriveConfig, resolveTokenStorePath}
+const CONFIG_ID = '57ee4e46-5d80-4b93-81d0-d0e5ee7c2e90'
+function driveDataDirectory() {
+  return path.join(process.env.MEDIA_CHIPS_DATA_DIR || process.app_folder || path.join(os.homedir(), '.mediachips'), 'google-drive')
+}
+function driveConfigVault() { return createNasCredentialStore(path.join(driveDataDirectory(), 'configuration')) }
+async function saveDriveConfiguration(raw: unknown) {
+  const input = DriveConfigurationSchema.parse(raw)
+  const previous = getDriveConfig()
+  const clientSecret = input.clientSecret || (input.clientId === previous.clientId ? previous.clientSecret : '')
+  if (!clientSecret) throw Object.assign(new Error('Enter the Google OAuth client secret.'), {status: 400})
+  await validateOAuthClient({...previous, ...input, clientSecret})
+  driveConfigVault().set(CONFIG_ID, {password: JSON.stringify({...input, clientSecret})})
+  // Credentials changed: the previous account authorization cannot be reused.
+  fs.rmSync(previous.tokenStorePath, {force: true})
+}
+export {getDriveConfig, resolveTokenStorePath, saveDriveConfiguration}

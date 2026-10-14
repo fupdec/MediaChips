@@ -1,4 +1,5 @@
 import path from 'path'
+import {randomUUID} from 'crypto'
 import {eq, inArray} from 'drizzle-orm'
 import type {ApiDb} from '../../types/db'
 import {createDrizzleClient, closeDrizzleClient} from '../../db/client'
@@ -208,6 +209,16 @@ export async function importLibraryIntoActive(
       throw new Error('Active database connection is not available')
     }
     assertCompatibleSchema(sourceConn.sqlite, targetDb.sqlite)
+
+    // Source configurations are portable; credentials require re-entry on the target.
+    const hasSources = sourceConn.sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sourceConnections'").get()
+    if (hasSources) {
+      for (const row of source.select().from(schema.sourceConnections).all()) {
+        const existing = target.select().from(schema.sourceConnections).where(eq(schema.sourceConnections.id, row.id)).get()
+        if (existing && existing.config !== row.config) throw new Error('Conflicting NAS connection identity. Reconnect the source before importing this library.')
+        if (!existing) target.insert(schema.sourceConnections).values({...row, credentialRef: randomUUID()}).run()
+      }
+    }
 
     const mediaTypeMap = new Map<number, number>()
     const metaMap = new Map<number, number>()
@@ -548,6 +559,14 @@ export async function importLibraryIntoActive(
       }
     }
     await report('media', processedMedia, sourceMediaTotal, undefined, true)
+
+    if (hasSources) {
+      for (const row of source.select().from(schema.mediaLocations).all()) {
+        const mediaId = mediaMap.get(row.mediaId)
+        if (mediaId == null) continue
+        target.insert(schema.mediaLocations).values({...row, id: randomUUID(), mediaId}).onConflictDoNothing().run()
+      }
+    }
 
     // --- 1:1 metadata (prefer created; null-fill matched only when missing) ---
     await report('links', 0, 1, undefined, true)

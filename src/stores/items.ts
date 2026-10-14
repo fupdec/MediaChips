@@ -1,3 +1,4 @@
+import {isRemoteMediaPath} from '@shared/remoteMedia'
 import {toRaw} from 'vue'
 import {defineStore} from 'pinia'
 import {useAppStore} from '@/stores/app'
@@ -194,7 +195,7 @@ export const useItemsStore = defineStore('items', {
     }) {
       const rawImage = toRaw(image)
 
-      if (in_system) {
+      if (in_system && !isRemoteMediaPath(rawImage.path)) {
         void this.openImageInSystem(rawImage)
         return
       }
@@ -351,8 +352,8 @@ export const useItemsStore = defineStore('items', {
 
       const resolvedPlayer: 'default' | 'builtin' | 'system' = player
         ?? (in_system === true ? 'system' : in_system === false ? 'builtin' : 'default')
-      const useSystemPlayer = resolvedPlayer === 'system'
-        || (resolvedPlayer === 'default' && settingsStore.isPlayVideoInSystemPlayer === '1')
+      const useSystemPlayer = !isRemoteMediaPath(targetVideo.path) && (resolvedPlayer === 'system'
+        || (resolvedPlayer === 'default' && settingsStore.isPlayVideoInSystemPlayer === '1'))
 
       if (useSystemPlayer) {
         if (targetVideo.path) {

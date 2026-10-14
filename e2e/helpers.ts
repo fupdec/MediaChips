@@ -2,6 +2,16 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import {expect, type APIRequestContext, type Page} from '@playwright/test'
+import {FEATURE_HINTS} from '../src/services/featureHints'
+
+/** Keep unrelated delayed coachmarks from covering an import dialog. */
+export async function disableFeatureHints(page: Page) {
+  await page.route(/\/(?:config\.json|api\/config)(?:\?|$)/, async route => {
+    const response = await route.fetch()
+    const config = await response.json()
+    await route.fulfill({response, json: {...config, seenFeatureHints: FEATURE_HINTS.map(hint => hint.id).join(',')}})
+  })
+}
 
 const TINY_JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xd9])
 

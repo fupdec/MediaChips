@@ -28,7 +28,7 @@
       @end="seek"
       @mousedown="handleMouseSeek($event)"
       @wheel.prevent.stop="wheelSeek"
-      :disabled="!player.is_file_exists || player.playbackError"
+      :disabled="!player.is_file_exists || player.playbackError || player.webVideoLoading"
       :track-size="2"
       :class="[
         'timeline-slider pt-4',

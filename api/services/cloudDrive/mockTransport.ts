@@ -47,7 +47,7 @@ function createMockDriveTransport(): DriveTransport {
     async listFolder(folderId: string): Promise<DriveListResult> {
       return {
         folderId: folderId || 'root',
-        files: MOCK_FILES,
+        files: folderId === 'mock-folder-clips' ? MOCK_FILES.filter(file => !file.isFolder) : MOCK_FILES,
         mock: true,
       }
     },

@@ -10,6 +10,7 @@ import {
   sendOk,
 } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
+import {isRemoteMediaPath} from '../../../shared/remoteMedia'
 import path from 'path'
 import { resolveExistingPath } from '../../services/contentHash'
 import {
@@ -42,6 +43,10 @@ export default function createTasksFileController(shared: TaskControllerShared) 
   const marksRepo = createMarksRepository(db.drizzle)
 
   const checkFileExists = async function (req: ApiRequest, res: ApiResponse) {
+    if (isRemoteMediaPath(req.body.path)) {
+      sendOk(res, {exists: true})
+      return
+    }
     const filePath = normalizeMediaPath(req.body.path)
     if (isVirtualZipPath(filePath)) {
       sendOk(res, { exists: await zipEntryExists(filePath) })

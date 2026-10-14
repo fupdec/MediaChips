@@ -64,6 +64,7 @@
           :variant="btn.outlined ? 'outlined' : 'flat'"
           :size="compact ? 'small' : undefined"
           :disabled="btn.disabled"
+          :loading="btn.loading"
           :title="btn.title || btn.text"
           :aria-label="btn.title || btn.text"
           :class="{'dialog-header__action--icon-only': !!btn.icon}"
@@ -115,6 +116,7 @@ interface DialogHeaderButton {
   color?: string
   outlined?: boolean
   disabled?: boolean
+  loading?: boolean
   order?: number
   action?: () => void
   function?: () => void

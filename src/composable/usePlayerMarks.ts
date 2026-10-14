@@ -16,6 +16,7 @@ import {
   loadMarkImageDisplayUrl,
 } from '@/utils/markThumb'
 import { checkFileExists } from '@/services/fileService'
+import {isRemoteMediaPath} from '@shared/remoteMedia'
 import type { PlayerMark } from '@/types/player'
 import { MARK_FILTER_CHAPTER, getAssignedArrayMetas } from '@/utils/markAdding'
 
@@ -78,7 +79,7 @@ export function usePlayerMarks({ emit }: UsePlayerMarksOptions) {
     const videoPath = playerStore.media?.path
 
     for (const mark of playerStore.marks) {
-      if (mark.id != null && mediaId != null) {
+      if (mark.id != null && mediaId != null && !isRemoteMediaPath(videoPath)) {
         const imgPath = getMarkImagePath(appStore.mediaPath, mark.id)
         try {
           if (!(await checkFileExists(imgPath))) {

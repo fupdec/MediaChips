@@ -20,7 +20,7 @@
       class="player-body"
       :class="{
         'player-body--marks': player.marksVisible,
-        'player-body--playlist': player.playlistVisible,
+        'player-body--playlist': player.playlistVisible && player.playlist.length > 1,
       }"
     >
       <Marks
@@ -63,7 +63,7 @@
           <video
             :ref="setVideoPlayerRef"
             :class="{ 'audio-hidden': isAudioMode }"
-            :autoplay="!player.usesLiveTranscode"
+            :autoplay="!player.usesLiveTranscode && !player.paused"
           />
 
           <div v-if="isAudioMode && !showPlaybackError" class="audio-overlay">
@@ -101,29 +101,41 @@
               </div>
               <div v-else>{{ t('player.file_is_missing') }}</div>
             </v-alert>
+            <v-btn v-if="player.isWebVideo && !player.webVideoLoading" @click.stop="reloadWebVideo({fresh: true})"
+              class="mt-4 mr-2" color="primary" rounded>
+              <v-icon left>mdi-refresh</v-icon>
+              <span>{{ t('player.controls.web_video_refresh') }}</span>
+            </v-btn>
+            <v-btn v-if="driveViewUrl" @click.stop="openDrivePlayer" class="mt-4 mr-2" color="primary" rounded>
+              <v-icon left>mdi-google-drive</v-icon>
+              <span>{{ t('drive.open_in_drive') }}</span>
+            </v-btn>
             <v-btn
-              v-if="player.is_file_exists"
+              v-if="player.is_file_exists && !isNasMediaPath(player.media?.path) && !isDriveMediaPath(player.media?.path)"
               @click.stop="openPath"
               class="mt-4"
               color="primary"
               rounded
             >
               <v-icon left>mdi-play-circle-outline</v-icon>
-              <span>{{ t('actions.open_system_player') }}</span>
+              <span>{{ t(isWebVideoPath(player.media?.path) ? 'media.adding.web_video_open' : 'actions.open_system_player') }}</span>
             </v-btn>
-            <v-btn @click.stop="nextVideo" class="mt-4 ml-2" color="primary" rounded>
+            <v-btn v-if="canPlayNext" @click.stop="nextVideo" class="mt-4 ml-2" color="primary" rounded>
               <v-icon left>mdi-skip-next</v-icon>
               <span>{{ t('actions.play_next_video') }}</span>
             </v-btn>
           </div>
 
-          <div v-if="showTranscodeSpinner" class="transcode-spinner">
+          <div v-if="showTranscodeSpinner" class="transcode-spinner" role="status" aria-live="polite">
             <v-progress-circular
               indeterminate
               size="56"
               width="3"
               color="white"
             />
+            <div v-if="remoteConnectionStatus" class="transcode-spinner__status">
+              {{ remoteConnectionStatus }}
+            </div>
           </div>
 
           <div
@@ -178,6 +190,10 @@
 
 <script setup lang="ts">
 import {computed, inject} from 'vue'
+import {isWebVideoPath} from '@shared/webVideo'
+import {driveFileViewUrl, isDriveMediaPath} from '@shared/cloudDrive'
+import {openExternal} from '@/services/shellService'
+import {isNasMediaPath} from '@shared/remoteMedia'
 import {useI18n} from 'vue-i18n'
 import Controls from '@/components/app/player/Controls.vue'
 import Playlist from '@/components/app/player/Playlist.vue'
@@ -186,6 +202,7 @@ import SystemBarPlayer from '@/components/app/SystemBarPlayer.vue'
 import {PLAYER_SESSION_KEY} from '@/composable/usePlayerSession'
 import {usePlayerSurfaceGestures} from '@/composable/usePlayerSurfaceGestures'
 import {isTranscodeBusy} from '@/utils/playerTranscodeStatus'
+import {isPlaylistNavDisabled} from '@/composable/usePlayerTransportPlayback'
 
 const {t} = useI18n()
 const session = inject(PLAYER_SESSION_KEY)!
@@ -222,10 +239,35 @@ const {
   removeMark,
   openPath,
   nextVideo,
+  reloadWebVideo,
   updateItemVideo,
 } = session
 
-const showTranscodeSpinner = computed(() => isTranscodeBusy(player.value))
+const canPlayNext = computed(() => !isPlaylistNavDisabled({
+  playlistMode: player.value.playlistMode,
+  playlistShuffle: player.value.playlistShuffle,
+  nowPlaying: player.value.nowPlaying,
+  playlistLength: player.value.playlist.length,
+  direction: 'next',
+}))
+
+const driveViewUrl = computed(() => driveFileViewUrl(player.value.media?.path))
+async function openDrivePlayer() {
+  if (driveViewUrl.value) await openExternal(driveViewUrl.value)
+}
+
+const showTranscodeSpinner = computed(() => !player.value.playbackError && (
+  isTranscodeBusy(player.value) || player.value.webVideoLoading
+  || (player.value.isWebVideo && player.value.isStreamWaiting && !player.value.paused)
+))
+
+const remoteConnectionStatus = computed(() => {
+  if (player.value.webVideoLoading) return t('player.remote_connecting')
+  if (player.value.isWebVideo && player.value.isStreamWaiting && !player.value.paused) {
+    return t('player.remote_buffering')
+  }
+  return ''
+})
 
 const {
   setSurfaceEl,

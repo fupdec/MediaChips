@@ -323,6 +323,7 @@
 </template>
 
 <script setup lang="ts">
+import {isRemoteMediaPath} from '@shared/remoteMedia'
 import {ref, computed, watch, onBeforeUnmount, onMounted} from 'vue'
 import type {ComponentPublicInstance} from 'vue'
 import {useI18n} from 'vue-i18n'
@@ -508,7 +509,7 @@ const {
 } = useHoverPreviewPlayback({
   mediaId: () => Number(props.media.id),
   mediaDuration: () => mediaDuration.value,
-  isFileExists: () => props.isFileExists,
+  isFileExists: () => props.isFileExists && !isRemoteMediaPath(props.media.path),
   previewStartTime: () => props.previewStartTime,
   previewEndTime: () => props.previewEndTime,
   hasFixedPreviewTime: () => hasFixedPreviewTime.value,
@@ -553,7 +554,7 @@ const {
   isFileExists: () => props.isFileExists,
   playbackError: () => playbackError.value,
   hoverPreviewReady: () => hoverPreviewReady.value,
-  isVideoPreviewEnabled: () => settingsStore.videoPreviewHover === 'video',
+  isVideoPreviewEnabled: () => settingsStore.videoPreviewHover === 'video' && !isRemoteMediaPath(props.media.path),
   mediaWidth: () => mediaWidth.value,
   mediaHeight: () => mediaHeight.value,
   isContextMenuOpen: () => contextMenuStore.show,

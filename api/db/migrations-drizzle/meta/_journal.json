@@ -225,6 +225,13 @@
       "when": 1782861600000,
       "tag": "0031_list_path_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1782865200000,
+      "tag": "0032_media_sources",
+      "breakpoints": true
     }
   ]
 }

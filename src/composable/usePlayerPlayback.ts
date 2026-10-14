@@ -1,4 +1,8 @@
-import {nextTick} from 'vue'
+import {nextTick, watch, onBeforeUnmount} from 'vue'
+import {disposeWebVideo} from '@/services/webVideoPlayback'
+import {isRemoteMediaPath} from '@shared/remoteMedia'
+import {isNasMediaPath} from '@shared/remoteMedia'
+import {typedApi} from '@/services/typedApi'
 import {usePlayerStore} from '@/stores/player'
 import type {UsePlayerPlaybackOptions} from '@/types/player'
 import {getAbsolutePlaybackTime, isIgnorablePlaybackError} from '@/utils/playerBuffer'
@@ -126,8 +130,11 @@ export function usePlayerPlayback({
       isLiveStreamSeeking: playerStore.isLiveStreamSeeking,
       mediaErrorCode: playerStore.player.error?.code,
     })) return
-    if (await liveSession.tryFallbackDirectToLiveTranscode(playerStore.player.error?.code)) return
+    if (!isRemoteMediaPath(playerStore.media?.path)
+      && await liveSession.tryFallbackDirectToLiveTranscode(playerStore.player.error?.code)) return
     playerStore.playbackError = true
+    playerStore.webVideoFrameReady = false
+    playerStore.isStreamWaiting = false
     if (playerStore.usesLiveTranscode) {
       liveSession.failTranscode(playerStore.player.error?.message || 'Playback failed')
     }
@@ -146,9 +153,17 @@ export function usePlayerPlayback({
         elementDuration: videoEl.duration,
       })
       if (duration != null) playerStore.duration = duration
+      const media = playerStore.media
+      if (media && isNasMediaPath(media.path) && Number.isFinite(videoEl.duration) && videoEl.duration > 0
+        && (!metadataNumber(playerStore.metadata, 'duration') || !metadataNumber(playerStore.metadata, 'width'))) {
+        const metadata = {duration: videoEl.duration, width: videoEl.videoWidth, height: videoEl.videoHeight}
+        playerStore.metadata = {...playerStore.metadata, ...metadata}
+        if (media.id > 0) void typedApi.updateVideoMetadata(media.id, metadata).catch(() => {})
+      }
       playerStore.syncPlaybackState()
     })
     playerStore.player.addEventListener('timeupdate', () => {
+      if (playerStore.webVideoLoading) return
       playerStore.syncPlaybackState()
       liveSession.maybeAdvanceLiveStreamChunk()
       maybeAdvanceSegmentPlaylist()
@@ -157,6 +172,8 @@ export function usePlayerPlayback({
       playerStore.syncPlaybackState()
     })
     playerStore.player.addEventListener('ended', async () => {
+      playerStore.isStreamWaiting = false
+      if (playerStore.isWebVideo) playerStore.paused = true
       const current = playerStore.playlist[playerStore.nowPlaying]
       const segmentEnd = getSegmentEnd(current)
 
@@ -200,12 +217,33 @@ export function usePlayerPlayback({
       void handleVideoElementError()
     })
     playerStore.player.addEventListener('seeking', () => {
+      if (playerStore.isWebVideo) {
+        playerStore.isStreamWaiting = true
+        playerStore.webVideoFrameReady = false
+        return
+      }
       if (!playerStore.usesLiveTranscode) liveSession.armDirectSeekStallWatch()
     })
     playerStore.player.addEventListener('seeked', () => {
       liveSession.clearDirectSeekStallWatch()
+      if (playerStore.isWebVideo) {
+        playerStore.isStreamWaiting = false
+        playerStore.webVideoFrameReady = Boolean(playerStore.player && playerStore.player.readyState >= 2)
+      }
+    })
+    const onWebFrameReady = () => {
+      if (!playerStore.isWebVideo) return
+      playerStore.isStreamWaiting = false
+      playerStore.webVideoFrameReady = Boolean(playerStore.player && playerStore.player.readyState >= 2 && !playerStore.player.seeking)
+    }
+    playerStore.player.addEventListener('loadeddata', onWebFrameReady)
+    playerStore.player.addEventListener('canplay', onWebFrameReady)
+    playerStore.player.addEventListener('pause', () => {
+      if (playerStore.isWebVideo && !playerStore.webVideoLoading && !playerStore.playbackError
+        && playerStore.player?.paused) playerStore.paused = true
     })
     playerStore.player.addEventListener('waiting', () => {
+      if (playerStore.isWebVideo) { playerStore.isStreamWaiting = true; return }
       if (!playerStore.usesLiveTranscode) {
         // Cold-start / NAS buffering always fires `waiting` with readyState < 3.
         // Arming stall fallback there falsely flipped healthy direct plays into live
@@ -221,6 +259,10 @@ export function usePlayerPlayback({
     })
     playerStore.player.addEventListener('playing', () => {
       liveSession.clearDirectSeekStallWatch()
+      if (playerStore.isWebVideo) {
+        onWebFrameReady()
+        if (!playerStore.webVideoLoading) playerStore.paused = false
+      }
       if (!playerStore.usesLiveTranscode) {
         // Direct path may have leftover background status from a prior live item.
         if (playerStore.backgroundStatusText) playerStore.clearBackgroundStatus()
@@ -260,11 +302,24 @@ export function usePlayerPlayback({
     ensureVideoElement,
   })
 
+  watch(() => playerStore.active, (active) => {
+    if (!active) {
+      loadSrcSession.disposeRemoteLoad()
+      disposeWebVideo(playerStore.player)
+    }
+  })
+  onBeforeUnmount(() => {
+    ++state.transcodeSessionId
+    loadSrcSession.disposeRemoteLoad()
+    disposeWebVideo(playerStore.player)
+  })
+
   return {
     bindVideoElement,
     ensureVideoElement,
     getMarks: loadSrcSession.getMarks,
     loadSrc: loadSrcSession.loadSrc,
+    reloadWebVideo: loadSrcSession.reloadWebVideo,
     updatePlaybackTime: loadSrcSession.updatePlaybackTime,
     stopLiveTranscodeSession: liveSession.stopLiveTranscodeSession,
     clearLiveTranscodeHandlers: liveSession.clearLiveTranscodeHandlers,

@@ -181,6 +181,15 @@
             </SettingsList>
           </div>
 
+          <div v-else-if="tab === 'connections'">
+            <SettingsGroupPanel id="settings-google-drive" :title="t('drive.title')">
+              <GoogleDriveSource connections-only />
+            </SettingsGroupPanel>
+            <SettingsGroupPanel id="settings-nas" :title="t('nas.title')">
+              <NasSources embedded connections-only />
+            </SettingsGroupPanel>
+          </div>
+
           <div v-else-if="tab === 'files'">
             <SettingsList>
               <SettingsGroupLabel
@@ -407,6 +416,9 @@ const SettingsBackfillTask = defineAsyncComponent(() =>
 const SettingsFindMissingMedia = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsFindMissingMedia.vue")
 )
+const GoogleDriveSource = defineAsyncComponent(() => import("@/components/dialogs/GoogleDriveSource.vue"))
+const SettingsGroupPanel = defineAsyncComponent(() => import("@/components/ui/SettingsGroupPanel.vue"))
+const NasSources = defineAsyncComponent(() => import("@/components/dialogs/NasSources.vue"))
 const SettingsFindDuplicates = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsFindDuplicates.vue")
 )
@@ -485,6 +497,13 @@ const CORE_NAV_ITEMS: SettingsNavItem[] = [
     labelKey: "settings.tabs.files",
     descKey: "settings.tabs_desc.files",
     docId: "settings-doc-tab-files",
+  },
+  {
+    value: "connections",
+    icon: "mdi-connection",
+    labelKey: "settings.tabs.connections",
+    descKey: "settings.tabs_desc.connections",
+    docId: "settings-doc-tab-connections",
   },
   {
     value: "database",
@@ -601,6 +620,8 @@ const SETTINGS_SECTION_IDS: Record<string, string> = {
   field_pinning: "settings-meta-assignment",
   quick_tags: "settings-quick-tags",
   parse_library_tags: "settings-parse-library-tags",
+  google_drive: "settings-google-drive",
+  nas: "settings-nas",
   bulk_paths: "settings-bulk-paths",
   folder_tags: "settings-folder-tags",
   watched_folders: "settings-watched-folders",
@@ -766,6 +787,8 @@ function applyRouteSettings() {
     if (LIBRARY_ADVANCED_SECTIONS.has(section)) {
       libraryAdvanced.value = true
     }
+  } else if (["google_drive", "nas"].includes(section)) {
+    tab.value = "connections"
   } else if (FILES_SECTIONS.has(section)) {
     tab.value = "files"
   } else if (DATABASE_SECTIONS.has(section)) {

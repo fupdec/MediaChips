@@ -61,6 +61,7 @@
         </div>
       </div>
     </button>
+    <FilePreviewButton v-if="!selectMode" class="folder-pending-tile__preview-button" :file="entry" :disabled="ingesting" />
     <button
       v-if="!selectMode"
       type="button"
@@ -104,6 +105,7 @@
 import {computed, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {getReadableFileSize} from '@/services/formatUtils'
+import FilePreviewButton from '@/components/dialogs/FilePreviewButton.vue'
 import type {FsBrowseEntry} from '@/components/folders/FsBrowseEntry'
 import {
   clearMediaTagDrag,
@@ -397,6 +399,20 @@ function onTagDrop(event: DragEvent) {
   cursor: pointer;
   opacity: 0;
   transition: opacity 120ms ease;
+}
+
+.folder-pending-tile__preview-button {
+  position: absolute;
+  bottom: 8px;
+  right: 42px;
+  z-index: 2;
+  background: rgb(var(--v-theme-surface));
+}
+
+.folder-pending-tile-wrapper:has(.folder-pending-tile--list) .folder-pending-tile__preview-button {
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
 }
 
 .folder-pending-tile-wrapper:hover .folder-pending-tile__add,

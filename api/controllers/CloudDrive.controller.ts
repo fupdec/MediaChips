@@ -1,47 +1,106 @@
 import type {Request, Response} from 'express'
-import {getCloudDriveService} from '../services/cloudDrive'
+import {getCloudDriveService, resetCloudDriveService} from '../services/cloudDrive'
+import {saveDriveConfiguration} from '../services/cloudDrive/config'
+import {listDriveFolder, importDriveFile, driveLibraryFile} from '../services/cloudDrive/library'
+import {DriveImportSchema, DriveFileIdSchema, isDriveMediaPath} from '../../shared/cloudDrive'
+import {WebVideoFrameSchema} from '../../shared/webVideo'
+import {saveWebVideoFrame} from '../services/webVideo/frames'
+import type {ApiDb} from '../types/db'
+import {z} from 'zod'
+import {checkOAuthClient, validateOAuthClient} from '../services/cloudDrive/oauth'
+import {DriveOAuthError, driveOAuthErrorCode, driveOAuthErrorMessages, type DriveOAuthErrorCode} from '../services/cloudDrive/oauthErrors'
 
-function createCloudDriveController() {
+function createCloudDriveController(db: ApiDb) {
+  const failure = (res: Response, err: unknown) => {
+    const status = err instanceof z.ZodError ? 400 : err instanceof DriveOAuthError ? (err.code === 'network_error' ? 502 : 400) : (err as {status?: number; response?: {status?: number}})?.status || (err as {response?: {status?: number}})?.response?.status || 500
+    res.status(status === 401 ? 409 : status).json({code: driveOAuthErrorCode(err), message: err instanceof z.ZodError ? 'Invalid Google Drive request.' : err instanceof Error ? err.message : 'Google Drive request failed.'})
+  }
+  const callbackPage = (res: Response, ok: boolean, code: DriveOAuthErrorCode = 'unknown') => res.status(ok ? 200 : 400).type('html').send(`<!doctype html><html><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>MediaChips · Google Drive</title><body><p>${ok ? 'Google Drive connected. You can close this window. / Google Drive подключён. Можно закрыть это окно.' : driveOAuthErrorMessages[code]}</p><script>window.close()</script></body></html>`)
   return {
-    async status(_req: Request, res: Response) {
+    async status(req: Request, res: Response) {
+      res.setHeader('Cache-Control', 'no-store')
       const service = getCloudDriveService()
       res.json({
         ...service.status(),
+        oauthResult: typeof req.query.oauthState === 'string' ? service.oauthResult(req.query.oauthState) : undefined,
+        oauthError: typeof req.query.oauthState === 'string' ? service.oauthError(req.query.oauthState) : undefined,
         approach: 'server-side-range-proxy',
-        note: 'Phase 1 spike: OAuth + list one folder + Range proxy. No library import, mpv, or thumbs.',
+        note: 'Remote library import and streaming; files remain on Google Drive.',
       })
     },
 
-    async oauthStart(req: Request, res: Response) {
+    async oauthStart(_req: Request, res: Response) {
+      res.setHeader('Cache-Control', 'no-store')
       try {
         const service = getCloudDriveService()
-        const state = typeof req.query.state === 'string' ? req.query.state : undefined
-        const url = service.getAuthUrl(state)
-        res.json({url, redirectUri: service.config.redirectUri, scopes: service.config.scopes})
+        if (!service.config.mock) await validateOAuthClient(service.config)
+        const url = service.getAuthUrl()
+        res.json({url, oauthState: new URL(url).searchParams.get('state'), redirectUri: service.config.redirectUri, scopes: service.config.scopes})
       } catch (err: unknown) {
-        res.status(400).json({message: err instanceof Error ? err.message : String(err)})
+        res.status(400).json({code: driveOAuthErrorCode(err), message: err instanceof Error ? err.message : 'Google Drive sign-in failed.'})
       }
     },
 
     async oauthCallback(req: Request, res: Response) {
       const service = getCloudDriveService()
-      const error = typeof req.query.error === 'string' ? req.query.error : null
-      if (error) {
-        return res.status(400).send(`Google OAuth error: ${error}`)
-      }
+      const state = typeof req.query.state === 'string' ? req.query.state : ''
       const code = typeof req.query.code === 'string' ? req.query.code : ''
-      if (!code) {
-        return res.status(400).send('Missing OAuth code')
+      res.setHeader('Cache-Control', 'no-store')
+      if (req.query.error || !code) {
+        const code: DriveOAuthErrorCode = req.query.error === 'access_denied' ? 'access_denied' : 'unknown'
+        service.consumeOAuthState(state, code)
+        return callbackPage(res, false, code)
       }
       try {
-        await service.handleOAuthCallback(code)
-        res.status(200).send(
-          'Google Drive connected. You can close this window and call GET /api/drive/folders/root (or a folder id).',
-        )
-      } catch (err: unknown) {
-        console.error('Drive OAuth callback failed:', err)
-        res.status(500).send(err instanceof Error ? err.message : 'OAuth exchange failed')
+        await service.handleOAuthCallback(code, state)
+        return callbackPage(res, true)
+      } catch (err) {
+        const code = driveOAuthErrorCode(err)
+        console.warn('[drive] OAuth callback failed:', code)
+        return callbackPage(res, false, code)
       }
+    },
+
+    async oauthHealth(_req: Request, res: Response) {
+      res.setHeader('Cache-Control', 'no-store')
+      res.json(await checkOAuthClient(getCloudDriveService().config))
+    },
+
+    async configure(req: Request, res: Response) {
+      try {
+        await saveDriveConfiguration(req.body)
+        resetCloudDriveService()
+        res.json(getCloudDriveService().status())
+      } catch (err) { failure(res, err) }
+    },
+
+    async importFile(req: Request, res: Response) {
+      try { res.json(await importDriveFile(db, getCloudDriveService(), DriveImportSchema.parse(req.body).fileId)) }
+      catch (err) { failure(res, err) }
+    },
+
+    async playable(req: Request, res: Response) {
+      try {
+        const {row, fileId} = driveLibraryFile(db, z.coerce.number().int().positive().parse(req.params.id))
+        if (!getCloudDriveService().status().authenticated) return res.status(409).json({message: 'Reconnect Google Drive in Settings → Connections.'})
+        res.json({url: `/api/drive/files/${fileId}/stream`, kind: 'mp4', title: row.name || row.basename,
+          qualities: [], quality: null, adaptive: false})
+      } catch (err) { failure(res, err) }
+    },
+
+    async frame(req: Request, res: Response) {
+      try {
+        await saveWebVideoFrame(db, z.coerce.number().int().positive().parse(req.params.id), WebVideoFrameSchema.parse(req.body), isDriveMediaPath)
+        res.json({ok: true})
+      } catch (err) { failure(res, err) }
+    },
+
+    async oauthCancel(req: Request, res: Response) {
+      try {
+        const state = z.object({oauthState: z.string().regex(/^[a-f0-9]{64}$/)}).strict().parse(req.body).oauthState
+        getCloudDriveService().cancelOAuthState(state)
+        res.json({ok: true})
+      } catch (err) { failure(res, err) }
     },
 
     async logout(_req: Request, res: Response) {
@@ -54,21 +113,18 @@ function createCloudDriveController() {
         const service = getCloudDriveService()
         const folderId = String(req.params.folderId || 'root')
         const pageToken = typeof req.query.pageToken === 'string' ? req.query.pageToken : undefined
-        const result = await service.listFolder(folderId, pageToken)
+        const result = await listDriveFolder(db, service, folderId, pageToken)
         res.json(result)
-      } catch (err: unknown) {
-        const status = (err as {status?: number})?.status || 500
-        res.status(status).json({message: err instanceof Error ? err.message : String(err)})
-      }
+      } catch (err: unknown) { failure(res, err) }
     },
 
     async stream(req: Request, res: Response) {
       try {
         const service = getCloudDriveService()
         if (!service.config.mock && !service.store.get()?.accessToken) {
-          return res.status(401).json({message: 'Not authenticated with Google Drive'})
+          return res.status(409).json({message: 'Reconnect Google Drive in Settings → Connections.'})
         }
-        const fileId = String(req.params.fileId || '')
+        const fileId = DriveFileIdSchema.parse(req.params.fileId)
         if (!fileId) {
           return res.status(400).json({message: 'Missing file id'})
         }
@@ -76,7 +132,7 @@ function createCloudDriveController() {
       } catch (err: unknown) {
         console.error('Drive stream route error:', err)
         if (!res.headersSent) {
-          res.status(500).json({message: err instanceof Error ? err.message : String(err)})
+          failure(res, err)
         }
       }
     },

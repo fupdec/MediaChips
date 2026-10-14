@@ -1,3 +1,4 @@
+import {isRemoteMediaPath} from '../../shared/remoteMedia'
 import type {
   MediaId,
   MediaPostProcessorDeps,
@@ -191,6 +192,7 @@ function createMediaPostProcessor({
   }
 
   async function processNewMedia(media: {id?: unknown; path?: unknown}, mediaType: MediaTypeLike) {
+    if (isRemoteMediaPath(media.path)) return
     if (isVideoMediaType(mediaType)) {
       await processVideoMedia(media)
       return
@@ -345,6 +347,7 @@ function createMediaPostProcessor({
   async function refreshMediaInfo(media: {id?: unknown; path?: unknown; dataValues?: {path?: string}}, mediaType: MediaTypeLike) {
     const mediaPath = String(media.dataValues?.path ?? media.path ?? '')
     const mediaId = media.id as MediaId
+    if (isRemoteMediaPath(mediaPath)) return
 
     if (isVideoMediaType(mediaType)) {
       await refreshVideoMedia(mediaId, mediaPath)

@@ -27,3 +27,5 @@ export {valuesInMedia} from './valuesInMedia'
 export {valuesInTags} from './valuesInTag'
 export {videoMetadata} from './videoMetadata'
 export {mediaTypesInWatchedFolders, watchedFolders} from './watchedFolders'
+
+export {sourceConnections, mediaLocations} from './mediaSources'

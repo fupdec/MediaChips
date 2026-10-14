@@ -209,7 +209,7 @@ export function createPlayerLiveSession(state: PlayerPlaybackSharedState) {
       transcodeEnabled: settingsStore.transcodeUnsupportedFormats === '1',
       mediaErrorCode,
     })) return false
-    if (mediaId == null || !playerStore.player) return false
+    if (mediaId == null || mediaId <= 0 || !playerStore.player) return false
 
     state.directPlaybackFallbackAttempted = true
     state.directPlaybackFallbackInFlight = true

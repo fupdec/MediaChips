@@ -33,6 +33,7 @@ import registerValuesInMedia from '../../api/routes/ValuesInMedia.routes'
 import registerVideoMetadata from '../../api/routes/VideoMetadata.routes'
 import registerWatchedFolder from '../../api/routes/WatchedFolder.routes'
 import registerCloudDrive from '../../api/routes/CloudDrive.routes'
+import registerNas from '../../api/routes/Nas.routes'
 import { isSfwBuild } from '../../shared/buildFlags'
 import { bindPluginMainRuntime } from '../../api/services/pluginMainRuntime'
 
@@ -60,6 +61,7 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'SavedFilter.routes', register: registerSavedFilter },
     // Settings early so renderer getSettings can succeed while Task/face still load.
     { routeFile: 'Setting.routes', register: registerSetting },
+    { routeFile: 'Nas.routes', register: registerNas },
   ]
 
   // Task.routes pulls faces/ffmpeg controllers; load only when routes are registered
@@ -76,6 +78,8 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
   }
 
   if (!isSfwBuild()) {
+    const registerWebVideo = require('../../api/routes/WebVideo.routes').default as ApiRouteRegistrar
+    registrars.push({routeFile: 'WebVideo.routes', register: registerWebVideo})
     // Lazy require keeps ThePornDB / adult plugin modules out of SFW process graphs.
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -156,7 +160,7 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'ValuesInMedia.routes', register: registerValuesInMedia },
     { routeFile: 'VideoMetadata.routes', register: registerVideoMetadata },
     { routeFile: 'WatchedFolder.routes', register: registerWatchedFolder },
-    // Phase 1 Drive spike — OAuth + list + Range proxy (optional; mock without creds).
+    // Google Drive — connections, remote library import and Range streaming.
     { routeFile: 'CloudDrive.routes', register: registerCloudDrive },
   )
 
@@ -212,4 +216,3 @@ export async function registerApiRoutes(
 }
 
 export default registerApiRoutes
-

@@ -9,6 +9,7 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
     baseURL: 'http://127.0.0.1:12321',
     trace: 'on-first-retry',
+    serviceWorkers: 'block',
   },
   webServer: {
     command: 'node scripts/e2e-server.mjs',

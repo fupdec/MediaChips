@@ -1,6 +1,7 @@
 import {eq, inArray} from 'drizzle-orm'
 import type {ApiDb} from '../types/db'
 import {media} from '../db/schema/media'
+import {mediaLocations} from '../db/schema/mediaSources'
 import {tagsInMedia} from '../db/schema/tagsInMedia'
 import {valuesInMedia} from '../db/schema/valuesInMedia'
 import {mediaInPlaylists} from '../db/schema/mediaInPlaylists'
@@ -14,6 +15,7 @@ import {uniquePositiveIds} from '../utils/uniqueIds'
 import {createMediaTypesRepository} from '../db/repositories/mediaTypes'
 import type {MediaRow} from '../db/repositories/media'
 import {isVirtualZipPath} from '../../shared/zipPath'
+import {isRemoteMediaPath} from '../../shared/remoteMedia'
 import {apiErrorMessage} from '../types/errors'
 import {deleteMediaGeneratedAssets, unlinkResolvedPath} from './localAssetCleanup'
 import {invalidateMediaDerivedCaches} from './mediaCacheInvalidation'
@@ -48,7 +50,7 @@ export function loserPathsToUnlink(
   const paths: string[] = []
   for (const row of losers) {
     const filePath = String(row.path || '')
-    if (!filePath || isVirtualZipPath(filePath)) continue
+    if (!filePath || isVirtualZipPath(filePath) || isRemoteMediaPath(filePath)) continue
     paths.push(filePath)
   }
   return paths
@@ -200,6 +202,9 @@ export function mergeMediaItemsTx(
     .set({mediaId: survivorId})
     .where(inArray(faces.mediaId, sourceIds))
     .run()
+
+  // Retain remote copies when their library cards are explicitly merged.
+  tx.update(mediaLocations).set({mediaId: survivorId}).where(inArray(mediaLocations.mediaId, sourceIds)).run()
 
   // Drop loser-only rows that are not remapped
   tx.delete(videoMetadata).where(inArray(videoMetadata.mediaId, sourceIds)).run()

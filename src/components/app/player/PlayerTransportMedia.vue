@@ -1,12 +1,12 @@
 <template>
-  <v-btn-group v-if="video"
+  <v-btn-group v-if="video && player.isLibraryMedia"
     variant="tonal"
     :density="density"
     rounded="xl"
     style="overflow: visible"
     dark
     class="btn-edit-video px-0">
-    <v-btn v-if="!isAudioMode"
+    <v-btn v-if="!isAudioMode && canCaptureFrame"
       @click="setAsThumb"
       class="action-buttons"
       icon
@@ -15,11 +15,15 @@
       <div class="tip" v-html="t('player.controls.set_frame_as_thumb')"/>
     </v-btn>
 
+    <v-btn v-if="canOpenSourcePage" @click="openWebVideoPage" icon dark>
+      <v-icon>mdi-open-in-new</v-icon>
+      <div class="tip">{{ t('media.adding.web_video_open') }}</div>
+    </v-btn>
+
     <v-btn
-      v-if="canOpenTrim"
+      v-if="canOpenTrim && !player.trimBusy"
       @click="toggleTrimMode"
       :color="player.trimMode ? 'primary' : undefined"
-      :disabled="player.trimBusy"
       icon
       dark
     >
@@ -106,7 +110,7 @@
       </template>
 
       <v-list density="compact" class="py-1">
-        <v-list-item @click="deleteVideo(true)">
+        <v-list-item v-if="!isWebVideo" @click="deleteVideo(true)">
           <v-list-item-title>
             <v-icon class="mr-4" icon="mdi-delete-alert" color="error"/>
             <span>{{ t('actions.delete_with_file') }}</span>
@@ -140,6 +144,10 @@ const {
   dialog_video_edit,
   video,
   isAudioMode,
+  isWebVideo,
+  canCaptureFrame,
+  openWebVideoPage,
+  canOpenSourcePage,
   density,
   xs,
   xl,

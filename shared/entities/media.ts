@@ -39,6 +39,7 @@ export interface ItemValueRef {
 }
 
 export interface MediaItem {
+  /** Positive IDs belong to the library; 0 is a temporary playback-only item. */
   id: number
   name?: string
   path?: string

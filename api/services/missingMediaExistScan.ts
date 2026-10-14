@@ -1,4 +1,5 @@
 import {fileExists} from './contentHash'
+import {isRemoteMediaPath} from '../../shared/remoteMedia'
 
 /** Parallel FS existence checks without flooding the disk. */
 export const MISSING_MEDIA_EXIST_CONCURRENCY = 16
@@ -41,7 +42,7 @@ export async function collectMissingMediaByPathExist<T extends MissingMediaExist
 
       const item = items[index]
       const filePath = String(item?.path || '')
-      const exists = filePath ? await pathExists(filePath) : false
+      const exists = isRemoteMediaPath(filePath) || (filePath ? await pathExists(filePath) : false)
       if (shouldStop()) return
 
       if (!exists) {

@@ -1,9 +1,50 @@
 import axios from 'axios'
 import type {DriveConfig, DriveOAuthTokens} from './types'
 import type {DriveTokenStore} from './tokenStore'
+import {DriveOAuthError, driveOAuthErrorCode, type DriveOAuthErrorCode} from './oauthErrors'
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+
+/** Retry failures known to occur before a connection is established. Never
+ * replay a real authorization code after a timeout/reset: Google may have used it. */
+async function withOAuthConnectionRetry<T>(request: () => Promise<T>, harmlessProbe = false): Promise<T> {
+  try { return await request() }
+  catch (err) {
+    const beforeConnection = axios.isAxiosError(err) && !err.response
+      && ['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ENETUNREACH', 'EHOSTUNREACH'].includes(err.code || '')
+    const probeNetworkFailure = harmlessProbe && axios.isAxiosError(err) && !err.response
+    if (!beforeConnection && !probeNetworkFailure) throw err
+    await new Promise(resolve => setTimeout(resolve, 200))
+    return request()
+  }
+}
+
+export type DriveOAuthClientCheck = {reachable: boolean; valid: boolean; status?: number; code?: DriveOAuthErrorCode; networkCode?: string}
+
+/** Check client authentication using a deliberately invalid refresh token.
+ * Google returns invalid_grant for a valid client; no account tokens are issued. */
+export async function checkOAuthClient(config: DriveConfig): Promise<DriveOAuthClientCheck> {
+  if (!config.clientId || !config.clientSecret) return {reachable: true, valid: false, code: 'invalid_client'}
+  try {
+    const {data, status} = await withOAuthConnectionRetry(() => axios.post(GOOGLE_TOKEN_URL, new URLSearchParams({
+      grant_type: 'refresh_token', refresh_token: 'mediachips-invalid-refresh-token',
+      client_id: config.clientId, client_secret: config.clientSecret,
+    }).toString(), {headers: {'Content-Type': 'application/x-www-form-urlencoded'}, timeout: 8000,
+      validateStatus: () => true, responseType: 'json'}), true)
+    if (status === 400 && data?.error === 'invalid_grant') return {reachable: true, valid: true, status}
+    if (data?.error === 'invalid_client' || status === 401) return {reachable: true, valid: false, status, code: 'invalid_client'}
+    return {reachable: status < 500, valid: false, status, code: 'unknown'}
+  } catch (err) {
+    const networkCode = axios.isAxiosError(err) && /^[A-Z0-9_]{1,80}$/.test(err.code || '') ? err.code : undefined
+    return {reachable: false, valid: false, code: driveOAuthErrorCode(err), networkCode}
+  }
+}
+
+export async function validateOAuthClient(config: DriveConfig): Promise<void> {
+  const result = await checkOAuthClient(config)
+  if (!result.valid) throw new DriveOAuthError(result.code || 'unknown')
+}
 
 function buildAuthUrl(config: DriveConfig, state?: string): string {
   const params = new URLSearchParams({
@@ -49,10 +90,10 @@ async function exchangeCode(
     redirect_uri: config.redirectUri,
     grant_type: 'authorization_code',
   })
-  const {data} = await axios.post(GOOGLE_TOKEN_URL, body.toString(), {
+  const {data} = await withOAuthConnectionRetry(() => axios.post(GOOGLE_TOKEN_URL, body.toString(), {
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     timeout: 30_000,
-  })
+  }))
   return mapTokenResponse(data)
 }
 
@@ -69,10 +110,10 @@ async function refreshAccessToken(
     refresh_token: tokens.refreshToken,
     grant_type: 'refresh_token',
   })
-  const {data} = await axios.post(GOOGLE_TOKEN_URL, body.toString(), {
+  const {data} = await withOAuthConnectionRetry(() => axios.post(GOOGLE_TOKEN_URL, body.toString(), {
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     timeout: 30_000,
-  })
+  }))
   return mapTokenResponse(data, tokens)
 }
 
@@ -96,6 +137,7 @@ async function getValidAccessToken(
   if (!isExpired(tokens)) return tokens.accessToken
 
   const refreshed = await refreshAccessToken(config, tokens)
+  if (store.get() !== tokens) throw new Error('Google Drive authorization changed. Try again.')
   store.set(refreshed)
   return refreshed.accessToken
 }

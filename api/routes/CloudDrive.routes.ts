@@ -4,16 +4,22 @@ import express from 'express'
 import createCloudDriveController from '../controllers/CloudDrive.controller'
 
 /**
- * Phase 1 Google Drive spike routes (API process).
+ * Google Drive connection, library and streaming routes (API process).
  * Mount: /api/drive
  */
-export default function registerRoutes(app: Express, _db: ApiDb) {
-  const controller = createCloudDriveController()
+export default function registerRoutes(app: Express, db: ApiDb) {
+  const controller = createCloudDriveController(db)
   const router = express.Router()
 
   router.get('/status', controller.status)
+  router.put('/configuration', controller.configure)
+  router.post('/import', controller.importFile)
+  router.get('/media/:id/playable', controller.playable)
+  router.post('/media/:id/frame', controller.frame)
+  router.get('/oauth/health', controller.oauthHealth)
   router.get('/oauth/start', controller.oauthStart)
   router.get('/oauth/callback', controller.oauthCallback)
+  router.post('/oauth/cancel', controller.oauthCancel)
   router.post('/oauth/logout', controller.logout)
   router.get('/folders/:folderId', controller.listFolder)
   router.get('/files/:fileId/stream', controller.stream)
