@@ -1,5 +1,13 @@
 const ru = {
   sources: {
+    catalog: {
+      source: 'Источник',
+      availability: 'Доступность',
+      observation_hint: 'Последнее сохранённое состояние. Фильтрация не обращается к источнику.',
+      offline_editing: 'Метаданные библиотеки можно редактировать и при недоступном источнике.',
+      kinds: {local: 'Локальные файлы', nas: 'NAS / SFTP / FTP', gdrive: 'Google Drive', web: 'Веб-ссылки'},
+      states: {available: 'Доступен', unavailable: 'Недоступен', unknown: 'Неизвестно'},
+    },
     credentials_saved: 'Учётные данные сохранены',
     "title": "Источники",
     "provider": "Тип источника",

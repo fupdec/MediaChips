@@ -89,6 +89,20 @@ const Cols = {
   ],
   "media": [
     {
+      "param": "source",
+      "type": "array",
+      "icon": "server-network",
+      "text": "Source",
+      "textKey": "sources.catalog.source"
+    },
+    {
+      "param": "availability",
+      "type": "array",
+      "icon": "cloud-check-outline",
+      "text": "Availability",
+      "textKey": "sources.catalog.availability"
+    },
+    {
       "param": "name",
       "type": "string",
       "icon": "alphabetical-variant",

@@ -63,3 +63,34 @@ chips, values and marks before/after; they also cover repeated migration,
 legacy NAS playback, deduplication, credential replacement and common adapter
 range/cancellation behavior. Real NAS and Drive interoperability is not asserted
 by these fixture and transport tests.
+
+## Metadata and catalog filters
+
+Remote cards use the existing chips, tag/value links, ratings, favorites and
+bookmark editor. The same bulk edit accepts local, NAS and Drive card IDs together;
+metadata writes do not require credentials, a readable original or a writable
+source. Name, bookmark and tag search continues to query the MediaChips database.
+Custom chip values use the existing typed filters.
+
+The media filter picker includes Source (local files, NAS, Drive, web links and
+individual saved connections) and Availability. Both participate in saved filters,
+AND/OR combinations, pagination, select-all IDs and dynamic playlist summaries.
+Connection labels come from catalog configuration without opening the vault or
+listing remote directories. Retained locations take precedence over compatibility
+URIs; legacy cards without a location remain searchable by their URI's source.
+Merged cards match any retained connection, and a local original retains its local
+source classification.
+
+Availability is the latest stored observation, never a live connection probe.
+A card is available if any location was recorded available, unknown if it has an
+unverified alternative or local original, and unavailable otherwise. Local and
+legacy cards without observations are unknown. Explicit NAS disconnect or Drive
+logout marks that connection's locations unavailable without removing cards,
+chips or marks. Successful verification can make them available again. Changes
+to these observations invalidate filtered totals and grouping caches.
+
+`mediaCatalogSources.test.ts` exercises offline mixed bulk edits, individual
+edits, catalog search, typed chip filters, saved rows, pagination, ID selection,
+summaries, merged locations and the legacy filter worker against a migrated test
+database. `remote-metadata.spec.ts` covers the editor and filter controls with
+disconnected-source responses in the browser.

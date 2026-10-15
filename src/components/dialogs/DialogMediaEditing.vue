@@ -20,6 +20,7 @@
       />
 
       <v-card-text class="edit-dialog-card__body">
+        <MediaCatalogSourceInfo v-if="media" :media="media" />
         <EditPinnedMetaValues
           v-if="media"
           :key="media.id"
@@ -113,6 +114,7 @@ import {buildLocalFileUrl, checkFileExists as checkPathExists} from '@/services/
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import EditPinnedMetaValues from "@/components/items/EditPinnedMetaValues.vue"
+import MediaCatalogSourceInfo from '@/components/items/MediaCatalogSourceInfo.vue'
 import EditDialogMediaPanel from "@/components/items/EditDialogMediaPanel.vue"
 import DialogConfirm from "@/components/dialogs/DialogConfirm.vue"
 import {useItemsListSync} from '@/composable/itemsListSync'

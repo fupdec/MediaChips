@@ -44,6 +44,9 @@ export type MediaFolderBrowseRequest = {
 }
 
 export const mediaApi = {
+  getCatalogSources() {
+    return apiClient.get<Array<{value: string; name: string}>>('/api/Media/catalogSources')
+  },
   getMediaItems(body: ItemsListRequest) {
     return apiClient.post<MediaListResponseData>(API_ROUTES.mediaItems, body).then((res) => ({
       ...res,

@@ -21,6 +21,7 @@ import {connectNas, normalizeNasRelativePath, type NasTransport, type NasFile} f
 import {NasError, normalizeNasError} from './errors'
 import {mediaFileKind, mediaFileContentType} from '../../../shared/mediaFormats'
 import {invalidateMediaDerivedCaches} from '../mediaCacheInvalidation'
+import {markCatalogSourceDisconnected} from '../mediaCatalogSources'
 
 type Connector = typeof connectNas
 type PlaybackSession = {library: string; mediaId: number | null; mediaPath: string | null; locationId: string | null; connectionId: string; path: string; size: number; version: string; expires: number}
@@ -172,6 +173,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
       const row = connectionRow(db, id)
       secrets.delete(row.credentialRef)
       invalidateConnection(id)
+      markCatalogSourceDisconnected(db, id)
       // Keep connection metadata and media locations so re-authentication preserves identity.
     },
     async list(db: ApiDb, id: string, relative: string, pageToken?: string) {
@@ -239,6 +241,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
       if (!current || current.deletedAt || current.path !== originalPath) throw new NasError('media_changed', 'The file changed. Open it again.', 409)
       if (!nasVersionMatches(location.version, fileVersion(file))) throw new NasError('file_changed', 'The NAS file changed since import. Re-import it as a new version before using saved markers.', 409)
       db.drizzle.update(mediaLocations).set({version: fileVersion(file), availability: 'available', lastVerifiedAt: new Date().toISOString()}).where(eq(mediaLocations.id, location.id)).run()
+      if (location.availability !== 'available') invalidateMediaDerivedCaches()
       return playbackPlan(db, {mediaId, mediaPath: originalPath, locationId: location.id, connectionId: location.connectionId,
         path: location.resourceKey, size: file.size, version: fileVersion(file)}, media.name || '')
     },

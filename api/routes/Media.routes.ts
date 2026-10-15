@@ -24,6 +24,7 @@ import {
   MediaFolderBrowseRequestSchema,
 } from '../../shared/schemas/requests'
 import createMediaController from '../controllers/Media.controller'
+import {listCatalogSources} from '../services/mediaCatalogSources'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
   const Media = createMediaController(db)
@@ -45,6 +46,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/merge', validateBody(MergeMediaRequestSchema), Media.merge)
 
   router.get('/get-stats', Media.getStats)
+  router.get('/catalogSources', (_req, res) => res.json(listCatalogSources(db)))
 
   router.get('/trash', validateQuery(MediaTrashListQuerySchema), Media.listTrash)
   router.post('/trash/restore', validateBody(MediaTrashIdsRequestSchema), Media.restoreTrash)

@@ -411,10 +411,13 @@ describe('NAS library and HTTP playback', () => {
     const {connection, item} = await add(db, service)
     const plan = await service.prepare(db, item.id)
     service.disconnect(db, connection.id)
+    expect(fixture.drizzle.select().from(mediaLocations).all()[0].availability).toBe('unavailable')
     expect((await fetch(base + plan.url)).status).toBe(410)
     expect(service.connections(db)[0].hasCredentials).toBe(false)
     expect(createMediaRepository(fixture.drizzle).findById(item.id)).toBeTruthy()
     await service.saveConnection(db, config, connection.id)
+    await service.prepare(db, item.id)
+    expect(fixture.drizzle.select().from(mediaLocations).all()[0].availability).toBe('available')
     expect((await service.importFile(db, connection.id, 'video.mp4')).id).toBe(item.id)
   })
   it('rejects playback tickets after the card is retargeted and malformed request IDs', async () => {

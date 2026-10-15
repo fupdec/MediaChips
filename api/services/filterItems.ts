@@ -184,6 +184,11 @@ export function filterItems(
           const normalizedExt = normalizeExt(item_val as string | null | undefined)
           if (normalizedExt) tags = [normalizedExt]
           val = parseExtList(val as string | string[] | null | undefined)
+        } else if (by === 'source') {
+          const tokens = typeof item.sourceTokens === 'string' ? JSON.parse(item.sourceTokens) : item.sourceTokens
+          tags = Array.isArray(tokens) ? tokens : []
+        } else if (by === 'availability') {
+          tags = [String(item.availability || 'unknown')]
         } else if (metaId !== null) {
           tags = item.tags
             .filter((entry) => Number(entry.metaId) === metaId)

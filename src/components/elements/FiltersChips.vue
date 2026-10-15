@@ -69,7 +69,10 @@
       </span>
 
       <span v-if="filter.type === 'array'" class="ml-1">
-        <template v-if="filter.param === 'country'">
+        <template v-if="filter.param === 'source' || filter.param === 'availability'">
+          "{{ Array.isArray(filter.val) ? filter.val.map(value => catalogLabel(filter.param, value)).join(', ') : '' }}"
+        </template>
+        <template v-else-if="filter.param === 'country'">
           "{{ Array.isArray(filter.val) ? filter.val.join(', ') : '' }}"
         </template>
         <template v-else-if="filter.param === 'ext'">
@@ -109,6 +112,7 @@ import {getCurrentMediaType} from '@/utils/mediaType'
 import {getListCond, getReadableFileSize, getReadableDuration, formatFilterDateDisplay} from '@/services/formatUtils'
 import {getDuplicatesModeLabelKey} from '@/utils/mediaSortFilter'
 import type { FilterObject, FilterListParam } from '@/types/common'
+import {useCatalogSources} from '@/composable/useCatalogSources'
 
 const props = defineProps({
   filters: {
@@ -124,6 +128,7 @@ const props = defineProps({
     default: false,
   },
 })
+const {label: catalogLabel} = useCatalogSources(computed(() => props.filters.some(filter => filter.param === 'source')))
 
 const colsCache = ref<FilterListParam[] | null>(null)
 

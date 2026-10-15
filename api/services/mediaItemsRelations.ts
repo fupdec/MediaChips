@@ -20,6 +20,7 @@ import {
   type MediaTagLinkRow,
 } from './mediaItemsPresentation'
 import {loadInheritedFolderTagsForMediaRows} from './mediaInheritedFolderTags'
+import {CATALOG_SOURCE_TOKENS_SQL, CATALOG_AVAILABILITY_SQL} from './mediaCatalogSources'
 
 export const GROUP_SLIM_SELECT = `SELECT
   media.id,
@@ -207,6 +208,10 @@ export function groupSlimNeedsMetadataJoin(
 
 /** List/inspector hydrate — omit fingerprint/hash blobs (use dedicated queries for those). */
 export const MEDIA_BASE_SELECT = `SELECT
+  ${CATALOG_SOURCE_TOKENS_SQL} AS sourceTokens,
+  ${CATALOG_AVAILABILITY_SQL} AS availability,
+  (SELECT group_concat(COALESCE(CASE WHEN json_valid(sc.config) THEN json_extract(sc.config, '$.name') END, sc.id), ', ')
+    FROM mediaLocations ml JOIN sourceConnections sc ON sc.id = ml.connectionId WHERE ml.mediaId = media.id) AS sourceNames,
   media.id,
   media.path,
   media.basename,

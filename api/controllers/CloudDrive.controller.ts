@@ -8,6 +8,8 @@ import {WebVideoFrameSchema} from '../../shared/webVideo'
 import {saveWebVideoFrame} from '../services/webVideo/frames'
 import type {ApiDb} from '../types/db'
 import {z} from 'zod'
+import {markCatalogSourceDisconnected} from '../services/mediaCatalogSources'
+import {DEFAULT_DRIVE_CONNECTION_ID} from '../../shared/mediaSources'
 import {checkOAuthClient, validateOAuthClient} from '../services/cloudDrive/oauth'
 import {DriveOAuthError, driveOAuthErrorCode, driveOAuthErrorMessages, type DriveOAuthErrorCode} from '../services/cloudDrive/oauthErrors'
 
@@ -113,6 +115,7 @@ function createCloudDriveController(db: ApiDb) {
 
     async logout(_req: Request, res: Response) {
       getCloudDriveService().logout()
+      markCatalogSourceDisconnected(db, DEFAULT_DRIVE_CONNECTION_ID)
       res.json({ok: true})
     },
 

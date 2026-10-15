@@ -36,6 +36,7 @@ import {
   normalizeFiltersJoinMode,
 } from '../utils/filtersJoinMode'
 import {MEDIA_NOT_IN_TRASH_SQL} from '../../shared/mediaTrash'
+import {buildCatalogSourceClause} from './mediaCatalogSources'
 
 const MEDIA_COLUMNS = new Set([
   'rating',
@@ -157,6 +158,7 @@ function buildFilterClause(filter: FilterLike, nextParam: SqlParamBinder) {
   const metaId = resolveMetaId(param)
 
   if (type === 'array' || type === 'select') {
+    if (param === 'source' || param === 'availability') return buildCatalogSourceClause(filter, nextParam)
     if (param === 'country') return buildCountryArrayClause(filter, nextParam)
     if (param === 'ext') return buildExtArrayClause(filter, nextParam)
     if (metaId === null) return null

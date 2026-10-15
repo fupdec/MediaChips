@@ -43,6 +43,10 @@ export interface MediaItem {
   id: number
   name?: string
   path?: string
+  /** Persisted catalog observations; reading these never contacts the original. */
+  sourceTokens?: string
+  sourceNames?: string | null
+  availability?: 'available' | 'unavailable' | 'unknown'
   basename?: string
   ext?: string
   mediaTypeId?: number

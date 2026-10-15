@@ -1,5 +1,13 @@
 const en = {
   sources: {
+    catalog: {
+      source: 'Source',
+      availability: 'Availability',
+      observation_hint: 'Last recorded status. Filtering does not contact the source.',
+      offline_editing: 'Library metadata can be edited even when the source is unavailable.',
+      kinds: {local: 'Local files', nas: 'NAS / SFTP / FTP', gdrive: 'Google Drive', web: 'Web links'},
+      states: {available: 'Available', unavailable: 'Unavailable', unknown: 'Unknown'},
+    },
     credentials_saved: 'Credentials saved',
     "title": "Sources",
     "provider": "Source type",
