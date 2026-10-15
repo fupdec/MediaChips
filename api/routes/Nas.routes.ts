@@ -2,7 +2,7 @@ import express, {type Express, type Request, type Response} from 'express'
 import {z} from 'zod'
 import type {ApiDb} from '../types/db'
 import {validateBody} from '../middleware/validateBody'
-import {NasConnectionSchema, NasImportSchema, NasBatchImportSchema, NasPathSchema} from '../../shared/nas'
+import {NasConnectionSchema, NasImportSchema, NasBatchImportSchema, NasPathSchema, NasListSchema} from '../../shared/nas'
 import {WebVideoFrameSchema} from '../../shared/webVideo'
 import {isNasMediaPath} from '../../shared/remoteMedia'
 import {createNasService, type NasService} from '../services/nas/service'
@@ -22,13 +22,14 @@ export default function registerNas(app: Express, db: ApiDb, service: NasService
   }
   const connectionId = (req: Request) => z.string().uuid().parse(req.params.id)
   const mediaId = (req: Request) => z.coerce.number().int().positive().parse(req.params.id)
+  router.get('/image', handle((req, res) => service.streamImage(db, req, res, z.string().max(8192).parse(req.query.path))))
   router.get('/connections', handle((_req, res) => res.json(service.connections(db))))
   router.post('/connections', validateBody(NasConnectionSchema), handle(async (req, res) => res.json(await service.saveConnection(db, req.body))))
   router.put('/connections/:id', validateBody(NasConnectionSchema), handle(async (req, res) => res.json(await service.saveConnection(db, req.body, connectionId(req)))))
   router.post('/connections/:id/disconnect', handle((req, res) => { service.disconnect(db, connectionId(req)); res.json({ok: true}) }))
   router.get('/connections/:id/files', handle(async (req, res) => {
-    const query = NasPathSchema.parse(req.query)
-    const result = await service.list(db, connectionId(req), query.path)
+    const query = NasListSchema.parse(req.query)
+    const result = await service.list(db, connectionId(req), query.path, query.pageToken)
     res.json({...result, entries: result.entries.slice(0, 5000)})
   }))
   router.get('/connections/:id/playable', handle(async (req, res) => {

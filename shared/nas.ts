@@ -1,4 +1,5 @@
 import {z} from 'zod'
+import type {SourceCapabilities} from './mediaSources'
 
 const safeText = (min = 0, max = 2048) => z.string().min(min).max(max).refine(v => !/[\x00-\x1f\x7f]/.test(v), 'Control characters are not allowed')
 export const NasConnectionSchema = z.object({
@@ -18,11 +19,12 @@ export const NasConnectionSchema = z.object({
 })
 export type NasConnectionInput = z.infer<typeof NasConnectionSchema>
 export type NasConnection = Omit<NasConnectionInput, 'password' | 'privateKey' | 'passphrase'> & {
-  id: string; hasCredentials: boolean; hasPassword: boolean; hasPrivateKey: boolean
+  capabilities?: SourceCapabilities; id: string; hasCredentials: boolean; hasPassword: boolean; hasPrivateKey: boolean
 }
 export type NasEntry = {name: string; path: string; isDirectory: boolean; size: number; modifiedAt?: number; mediaId?: number | null}
-export type NasDirectoryResult = {path: string; entries: NasEntry[]; truncated: boolean}
+export type NasDirectoryResult = {path: string; entries: NasEntry[]; truncated: boolean; nextPageToken?: string}
 export const NasPathSchema = z.object({path: safeText().default('')}).strict()
+export const NasListSchema = NasPathSchema.extend({pageToken: z.string().regex(/^(0|[1-9][0-9]*)$/).max(16).optional()})
 export const NasImportSchema = z.object({connectionId: z.string().uuid(), path: safeText(1)}).strict()
 export const NasBatchImportSchema = z.object({connectionId: z.string().uuid(), paths: z.array(safeText(1)).min(1).max(20)}).strict()
 export type NasImportResult = {path: string} & (

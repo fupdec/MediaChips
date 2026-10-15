@@ -1,3 +1,4 @@
+import {migrateMediaLocations} from './migrateMediaLocations'
 import fs from 'fs'
 import {projectPath} from '../../shared/projectRoot'
 import path from 'path'
@@ -124,6 +125,14 @@ function isMigrationSatisfied(sqlite: Database.Database, sql: string): boolean {
   }
 
   const indexMatches = [...sql.matchAll(createIndexCaptureRegex())]
+  const tableMatches = [...sql.matchAll(createTableCaptureRegex())]
+  // A migration may create tables and their indexes together (media sources).
+  // Recognize the whole satisfied migration before stamping later ADD COLUMNs.
+  if (indexMatches.length && tableMatches.length) {
+    const remaining = withoutBreakpoints.replace(createTableStatementRegex(), '').replace(createIndexStatementRegex(), '').trim()
+    return !remaining && indexMatches.every(match => hasIndex(sqlite, match[1]))
+      && tableMatches.every(match => hasTable(sqlite, match[1]))
+  }
   if (indexMatches.length > 0) {
     // Some idempotent index migrations first remove an older definition.
     // That DROP is part of the migration's normal replay-safe procedure and
@@ -139,7 +148,6 @@ function isMigrationSatisfied(sqlite: Database.Database, sql: string): boolean {
     return indexMatches.every((match) => Boolean(match[1] && hasIndex(sqlite, match[1])))
   }
 
-  const tableMatches = [...sql.matchAll(createTableCaptureRegex())]
   if (tableMatches.length > 0) {
     const withoutTables = withoutBreakpoints.replace(createTableStatementRegex(), '').trim()
     if (withoutTables.length > 0) {
@@ -267,6 +275,7 @@ export function runDrizzleMigrations(dbPath: string) {
 
     const db = drizzle(sqlite)
     migrate(db, {migrationsFolder: MIGRATIONS_FOLDER})
+    migrateMediaLocations(sqlite)
   } finally {
     sqlite.close()
   }

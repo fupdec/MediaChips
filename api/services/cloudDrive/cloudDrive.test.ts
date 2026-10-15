@@ -128,7 +128,7 @@ describe('mock transport + Range proxy', () => {
     const download = vi.spyOn(transport, 'downloadFile').mockResolvedValue({status: 206, headers: {'content-range': 'bytes 0-4/10'}, body: bytes})
     const res = {writeHead: vi.fn(), end: vi.fn()} as unknown as Response
     await streamDriveFile({headers: {range: 'bytes=0-4'}} as Request, res, transport, 'movie')
-    expect(download).toHaveBeenCalledWith('movie', 'bytes=0-4')
+    expect(download).toHaveBeenCalledWith('movie', 'bytes=0-4', expect.any(AbortSignal))
     expect(res.writeHead).toHaveBeenCalledWith(206, expect.objectContaining({'Content-Type': expectedType, 'Content-Range': 'bytes 0-4/10'}))
     expect(res.end).toHaveBeenCalledWith(bytes)
   })

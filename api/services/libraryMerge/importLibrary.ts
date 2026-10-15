@@ -1,5 +1,6 @@
 import path from 'path'
 import {randomUUID} from 'crypto'
+import {DEFAULT_DRIVE_CREDENTIAL_REF} from '../../../shared/mediaSources'
 import {eq, inArray} from 'drizzle-orm'
 import type {ApiDb} from '../../types/db'
 import {createDrizzleClient, closeDrizzleClient} from '../../db/client'
@@ -215,8 +216,10 @@ export async function importLibraryIntoActive(
     if (hasSources) {
       for (const row of source.select().from(schema.sourceConnections).all()) {
         const existing = target.select().from(schema.sourceConnections).where(eq(schema.sourceConnections.id, row.id)).get()
-        if (existing && existing.config !== row.config) throw new Error('Conflicting NAS connection identity. Reconnect the source before importing this library.')
-        if (!existing) target.insert(schema.sourceConnections).values({...row, credentialRef: randomUUID()}).run()
+        if (existing && (existing.provider !== row.provider || existing.config !== row.config)) throw new Error('Conflicting source connection identity. Reconnect the source before importing this library.')
+        if (!existing) target.insert(schema.sourceConnections).values({...row,
+          credentialRef: row.provider === 'gdrive' ? DEFAULT_DRIVE_CREDENTIAL_REF : randomUUID(),
+        }).run()
       }
     }
 

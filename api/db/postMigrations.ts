@@ -1,3 +1,4 @@
+import {migrateMediaLocations} from './migrateMediaLocations'
 import Database from 'better-sqlite3'
 import { applySqlitePragmas } from './pragmas'
 import { seedDefaults } from './seedDefaults'
@@ -54,6 +55,7 @@ export function runPostMigrations(dbPath: string, options: PostMigrationOptions 
       console.log('\x1b[33m%s\x1b[0m', `⚙️ Installed search FTS indexes: ${installedFts.join(', ')}`)
     }
     runLegacyUpgrades(sqlite)
+    migrateMediaLocations(sqlite)
   } finally {
     sqlite.close()
   }

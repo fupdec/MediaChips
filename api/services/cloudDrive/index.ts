@@ -1,3 +1,4 @@
+import {READ_SOURCE_CAPABILITIES, type SourceCapabilities} from '../../../shared/mediaSources'
 import {getDriveConfig} from './config'
 import {randomBytes} from 'crypto'
 import {DriveOAuthError, driveOAuthErrorCode, type DriveOAuthErrorCode} from './oauthErrors'
@@ -14,6 +15,7 @@ export type CloudDriveService = {
   transport: DriveTransport
   status(): {
     configured: boolean
+    capabilities: SourceCapabilities
     mock: boolean
     authenticated: boolean
     redirectUri: string
@@ -65,6 +67,7 @@ function createCloudDriveService(options?: {
     status() {
       return {
         configured: config.configured,
+        capabilities: READ_SOURCE_CAPABILITIES,
         mock: config.mock,
         authenticated: config.mock ? true : Boolean(store.get()?.accessToken),
         redirectUri: config.redirectUri,

@@ -39,7 +39,7 @@ function createGoogleDriveTransport(
   }
 
   return {
-    async listFolder(folderId: string, pageToken?: string): Promise<DriveListResult> {
+    async listFolder(folderId: string, pageToken?: string, signal?: AbortSignal): Promise<DriveListResult> {
       const parent = folderId || 'root'
       const params: Record<string, string> = {
         q: `'${parent.replace(/'/g, "\\'")}' in parents and trashed = false`,
@@ -54,6 +54,7 @@ function createGoogleDriveTransport(
         params,
         headers: await authHeaders(),
         timeout: 30_000,
+        signal,
       })
 
       const files = Array.isArray(data.files) ? data.files.map(toEntry) : []
@@ -65,7 +66,7 @@ function createGoogleDriveTransport(
       }
     },
 
-    async getFileMeta(fileId: string) {
+    async getFileMeta(fileId: string, signal?: AbortSignal) {
       const {data} = await axios.get(`${DRIVE_API}/files/${encodeURIComponent(fileId)}`, {
         params: {
           fields: 'id, name, mimeType, size, modifiedTime',
@@ -73,6 +74,7 @@ function createGoogleDriveTransport(
         },
         headers: await authHeaders(),
         timeout: 30_000,
+        signal,
       })
       return {
         id: data.id as string,
@@ -83,7 +85,7 @@ function createGoogleDriveTransport(
       }
     },
 
-    async downloadFile(fileId: string, rangeHeader?: string): Promise<DriveHttpResponse> {
+    async downloadFile(fileId: string, rangeHeader?: string, signal?: AbortSignal): Promise<DriveHttpResponse> {
       const headers = await authHeaders()
       if (rangeHeader) headers.Range = rangeHeader
 
@@ -94,6 +96,7 @@ function createGoogleDriveTransport(
           headers,
           responseType: 'stream',
           timeout: 120_000,
+          signal,
           // Drive returns 206 for partial content; axios should not throw.
           validateStatus: (status) => status >= 200 && status < 300,
         },

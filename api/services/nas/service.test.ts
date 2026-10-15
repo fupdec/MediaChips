@@ -11,6 +11,8 @@ import {createMediaTypesRepository} from '../../db/repositories/mediaTypes'
 import {createMediaRepository} from '../../db/repositories/media'
 import {mediaLocations, sourceConnections} from '../../db/schema/mediaSources'
 import {media} from '../../db/schema/media'
+import {nasMediaPath} from '../../../shared/remoteMedia'
+import {createVideoMetadataRepository} from '../../db/repositories/videoMetadata'
 import {videoMetadata} from '../../db/schema/videoMetadata'
 import {mergeMediaItemsTx} from '../mediaMerge'
 import {collectMissingMediaByPathExist} from '../missingMediaExistScan'
@@ -19,6 +21,8 @@ import {createNasCredentialStore} from './credentials'
 import {createNasService, parseNasRange} from './service'
 import {connectNas, normalizeNasRelativePath, type NasTransport} from './transport'
 import registerNas from '../../routes/Nas.routes'
+import {migrateMediaLocations} from '../../db/migrateMediaLocations'
+import {marks, tagsInMedia, valuesInMedia} from '../../db/schema'
 
 vi.mock('../mediaCacheInvalidation', () => ({invalidateMediaDerivedCaches: vi.fn()}))
 const config = {name: 'Test NAS', protocol: 'sftp' as const, host: 'nas.example', port: 22, username: 'reader', root: '/videos', password: 'do-not-expose'}
@@ -53,7 +57,7 @@ describe('NAS library and HTTP playback', () => {
     fixture = createTestDb('nas')
     directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-nas-vault-'))
     db = {...fixture, path: directory, config: {id: 'test-library'}}
-    createMediaTypesRepository(fixture.drizzle).create({name: 'Videos', type: 'video'})
+    for (const type of ['video', 'audio', 'image']) createMediaTypesRepository(fixture.drizzle).create({name: type, type})
     modifiedAt = 1000; closed = 0
     connect = vi.fn(async (): Promise<NasTransport> => ({
       async list() { return [{name: 'video.mp4', path: 'video.mp4', size: bytes.length, modifiedAt, isDirectory: false}] },
@@ -94,6 +98,61 @@ describe('NAS library and HTTP playback', () => {
     await rejection
     await vi.waitFor(() => expect(signal.aborted).toBe(true))
     expect((await fetch(base + url)).status).toBe(200)
+  })
+  it.each(['sftp', 'ftp', 'ftps'] as const)('imports expanded formats into their own media types over %s', async protocol => {
+    const connection = await service.saveConnection(db, {...config, protocol})
+    const files = ['clip.MKV', 'clip.WMV', 'clip.AVI', 'clip.M2TS', 'clip.3GP', 'song.FLAC', 'photo.AVIF']
+    const {results} = await service.importFiles(db, connection.id, files)
+    expect(results.every(result => result.ok && result.created)).toBe(true)
+    const repo = createMediaRepository(fixture.drizzle)
+    const types = createMediaTypesRepository(fixture.drizzle)
+    for (let index = 0; index < results.length; index++) {
+      const result = results[index]
+      if (!result.ok) throw new Error(result.message)
+      const row = repo.findById(result.id)!
+      expect(types.findById(row.mediaTypeId!)?.type).toBe(index < 5 ? 'video' : index === 5 ? 'audio' : 'image')
+      expect(row.ext).toBe(files[index].split('.').pop()!.toLowerCase())
+      expect(createVideoMetadataRepository(fixture.drizzle).findByMediaId(row.id) != null).toBe(index !== 6)
+    }
+    expect((await service.importFiles(db, connection.id, files)).results.every(result => result.ok && !result.created)).toBe(true)
+  })
+  it.each([
+    ['clip.MKV', 'video/x-matroska'], ['clip.WMV', 'video/x-ms-wmv'], ['clip.AVI', 'video/x-msvideo'],
+    ['clip.ASF', 'video/x-ms-asf'], ['clip.MPEG', 'video/mpeg'], ['clip.FLV', 'video/x-flv'],
+    ['clip.M2TS', 'video/mp2t'], ['clip.3GP', 'video/3gpp'], ['clip.OGV', 'video/ogg'],
+    ['song.FLAC', 'audio/flac'], ['song.M4A', 'audio/mp4'], ['photo.AVIF', 'image/avif'],
+  ])('previews and streams %s with MIME %s and Range support', async (name, contentType) => {
+    const connection = await service.saveConnection(db, config)
+    const plan = await service.preparePreview(db, connection.id, name)
+    const response = await fetch(base + plan.url, {headers: {Range: 'bytes=4-9'}})
+    expect(response.status).toBe(206)
+    expect(response.headers.get('content-type')).toBe(contentType)
+    expect(await response.text()).toBe('456789')
+    expect(fixture.drizzle.select().from(media).all()).toHaveLength(0)
+  })
+  it('serves image previews and library originals, validates versions and rejects unsupported paths', async () => {
+    const connection = await service.saveConnection(db, config)
+    const previewPath = nasMediaPath(connection.id, 'Фото/photo.PNG')
+    const imageUrl = (source: string) => base + `/api/nas/image?path=${encodeURIComponent(source)}`
+    const preview = await fetch(imageUrl(previewPath))
+    expect(preview.status).toBe(200)
+    expect(preview.headers.get('content-type')).toBe('image/png')
+    expect(preview.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(await preview.text()).toBe(bytes.toString())
+    expect(fixture.drizzle.select().from(media).all()).toHaveLength(0)
+    const item = await service.importFile(db, connection.id, 'Фото/photo.PNG')
+    const row = createMediaRepository(fixture.drizzle).findById(item.id)!
+    const head = await fetch(imageUrl(row.path!), {method: 'HEAD'})
+    expect(head.status).toBe(200)
+    expect(head.headers.get('content-length')).toBe(String(bytes.length))
+    modifiedAt++
+    expect((await fetch(imageUrl(row.path!))).status).toBe(409)
+    for (const source of [nasMediaPath(connection.id, 'notes.txt'), nasMediaPath(connection.id, '../photo.png'),
+      nasMediaPath(connection.id, 'clip.mp4'), nasMediaPath(connection.id, 'missing.png', 'a'.repeat(64))]) {
+      expect((await fetch(imageUrl(source))).status).toBeGreaterThanOrEqual(400)
+    }
+    service.disconnect(db, connection.id)
+    expect((await fetch(imageUrl(previewPath))).status).toBeGreaterThanOrEqual(400)
   })
   it('previews a remote file with range requests without creating media, locations or metadata', async () => {
     const connection = await service.saveConnection(db, config)
@@ -191,6 +250,50 @@ describe('NAS library and HTTP playback', () => {
     expect(fs.readFileSync(encrypted)).toEqual(original)
     expect(updated).not.toHaveProperty('privateKey')
     expect(updated).not.toHaveProperty('passphrase')
+  })
+  it('keeps cards, chips, marks and locations accessible after password rotation', async () => {
+    const {connection, item} = await add(db, service)
+    fixture.sqlite.exec(`
+      INSERT INTO meta (id, name, type, createdAt, updatedAt) VALUES (1, 'Genre', 'tags', 'old', 'old');
+      INSERT INTO tags (id, name, metaId, createdAt, updatedAt) VALUES (1, 'My chip', 1, 'old', 'old');
+    `)
+    fixture.drizzle.insert(tagsInMedia).values({mediaId: item.id, tagId: 1, metaId: 1}).run()
+    fixture.drizzle.insert(valuesInMedia).values({mediaId: item.id, metaId: 1, value: 'Custom value'}).run()
+    fixture.drizzle.insert(marks).values({mediaId: item.id, time: 12, text: 'Saved marker'}).run()
+    const before = {
+      card: createMediaRepository(fixture.drizzle).findById(item.id),
+      locations: fixture.drizzle.select().from(mediaLocations).all(),
+      tags: fixture.drizzle.select().from(tagsInMedia).all(),
+      values: fixture.drizzle.select().from(valuesInMedia).all(),
+      marks: fixture.drizzle.select().from(marks).all(),
+      connection: fixture.drizzle.select().from(sourceConnections).get()!,
+    }
+    await service.saveConnection(db, {...config, name: 'Renamed', password: 'new-password'}, connection.id)
+    expect(createMediaRepository(fixture.drizzle).findById(item.id)).toEqual(before.card)
+    expect(fixture.drizzle.select().from(mediaLocations).all()).toEqual(before.locations)
+    expect(fixture.drizzle.select().from(tagsInMedia).all()).toEqual(before.tags)
+    expect(fixture.drizzle.select().from(valuesInMedia).all()).toEqual(before.values)
+    expect(fixture.drizzle.select().from(marks).all()).toEqual(before.marks)
+    expect(fixture.drizzle.select().from(sourceConnections).get()?.credentialRef).toBe(before.connection.credentialRef)
+    const plan = await service.prepare(db, item.id)
+    const response = await fetch(base + plan.url, {headers: {Range: 'bytes=4-9'}})
+    expect(response.status).toBe(206)
+    expect(await response.text()).toBe('456789')
+    expect(connect.mock.calls[connect.mock.calls.length - 1]?.[1]).toEqual({password: 'new-password'})
+    expect(await service.importFile(db, connection.id, 'video.mp4')).toMatchObject({id: item.id, created: false})
+  })
+  it.each([false, true])('opens and deduplicates a migrated legacy NAS card (versioned: %s)', async versioned => {
+    const connection = await service.saveConnection(db, config)
+    const imported = await service.importFile(db, connection.id, 'video.mp4')
+    fixture.sqlite.exec('DELETE FROM mediaLocations')
+    if (!versioned) createMediaRepository(fixture.drizzle).updateById(imported.id, {path: nasMediaPath(connection.id, 'video.mp4')})
+    const oldPath = createMediaRepository(fixture.drizzle).findById(imported.id)!.path
+    migrateMediaLocations(fixture.sqlite)
+    expect(await service.importFile(db, connection.id, 'video.mp4')).toMatchObject({id: imported.id, created: false})
+    expect(createMediaRepository(fixture.drizzle).findById(imported.id)!.path).toBe(oldPath)
+    const plan = await service.prepare(db, imported.id)
+    expect((await fetch(base + plan.url)).status).toBe(200)
+    expect(fixture.drizzle.select().from(mediaLocations).all()).toHaveLength(1)
   })
   it('reports existing file versions for browser badges and exposes changed versions as new files', async () => {
     const {connection, item} = await add(db, service)

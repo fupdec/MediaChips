@@ -38,9 +38,9 @@ export type DriveHttpResponse = {
 }
 
 export type DriveTransport = {
-  listFolder(folderId: string, pageToken?: string): Promise<DriveListResult>
-  getFileMeta(fileId: string): Promise<DriveFileMeta>
-  downloadFile(fileId: string, rangeHeader?: string): Promise<DriveHttpResponse>
+  listFolder(folderId: string, pageToken?: string, signal?: AbortSignal): Promise<DriveListResult>
+  getFileMeta(fileId: string, signal?: AbortSignal): Promise<DriveFileMeta>
+  downloadFile(fileId: string, rangeHeader?: string, signal?: AbortSignal): Promise<DriveHttpResponse>
 }
 
 export type DriveConfig = {

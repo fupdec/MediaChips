@@ -232,6 +232,13 @@
       "when": 1782865200000,
       "tag": "0032_media_sources",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1782868800000,
+      "tag": "0033_source_providers",
+      "breakpoints": true
     }
   ]
 }

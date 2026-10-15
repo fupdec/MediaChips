@@ -38,6 +38,9 @@ function addColumnIfMissing(
 }
 
 const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
+  {table: 'sourceConnections', column: 'provider', definition: "text NOT NULL DEFAULT 'nas'"},
+  {table: 'mediaLocations', column: 'availability', definition: "text NOT NULL DEFAULT 'unknown'"},
+  {table: 'mediaLocations', column: 'lastVerifiedAt', definition: 'text'},
   {table: 'meta', column: 'icon', definition: 'text'},
   {table: 'meta', column: 'hint', definition: 'text'},
   {table: 'meta', column: 'order', definition: 'integer'},
@@ -174,13 +177,14 @@ export function repairSchemaColumns(sqlite: Database.Database): string[] {
 const MISSING_TABLE_DDL: Record<string, string> = {
   sourceConnections: `CREATE TABLE "sourceConnections" (
     "id" text PRIMARY KEY NOT NULL, "config" text NOT NULL,
-    "credentialRef" text NOT NULL, "createdAt" text NOT NULL
+    "credentialRef" text NOT NULL, "createdAt" text NOT NULL, "provider" text NOT NULL DEFAULT 'nas'
   )`,
   mediaLocations: `CREATE TABLE "mediaLocations" (
     "id" text PRIMARY KEY NOT NULL,
     "mediaId" integer NOT NULL REFERENCES "media"("id") ON DELETE CASCADE,
     "connectionId" text NOT NULL REFERENCES "sourceConnections"("id"),
-    "resourceKey" text NOT NULL, "version" text NOT NULL
+    "resourceKey" text NOT NULL, "version" text NOT NULL,
+    "availability" text NOT NULL DEFAULT 'unknown', "lastVerifiedAt" text
   )`,
   imageMetadata: `CREATE TABLE "imageMetadata" (
     "mediaId" integer PRIMARY KEY NOT NULL,

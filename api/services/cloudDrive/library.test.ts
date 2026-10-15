@@ -12,6 +12,10 @@ import type {ApiDb} from '../../types/db'
 import {driveMediaPath} from '../../../shared/cloudDrive'
 import {isRemoteMediaPath} from '../../../shared/remoteMedia'
 import {collectMissingMediaByPathExist} from '../missingMediaExistScan'
+import {sourceConnections, mediaLocations, marks, tagsInMedia} from '../../db/schema'
+import {resolveMediaLocation} from '../mediaSources/locations'
+import {createNasService} from '../nas/service'
+import {migrateMediaLocations} from '../../db/migrateMediaLocations'
 
 vi.mock('../mediaCacheInvalidation', () => ({invalidateMediaDerivedCaches: vi.fn()}))
 describe('Google Drive library import', () => {
@@ -37,6 +41,9 @@ describe('Google Drive library import', () => {
     expect(row.path).toBe(driveMediaPath(fileId))
     expect(isRemoteMediaPath(row.path)).toBe(true)
     expect(download).not.toHaveBeenCalled()
+    expect(fixture.drizzle.select().from(mediaLocations).all()).toMatchObject([{mediaId: added.id, resourceKey: fileId, availability: 'available'}])
+    expect(resolveMediaLocation(db, added.id)).toMatchObject({provider: 'gdrive', connection: {provider: 'gdrive'}})
+    expect(createNasService().connections(db)).toEqual([])
     const listed = await listDriveFolder(db, service, 'root')
     expect(listed.files.find(file => file.id === fileId)?.mediaId).toBe(added.id)
     expect(await collectMissingMediaByPathExist([{id: row.id, path: row.path}], {pathExists: async () => false})).toEqual([])
@@ -81,5 +88,37 @@ describe('Google Drive library import', () => {
       return {id: 'next', name: 'next.mp4', mimeType: 'video/mp4', size: 100}
     })
     await expect(importDriveFile(db, service, 'next')).rejects.toMatchObject({status: 409})
+  })
+  it('keeps the same card, chips and markers when OAuth credentials are replaced', async () => {
+    service = createCloudDriveService({config: {...service.config, mock: false}, transport: createMockDriveTransport()})
+    service.store.set({accessToken: 'first-token', refreshToken: 'first-refresh'})
+    const added = await importDriveFile(db, service, 'mock-video-sample')
+    fixture.sqlite.exec(`
+      INSERT INTO meta (id, name, type, createdAt, updatedAt) VALUES (1, 'Genre', 'tags', 'old', 'old');
+      INSERT INTO tags (id, name, metaId, createdAt, updatedAt) VALUES (1, 'My chip', 1, 'old', 'old');
+    `)
+    fixture.drizzle.insert(tagsInMedia).values({mediaId: added.id, metaId: 1, tagId: 1}).run()
+    fixture.drizzle.insert(marks).values({mediaId: added.id, time: 12, text: 'My marker'}).run()
+    const card = createMediaRepository(db.drizzle).findById(added.id)
+    const location = fixture.drizzle.select().from(mediaLocations).get()!
+    const connection = fixture.drizzle.select().from(sourceConnections).get()!
+    service.logout()
+    expect(driveLibraryFile(db, added.id).row).toEqual(card)
+    service.store.set({accessToken: 'replacement-token', refreshToken: 'replacement-refresh'})
+    expect(await importDriveFile(db, service, 'mock-video-sample')).toMatchObject({id: added.id, created: false})
+    expect(createMediaRepository(db.drizzle).findById(added.id)).toEqual(card)
+    expect(fixture.drizzle.select().from(mediaLocations).get()?.id).toBe(location.id)
+    expect(fixture.drizzle.select().from(sourceConnections).get()).toEqual(connection)
+    expect(fixture.drizzle.select().from(tagsInMedia).all()).toEqual([{mediaId: added.id, metaId: 1, tagId: 1}])
+    expect(fixture.drizzle.select().from(marks).get()).toMatchObject({mediaId: added.id, time: 12, text: 'My marker'})
+    expect(JSON.stringify(connection)).not.toContain('token')
+  })
+  it('resolves the stored original independently of the compatibility path and never restores a stale location', async () => {
+    const added = await importDriveFile(db, service, 'mock-video-sample')
+    fixture.sqlite.prepare('UPDATE mediaLocations SET resourceKey = ? WHERE mediaId = ?').run('moved-original', added.id)
+    migrateMediaLocations(fixture.sqlite)
+    expect(driveLibraryFile(db, added.id).fileId).toBe('moved-original')
+    expect(driveLibraryFile(db, added.id).row.path).toBe('gdrive://mock-video-sample')
+    expect(fixture.drizzle.select().from(mediaLocations).all()).toHaveLength(1)
   })
 })
