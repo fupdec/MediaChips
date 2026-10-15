@@ -20,6 +20,8 @@ export type MissingMediaMatch = {
   confidence: 'hash' | 'size' | string
   newPath: string
   oldPath: string
+  candidatePaths?: string[]
+  ambiguous?: boolean
 }
 
 export type MissingMediaSummary = {

@@ -11,6 +11,10 @@
           <span class="file-path-editing__path-text">{{ display_path }}</span>
         </div>
         <div class="file-path-editing__actions">
+          <v-btn @click="dialog_relink = true" color="primary" variant="tonal" size="small" icon
+            v-tooltip:top="t('media.relink.locate')" :aria-label="t('media.relink.locate')">
+            <v-icon size="18">mdi-file-link-outline</v-icon>
+          </v-btn>
           <v-btn
             @click="openDialogEdit"
             color="primary"
@@ -80,6 +84,9 @@
       </v-card-text>
 
       <v-card-actions class="flex-wrap px-4 pb-4">
+        <v-btn @click="dialog_relink = true" color="primary" variant="flat" rounded="xl" class="px-4">
+          <v-icon start icon="mdi-file-link-outline" />{{ t('media.relink.locate') }}
+        </v-btn>
         <v-btn
           @click="openDialogEdit"
           color="primary"
@@ -117,6 +124,8 @@
       </v-card-actions>
     </v-card>
 
+    <DialogRelinkMedia v-model="dialog_relink" :media="{id: media.id, path: display_path, ext: media.ext}"
+      :initial-destination="relinkDestination" @applied="onRelinkApplied" />
     <v-dialog v-model="dialog_edit" width="840">
       <v-card>
         <DialogHeader
@@ -207,6 +216,8 @@ import {typedApi} from '@/services/typedApi'
 import { useOperationsStore } from '@/stores/operations'
 import { useItemsStore } from '@/stores/items'
 import { useDialogsStore } from '@/stores/dialogs'
+import DialogRelinkMedia from '@/components/dialogs/DialogRelinkMedia.vue'
+import type {MediaRelinkCandidate} from '@shared/mediaRelink'
 import DialogHeader from "@/components/elements/DialogHeader.vue"
 import {normalizePastedFilePath} from '@/utils/filePathInput'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
@@ -236,6 +247,13 @@ const emit = defineEmits<{
 
 const valid = ref(true)
 const dialog_edit = ref(false)
+const dialog_relink = ref(false)
+const relinkDestination = ref('')
+const onRelinkApplied = async (matches: MediaRelinkCandidate[]) => {
+  if (!matches[0]) return
+  applyPathUpdate(matches[0].newPath)
+  await refreshPathAvailability(matches[0].newPath)
+}
 const file_path = ref('')
 const move_file = ref(true)
 const is_different_path = ref(false)
@@ -261,7 +279,7 @@ watch(() => props.media.path, (value) => {
 const buildPathFields = (filePath: string) => parseMediaFilePath(filePath)
 
 const applyPathUpdate = (filePath: string) => {
-  const updated = buildPathFields(filePath)
+  const updated = {...buildPathFields(filePath), name: props.media.name}
   display_path.value = filePath
   is_different_path.value = false
   emit('update', { ...props.media, ...updated })
@@ -335,6 +353,7 @@ const savePathToDb = async (filePath: string, { notify = true } = {}) => {
     await typedApi.updateMediaPath({
       id: props.media.id,
       path: filePath,
+      confirmedOriginal: true,
     })
 
     applyPathUpdate(filePath)
@@ -436,11 +455,9 @@ const updateFilePath = async () => {
     return
   }
 
-  const saved = await savePathToDb(filePath)
-  if (saved) {
-    dialog_edit.value = false
-    await refreshPathAvailability(filePath)
-  }
+  relinkDestination.value = filePath
+  dialog_edit.value = false
+  dialog_relink.value = true
 }
 
 const refreshPathAvailability = async (filePath: string) => {

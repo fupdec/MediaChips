@@ -2,6 +2,8 @@ import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 
 import express from 'express'
+import {z} from 'zod'
+import {createMediaRelinkController} from '../controllers/MediaRelink.controller'
 import { validateBody, validateQuery } from '../middleware/validateBody'
 import {
   ItemsListRequestSchema,
@@ -29,6 +31,18 @@ import {listCatalogSources} from '../services/mediaCatalogSources'
 export default function registerRoutes(app: Express, db: ApiDb) {
   const Media = createMediaController(db)
   const router = express.Router()
+  const relink = createMediaRelinkController(db)
+  const relinkItem = z.object({
+    id: z.number().int().positive(),
+    oldPath: z.string().min(1),
+    newPath: z.string().min(1),
+    confirmedOriginal: z.boolean().optional(),
+  })
+  router.post('/relink/preview', validateBody(z.union([
+    relinkItem.omit({confirmedOriginal: true}),
+    z.object({oldRoot: z.string().trim().min(1), newRoot: z.string().trim().min(1)}),
+  ])), relink.preview)
+  router.post('/relink/apply', validateBody(z.object({matches: z.array(relinkItem).min(1)})), relink.apply)
 
   router.get('/numberOfMediaWithTag', validateQuery(MediaTagCountQuerySchema), Media.numberOfMediaWithTag)
 

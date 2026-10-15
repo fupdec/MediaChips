@@ -143,26 +143,26 @@
       </v-btn>
     </div>
 
+    <v-alert v-if="matches.length" type="warning" variant="tonal" density="compact" class="mb-3">
+      {{ t('media.relink.weak_selection') }}
+    </v-alert>
     <v-card v-if="matches.length > 0" variant="outlined" class="pa-2">
       <v-card-actions class="pa-0 px-2">
         <v-checkbox
           v-model="selectAll"
-          :label="t('settings_labels.database.find_missing_media_select_all')"
+          :label="t('media.relink.confirm_all')"
           hide-details
           density="compact"
           @update:model-value="toggleSelectAll"
         />
       </v-card-actions>
 
-      <v-virtual-scroll
-        :height="Math.min(matches.length * 72, 360)"
-        :items="matches"
-        item-height="72"
-      >
-        <template #default="{ item }">
+      <div style="max-height: 440px; overflow-y: auto">
+        <template v-for="item in matches" :key="item.id">
           <div class="match-row pa-2">
             <v-checkbox
               :model-value="selectedIds.includes(item.id)"
+              :disabled="!item.newPath || active || relinking"
               hide-details
               density="compact"
               class="match-row__checkbox"
@@ -182,12 +182,15 @@
                 </v-chip>
               </div>
 
-              <div class="text-caption selectable text-success">{{ item.newPath }}</div>
+              <v-select v-if="item.ambiguous" v-model="item.newPath" :items="item.candidatePaths || []"
+                :label="t('media.relink.choose_candidate')" density="compact" variant="outlined"
+                :disabled="active || relinking" hide-details class="mb-2" @update:model-value="toggleMatch(item.id, false)" />
+              <div v-else class="text-caption selectable text-success">{{ item.newPath }}</div>
               <div class="text-caption selectable text-medium-emphasis">{{ item.oldPath }}</div>
             </div>
           </div>
         </template>
-      </v-virtual-scroll>
+      </div>
     </v-card>
 
     <DialogBrowseFolder
@@ -305,25 +308,23 @@ const selectFoldersNative = async () => {
   searchPaths.value = [...new Set([...existing, ...nativePaths])].join('\n')
 }
 
+const uniqueMatches = (items: MissingMediaMatch[]) => items.filter((item) =>
+  !item.ambiguous && item.newPath,
+)
 const toggleMatch = (id: MissingMediaMatch['id'], value: boolean | null) => {
-  if (value) {
-    if (!selectedIds.value.includes(id)) {
-      selectedIds.value = [...selectedIds.value, id]
-    }
-  } else {
-    selectedIds.value = selectedIds.value.filter((item) => item !== id)
-  }
-
-  selectAll.value = selectedIds.value.length === matches.value.length && matches.value.length > 0
+  const match = matches.value.find((item) => item.id === id)
+  selectedIds.value = selectedIds.value.filter((otherId) => otherId !== id && (!value || matches.value.find((item) => item.id === otherId)?.newPath !== match?.newPath))
+  if (value && match?.newPath) selectedIds.value.push(id)
+  selectAll.value = false
 }
-
 const toggleSelectAll = (value: boolean | null) => {
-  selectedIds.value = value ? matches.value.map((item) => item.id) : []
+  selectedIds.value = value ? uniqueMatches(matches.value).map((item) => item.id) : []
 }
-
-watch(matches, (items) => {
-  selectedIds.value = items.map((item) => item.id)
-  selectAll.value = items.length > 0
+watch(matches, () => {
+  // Search fingerprints are suggestions. Selecting originals is an explicit
+  // acknowledgement; never preselect a sampled-hash match with time markers.
+  selectedIds.value = []
+  selectAll.value = false
 })
 
 const stopSearch = () => {
@@ -466,11 +467,11 @@ const relinkSelected = async () => {
   relinking.value = true
 
   try {
-    const {data} = await typedApi.relinkMissingMedia({matches: selectedMatches})
+    const {data} = await typedApi.relinkMissingMedia({matches: selectedMatches.map((item) => ({...item, confirmedOriginal: true}))})
     const relinkedIds = new Set(selectedMatches.map((item) => item.id))
     matches.value = matches.value.filter((item) => !relinkedIds.has(item.id))
-    selectedIds.value = matches.value.map((item) => item.id)
-    selectAll.value = matches.value.length > 0
+    selectedIds.value = []
+    selectAll.value = false
 
     setNotification({
       type: 'success',

@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {buildMissingIndexes, pickWeakCandidate} from './missingMediaMatch'
+import {buildMissingIndexes, findWeakCandidates} from './missingMediaMatch'
 
 describe('missingMediaMatch', () => {
   it('indexes by oshash and size-without-hash', () => {
@@ -15,16 +15,20 @@ describe('missingMediaMatch', () => {
     expect(indexes.bySizeNoHash.get(20)?.map((r) => r.id)).toEqual([3])
   })
 
-  it('picks unique basename among weak candidates', () => {
-    expect(pickWeakCandidate([], '/x.mp4')).toBeNull()
-    expect(pickWeakCandidate([{id: 1, path: '/a.mp4'}], '/x.mp4')).toEqual({id: 1, path: '/a.mp4'})
-    expect(pickWeakCandidate([
+  it('requires a matching basename and retains ambiguous candidates', () => {
+    expect(findWeakCandidates([], '/x.mp4')).toEqual([])
+    expect(findWeakCandidates([{id: 1, path: '/a.mp4'}], '/x.mp4')).toEqual([])
+    expect(findWeakCandidates([
       {id: 1, path: '/old/clip.mp4'},
       {id: 2, path: '/other.mp4'},
-    ], '/new/clip.mp4')).toEqual({id: 1, path: '/old/clip.mp4'})
-    expect(pickWeakCandidate([
+    ], '/new/clip.mp4')).toEqual([{id: 1, path: '/old/clip.mp4'}])
+    expect(findWeakCandidates([
       {id: 1, path: '/a.mp4'},
       {id: 2, path: '/b.mp4'},
-    ], '/c.mp4')).toBeNull()
+    ], '/c.mp4')).toEqual([])
+    expect(findWeakCandidates([
+      {id: 1, path: 'D:\\old\\CLIP.mp4'},
+      {id: 2, path: '/old/clip.mp4'},
+    ], '/new/clip.mp4').map((item) => item.id)).toEqual([1, 2])
   })
 })

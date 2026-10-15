@@ -37,6 +37,7 @@ import {
   parseVideoMetadata,
 } from '@shared/schemas'
 import { validated } from './validate'
+import type {MediaRelinkCandidate, MediaRelinkInput} from '@shared/mediaRelink'
 
 export type MediaFolderBrowseRequest = {
   path?: string | null
@@ -44,6 +45,13 @@ export type MediaFolderBrowseRequest = {
 }
 
 export const mediaApi = {
+  previewMediaRelink(body: {id: number; oldPath: string; newPath: string} | {oldRoot: string; newRoot: string}) {
+    return apiClient.post<{candidates: MediaRelinkCandidate[]}>('/api/Media/relink/preview', body)
+  },
+
+  applyMediaRelinks(matches: MediaRelinkInput[]) {
+    return apiClient.post<{updated: number}>('/api/Media/relink/apply', {matches})
+  },
   getCatalogSources() {
     return apiClient.get<Array<{value: string; name: string}>>('/api/Media/catalogSources')
   },

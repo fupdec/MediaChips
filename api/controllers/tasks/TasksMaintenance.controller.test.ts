@@ -4,11 +4,11 @@ import type { ApiRequest, ApiResponse } from '../../types/http'
 const {
   getContentHashBackfillStatus,
   getMissingMediaStatus,
-  updateById,
+  applyMediaRelinks,
 } = vi.hoisted(() => ({
   getContentHashBackfillStatus: vi.fn(),
   getMissingMediaStatus: vi.fn(),
-  updateById: vi.fn(),
+  applyMediaRelinks: vi.fn(),
 }))
 
 vi.mock('../../services/mediaFingerprintBackfill', () => ({
@@ -40,11 +40,7 @@ vi.mock('../../services/imageThumbsGeneration', () => ({
   iterateImageThumbsGeneration: vi.fn(),
 }))
 
-vi.mock('../../db/repositories/media', () => ({
-  createMediaRepository: () => ({
-    updateById,
-  }),
-}))
+vi.mock('../../services/mediaRelink', () => ({applyMediaRelinks}))
 
 import createTasksMaintenanceController from './TasksMaintenance.controller'
 
@@ -109,34 +105,18 @@ describe('TasksMaintenance.controller', () => {
     expect(res.body).toEqual({missing: 2})
   })
 
-  it('relinks missing media paths and reports updated count', async () => {
-    const req = {
-      body: {
-        matches: [
-          {id: 1, newPath: '/media/a.mp4', oshash: 'abc'},
-          {id: null, path: '/media/b.mp4'},
-          {id: 2, path: '/media/c.mp4'},
-        ],
-      },
-    } as ApiRequest
+  it('validates selected originals server-side without trusting a supplied hash', async () => {
+    applyMediaRelinks.mockResolvedValue({updated: 2})
+    const req = {body: {matches: [
+      {id: 1, oldPath: '/old/a.mp4', newPath: '/media/a.mp4', oshash: 'untrusted'},
+      {id: 2, oldPath: '/old/b.mp4', newPath: '/media/b.mp4', confirmedOriginal: true},
+    ]}} as ApiRequest
     const res = createResponse()
-
     await controller.relinkMissingMedia(req, res)
-
-    expect(updateById).toHaveBeenCalledTimes(2)
-    expect(updateById).toHaveBeenNthCalledWith(1, 1, {
-      path: '/media/a.mp4',
-      basename: 'a.mp4',
-      name: 'a',
-      ext: '.mp4',
-      oshash: 'abc',
-    }, {silent: true})
-    expect(updateById).toHaveBeenNthCalledWith(2, 2, {
-      path: '/media/c.mp4',
-      basename: 'c.mp4',
-      name: 'c',
-      ext: '.mp4',
-    }, {silent: true})
+    expect(applyMediaRelinks).toHaveBeenCalledWith(expect.anything(), [
+      {id: 1, oldPath: '/old/a.mp4', newPath: '/media/a.mp4', confirmedOriginal: false},
+      {id: 2, oldPath: '/old/b.mp4', newPath: '/media/b.mp4', confirmedOriginal: true},
+    ])
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual({updated: 2})
   })

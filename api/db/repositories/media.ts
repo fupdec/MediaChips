@@ -159,6 +159,7 @@ export function createMediaRepository(db: DrizzleClient) {
         oshash: media.oshash,
       })
         .from(media)
+        .where(isActiveMedia)
         .orderBy(asc(media.id))
         .all()
     },

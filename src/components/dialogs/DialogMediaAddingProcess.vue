@@ -1294,17 +1294,14 @@ const deleteDuplicates = async (delete_type: DeleteDuplicateType) => {
 
         if (!file_path) continue
 
+        // Verify and link before deleting the old original, while both can be compared.
+        if (delete_type === 'existing' && duplicate?.id) {
+          await typedApi.updateMediaPath({id: duplicate.id, path: dupe.path})
+        }
         try {
           await deleteLocalFile(file_path)
         } catch (error) {
           console.error('Error deleting local file:', error)
-        }
-
-        if (delete_type === 'existing' && duplicate?.id) {
-          await typedApi.updateMediaPath({
-            id: duplicate.id,
-            path: dupe.path,
-          })
         }
       }
 

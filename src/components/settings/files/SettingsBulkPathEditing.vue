@@ -21,6 +21,10 @@
     </v-alert>
 
     <div class="tool-action">
+      <v-btn color="primary" rounded variant="flat" @click="rootDialog = true">
+        <v-icon icon="mdi-folder-move-outline" start />{{ t('media.relink.change_root') }}
+      </v-btn>
+      <DialogRelinkMedia v-model="rootDialog" @applied="onRelinkApplied" />
       <v-dialog
         v-model="dialog"
         :fullscreen="xs"
@@ -244,6 +248,10 @@
 </template>
 
 <script setup lang="ts">
+import DialogRelinkMedia from '@/components/dialogs/DialogRelinkMedia.vue'
+import {useItemsStore} from '@/stores/items'
+import {parseMediaFilePath} from '@shared/mediaPath'
+import type {MediaRelinkCandidate} from '@shared/mediaRelink'
 import {typedApi} from "@/services/typedApi"
 import {ref, computed, watch} from "vue"
 import {useI18n} from "vue-i18n"
@@ -267,6 +275,14 @@ const notificationsStore = useNotificationsStore()
 const {xs, xl} = useDisplay()
 const {t} = useI18n()
 
+const rootDialog = ref(false)
+const itemsStore = useItemsStore()
+function onRelinkApplied(matches: MediaRelinkCandidate[]) {
+  for (const item of matches) {
+    const {path, basename, ext} = parseMediaFilePath(item.newPath)
+    itemsStore.updateItem({id: item.id, item: {path, basename, ext}})
+  }
+}
 const dialog = ref(false)
 const searching = ref(false)
 
@@ -396,6 +412,8 @@ const replaceFiles = async () => {
     files.value = []
 
     dialog.value = false
+  } catch {
+    notificationsStore.setNotification({type: 'error', text: t('media.relink.failed')})
   } finally {
     dialogsStore.process.show = false
   }

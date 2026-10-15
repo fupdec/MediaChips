@@ -17,7 +17,7 @@ import {browseLibraryFolders} from '../services/mediaFolderBrowse'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import path from 'path'
-import { parseMediaFilePath } from '../../shared/mediaPath'
+import {applyMediaRelinks} from '../services/mediaRelink'
 import {
   deleteMediaGeneratedAssets,
   unlinkResolvedPath,
@@ -376,22 +376,32 @@ export default function (db: ApiDb) {
     }
   };
 
-  const updatePath = function (req: ApiRequest, res: ApiResponse) {
+  const updatePath = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<MediaPathUpdatePayload>(req)
-      const data = parseMediaFilePath(String(body.path ?? ''))
-
-      mediaRepo.updateById(Number(body.id), data, {silent: true})
-      invalidateMediaDerivedCaches()
+      const existing = mediaRepo.findById(Number(body.id))
+      if (!existing) return sendNotFound(res, 'Media not found.')
+      await applyMediaRelinks(db, [{
+        id: existing.id,
+        oldPath: existing.path,
+        newPath: String(body.path ?? ''),
+        confirmedOriginal: body.confirmedOriginal === true,
+      }])
       sendOk(res, [1])
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
   };
 
-  const update = function (req: ApiRequest, res: ApiResponse) {
+  const update = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<EntityUpdatePayload>(req)
+      if (typeof body.path === 'string') {
+        const existing = mediaRepo.findById(Number(req.params.id))
+        if (existing && existing.path !== body.path) {
+          await applyMediaRelinks(db, [{id: existing.id, oldPath: existing.path, newPath: body.path}])
+        }
+      }
       mediaRepo.updateById(Number(req.params.id), body, {silent: Boolean(body.silent)})
       invalidateMediaDerivedCaches()
       sendOk(res, [1])

@@ -38,10 +38,7 @@ import {
 } from '../../utils/normalizeUserPath'
 import { invalidateMediaDerivedCaches } from '../../services/mediaCacheInvalidation'
 import { applyFolderTagsOnMediaAdd } from '../../services/applyFolderTagsOnMediaAdd'
-import {
-  buildBulkPathUpdatePatch,
-  normalizeBulkPathUpdateInputs,
-} from '../../services/mediaBulkPathUpdate'
+import {applyMediaRelinks} from '../../services/mediaRelink'
 import { runMediaBulkLiteImport } from '../../services/mediaBulkLiteImport'
 import { ffprobe, resolveFfprobeDuration } from '../../utils/ffmpeg'
 import { isUsableDuration } from '../../utils/ffprobeMath'
@@ -573,32 +570,16 @@ export default function createTasksMediaController(shared: TaskControllerShared)
   const updateMediaMultiple = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const mediaFiles = Array.isArray(req.body.mediaFiles) ? req.body.mediaFiles : []
-      const updates = normalizeBulkPathUpdateInputs(mediaFiles)
-      if (!updates.length) {
-        sendOk(res)
-        return
-      }
-
-      const existingById = new Map(
-        mediaRepo.findByIds(updates.map((item) => item.id)).map((row) => [row.id, row]),
-      )
-      const patches = updates.map((item) => (
-        buildBulkPathUpdatePatch(item, existingById.get(item.id))
-      ))
-
-      db.sqlite.transaction(() => {
-        for (const patch of patches) {
-          mediaRepo.updateById(patch.id, {
-            path: patch.path,
-            basename: patch.basename,
-            name: patch.name,
-            ext: patch.ext,
-          })
+      const matches = mediaFiles.map((item: Record<string, unknown>) => {
+        const existing = mediaRepo.findById(Number(item.id))
+        return {
+          id: Number(item.id),
+          oldPath: existing?.path || '',
+          newPath: String(item.path || ''),
+          confirmedOriginal: item.confirmedOriginal === true,
         }
-      })()
-
-      invalidateMediaDerivedCaches()
-      sendOk(res)
+      })
+      sendOk(res, await applyMediaRelinks(db, matches))
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while updating media paths.')
     }

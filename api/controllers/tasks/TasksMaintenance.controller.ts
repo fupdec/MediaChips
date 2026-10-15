@@ -1,10 +1,8 @@
 import type { TaskControllerShared } from '../../types/tasks'
-import type { AnyRecord } from '../../types/db'
 import { sendControllerError, sendOk } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import { runNdjsonAsyncGenerator } from './ndjsonStreamRunner'
-import { createMediaRepository } from '../../db/repositories/media'
-import { parseMediaFilePath } from '../../../shared/mediaPath'
+import {applyMediaRelinks} from '../../services/mediaRelink'
 import {
   getContentHashBackfillStatus,
   getFingerprintBackfillStatus,
@@ -59,7 +57,6 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     getImageMedia,
   } = shared
 
-  const mediaRepo = createMediaRepository(db.drizzle)
 
   const contentHashBackfillStatus = async (req: ApiRequest, res: ApiResponse) => {
     try {
@@ -342,32 +339,12 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
   const relinkMissingMedia = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const matches = Array.isArray(req.body?.matches) ? req.body.matches : []
-      let updated = 0
-
-      for (const item of matches) {
-        const filePath = item.newPath || item.path
-        const mediaId = item.id
-
-        if (!filePath || !mediaId) continue
-
-        const parsed = parseMediaFilePath(filePath)
-        const data: AnyRecord = {
-          path: parsed.path,
-          basename: parsed.basename,
-          name: parsed.name,
-          ext: parsed.ext,
-        }
-
-        if (item.oshash) {
-          data.oshash = item.oshash
-        }
-
-        mediaRepo.updateById(Number(mediaId), data, {silent: true})
-
-        updated += 1
-      }
-
-      sendOk(res, {updated})
+      sendOk(res, await applyMediaRelinks(db, matches.map((item: Record<string, unknown>) => ({
+        id: Number(item.id),
+        oldPath: String(item.oldPath || ''),
+        newPath: String(item.newPath || item.path || ''),
+        confirmedOriginal: item.confirmedOriginal === true,
+      }))))
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while relinking missing media.")
     }
