@@ -24,6 +24,30 @@ describe('NAS provider for the shared folder browser', () => {
       expect(() => nasRelativePath('/video', path)).toThrow()
     }
   })
+  it('allows expanded video containers, audio and images for selection and folder import', async () => {
+    const names = ['movie.MKV', 'movie.AVI', 'movie.WMV', 'movie.ASF', 'movie.MPEG', 'movie.FLV',
+      'movie.MTS', 'movie.M2TS', 'movie.TS', 'movie.3GP', 'movie.OGV', 'music.FLAC', 'music.M4A',
+      'photo.AVIF', 'photo.BMP', 'notes.txt', 'page.html']
+    vi.mocked(apiClient.get).mockResolvedValue({data: {path: '', entries: names.map(name => ({
+      name, path: name, isDirectory: false, size: 100,
+    }))}} as never)
+    const result = await listNasDirectory(connection, {path: '/video'})
+    expect(result.entries.filter(entry => entry.addable).map(entry => entry.name)).toEqual(names.slice(0, -2))
+    const expanded = await expandNasSelection({paths: ['/video'], directories: new Set(['/video']),
+      load: async () => result, shouldStop: () => false, onFolderError: vi.fn()})
+    expect(expanded.paths).toEqual(names.slice(0, -2).map(name => `/video/${name}`))
+  })
+  it('reads every metadata page for recursive import while keeping browser listings bounded', async () => {
+    const entries = Array.from({length: 5000}, (_, index) => ({name: `${index}.mp4`, path: `${index}.mp4`, isDirectory: false, size: 100}))
+    vi.mocked(apiClient.get).mockResolvedValueOnce({data: {path: '', entries, truncated: true, nextPageToken: '5000'}} as never)
+      .mockResolvedValueOnce({data: {path: '', entries: [{name: 'last.mp4', path: 'last.mp4', isDirectory: false, size: 100}], truncated: false}} as never)
+    const result = await listNasDirectory(connection, {path: '/video'}, undefined, Infinity)
+    expect(result.entries).toHaveLength(5001)
+    expect(result.truncated).toBe(false)
+    expect(apiClient.get).toHaveBeenLastCalledWith('/api/nas/connections/nas-id/files', expect.objectContaining({params: {path: '', pageToken: '5000'}}))
+    vi.mocked(apiClient.get).mockResolvedValueOnce({data: {path: '', entries, truncated: true, nextPageToken: '5000'}} as never)
+    expect((await listNasDirectory(connection, {path: '/video'})).truncated).toBe(true)
+  })
   it('provides sizes, dates, library status, hidden files and only supported importable media', async () => {
     vi.mocked(apiClient.get).mockResolvedValue({data: {path: 'Кино', truncated: false, entries: [
       {name: 'sub', path: 'Кино/sub', isDirectory: true, size: 0, modifiedAt: 1000},
@@ -48,6 +72,28 @@ describe('NAS provider for the shared folder browser', () => {
 })
 
 describe('NAS folder selection', () => {
+  it('rechecks overlapping selections when readable names become available during expansion', async () => {
+    let namesAvailable = false
+    const load = vi.fn(async () => {
+      namesAvailable = true
+      return directory([entry('/video/skip-folder', true), entry('/video/keep.mp4')])
+    })
+    const result = await expandNasSelection({paths: ['/video', '/video/skip-folder', '/video/skip-folder/clip.mp4'],
+      directories: new Set(['/video', '/video/skip-folder']), load, shouldStop: () => false,
+      isExcluded: path => namesAvailable && path.includes('skip-folder'), onFolderError: vi.fn()})
+    expect(result.paths).toEqual(['/video/keep.mp4'])
+    expect(load).toHaveBeenCalledExactlyOnceWith('/video')
+  })
+  it('excludes selected files, selected folders and nested folders before loading them', async () => {
+    const load = vi.fn(async () => directory([
+      entry('/video/skip', true), entry('/video/skip-clip.mp4'), entry('/video/keep.mp4'),
+    ]))
+    const result = await expandNasSelection({paths: ['/video', '/video/skip', '/video/skip-direct.mp4'],
+      directories: new Set(['/video', '/video/skip']), load, shouldStop: () => false,
+      isExcluded: path => path.includes('skip'), onFolderError: vi.fn()})
+    expect(result).toEqual({paths: ['/video/keep.mp4'], failedFolders: [], stopped: false})
+    expect(load).toHaveBeenCalledExactlyOnceWith('/video')
+  })
   it('walks nested folders, deduplicates overlapping selections and skips existing media', async () => {
     const load = vi.fn(async (path: string) => path === '/video'
       ? directory([entry('/video/sub', true), entry('/video/1.mp4'), entry('/video/old.mp4', false, true)])
@@ -70,6 +116,14 @@ describe('NAS folder selection', () => {
       directories: new Set(['/video/bad', '/video/large', '/video/ok']), load, shouldStop: () => false, onFolderError})
     expect(result).toEqual({paths: ['/video/ok/1.mp4'], failedFolders: ['/video/bad', '/video/large'], stopped: false})
     expect(onFolderError).toHaveBeenCalledTimes(2)
+  })
+  it('reports unique files, existing media and skipped paths across overlapping selections', async () => {
+    const onProgress = vi.fn()
+    const unsupported = {...entry('/video/notes.txt'), addable: false}
+    await expandNasSelection({paths: ['/video', '/video/1.mp4'], directories: new Set(['/video']),
+      load: async () => directory([entry('/video/1.mp4'), entry('/video/old.mp4', false, true), entry('/video/skip', true), unsupported]),
+      isExcluded: path => path.includes('skip'), shouldStop: () => false, onFolderError: vi.fn(), onProgress})
+    expect(onProgress).toHaveBeenLastCalledWith({found: 1, inLibrary: 1, skipped: 2})
   })
   it('stops after an in-flight listing without expanding or importing its late files', async () => {
     let stop = false

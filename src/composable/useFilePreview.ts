@@ -2,7 +2,9 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useEventBus} from '@/utils/eventBus'
 import {buildLocalFileUrl} from '@/services/fileService'
-import {driveMediaKind, isDriveMediaPath} from '@shared/cloudDrive'
+import {isDriveMediaPath} from '@shared/cloudDrive'
+import {mediaFileKind} from '@shared/mediaFormats'
+import {isNasMediaPath} from '@shared/remoteMedia'
 import {inferMediaTypeFromPaths, getMediaTypeKey} from '@/utils/mediaType'
 import {isInAppTextPreviewPath} from '@/utils/textPreview'
 import {openTextMedia} from '@/utils/openTextMedia'
@@ -16,10 +18,10 @@ export function useFilePreview() {
   const events = useEventBus()
   const kind = (file: PreviewFile) => {
     if (file.isDirectory) return null
-    if (isDriveMediaPath(file.path)) return driveMediaKind(file.name)
+    if (isDriveMediaPath(file.path) || isNasMediaPath(file.path)) return mediaFileKind(file.name)
     if (isInAppTextPreviewPath(file.path)) return 'text'
     const inferred = getMediaTypeKey(inferMediaTypeFromPaths([file.name], app.mediaTypes))
-    return driveMediaKind(file.name) || (['video', 'audio', 'image'].includes(inferred) ? inferred : null)
+    return mediaFileKind(file.name) || (['video', 'audio', 'image'].includes(inferred) ? inferred : null)
   }
   async function preview(file: PreviewFile) {
     const type = kind(file)

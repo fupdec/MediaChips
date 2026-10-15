@@ -48,6 +48,23 @@ describe('Google Drive library import', () => {
     expect(listed.files.find(file => file.id === fileId)?.mediaId).toBe(added.id)
     expect(await collectMissingMediaByPathExist([{id: row.id, path: row.path}], {pathExists: async () => false})).toEqual([])
   })
+  it('deduplicates overlapping imports and isolates invalid files without reading originals', async () => {
+    const download = vi.spyOn(service.transport, 'downloadFile')
+    const results = await Promise.allSettled([
+      importDriveFile(db, service, 'mock-video-sample'),
+      importDriveFile(db, service, '../invalid'),
+      importDriveFile(db, service, 'mock-video-sample'),
+    ])
+    const [first, failed, repeated] = results
+    expect(first.status).toBe('fulfilled')
+    expect(failed.status).toBe('rejected')
+    expect(repeated.status).toBe('fulfilled')
+    if (first.status === 'fulfilled' && repeated.status === 'fulfilled') {
+      expect(repeated.value).toEqual({...first.value, created: false})
+    }
+    expect(fixture.drizzle.select().from(mediaLocations).all()).toHaveLength(1)
+    expect(download).not.toHaveBeenCalled()
+  })
   it('imports images and audio into their own media types, rejects documents', async () => {
     const meta = vi.spyOn(service.transport, 'getFileMeta')
     for (const [kind, name, mimeType] of [['audio', 'music.mp3', 'audio/mpeg'], ['image', 'photo.jpg', 'image/jpeg']]) {

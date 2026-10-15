@@ -18,7 +18,7 @@ import {resolveMediaLocation, nasVersionMatches} from '../mediaSources/locations
 import {parseSourceRange} from '../mediaSources/range'
 import {createNasCredentialStore, type NasCredentialStore, type NasCredentials} from './credentials'
 import {connectNas, normalizeNasRelativePath, type NasTransport, type NasFile} from './transport'
-import {NasError} from './errors'
+import {NasError, normalizeNasError} from './errors'
 import {mediaFileKind, mediaFileContentType} from '../../../shared/mediaFormats'
 import {invalidateMediaDerivedCaches} from '../mediaCacheInvalidation'
 
@@ -209,7 +209,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
               results.push({path: input, ok: true, ...storeFile(db, connectionId, resourceKey, file)})
             } catch (err) {
               assertCurrent()
-              const error = err instanceof NasError ? err : new NasError('connection_failed', 'The file could not be read. Check NAS access and permissions.', 502)
+              const error = normalizeNasError(err)
               results.push({path: input, ok: false, code: error.code, message: error.message})
             }
           }

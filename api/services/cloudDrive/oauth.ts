@@ -132,7 +132,7 @@ async function getValidAccessToken(
 ): Promise<string> {
   const tokens = store.get()
   if (!tokens?.accessToken) {
-    throw new Error('Not authenticated with Google Drive')
+    throw Object.assign(new Error('Sign in to Google Drive again.'), {code: 'auth_required', status: 409})
   }
   if (!isExpired(tokens)) return tokens.accessToken
 

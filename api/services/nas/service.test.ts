@@ -80,6 +80,21 @@ describe('NAS library and HTTP playback', () => {
     return {connection, item}
   }
 
+  it.each([
+    [{code: 'ECONNREFUSED'}, 502, 'network_error'],
+    [{level: 'client-authentication'}, 409, 'auth_required'],
+    [{code: 3}, 403, 'permission_denied'],
+    [{code: 530}, 409, 'auth_required'],
+  ])('returns distinct network, permission and sign-in failures (%j)', async (failure, status, code) => {
+    const connection = await service.saveConnection(db, config)
+    connect.mockRejectedValueOnce(Object.assign(new Error('secret-password'), failure))
+    const response = await fetch(`${base}/api/nas/connections/${connection.id}/files?path=`)
+    expect(response.status).toBe(status)
+    const body = await response.json()
+    expect(body.code).toBe(code)
+    expect(JSON.stringify(body)).not.toContain('secret-password')
+  })
+
   it.each(['preview', 'library'])('closes a pending %s connection when the player cancels preparation', async mode => {
     const {connection, item} = await add(db, service)
     let signal!: AbortSignal
@@ -321,11 +336,12 @@ describe('NAS library and HTTP playback', () => {
   it('imports a batch over one connection and keeps duplicates and file failures independent', async () => {
     const {connection, item} = await add(db, service)
     connect.mockClear()
+    const read = vi.fn()
     connect.mockImplementationOnce(async () => ({
       async stat(input) {
         if (input === 'missing.mp4') throw new Error('Permission denied with internal server details')
         return {size: bytes.length, modifiedAt, isDirectory: false}
-      }, list: vi.fn(), read: vi.fn(), close: vi.fn(),
+      }, list: vi.fn(), read, close: vi.fn(),
     }))
     const response = await fetch(base + '/api/nas/import-batch', {method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({connectionId: connection.id, paths: ['video.mp4', 'missing.mp4', 'second.mp4', '../bad.mp4', 'notes.txt']})})
@@ -338,6 +354,7 @@ describe('NAS library and HTTP playback', () => {
     expect(results[4]).toMatchObject({ok: false, code: 'unsupported_format'})
     expect(JSON.stringify(results)).not.toMatch(/do-not-expose|internal server details/)
     expect(connect).toHaveBeenCalledTimes(1)
+    expect(read).not.toHaveBeenCalled()
     expect(fixture.drizzle.select().from(mediaLocations).all()).toHaveLength(2)
     expect((await service.importFiles(db, connection.id, ['second.mp4', 'second.mp4'])).results).toHaveLength(1)
   })

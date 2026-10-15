@@ -1,7 +1,8 @@
 <template>
   <v-dialog
     v-model="isDialogVisible"
-    class="align-start"
+    class="align-start media-adding-overlay"
+    :style="{top: `${appLayoutRect.top}px`}"
     :fullscreen="xs"
     scrollable
     :persistent="sourceBusy"
@@ -43,8 +44,7 @@
           class="pa-2 pa-sm-4"
         >
           <WebVideoImport v-if="webVideoAvailable" v-show="activeSource === 'links'" ref="webVideoSource" embedded />
-          <GoogleDriveSource v-show="activeSource === 'drive'" ref="driveSource" />
-          <NasSources v-show="activeSource === 'nas'" ref="nasSource" embedded />
+          <SourcesPanel v-show="activeSource === 'sources'" ref="remoteSources" embedded />
           <div v-show="activeSource === 'local'" class="media-adding-dialog__local">
             <div class="media-adding-types mb-4">
               <div class="text-caption text-medium-emphasis mb-2">
@@ -63,9 +63,6 @@
                 >
                   {{ item.title }}
                 </v-chip>
-              </div>
-              <div class="text-caption text-medium-emphasis mt-2">
-                {{ t('media.adding.media_types_hint') }}
               </div>
             </div>
 
@@ -206,10 +203,10 @@
 import {ref, computed, watch, onMounted} from 'vue'
 import {isSfwBuild} from '@shared/buildFlags'
 import WebVideoImport from '@/components/dialogs/WebVideoImport.vue'
-import GoogleDriveSource from '@/components/dialogs/GoogleDriveSource.vue'
-import NasSources from '@/components/dialogs/NasSources.vue'
+import SourcesPanel from '@/components/dialogs/SourcesPanel.vue'
+import {useRememberedTab} from '@/composable/useRememberedTab'
 import type {PropType} from 'vue'
-import {useDisplay} from 'vuetify'
+import {useDisplay, useLayout} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {useAppStore} from '@/stores/app'
@@ -235,6 +232,7 @@ import {transformTextToArray} from '@/services/formatUtils'
 // Хуки
 const {t} = useI18n()
 const {xs} = useDisplay()
+const {mainRect: appLayoutRect} = useLayout()
 const webVideoAvailable = !isSfwBuild()
 
 const props = defineProps({
@@ -285,33 +283,30 @@ const browsePlacesLoaded = ref(false)
 const isContainerRuntime = ref(false)
 const browsePath = ref('')
 const selectedBrowserPaths = ref<string[]>([])
-const activeSource = ref<'local' | 'links' | 'nas' | 'drive'>('local')
+const {tab: activeSource, restore: restoreSourceTab} = useRememberedTab<'local' | 'links' | 'sources'>(
+  'mediachips.media-adding.source', webVideoAvailable ? ['local', 'sources', 'links'] : ['local', 'sources'], 'local',
+)
 const webVideoSource = ref<InstanceType<typeof WebVideoImport>>()
-const nasSource = ref<InstanceType<typeof NasSources>>()
-const driveSource = ref<InstanceType<typeof GoogleDriveSource>>()
+const remoteSources = ref<InstanceType<typeof SourcesPanel>>()
 const submitting = ref(false)
 const sources = computed(() => [
   {id: 'local', title: t('media.adding.source_local'), icon: 'mdi-folder-outline'},
+  {id: 'sources', title: t('sources.title'), icon: 'mdi-server-network-outline'},
   ...(webVideoAvailable ? [{id: 'links', title: t('media.adding.source_links'), icon: 'mdi-link-variant'}] : []),
-  {id: 'drive', title: 'Google Drive', icon: 'mdi-google-drive'},
-  {id: 'nas', title: t('media.adding.source_nas'), icon: 'mdi-server-network-outline'},
 ])
 watch(activeSource, source => {
-  if (source === 'drive') void driveSource.value?.refresh()
-  if (source === 'nas') void nasSource.value?.refreshConnections()
+  if (source === 'sources') void remoteSources.value?.refresh()
 })
-const activeRemoteSource = computed(() => activeSource.value === 'nas' ? nasSource.value : activeSource.value === 'drive' ? driveSource.value : undefined)
-const sourceBusy = computed(() => submitting.value || !!webVideoSource.value?.busy || !!nasSource.value?.busy || !!driveSource.value?.busy)
+const activeRemoteSource = computed(() => activeSource.value === 'sources' ? remoteSources.value : undefined)
+const sourceBusy = computed(() => submitting.value || !!webVideoSource.value?.busy || !!remoteSources.value?.busy)
 const selectionCount = computed(() => {
   if (activeSource.value === 'links') return webVideoSource.value?.selectionCount || 0
-  if (activeSource.value === 'nas') return nasSource.value?.selectionCount || 0
-  if (activeSource.value === 'drive') return driveSource.value?.selectionCount || 0
+  if (activeSource.value === 'sources') return remoteSources.value?.selectionCount || 0
   return new Set(transformTextToArray(tasksStore.mediaAdding.paths || '')).size
 })
 const canSubmit = computed(() => {
   if (activeSource.value === 'links') return !!webVideoSource.value?.canSubmit
-  if (activeSource.value === 'nas') return !!nasSource.value?.canSubmit
-  if (activeSource.value === 'drive') return !!driveSource.value?.canSubmit
+  if (activeSource.value === 'sources') return !!remoteSources.value?.canSubmit
   return selectionCount.value > 0
 })
 async function scanDuplicates() {
@@ -328,8 +323,7 @@ async function submitActiveSource() {
   submitting.value = true
   try {
     if (activeSource.value === 'links') await webVideoSource.value?.submit()
-    else if (activeSource.value === 'nas') await nasSource.value?.submit()
-    else if (activeSource.value === 'drive') await driveSource.value?.submit()
+    else if (activeSource.value === 'sources') await remoteSources.value?.submit()
     else await startMediaAddingProcess()
   } finally { submitting.value = false }
 }
@@ -575,7 +569,10 @@ watch(isDialogVisible, (newValue) => {
  * Сбрасывает состояние диалога к начальным значениям
  */
 const resetDialogState = () => {
-  activeSource.value = 'local'
+  const previousSource = activeSource.value
+  restoreSourceTab()
+  if (isDialogVisible.value && (props.initialPaths || props.initialBrowsePath)) activeSource.value = 'local'
+  if (activeSource.value === 'sources' && previousSource === 'sources') void remoteSources.value?.refresh()
   syncMediaTypeFromContext()
   tasksStore.mediaAdding.paths = props.initialPaths || ''
   tasksStore.mediaAdding.excluded = ''

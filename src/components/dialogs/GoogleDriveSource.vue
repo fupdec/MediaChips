@@ -5,10 +5,10 @@
                     class="google-drive-source__connection" prepend-inner-icon="mdi-google-drive"
                     density="compact" hide-details variant="outlined" rounded="lg">
         <template #append-inner>
-          <span class="google-drive-source__status" :class="{'google-drive-source__status--ready': status?.authenticated}"
-                :aria-label="t(status?.authenticated ? 'drive.connected' : 'drive.disconnected')">
+          <span class="google-drive-source__status" :class="{'google-drive-source__status--ready': health === 'ready'}"
+                :aria-label="t(status?.authenticated ? 'sources.credentials_saved' : 'drive.disconnected')">
             <span class="google-drive-source__status-dot" aria-hidden="true" />
-            <span class="google-drive-source__status-label">{{ t(status?.authenticated ? 'drive.connected' : 'drive.disconnected') }}</span>
+            <span class="google-drive-source__status-label">{{ t(status?.authenticated ? 'sources.credentials_saved' : 'drive.disconnected') }}</span>
           </span>
         </template>
       </v-text-field>
@@ -16,6 +16,11 @@
         <v-btn v-if="status && !status.mock" size="small" :variant="status.configured ? 'text' : 'tonal'" color="primary" rounded="lg" icon
                :aria-label="t('drive.oauth_settings')" :disabled="busy || waiting" @click="openConfiguration">
           <v-icon size="18" :icon="status.configured ? 'mdi-key-outline' : 'mdi-plus'" />
+        </v-btn>
+        <v-btn v-if="status?.authenticated" size="small" variant="text" rounded="lg" icon
+               :aria-label="t('sources.check')" v-tooltip:top="t('sources.check')" :loading="checking"
+               :disabled="busy || waiting || editing" @click="checkConnection">
+          <v-icon size="18" icon="mdi-connection" />
         </v-btn>
         <v-btn v-if="status?.authenticated && !status.mock" size="small" variant="text" rounded="lg" icon
                :aria-label="t('nas.disconnect')" :disabled="busy || waiting" @click="disconnect">
@@ -25,11 +30,13 @@
                :aria-label="t('drive.connect')" :loading="waiting" :disabled="busy || waiting" @click="connect">
           <v-icon size="18" icon="mdi-login" />
         </v-btn>
-        <v-btn size="small" variant="text" rounded="lg" icon :disabled="busy || waiting" :aria-label="t('nas.refresh')" @click="refresh">
+        <v-btn v-if="!status?.authenticated" size="small" variant="text" rounded="lg" icon :disabled="busy || waiting" :aria-label="t('nas.refresh')" @click="refresh">
           <v-icon size="18" icon="mdi-refresh" />
         </v-btn>
       </div>
     </div>
+    <SourceHealth v-if="status" :state="health || (status.authenticated ? 'unchecked' : 'disconnected')"
+                  :disabled="busy || waiting || editing" @reconnect="status?.configured ? connect() : openConfiguration()" />
     <v-alert v-if="status?.mock" type="info" variant="tonal" density="compact" class="mb-3">{{ t('drive.mock') }}</v-alert>
     <v-alert v-if="message" :type="error ? 'error' : 'success'" variant="tonal" density="compact" rounded="lg" class="mb-3" role="status">{{ message }}</v-alert>
     <div v-if="waiting" class="d-flex align-center ga-2 mb-3 text-body-2">
@@ -39,23 +46,23 @@
     <div v-if="!connectionsOnly && status?.authenticated">
       <MediaFolderBrowser ref="browser" v-model:path="folder" v-model:selected-paths="selectedPaths"
                           :base-url="app.localhost || ''" :directory-loader="directoryLoader" :path-titles="pathTitles"
+                          :favorites-scope="browserPrefsScope() + ':gdrive'" :error-message="apiError"
                           :disabled="busy" :enable-folder-tags="false" select-addable-only
-                          @loading="browserLoading = $event" @visible-entries="visibleEntries" @show-hidden="showHidden = $event">
+                          @favorite-titles="titles => Object.assign(pathTitles, titles)" @loading="browserLoading = $event" @visible-entries="visibleEntries" @show-hidden="showHidden = $event">
         <template #entryActions="{entry, loading}">
           <FilePreviewButton :file="{...entry, path: driveMediaPath(driveFileIdFromPath(entry.path))}" :disabled="busy || loading" />
         </template>
       </MediaFolderBrowser>
-      <div v-if="importing" class="d-flex align-center ga-2 my-2 text-caption" role="status">
-        <v-progress-circular indeterminate size="18" width="2" />
-        {{ scanning ? t('drive.scanning') : t('nas.batch_progress', {done: processed, total}) }}
-      </div>
+      <RemoteImportOptions v-model="importOptions" :disabled="busy" />
+      <RemoteImportProgress :active="importing" :scanning="scanning" :processed="processed" :total="total"
+                            :stats="batchStats" :retry-count="selectedPaths.length"
+                            :can-retry="canSubmit && (failures.length > 0 || processed < total)" @retry="submit" />
       <v-expansion-panels v-if="failures.length" class="my-2">
         <v-expansion-panel :title="t('nas.batch_errors', {count: failures.length})">
           <v-expansion-panel-text><div v-for="failure in failures" :key="failure.path" class="text-body-2 mb-2">{{ pathTitles[failure.path] || failure.path }}: {{ failure.message }}</div></v-expansion-panel-text>
         </v-expansion-panel>
       </v-expansion-panels>
     </div>
-    <div class="text-caption text-medium-emphasis">{{ t('drive.playback_hint') }}</div>
     <v-dialog v-model="editing" max-width="560" persistent scrollable>
       <v-card class="google-drive-source-editor" rounded="xl">
         <DialogHeader :header="t('drive.oauth_settings')" icon="google-drive" :buttons="editorButtons" compact />
@@ -77,6 +84,8 @@
 </template>
 
 <script setup lang="ts">
+import {sourceFailure, type SourceFailure} from '@shared/sourceErrors'
+import SourceHealth from './SourceHealth.vue'
 import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {apiClient} from '@/services/apiClient'
@@ -87,13 +96,18 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import {useEventBus} from '@/utils/eventBus'
 import {getApiErrorMessage} from '@/types/vue'
 import {DriveConfigurationSchema, driveMediaPath, type DriveStatus, type DriveImportResult} from '@shared/cloudDrive'
-import {driveBrowserRoot, driveFileIdFromPath, listDriveDirectory} from '@/services/driveBrowse'
+import {driveBrowserRoot, driveFileIdFromPath, driveReadablePath, listDriveDirectory} from '@/services/driveBrowse'
 import {loadDriveBrowserLocation, persistDriveBrowserLocation} from '@/services/driveBrowserPrefs'
-import {expandNasSelection} from '@/services/nasBrowse'
+import {expandRemoteSelection} from '@/services/remoteImportSelection'
+import {runRemoteImportQueue} from '@/services/remoteImportQueue'
+import RemoteImportProgress from './RemoteImportProgress.vue'
 import type {BrowseDirectoryEntry, BrowseDirectoryLoader} from '@/services/typedApi/browse'
 import MediaFolderBrowser from './MediaFolderBrowser.vue'
 import FilePreviewButton from './FilePreviewButton.vue'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
+import RemoteImportOptions from './RemoteImportOptions.vue'
+import {defaultRemoteImportOptions, remotePathExcluder} from '@/services/remoteImportOptions'
+import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
 
 const {connectionsOnly = false} = defineProps<{connectionsOnly?: boolean}>()
 const {t, te} = useI18n()
@@ -110,8 +124,25 @@ const waiting = ref(false)
 const scanning = ref(false)
 const processed = ref(0)
 const total = ref(0)
+const batchStats = ref({found: 0, skipped: 0, inLibrary: 0, added: 0, duplicates: 0})
 const stopRequested = ref(false)
-const busy = computed(() => saving.value || importing.value)
+const busy = computed(() => saving.value || importing.value || checking.value)
+const checking = ref(false)
+const health = ref<SourceFailure | 'ready' | 'unknown'>()
+const checkedAt = ref<number>()
+async function checkConnection() {
+  if (busy.value || waiting.value || !status.value?.authenticated) return
+  const current = generation
+  let verified = false
+  checking.value = true; message.value = ''
+  try {
+    await apiClient.get('/api/drive/folders/root', {timeout: 35_000})
+    if (current === generation) { health.value = 'ready'; checkedAt.value = Date.now(); verified = true }
+  } catch (err) {
+    if (current === generation) { health.value = sourceFailure(err) || 'unknown'; checkedAt.value = Date.now(); error.value = true; message.value = apiError(err) }
+  } finally { if (current === generation) checking.value = false }
+  if (verified && current === generation) await browser.value?.refresh()
+}
 const editing = ref(false)
 const formError = ref('')
 const draft = ref({clientId: '', clientSecret: '', redirectUri: ''})
@@ -124,6 +155,7 @@ const browserPrefsScope = () => JSON.stringify([app.dbPath || app.config?.id || 
 const initialLocation = loadDriveBrowserLocation(browserPrefsScope())
 const folder = ref(initialLocation.path)
 const selectedPaths = ref<string[]>([])
+const importOptions = ref(defaultRemoteImportOptions())
 const directories = new Set<string>()
 const pathTitles = ref<Record<string, string>>(initialLocation.pathTitles)
 const browser = ref<InstanceType<typeof MediaFolderBrowser>>()
@@ -143,14 +175,20 @@ const directoryLoader: BrowseDirectoryLoader = async input => {
   const listing = ++directoryGeneration
   const scope = browserPrefsScope()
   let result
-  try { result = await listDriveDirectory(input) }
+  try {
+    result = await listDriveDirectory(input)
+    if (current === generation && listing === directoryGeneration) { health.value = 'ready'; checkedAt.value = Date.now() }
+  }
   catch (err) {
+    if (current === generation && listing === directoryGeneration) { health.value = sourceFailure(err) || 'unknown'; checkedAt.value = Date.now() }
     const code = (err as {response?: {status?: number}})?.response?.status
-    if (current !== generation || listing !== directoryGeneration || input.path === driveBrowserRoot || ![403, 404].includes(code || 0)) throw err
+    if (current !== generation || listing !== directoryGeneration || input.path === driveBrowserRoot || code !== 404) throw err
     // A remembered folder may have been deleted or become inaccessible since the last session.
     result = await listDriveDirectory({...input, path: driveBrowserRoot})
+    if (current === generation && listing === directoryGeneration) { health.value = 'ready'; checkedAt.value = Date.now() }
   }
   if (current !== generation || listing !== directoryGeneration) return result
+  directories.add(result.currentPath)
   for (const entry of result.entries) pathTitles.value[entry.path] = entry.name
   persistDriveBrowserLocation(scope, result.currentPath, pathTitles.value)
   return result
@@ -160,7 +198,9 @@ function visibleEntries(entries: BrowseDirectoryEntry[]) {
 }
 const apiError = (err: unknown) => {
   const code = (err as {response?: {data?: {code?: string}}})?.response?.data?.code
-  const key = code ? `drive.oauth_errors.${code}` : ''
+  const failure = sourceFailure(err)
+  if (failure) return t(`sources.help.${failure}`)
+  const key = code && code !== 'unknown' ? `drive.oauth_errors.${code}` : ''
   return key && te(key) ? t(key) : getApiErrorMessage(err, t('drive.error'))
 }
 function stopPoll() { if (poll) clearInterval(poll); poll = undefined; waiting.value = false; oauthState = undefined }
@@ -177,6 +217,8 @@ async function refresh() {
     if (current !== generation) return
     const wasConnected = status.value?.authenticated
     status.value = data
+    if (!wasConnected) { health.value = undefined; checkedAt.value = undefined }
+    if (!data.authenticated && wasConnected) { health.value = 'auth_required'; checkedAt.value = Date.now() }
     if (data.authenticated && (waiting.value || wasConnected === false)) { stopPoll(); popup?.close(); popup = null; message.value = t('drive.connected'); error.value = false }
     if (waiting.value && requestedState === oauthState && (data.oauthResult === 'failed' || data.oauthResult === 'expired')) {
       stopPoll(); popup?.close(); popup = null
@@ -226,6 +268,7 @@ async function saveConfiguration() {
   try {
     const {data} = await apiClient.put<DriveStatus>('/api/drive/configuration', parsed.data)
     if (current !== generation) return
+    health.value = undefined; checkedAt.value = undefined
     status.value = data; draft.value.clientSecret = ''; selectedPaths.value = []; editing.value = false
     message.value = t('drive.config_saved'); error.value = false
   } catch (err) { if (current === generation) formError.value = apiError(err) }
@@ -233,7 +276,11 @@ async function saveConfiguration() {
 }
 async function disconnect() {
   saving.value = true
-  try { await apiClient.post('/api/drive/oauth/logout'); selectedPaths.value = []; await refresh() }
+  try {
+    await apiClient.post('/api/drive/oauth/logout'); selectedPaths.value = []
+    if (status.value) status.value = {...status.value, authenticated: false}
+    health.value = undefined; checkedAt.value = undefined; message.value = ''; await refresh()
+  }
   catch (err) { message.value = apiError(err); error.value = true }
   finally { saving.value = false }
 }
@@ -243,31 +290,73 @@ async function submit() {
   const current = generation
   controller = new AbortController()
   const signal = controller.signal
+  const options = {...importOptions.value}
+  const excludes = remotePathExcluder(options)
+  const isExcluded = (path: string) => {
+    const readable = driveReadablePath(path, pathTitles.value)
+    return excludes(path) || excludes(readable) || excludes(`${driveBrowserRoot}${readable}`)
+  }
   importing.value = true; scanning.value = true; stopRequested.value = false; failures.value = []; message.value = ''; error.value = false; processed.value = 0
+  batchStats.value = {found: 0, skipped: 0, inLibrary: 0, added: 0, duplicates: 0}
+  total.value = selectedPaths.value.length
   let added = 0; let duplicates = 0
   const refreshLibrary = () => { sync.getItemsFromDb({ids: [], type: 'media'}); events.emit('library:nav-counts-changed') }
   try {
     const original = [...selectedPaths.value]
-    const expanded = await expandNasSelection({paths: original, directories, shouldStop: () => stopRequested.value || current !== generation,
-      load: path => listDriveDirectory({path, showHidden: showHidden.value}, signal),
+    const expanded = await expandRemoteSelection({paths: original, directories, isExcluded, shouldStop: () => stopRequested.value || current !== generation,
+      onProgress: progress => { if (current === generation) Object.assign(batchStats.value, progress) },
+      load: async path => {
+        const result = await listDriveDirectory({path, showHidden: showHidden.value}, signal, Infinity)
+        if (current === generation) {
+          directories.add(result.currentPath)
+          for (const entry of result.entries) {
+            pathTitles.value[entry.path] = entry.name
+            if (entry.isDirectory) directories.add(entry.path)
+          }
+        }
+        return result
+      },
       onFolderError: (path, err) => failures.value.push({path, message: err instanceof Error && err.message === 'truncated' ? t('nas.truncated') : apiError(err)}),
     })
-    if (expanded.stopped) { if (current === generation) message.value = t('nas.scan_stopped'); return }
+    if (current !== generation) return
+    if (expanded.stopped) { message.value = t('nas.scan_stopped'); return }
     selectedPaths.value = [...expanded.paths, ...expanded.failedFolders]
     scanning.value = false; total.value = expanded.paths.length
-    for (const path of expanded.paths) {
-      if (stopRequested.value || current !== generation || !await gate.ensureCanImportMedia()) break
-      try {
+    const result = await runRemoteImportQueue<DriveImportResult & {path: string}>({
+      paths: expanded.paths, shouldStop: () => stopRequested.value || current !== generation,
+      nextChunkSize: async () => await gate.ensureCanImportMedia() ? 1 : 0,
+      async request([path]) {
         const {data} = await apiClient.post<DriveImportResult>('/api/drive/import', {fileId: driveFileIdFromPath(path)}, {timeout: 40_000, signal})
+        return [{...data, path}]
+      },
+      async onRequestError(paths, err) {
         if (current !== generation) return
-        if (data.created) added++; else duplicates++
-        selectedPaths.value = selectedPaths.value.filter(value => value !== path)
+        for (const path of paths) failures.value.push({path, message: apiError(err)})
         refreshLibrary(); await gate.refreshLibraryCount()
-      } catch (err) { if (current !== generation) return; failures.value.push({path, message: apiError(err)}) }
-      processed.value++
-    }
-    message.value = t('nas.batch_summary', {added, duplicates, errors: failures.value.length})
-      + (processed.value < total.value ? ` ${t('nas.batch_stopped', {count: total.value - processed.value})}` : '')
+      },
+      onProgress: done => { if (current === generation) processed.value = done },
+      async onResults(results) {
+        if (current !== generation) return
+        const [{path, ...data}] = results
+        if (data.created) added++; else duplicates++
+        batchStats.value.added = added; batchStats.value.duplicates = duplicates
+        // The import response provides the authoritative filename even after a rename.
+        pathTitles.value[path] = data.title
+        refreshLibrary(); await gate.refreshLibraryCount()
+        if (current !== generation) return
+        try {
+          if (options.parseTags) await parseAndAssignImportPathTags([
+            {path: driveReadablePath(path, pathTitles.value), mediaId: data.id},
+          ], {shouldStop: () => current !== generation})
+          if (current !== generation) return
+          selectedPaths.value = selectedPaths.value.filter(value => value !== path)
+          refreshLibrary()
+        } catch (err) { if (current === generation) failures.value.push({path, message: apiError(err)}) }
+      },
+    })
+    if (current !== generation) return
+    message.value = t('nas.batch_summary', {added, duplicates: duplicates + batchStats.value.inLibrary, errors: failures.value.length})
+      + (result.stopped ? ` ${t('nas.batch_stopped', {count: result.total - result.processed})}` : '')
     error.value = failures.value.length > 0
   } catch (err) { if (current === generation) { message.value = apiError(err); error.value = true; refreshLibrary() } }
   finally { if (current === generation) { importing.value = false; scanning.value = false; controller = undefined; await browser.value?.refresh() } }
@@ -275,16 +364,16 @@ async function submit() {
 function onFocus() { if (!busy.value) void refresh() }
 // Watch the actual library/server identity, not a new array on every config refresh.
 watch([() => app.dbPath, () => app.localhost], () => {
-  generation++; controller?.abort(); cancelOAuth(); status.value = undefined; importing.value = false; saving.value = false
+  generation++; health.value = undefined; checkedAt.value = undefined; checking.value = false; controller?.abort(); cancelOAuth(); status.value = undefined; importing.value = false; saving.value = false
   const location = loadDriveBrowserLocation(browserPrefsScope())
-  selectedPaths.value = []; directories.clear(); folder.value = location.path; pathTitles.value = location.pathTitles; failures.value = []; message.value = ''
+  selectedPaths.value = []; batchStats.value = {found: 0, skipped: 0, inLibrary: 0, added: 0, duplicates: 0}; directories.clear(); folder.value = location.path; pathTitles.value = location.pathTitles; failures.value = []; message.value = ''
   editing.value = false; formError.value = ''
   draft.value = {clientId: '', clientSecret: '', redirectUri: ''}; void refresh()
 })
 onMounted(() => { void refresh(); window.addEventListener('focus', onFocus) })
 onBeforeUnmount(() => { generation++; controller?.abort(); cancelOAuth(); window.removeEventListener('focus', onFocus) })
-defineExpose({refresh, busy, canSubmit, selectionCount: computed(() => selectedPaths.value.length), submit,
-  canStop: importing, stopping: stopRequested, stop: () => { stopRequested.value = true }})
+defineExpose({refresh, busy: computed(() => busy.value || waiting.value || editing.value), canSubmit, selectionCount: computed(() => selectedPaths.value.length), submit,
+  canStop: importing, stopping: stopRequested, stop: () => { stopRequested.value = true; if (scanning.value) controller?.abort() }})
 </script>
 
 <style scoped>

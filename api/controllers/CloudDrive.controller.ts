@@ -1,4 +1,5 @@
 import type {Request, Response} from 'express'
+import {sourceFailure, sourceRateLimited} from '../../shared/sourceErrors'
 import {getCloudDriveService, resetCloudDriveService} from '../services/cloudDrive'
 import {saveDriveConfiguration} from '../services/cloudDrive/config'
 import {listDriveFolder, importDriveFile, driveLibraryFile} from '../services/cloudDrive/library'
@@ -13,6 +14,13 @@ import {DriveOAuthError, driveOAuthErrorCode, driveOAuthErrorMessages, type Driv
 function createCloudDriveController(db: ApiDb) {
   const failure = (res: Response, err: unknown) => {
     const status = err instanceof z.ZodError ? 400 : err instanceof DriveOAuthError ? (err.code === 'network_error' ? 502 : 400) : (err as {status?: number; response?: {status?: number}})?.status || (err as {response?: {status?: number}})?.response?.status || 500
+    if (sourceRateLimited(err)) { res.status(429).json({code: 'rate_limited', message: 'Google Drive request limit reached. Try again later.'}); return }
+    const category = sourceFailure(err) || (driveOAuthErrorCode(err) === 'network_error' ? 'network_error' : undefined)
+    if (category) {
+      const messages = {network_error: 'Google Drive could not be reached. Check the server network.', permission_denied: 'This account does not have permission to read the Google Drive folder.', auth_required: 'Sign in to Google Drive again.'}
+      res.status(category === 'network_error' ? 502 : category === 'permission_denied' ? 403 : 409).json({code: category, message: messages[category]})
+      return
+    }
     res.status(status === 401 ? 409 : status).json({code: driveOAuthErrorCode(err), message: err instanceof z.ZodError ? 'Invalid Google Drive request.' : err instanceof Error ? err.message : 'Google Drive request failed.'})
   }
   const callbackPage = (res: Response, ok: boolean, code: DriveOAuthErrorCode = 'unknown') => res.status(ok ? 200 : 400).type('html').send(`<!doctype html><html><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>MediaChips · Google Drive</title><body><p>${ok ? 'Google Drive connected. You can close this window. / Google Drive подключён. Можно закрыть это окно.' : driveOAuthErrorMessages[code]}</p><script>window.close()</script></body></html>`)
@@ -82,7 +90,7 @@ function createCloudDriveController(db: ApiDb) {
     async playable(req: Request, res: Response) {
       try {
         const {row, fileId} = driveLibraryFile(db, z.coerce.number().int().positive().parse(req.params.id))
-        if (!getCloudDriveService().status().authenticated) return res.status(409).json({message: 'Reconnect Google Drive in Settings → Connections.'})
+        if (!getCloudDriveService().status().authenticated) return res.status(409).json({code: 'auth_required', message: 'Reconnect Google Drive in Settings → Sources.'})
         res.json({url: `/api/drive/files/${fileId}/stream`, kind: 'mp4', title: row.name || row.basename,
           qualities: [], quality: null, adaptive: false})
       } catch (err) { failure(res, err) }
@@ -122,7 +130,7 @@ function createCloudDriveController(db: ApiDb) {
       try {
         const service = getCloudDriveService()
         if (!service.config.mock && !service.store.get()?.accessToken) {
-          return res.status(409).json({message: 'Reconnect Google Drive in Settings → Connections.'})
+          return res.status(409).json({code: 'auth_required', message: 'Reconnect Google Drive in Settings → Sources.'})
         }
         const fileId = DriveFileIdSchema.parse(req.params.fileId)
         if (!fileId) {

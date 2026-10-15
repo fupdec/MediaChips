@@ -18,6 +18,8 @@ describe('source previews without a library identity', () => {
     {name: 'Film.mp4', path: 'gdrive://movie', mediaTypeId: 1},
     {name: 'Film.WMV', path: 'gdrive://movie-wmv', mediaTypeId: 1},
     {name: 'Song.mp3', path: '/music/Song.mp3', mediaTypeId: 3},
+    {name: 'Film.WMV', path: 'nas://11111111-1111-4111-8111-111111111111/Film.WMV', mediaTypeId: 1},
+    {name: 'Song.FLAC', path: 'nas://11111111-1111-4111-8111-111111111111/Song.FLAC', mediaTypeId: 3},
   ])('opens $path as a temporary item in its own playlist', async file => {
     const indexedFile = {...file, mediaId: 123}
     await useFilePreview().preview(indexedFile)
@@ -26,7 +28,7 @@ describe('source previews without a library identity', () => {
     expect(call.videos).toEqual([call.video])
     expect(call.player).toBe('builtin')
   })
-  it.each(['/photos/photo.png', 'gdrive://photo'])('opens %s in the viewer source mode without any library IDs', async path => {
+  it.each(['/photos/photo.png', 'gdrive://photo', 'nas://11111111-1111-4111-8111-111111111111/photo.png'])('opens %s in the viewer source mode without any library IDs', async path => {
     await useFilePreview().preview({name: 'photo.png', path})
     expect(mocks.playVideo).not.toHaveBeenCalled()
     expect(mocks.emit).toHaveBeenCalledWith('viewImage', {sources: [{src: `stream:${path}`, name: 'photo.png'}]})
@@ -42,6 +44,7 @@ describe('source previews without a library identity', () => {
     const document = {name: 'Notes.txt', path: 'gdrive://notes'}
     expect(preview.canPreview(folder)).toBe(false)
     expect(preview.canPreview(document)).toBe(false)
+    expect(preview.canPreview({name: 'notes.txt', path: 'nas://11111111-1111-4111-8111-111111111111/notes.txt'})).toBe(false)
     await preview.preview(folder)
     await preview.preview(document)
     expect(mocks.playVideo).not.toHaveBeenCalled()

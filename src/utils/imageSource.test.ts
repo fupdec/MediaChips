@@ -16,6 +16,8 @@ vi.mock('@/services/fileService', () => ({
 }))
 
 import {
+  loadImageDisplayUrl,
+  loadThumbDisplayUrl,
   FILMSTRIP_THUMB_MAX_EDGE,
   loadFilmstripThumbDisplayUrl,
 } from './imageSource'
@@ -54,4 +56,11 @@ describe('loadFilmstripThumbDisplayUrl', () => {
     expect(url).toContain('cached')
     expect(buildLocalFileUrl).not.toHaveBeenCalled()
   })
+})
+
+it.each([loadImageDisplayUrl, loadThumbDisplayUrl, loadFilmstripThumbDisplayUrl])('loads NAS images through their remote original instead of missing local thumbnails (%#)', async load => {
+  buildLocalFileUrl.mockClear()
+  const path = 'nas://11111111-1111-4111-8111-111111111111/photo.png'
+  await load({id: 9, path}, '/db/media')
+  expect(buildLocalFileUrl).toHaveBeenCalledWith(path, true)
 })

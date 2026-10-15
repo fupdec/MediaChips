@@ -13,6 +13,7 @@ const file = (path: string, size = 100): NasEntry => ({name: path.split('/').pop
 const folder = (path: string): NasEntry => ({...file(path), isDirectory: true})
 
 async function setup(page: Page, directories: Record<string, NasEntry[]>, delayBatch = false, availableConnections = [connection]) {
+  await page.route('**/api/Task/parsePathTags', route => route.fulfill({json: []}))
   const imported = new Set(['old.mp4'])
   const batches: string[][] = []
   await page.route('**/api/nas/**', async route => {
@@ -34,9 +35,9 @@ async function setup(page: Page, directories: Record<string, NasEntry[]>, delayB
     throw new Error(`Unexpected NAS request: ${url.pathname}`)
   })
   await page.route('**/api/Media/get-stats', route => route.fulfill({json: {total: 0, filesize: 0}}))
-  await openSettingsTab(page, 'settings-doc-tab-files')
-  await page.getByRole('button', {name: 'NAS / SFTP / FTP', exact: true}).click()
-  const browser = page.locator('.media-folder-browser')
+  await openSettingsTab(page, 'settings-doc-tab-connections')
+  await page.getByRole('tab', {name: 'NAS / SFTP / FTP', exact: true}).click()
+  const browser = page.locator('#settings-nas .media-folder-browser')
   await expect(browser.locator('.media-folder-browser__header')).toBeVisible()
   return {browser, batches}
 }
@@ -98,8 +99,8 @@ test('remembers the last NAS connection and each connection folder after reopeni
   await expect(browser.getByText('episode.mp4', {exact: true})).toBeVisible()
 
   await page.reload()
-  await openSettingsTab(page, 'settings-doc-tab-files')
-  await page.getByRole('button', {name: 'NAS / SFTP / FTP', exact: true}).click()
+  await openSettingsTab(page, 'settings-doc-tab-connections')
+  await page.getByRole('tab', {name: 'NAS / SFTP / FTP', exact: true}).click()
   await expect(select).toContainText('Second NAS')
   await expect(browser.getByText('episode.mp4', {exact: true})).toBeVisible()
   await select.click()
@@ -160,8 +161,8 @@ test('selecting an SFTP folder imports nested videos once and updates library ba
   await browser.locator('.v-list-item').filter({hasText: 'Кино'}).getByRole('checkbox').check()
   await page.getByRole('button', {name: /^(Add selected|Добавить выбранные)$/}).click()
   await expect.poll(() => batches.flat()).toEqual(['Кино/1.mp4', 'Кино/sub/2.mp4'])
-  await expect(page.getByRole('status')).toBeHidden()
-  await expect(browser.locator('.media-folder-browser__selected-count')).toContainText('0')
+  await expect(page.locator('.remote-import-progress .v-progress-linear')).toBeHidden()
+  await expect(browser.locator('.media-folder-browser__selected-count')).toHaveText(/:\s*0$/)
   await browser.locator('.v-list-item').filter({hasText: 'Кино'}).click()
   await expect(browser.locator('.v-list-item').filter({hasText: '1.mp4'}).getByRole('checkbox')).toBeDisabled()
 })
@@ -172,12 +173,12 @@ test('Stop finishes the active SFTP batch and retains unprocessed selections', a
   await page.getByRole('button', {name: /^(Add selected|Добавить выбранные)$/}).click()
   await expect.poll(() => batches.length).toBe(1)
   await page.getByRole('button', {name: /^(Stop|Остановить)$/}).click()
-  await expect(page.getByRole('status')).toBeHidden()
+  await expect(page.locator('.remote-import-progress .v-progress-linear')).toBeHidden()
   expect(batches).toHaveLength(1)
-  await expect(browser.locator('.media-folder-browser__selected-count')).toContainText('3')
+  await expect(browser.locator('.media-folder-browser__selected-count')).toHaveText(/:\s*3$/)
   await page.getByRole('button', {name: /^(Add selected|Добавить выбранные)$/}).click()
   await expect.poll(() => batches.flat().length).toBe(13)
-  await expect(browser.locator('.media-folder-browser__selected-count')).toContainText('0')
+  await expect(browser.locator('.media-folder-browser__selected-count')).toHaveText(/:\s*0$/)
 })
 
 test('bottom selection bar selects visible entries, edits paths across folders and clears everything', async ({page}) => {

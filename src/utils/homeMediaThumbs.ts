@@ -1,5 +1,6 @@
 import path from 'path-browserify'
 import {isDriveMediaPath} from '@shared/cloudDrive'
+import {isNasMediaPath} from '@shared/remoteMedia'
 import { typedApi } from '@/services/typedApi'
 import { buildLocalFileUrl } from '@/services/fileService'
 import { getMediaDeleteAssetFolder, findMediaTypeById, isImageMediaType, isVideoMediaType } from '@/utils/mediaType'
@@ -57,7 +58,7 @@ async function ensureHomeItemThumb(
 
   const mediaType = findMediaTypeById(mediaTypes, item.mediaTypeId)
 
-  if (isDriveMediaPath(item.path)) {
+  if (isDriveMediaPath(item.path) || isNasMediaPath(item.path)) {
     return isImageMediaType(mediaType) ? buildLocalFileUrl(item.path!, true) : null
   }
 

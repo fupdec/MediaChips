@@ -7,12 +7,16 @@ const {
   createTags,
   ensureStarterMeta,
   reloadTagsCatalog,
+  parsePathTags,
+  postTagsInMedia,
 } = vi.hoisted(() => ({
   streamParseLibraryTagsPreview: vi.fn(),
   applyParseLibraryTags: vi.fn(),
   createTags: vi.fn(),
   ensureStarterMeta: vi.fn().mockResolvedValue({alreadyReady: true, createdFields: 0, pinnedFields: 0}),
   reloadTagsCatalog: vi.fn().mockResolvedValue(undefined),
+  parsePathTags: vi.fn(),
+  postTagsInMedia: vi.fn().mockResolvedValue({data: {}}),
 }))
 
 vi.mock('@/services/typedApi', () => ({
@@ -20,6 +24,8 @@ vi.mock('@/services/typedApi', () => ({
     streamParseLibraryTagsPreview,
     applyParseLibraryTags,
     createTags,
+    parsePathTags,
+    postTagsInMedia,
   },
 }))
 
@@ -41,6 +47,7 @@ import {
   acceptSuggestedTagsAndAssign,
   applyImportPathAutoTags,
   previewImportPathTagAssignments,
+  parseAndAssignImportPathTags,
 } from '@/services/importPathAutoTag'
 
 describe('importPathAutoTag', () => {
@@ -83,6 +90,7 @@ describe('importPathAutoTag', () => {
 
     applyParseLibraryTags.mockResolvedValue({data: {applied: 2}})
     createTags.mockResolvedValue({data: {}})
+    parsePathTags.mockResolvedValue({data: [{mediaId: 101, metaId: 10, tagId: 1}]})
   })
 
   it('previews only new path-tag assignments for media ids', async () => {
@@ -96,6 +104,37 @@ describe('importPathAutoTag', () => {
       expect.objectContaining({mediaId: 101, tagId: 1, willCreate: false}),
       expect.objectContaining({mediaId: 101, tagName: 'NewFromPath', willCreate: true}),
     ])
+  })
+
+  it('uses the local import parser and assigns its results for readable remote paths', async () => {
+    const paths = [{path: '/Кино/Existing/clip.mp4', mediaId: 101}]
+    await parseAndAssignImportPathTags(paths)
+    expect(parsePathTags).toHaveBeenCalledWith({paths})
+    expect(postTagsInMedia).toHaveBeenCalledWith([{mediaId: 101, metaId: 10, tagId: 1}])
+    expect(reloadTagsCatalog).toHaveBeenCalled()
+    expect(ensureStarterMeta).not.toHaveBeenCalled()
+  })
+
+  it('skips empty imports and paths with no tags, and propagates assignment failures for retry', async () => {
+    await parseAndAssignImportPathTags([])
+    expect(parsePathTags).not.toHaveBeenCalled()
+    parsePathTags.mockResolvedValueOnce({data: []})
+    await parseAndAssignImportPathTags([{path: '/clip.mp4', mediaId: 101}])
+    expect(postTagsInMedia).not.toHaveBeenCalled()
+    postTagsInMedia.mockRejectedValueOnce(new Error('assignment failed'))
+    await expect(parseAndAssignImportPathTags([{path: '/Existing/clip.mp4', mediaId: 101}]))
+      .rejects.toThrow('assignment failed')
+  })
+
+  it('does not link parsed tags after the active library changes', async () => {
+    let stopped = false
+    parsePathTags.mockImplementationOnce(async () => {
+      stopped = true
+      return {data: [{mediaId: 101, metaId: 10, tagId: 1}]}
+    })
+    await parseAndAssignImportPathTags([{path: '/Existing/clip.mp4', mediaId: 101}], {shouldStop: () => stopped})
+    expect(postTagsInMedia).not.toHaveBeenCalled()
+    expect(reloadTagsCatalog).not.toHaveBeenCalled()
   })
 
   it('applies path auto-tags create+assign for a media batch', async () => {

@@ -7,7 +7,7 @@ import { checkFileExistsElectron, isElectron } from '@/services/electronBridge'
 import { queueFileExistenceCheck } from '@/utils/fileExistenceBatcher'
 import { isViteDevProxyMode } from '@/utils/apiBaseUrl'
 import {parseDriveMediaPath} from '@shared/cloudDrive'
-import {isRemoteMediaPath} from '@shared/remoteMedia'
+import {isNasMediaPath, isRemoteMediaPath} from '@shared/remoteMedia'
 
 const NEGATIVE_CACHE_TTL_MS = 60_000
 const POSITIVE_CACHE_TTL_MS = 5 * 60_000
@@ -169,6 +169,12 @@ export function buildLocalFileUrl(
     return buildApiUrl(`/api/drive/files/${driveFileId}/stream`) + (token ? `?token=${encodeURIComponent(token)}` : '')
   }
   const params = new URLSearchParams()
+  if (isNasMediaPath(imgPath)) {
+    params.set('path', imgPath)
+    const token = getAuthToken()
+    if (token) params.set('token', token)
+    return buildApiUrl(`/api/nas/image?${params.toString()}`)
+  }
   params.set('url', imgPath)
   params.set('cv', GET_FILE_CACHE_VERSION)
   if (outside) params.set('outside', '1')

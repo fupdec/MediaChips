@@ -182,12 +182,7 @@
           </div>
 
           <div v-else-if="tab === 'connections'">
-            <SettingsGroupPanel id="settings-google-drive" :title="t('drive.title')">
-              <GoogleDriveSource connections-only />
-            </SettingsGroupPanel>
-            <SettingsGroupPanel id="settings-nas" :title="t('nas.title')">
-              <NasSources embedded connections-only />
-            </SettingsGroupPanel>
+            <SourcesPanel />
           </div>
 
           <div v-else-if="tab === 'files'">
@@ -416,9 +411,7 @@ const SettingsBackfillTask = defineAsyncComponent(() =>
 const SettingsFindMissingMedia = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsFindMissingMedia.vue")
 )
-const GoogleDriveSource = defineAsyncComponent(() => import("@/components/dialogs/GoogleDriveSource.vue"))
-const SettingsGroupPanel = defineAsyncComponent(() => import("@/components/ui/SettingsGroupPanel.vue"))
-const NasSources = defineAsyncComponent(() => import("@/components/dialogs/NasSources.vue"))
+const SourcesPanel = defineAsyncComponent(() => import("@/components/dialogs/SourcesPanel.vue"))
 const SettingsFindDuplicates = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsFindDuplicates.vue")
 )

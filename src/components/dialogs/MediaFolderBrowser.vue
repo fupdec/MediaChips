@@ -232,6 +232,24 @@
         </v-menu>
       </div>
 
+      <div class="media-folder-browser__favorites d-flex align-center flex-wrap ga-1 px-2 py-1">
+        <v-btn size="small" variant="text" :disabled="loading || disabled || !currentPath || !!error || (!isFavorite && favorites.length >= 100)"
+               :aria-label="t(isFavorite ? 'sources.remove_favorite' : 'sources.add_favorite')" :aria-pressed="isFavorite" @click="toggleFavorite">
+          <v-icon start size="16" :icon="isFavorite ? 'mdi-star' : 'mdi-star-outline'" />{{ t('sources.favorites') }}
+        </v-btn>
+        <v-menu v-if="favorites.length" location="bottom start">
+          <template #activator="{props: menuProps}">
+            <v-btn v-bind="menuProps" size="small" variant="text" :disabled="loading || disabled" :aria-label="t('sources.open_favorites')">
+              {{ favorites.length }}<v-icon end size="16" icon="mdi-chevron-down" />
+            </v-btn>
+          </template>
+          <v-list density="compact">
+            <v-list-item v-for="favorite in favorites" :key="favorite.path" :title="favorite.title" @click="openFavorite(favorite)">
+              <template #append><v-btn icon size="small" variant="text" :aria-label="t('sources.remove_favorite')" @click.stop="removeFavorite(favorite.path)"><v-icon size="16" icon="mdi-close" /></v-btn></template>
+            </v-list-item>
+          </v-list>
+        </v-menu>
+      </div>
       <v-alert
         v-if="error"
         type="error"
@@ -500,6 +518,8 @@
 
 <script setup lang="ts">
 import {computed, onBeforeUnmount, ref, watch} from 'vue'
+import {loadFolderFavorites, saveFolderFavorites, type FolderFavorite} from '@/services/folderFavorites'
+import {useAppStore} from '@/stores/app'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import type {BrowseDirectoryEntry, BrowseDirectoryLoader, BrowseDirectoryResult, BrowsePlace} from '@/services/typedApi/browse'
@@ -523,6 +543,7 @@ const props = withDefaults(defineProps<{
   /** Display provider folder names instead of opaque remote IDs. */
   pathTitles?: Record<string, string>
   errorMessage?: (error: unknown) => string
+  favoritesScope?: string
   disabled?: boolean
   selectAddableOnly?: boolean
   baseUrl: string
@@ -560,9 +581,37 @@ const emit = defineEmits<{
   visibleEntries: [entries: BrowseDirectoryEntry[]]
   loading: [loading: boolean]
   showHidden: [showHidden: boolean]
+  favoriteTitles: [titles: Record<string, string>]
 }>()
 
 const {t} = useI18n()
+const favoritesApp = useAppStore()
+const favoritesKey = computed(() => props.favoritesScope || JSON.stringify([favoritesApp.dbPath, props.baseUrl, 'local']))
+const favorites = ref<FolderFavorite[]>([])
+const favoritePathTitles = ref<Record<string, string>>({})
+watch(favoritesKey, scope => {
+  favorites.value = loadFolderFavorites(scope)
+  favoritePathTitles.value = {}
+}, {immediate: true})
+const isFavorite = computed(() => favorites.value.some(item => item.path === currentPath.value))
+function removeFavorite(path: string) {
+  favorites.value = favorites.value.filter(item => item.path !== path)
+  saveFolderFavorites(favoritesKey.value, favorites.value)
+}
+function toggleFavorite() {
+  if (!currentPath.value || loading.value || props.disabled || error.value) return
+  if (isFavorite.value) { removeFavorite(currentPath.value); return }
+  if (favorites.value.length >= 100) return
+  const crumbs = breadcrumbItems.value
+  favorites.value.push({path: currentPath.value, title: crumbs.map(item => item.title).join(' / '),
+    pathTitles: Object.fromEntries(crumbs.map(item => [item.path, item.title]))})
+  saveFolderFavorites(favoritesKey.value, favorites.value)
+}
+function openFavorite(favorite: FolderFavorite) {
+  favoritePathTitles.value = {...favoritePathTitles.value, ...favorite.pathTitles}
+  emit('favoriteTitles', favorite.pathTitles || {})
+  navigateTo(favorite.path)
+}
 
 const skeletonRows = computed(() => [132, 92, 176, 212, 148, 248, 108, 184, 224, 160].map((nameWidth, index) => ({
   nameWidth,
@@ -725,14 +774,14 @@ const breadcrumbItems = computed(() => {
     ? ''
     : current.slice(root.length).replace(/^[/\\]+/, '')
   const parts = relative ? relative.split(/[/\\]/).filter(Boolean) : []
-  const items = [{title: props.pathTitles?.[root] || root.split(/[/\\]/).filter(Boolean).pop() || root, path: root}]
+  const items = [{title: props.pathTitles?.[root] || favoritePathTitles.value[root] || root.split(/[/\\]/).filter(Boolean).pop() || root, path: root}]
 
   let cursor = root
   for (const part of parts) {
     cursor = cursor.endsWith('/') || cursor.endsWith('\\')
       ? `${cursor}${part}`
       : `${cursor}${separator}${part}`
-    items.push({title: props.pathTitles?.[cursor] || part, path: cursor})
+    items.push({title: props.pathTitles?.[cursor] || favoritePathTitles.value[cursor] || part, path: cursor})
   }
   return items
 })

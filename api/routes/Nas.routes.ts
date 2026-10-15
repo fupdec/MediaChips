@@ -6,7 +6,7 @@ import {NasConnectionSchema, NasImportSchema, NasBatchImportSchema, NasPathSchem
 import {WebVideoFrameSchema} from '../../shared/webVideo'
 import {isNasMediaPath} from '../../shared/remoteMedia'
 import {createNasService, type NasService} from '../services/nas/service'
-import {NasError} from '../services/nas/errors'
+import {normalizeNasError} from '../services/nas/errors'
 import {saveWebVideoFrame} from '../services/webVideo/frames'
 
 export default function registerNas(app: Express, db: ApiDb, service: NasService = createNasService()) {
@@ -16,7 +16,7 @@ export default function registerNas(app: Express, db: ApiDb, service: NasService
       if (res.destroyed) return
       if (res.headersSent) { if (!res.writableEnded) res.destroy(); return }
       if (err instanceof z.ZodError) { res.status(400).json({code: 'invalid_request', message: 'Invalid NAS request.'}); return }
-      const error = err instanceof NasError ? err : new NasError('connection_failed', 'NAS request failed. Check connection, permissions and credentials.', 502)
+      const error = normalizeNasError(err)
       res.status(error.status).json({code: error.code, message: error.message, fingerprint: error.fingerprint})
     }
   }

@@ -1,4 +1,31 @@
 const en = {
+  sources: {
+    credentials_saved: 'Credentials saved',
+    "title": "Sources",
+    "provider": "Source type",
+    "check": "Check connection",
+    "reconnect": "Reconnect",
+    "checked_at": "Checked: {time}",
+    "favorites": "Favorites",
+    "add_favorite": "Add folder to favorites",
+    "remove_favorite": "Remove folder from favorites",
+    "open_favorites": "Open favorite folders",
+    "states": {
+        "unchecked": "Not checked yet",
+        "ready": "Available",
+        "disconnected": "Disconnected",
+        "network_error": "Cannot reach source",
+        "permission_denied": "Permission denied",
+        "auth_required": "Sign in again",
+        "unknown": "Check failed"
+    },
+    "help": {
+        "network_error": "Could not reach the source. Check the MediaChips server network, storage address, VPN or proxy and retry.",
+        "permission_denied": "Access was denied. Give this account permission to read the folder or choose an accessible folder.",
+        "auth_required": "Credentials are missing, expired or rejected. Reconnect; for NAS, enter the password or SSH key.",
+        "unknown": "Could not check this source. Check the settings and try again."
+    }
+},
   drive: {
     oauth_errors: {
       "cancelled": "Google sign-in was cancelled.",
@@ -27,12 +54,11 @@ const en = {
     oauth_cancelled: "Sign-in was cancelled or did not complete. Connect again.",
     error: "The Google Drive request failed.",
     scanning: "Finding media in the selected folders…",
-    playback_hint: "Files stay on Google Drive. Video accepts MP4, MKV, AVI, WMV, ASF, MOV, WebM, MPEG, FLV, MTS, M2TS, TS, 3GP, OGV and other common formats; images: JPG, PNG, GIF, WebP, AVIF, BMP; audio: MP3, M4A, AAC, WAV, OGG, FLAC. Built-in playback depends on codecs. If playback fails, open the file in the Google Drive player.",
     open_in_drive: 'Open in Google Drive',
     playback_error: "Unable to play the Google Drive file. Check the connection, file access and the player’s codec support.",
   },
   nas: {
-    scanning: 'Finding videos in selected folders…',
+    scanning: 'Finding media in selected folders…',
     scan_stopped: 'Scan stopped. Selected files and folders are kept for retry.',
     select_all: 'Select all',
     clear_selection: 'Clear selection',
@@ -40,6 +66,8 @@ const en = {
     selected_count: 'Selected: {count}',
     import_selected: 'Add selected',
     import_visible: 'Add all',
+    batch_counts: 'Found: {found}. Added: {added}. Already in the library: {duplicates}. Skipped paths: {skipped}.',
+    retry_remaining: 'Retry remaining ({count})',
     batch_progress: 'Processed: {done} of {total}',
     stop_import: 'Stop',
     stopping: 'Finishing started files…',
@@ -47,21 +75,20 @@ const en = {
     batch_summary: 'Added: {added}. Already in the library: {duplicates}. Errors: {errors}.',
     batch_stopped: 'Not processed: {count}. Continue with the remaining selected files.',
     batch_retry: 'Retry the remaining selected files — duplicates will be skipped.',
-    playback_error: 'Unable to play the NAS video. Check the connection and whether the player supports its codecs.',
+    playback_error: 'Unable to play the NAS file. Check the connection and whether the player supports its codecs.',
     "title": "NAS / SFTP / FTP",
     "protocol": "Protocol",
     "connection": "Connection",
     "add_connection": "Add connection",
     "credentials": "Credentials",
     "disconnect": "Disconnect",
-    "disconnected": "Connection disconnected. Enter credentials to restore access; video entries are preserved.",
+    "disconnected": "Connection disconnected. Enter credentials to restore access; media entries are preserved.",
     "parent": "Parent folder",
     "refresh": "Refresh",
     "truncated": "Showing the first 5000 entries. Select a smaller folder.",
     "import_play": "Add and play",
     "preview_play": "Play without adding to library",
     "empty": "No accessible files in this folder",
-    "playback_hint": "MP4, M4V, WebM and MOV with codecs supported by the player. Video streams from your NAS during playback.",
     "name": "Name",
     "host": "NAS host",
     "port": "Port",
@@ -100,7 +127,7 @@ const en = {
         "expired_session": "Playback session expired. Refresh the stream.",
         "not_found": "File or folder is unavailable on the NAS.",
         "library_changed": "The active library changed. Try again.",
-        "unsupported_format": "Select MP4, M4V, WebM or MOV with supported codecs."
+        "unsupported_format": "Select a supported video, audio or image file."
     }
 },
   appbar: {
@@ -332,7 +359,7 @@ const en = {
   },
   settings: {
     tabs: {
-      connections: "Connections",
+      connections: "Sources",
       general: 'General settings',
       appearance: 'Theme & appearance',
       tools: 'Tools',
@@ -348,7 +375,7 @@ const en = {
       media: 'Media types',
     },
     tabs_desc: {
-      connections: "Google Drive and SFTP / NAS storage",
+      connections: "Connections, access checks and folder browsing for Google Drive and NAS",
       general: 'Network access, language, security and playback',
       appearance: 'Theme, colors and interface layout',
       library: 'Metadata fields, media types and tagging',
@@ -2972,7 +2999,6 @@ const en = {
       import_options: 'Import settings',
       web_video_title: 'Video from xHamster',
       web_video_url: 'Link to an xHamster video',
-      web_video_hint: 'Save a page link to your library and play its stream in MediaChips. Internet access is required.',
       web_video_loading: 'Resolving the video… On first use, the verified yt-dlp adapter is downloaded from GitHub. This can take a few minutes.',
       web_video_import: 'Add video by link',
       web_video_added: 'Added: {title}',
@@ -2984,7 +3010,6 @@ const en = {
       files_all_types: 'Adding files (all types)',
       files_for_type: 'Adding {type}',
       media_types: 'Media types',
-      media_types_hint: 'Tap chips to limit types. None selected = all types.',
       select_folders: 'Select folders',
       browse_folders: 'Browse folders',
       paths_label: 'Paths to files or folders',

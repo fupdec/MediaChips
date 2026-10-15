@@ -5,7 +5,7 @@ import {Client as SshClient, type SFTPWrapper} from 'ssh2'
 import {Client as FtpClient} from 'basic-ftp'
 import type {NasConnectionInput, NasEntry} from '../../../shared/nas'
 import type {NasCredentials} from './credentials'
-import {NasError} from './errors'
+import {NasError, normalizeNasError} from './errors'
 
 export type NasFile = {size: number; modifiedAt?: number; isDirectory: boolean}
 export type NasTransport = {
@@ -48,7 +48,7 @@ async function connectSftp(config: NasConnectionInput, credentials: NasCredentia
   try {
     await new Promise<void>((resolve, reject) => {
       client.once('ready', resolve)
-      client.once('error', () => reject(hostError || new NasError('connection_failed', 'SFTP connection failed. Check the server, login and credentials.', 502)))
+      client.once('error', err => reject(hostError || normalizeNasError(err)))
       client.once('close', () => reject(hostError || new NasError('connection_closed', 'SFTP connection closed.', 502)))
       client.connect({
         host: config.host.replace(/^\[|\]$/g, ''), port: config.port, username: config.username,

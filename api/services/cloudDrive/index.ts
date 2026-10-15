@@ -130,7 +130,7 @@ function createCloudDriveService(options?: {
 
     listFolder(folderId: string, pageToken?: string) {
       if (!config.mock && !store.get()?.accessToken) {
-        return Promise.reject(Object.assign(new Error('Reconnect Google Drive in Settings → Connections.'), {status: 409}))
+        return Promise.reject(Object.assign(new Error('Reconnect Google Drive in Settings → Sources.'), {code: 'auth_required', status: 409}))
       }
       return transport.listFolder(folderId || 'root', pageToken)
     },

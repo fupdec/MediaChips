@@ -1,0 +1,373 @@
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {createApp, nextTick, type ComponentOptions} from 'vue'
+import {createPinia, setActivePinia} from 'pinia'
+import type {BrowseDirectoryEntry, BrowseDirectoryLoader} from '@/services/typedApi/browse'
+import type {RemoteImportOptions} from '@/services/remoteImportOptions'
+
+const mocks = vi.hoisted(() => ({
+  ensureCanImport: vi.fn(), get: vi.fn(), post: vi.fn(), parseTags: vi.fn(), refreshCount: vi.fn(), sync: vi.fn(), emit: vi.fn(),
+}))
+vi.mock('@/services/apiClient', () => ({apiClient: {get: mocks.get, post: mocks.post}}))
+vi.mock('@/services/importPathAutoTag', () => ({parseAndAssignImportPathTags: mocks.parseTags}))
+vi.mock('@/composable/itemsListSync', () => ({useItemsListSync: () => ({getItemsFromDb: mocks.sync})}))
+vi.mock('@/utils/eventBus', () => ({useEventBus: () => ({emit: mocks.emit})}))
+vi.mock('@/composable/useFilePreview', () => ({useFilePreview: () => ({preview: vi.fn()})}))
+vi.mock('@/services/shellService', () => ({openExternal: vi.fn()}))
+vi.mock('@/composable/useFreeLibraryGate', () => ({useFreeLibraryGate: () => ({
+  ensureCanImportMedia: mocks.ensureCanImport, refreshLibraryCount: mocks.refreshCount,
+  registered: {value: true}, grandfathered: {value: false}, libraryCount: {value: 0}, freeCap: 100,
+})}))
+vi.mock('vue-i18n', () => ({useI18n: () => ({t: (key: string) => key, te: () => false})}))
+vi.mock('./MediaFolderBrowser.vue', () => ({default: {}}))
+vi.mock('./FilePreviewButton.vue', () => ({default: {}}))
+vi.mock('./RemoteImportOptions.vue', () => ({default: {}}))
+vi.mock('./MediaImportSection.vue', () => ({default: {}}))
+vi.mock('@/components/elements/DialogHeader.vue', () => ({default: {}}))
+// Vuetify's template auto-imports include CSS; these tests only run source actions.
+vi.mock('vuetify/lib/components/VAlert/index.mjs', () => ({VAlert: {}}))
+vi.mock('vuetify/lib/components/VBtn/index.mjs', () => ({VBtn: {}}))
+vi.mock('vuetify/lib/components/VCard/index.mjs', () => ({VCard: {}, VCardText: {}}))
+vi.mock('vuetify/lib/components/VDefaultsProvider/index.mjs', () => ({VDefaultsProvider: {}}))
+vi.mock('vuetify/lib/components/VDialog/index.mjs', () => ({VDialog: {}}))
+vi.mock('vuetify/lib/components/VExpansionPanel/index.mjs', () => ({VExpansionPanels: {}, VExpansionPanel: {}, VExpansionPanelText: {}}))
+vi.mock('vuetify/lib/components/VGrid/index.mjs', () => ({VSpacer: {}}))
+vi.mock('vuetify/lib/components/VIcon/index.mjs', () => ({VIcon: {}}))
+vi.mock('vuetify/lib/components/VProgressCircular/index.mjs', () => ({VProgressCircular: {}}))
+vi.mock('vuetify/lib/components/VProgressLinear/index.mjs', () => ({VProgressLinear: {}}))
+vi.mock('vuetify/lib/components/VSelect/index.mjs', () => ({VSelect: {}}))
+vi.mock('vuetify/lib/components/VTextField/index.mjs', () => ({VTextField: {}}))
+vi.mock('vuetify/lib/components/VTextarea/index.mjs', () => ({VTextarea: {}}))
+vi.mock('vuetify/directives', () => ({Tooltip: {}}))
+
+import NasSources from './NasSources.vue'
+import GoogleDriveSource from './GoogleDriveSource.vue'
+import WebVideoImport from './WebVideoImport.vue'
+import {useAppStore} from '@/stores/app'
+
+type SourceState = {
+  selectedId?: string
+  selectedPaths: string[]
+  importOptions: RemoteImportOptions
+  directoryLoader: BrowseDirectoryLoader
+  onVisibleEntries: (entries: BrowseDirectoryEntry[]) => void
+  batchErrors: Array<{path: string; message: string}>
+  failures: Array<{path: string; message: string}>
+  url: string
+  canSubmit: boolean
+  checkConnection: () => Promise<void>
+  editConnection: () => void
+  health: unknown
+  batchStats: {found: number; added: number; duplicates: number; skipped: number; inLibrary: number}
+  message: string
+  draft: Record<string, unknown>
+}
+const mounted: ReturnType<typeof createApp>[] = []
+// Exercise the real setup, lifecycle and exposed actions without rendering Vuetify.
+function mountSource(source: unknown) {
+  const app = createApp({...source as ComponentOptions, render: () => null})
+  const vm = app.mount(document.createElement('div')) as unknown as {submit: () => Promise<void>; stop: () => void}
+  mounted.push(app)
+  const state = app._instance!.setupState as SourceState
+  return {state, submit: () => vm.submit(), stop: () => vm.stop()}
+}
+const connection = {id: '11111111-1111-4111-8111-111111111111', name: 'NAS', root: '/Медиа',
+  protocol: 'sftp', host: 'nas', port: 22, username: 'reader', hasCredentials: true}
+const driveRoot = '/Google Drive'
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+  localStorage.clear()
+  vi.resetAllMocks()
+  useAppStore().localhost = 'http://localhost:12321'
+  mocks.ensureCanImport.mockResolvedValue(true)
+  mocks.parseTags.mockResolvedValue(undefined)
+  mocks.refreshCount.mockResolvedValue(undefined)
+  mocks.get.mockImplementation(async (url: string) => {
+    if (url === '/api/nas/connections') return {data: [connection]}
+    if (url === '/api/drive/status') return {data: {authenticated: true}}
+    throw new Error(`Unexpected request: ${url}`)
+  })
+})
+afterEach(() => { for (const app of mounted.splice(0)) app.unmount() })
+
+describe('remote source import actions', () => {
+  it.each([
+    {code: 'network_error', status: 502}, {code: 'permission_denied', status: 403}, {code: 'auth_required', status: 409},
+  ])('distinguishes $code during connection checks and recovers on retry', async ({code, status}) => {
+    const source = mountSource(NasSources)
+    await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
+    mocks.get.mockRejectedValueOnce({response: {status, data: {code}}})
+    await source.state.checkConnection()
+    expect(source.state.health).toMatchObject({[connection.id]: {state: code}})
+    expect(source.state.message).toBe(`sources.help.${code}`)
+    mocks.get.mockResolvedValueOnce({data: {path: '', entries: [], truncated: false}})
+    await source.state.checkConnection()
+    expect(source.state.health).toMatchObject({[connection.id]: {state: 'ready'}})
+    expect(source.state.message).toBe('')
+  })
+  it('edits NAS credentials without passing public capabilities to strict configuration validation', async () => {
+    mocks.get.mockResolvedValueOnce({data: [{...connection, capabilities: {view: true}}]})
+    const source = mountSource(NasSources)
+    await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
+    source.state.editConnection()
+    expect(source.state.draft).not.toHaveProperty('capabilities')
+    expect(source.state.draft).not.toHaveProperty('id')
+  })
+  it('keeps a forbidden Drive folder visible as a permission failure instead of silently returning to root', async () => {
+    const source = mountSource(GoogleDriveSource)
+    await nextTick()
+    mocks.get.mockRejectedValueOnce({response: {status: 403, data: {code: 'permission_denied'}}})
+    await expect(source.state.directoryLoader({path: `${driveRoot}/private`})).rejects.toMatchObject({response: {status: 403}})
+    expect(source.state.health).toBe('permission_denied')
+    expect(mocks.get.mock.calls.filter(([url]) => url.startsWith('/api/drive/folders/'))).toHaveLength(1)
+  })
+
+  it('keeps the NAS selection when server settings refresh without changing the library', async () => {
+    const source = mountSource(NasSources)
+    await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
+    source.state.selectedPaths = ['/Медиа/Кино.mp4']
+    useAppStore().config = {...useAppStore().config}
+    await nextTick()
+    expect(source.state.selectedPaths).toEqual(['/Медиа/Кино.mp4'])
+    expect(mocks.get).toHaveBeenCalledTimes(1)
+  })
+  it('parses readable NAS paths and retains successes for retry when tagging fails', async () => {
+    const source = mountSource(NasSources)
+    await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
+    const path = '/Медиа/Драма/Кино 1.mp4'
+    source.state.selectedPaths = [path]
+    mocks.post.mockResolvedValue({data: {results: [
+      {ok: true, path: 'Драма/Кино 1.mp4', id: 51, title: 'Кино 1.mp4', created: true},
+    ]}})
+    mocks.parseTags.mockRejectedValueOnce(new Error('Tags unavailable'))
+    await source.submit()
+    expect(mocks.parseTags).toHaveBeenCalledWith([{path, mediaId: 51}], expect.anything())
+    expect(source.state.selectedPaths).toEqual([path])
+    expect(source.state.batchErrors).toEqual([{path: 'Драма/Кино 1.mp4', message: 'Tags unavailable'}])
+    mocks.post.mockResolvedValue({data: {results: [
+      {ok: true, path: 'Драма/Кино 1.mp4', id: 51, title: 'Кино 1.mp4', created: false},
+    ]}})
+    await source.submit()
+    expect(source.state.selectedPaths).toEqual([])
+    expect(mocks.parseTags).toHaveBeenCalledTimes(2)
+  })
+
+  it('honors exclusions and disabled parsing during NAS folder import', async () => {
+    const source = mountSource(NasSources)
+    await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
+    source.state.onVisibleEntries([])
+    source.state.selectedPaths = ['/Медиа']
+    source.state.importOptions = {parseTags: false, excludePaths: true, excluded: 'Пропустить'}
+    mocks.get.mockResolvedValue({data: {path: '', truncated: false, entries: [
+      {name: 'Пропустить', path: 'Пропустить', isDirectory: true, size: 0},
+      {name: 'Кино.mp4', path: 'Кино.mp4', isDirectory: false, size: 100},
+    ]}})
+    mocks.post.mockResolvedValue({data: {results: [{ok: true, path: 'Кино.mp4', id: 52, title: 'Кино.mp4', created: true}]}})
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledWith('/api/nas/import-batch',
+      {connectionId: connection.id, paths: ['Кино.mp4']}, expect.anything())
+    expect(mocks.parseTags).not.toHaveBeenCalled()
+    expect(mocks.get).toHaveBeenCalledTimes(2)
+  })
+
+  it('finishes tagging the active NAS batch on Stop and keeps the remaining files selected', async () => {
+    const source = mountSource(NasSources)
+    await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
+    source.state.selectedPaths = Array.from({length: 11}, (_, index) => `/Медиа/${index}.mp4`)
+    mocks.post.mockImplementationOnce(async (_url: string, body: {paths: string[]}) => {
+      source.stop()
+      return {data: {results: body.paths.map((path, index) => ({ok: true, path, id: index + 1, title: path, created: true}))}}
+    })
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledTimes(1)
+    expect(mocks.parseTags.mock.calls[0][0]).toHaveLength(10)
+    expect(source.state.selectedPaths).toEqual(['/Медиа/10.mp4'])
+  })
+
+  it('expands the current Drive folder, excludes names and parses actual file and folder names', async () => {
+    const source = mountSource(GoogleDriveSource)
+    await nextTick()
+    mocks.get.mockResolvedValue({data: {files: [
+      {id: 'folder-id', name: 'Драма', isFolder: true},
+      {id: 'skip-id', name: 'Пропустить', isFolder: true},
+    ]}})
+    await source.state.directoryLoader({path: driveRoot})
+    source.state.selectedPaths = [driveRoot]
+    source.state.importOptions.excluded = 'Пропустить'
+    source.state.importOptions.excludePaths = true
+    mocks.get.mockImplementation(async (url: string) => {
+      if (url === '/api/drive/folders/root') return {data: {files: [
+        {id: 'folder-id', name: 'Драма', isFolder: true}, {id: 'skip-id', name: 'Пропустить', isFolder: true},
+      ]}}
+      if (url === '/api/drive/folders/folder-id') return {data: {files: [
+        {id: 'file-id', name: 'Старое имя.mp4', isFolder: false, size: 100},
+      ]}}
+      throw new Error(`Excluded folder was requested: ${url}`)
+    })
+    mocks.post.mockResolvedValue({data: {id: 61, title: 'Новое имя.mp4', created: true}})
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledExactlyOnceWith('/api/drive/import', {fileId: 'file-id'}, expect.anything())
+    expect(mocks.parseTags).toHaveBeenCalledWith([{path: '/Драма/Новое имя.mp4', mediaId: 61}], expect.anything())
+    expect(source.state.selectedPaths).toEqual([])
+  })
+
+  it('retains a Drive file on tag assignment failure and retries even if it is already imported', async () => {
+    const source = mountSource(GoogleDriveSource)
+    await nextTick()
+    source.state.selectedPaths = [`${driveRoot}/file-id`]
+    mocks.post.mockResolvedValue({data: {id: 61, title: 'Кино.mp4', created: false}})
+    mocks.parseTags.mockRejectedValueOnce(new Error('Tags unavailable'))
+    await source.submit()
+    expect(source.state.selectedPaths).toEqual([`${driveRoot}/file-id`])
+    expect(source.state.failures).toHaveLength(1)
+    await source.submit()
+    expect(source.state.selectedPaths).toEqual([])
+    expect(mocks.parseTags).toHaveBeenCalledTimes(2)
+  })
+
+  it('imports Drive media without parsing when the option is disabled', async () => {
+    const source = mountSource(GoogleDriveSource)
+    await nextTick()
+    source.state.selectedPaths = [`${driveRoot}/file-id`]
+    source.state.importOptions.parseTags = false
+    mocks.post.mockResolvedValue({data: {id: 61, title: 'Кино.mp4', created: true}})
+    await source.submit()
+    expect(source.state.selectedPaths).toEqual([])
+    expect(mocks.parseTags).not.toHaveBeenCalled()
+  })
+
+  it('continues NAS batches after an unknown request outcome and retries only remaining paths', async () => {
+    const source = mountSource(NasSources)
+    await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
+    const paths = Array.from({length: 21}, (_, index) => `/Медиа/${index}.mp4`)
+    source.state.selectedPaths = paths
+    mocks.post.mockRejectedValueOnce(new Error('Request timeout')).mockImplementation(async (_url, body: {paths: string[]}) => ({
+      data: {results: body.paths.map(path => ({ok: true, path, id: 52, title: path, created: true}))},
+    }))
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledTimes(3)
+    expect(source.state.batchErrors).toHaveLength(10)
+    expect(source.state.selectedPaths).toEqual(paths.slice(0, 10))
+    expect(source.state.batchStats).toMatchObject({found: 21, added: 11})
+    mocks.post.mockClear().mockImplementation(async (_url, body: {paths: string[]}) => ({
+      // The timed-out request had already committed its cards.
+      data: {results: body.paths.map(path => ({ok: true, path, id: 52, title: path, created: false}))},
+    }))
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledTimes(1)
+    expect(source.state.selectedPaths).toEqual([])
+    expect(source.state.batchStats).toMatchObject({added: 0, duplicates: 10})
+  })
+
+  it('isolates a pasted NAS path outside the connection root and imports the remaining file', async () => {
+    const source = mountSource(NasSources)
+    await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
+    source.state.selectedPaths = ['/other/invalid.mp4', '/Медиа/good.mp4']
+    mocks.post.mockResolvedValue({data: {results: [{ok: true, path: 'good.mp4', id: 52, title: 'good.mp4', created: true}]}})
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledExactlyOnceWith('/api/nas/import-batch', {connectionId: connection.id, paths: ['good.mp4']}, expect.anything())
+    expect(source.state.selectedPaths).toEqual(['/other/invalid.mp4'])
+    expect(source.state.batchErrors).toHaveLength(1)
+  })
+
+  it('continues Drive files after a failure and retries only failed selections', async () => {
+    const source = mountSource(GoogleDriveSource)
+    await nextTick()
+    source.state.selectedPaths = ['first', 'bad', 'last'].map(id => `${driveRoot}/${id}`)
+    mocks.post.mockImplementation(async (_url, body: {fileId: string}) => {
+      if (body.fileId === 'bad') throw new Error('Permission denied')
+      return {data: {id: 61, title: `${body.fileId}.mp4`, created: body.fileId !== 'first'}}
+    })
+    await source.submit()
+    expect(mocks.post.mock.calls.map(([, body]) => body.fileId)).toEqual(['first', 'bad', 'last'])
+    expect(source.state.selectedPaths).toEqual([`${driveRoot}/bad`])
+    expect(source.state.failures).toHaveLength(1)
+    expect(source.state.batchStats).toMatchObject({found: 3, added: 1, duplicates: 1})
+    mocks.post.mockClear().mockResolvedValue({data: {id: 62, title: 'Recovered.mp4', created: true}})
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledExactlyOnceWith('/api/drive/import', {fileId: 'bad'}, expect.anything())
+    expect(source.state.selectedPaths).toEqual([])
+  })
+
+  it('finishes tagging the active Drive file on Stop, then resumes only remaining files', async () => {
+    const source = mountSource(GoogleDriveSource)
+    await nextTick()
+    source.state.selectedPaths = [`${driveRoot}/first`, `${driveRoot}/last`]
+    mocks.post.mockImplementationOnce(async () => {
+      source.stop()
+      return {data: {id: 61, title: 'First.mp4', created: true}}
+    })
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledTimes(1)
+    expect(mocks.parseTags).toHaveBeenCalledWith([{path: '/First.mp4', mediaId: 61}], expect.anything())
+    expect(source.state.selectedPaths).toEqual([`${driveRoot}/last`])
+    mocks.post.mockClear().mockResolvedValue({data: {id: 62, title: 'Last.mp4', created: true}})
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledExactlyOnceWith('/api/drive/import', {fileId: 'last'}, expect.anything())
+    expect(source.state.selectedPaths).toEqual([])
+  })
+
+  it.each([NasSources, GoogleDriveSource])('does not start a request after Stop during a capacity check', async component => {
+    const source = mountSource(component)
+    await nextTick()
+    if (component === NasSources) await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
+    const path = component === NasSources ? '/Медиа/first.mp4' : `${driveRoot}/first`
+    source.state.selectedPaths = [path]
+    mocks.ensureCanImport.mockImplementationOnce(async () => { source.stop(); return true })
+    await source.submit()
+    expect(mocks.post).not.toHaveBeenCalled()
+    expect(source.state.selectedPaths).toEqual([path])
+  })
+
+  it('uses the pasted link slug for tags and keeps the URL available after a tagging error', async () => {
+    const source = mountSource(WebVideoImport)
+    const url = 'https://xhamster.com/videos/%D0%94%D1%80%D0%B0%D0%BC%D0%B0-test-abc123?tracking=ignore'
+    source.state.url = url
+    mocks.post.mockResolvedValue({data: {id: 71, title: 'Movie', created: true}})
+    mocks.parseTags.mockRejectedValueOnce(new Error('Tags unavailable'))
+    await source.submit()
+    expect(mocks.parseTags).toHaveBeenCalledWith([{path: '/videos/Драма-test-abc123', mediaId: 71}], expect.anything())
+    expect(source.state.url).toBe(url)
+    await source.submit()
+    expect(source.state.url).toBe('')
+    // The first refresh exposes the imported record; the last one includes its tags.
+    expect(mocks.sync).toHaveBeenCalledTimes(3)
+  })
+
+  it('prevents excluded links from importing and lets users disable tag parsing', async () => {
+    const source = mountSource(WebVideoImport)
+    source.state.url = 'https://xhamster.com/videos/drama-test-abc123'
+    source.state.importOptions = {parseTags: false, excludePaths: true, excluded: 'drama'}
+    expect(source.state.canSubmit).toBe(false)
+    await source.submit()
+    expect(mocks.post).not.toHaveBeenCalled()
+    source.state.importOptions.excludePaths = false
+    mocks.post.mockResolvedValue({data: {id: 71, title: 'Movie', created: true}})
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledTimes(1)
+    expect(mocks.parseTags).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    {name: 'NAS', component: NasSources}, {name: 'Drive', component: GoogleDriveSource}, {name: 'link', component: WebVideoImport},
+  ])('does not tag an in-flight $name import in a different library', async ({component}) => {
+    const source = mountSource(component)
+    await nextTick()
+    if (component === NasSources) {
+      await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
+      source.state.selectedPaths = ['/Медиа/file.mp4']
+    } else if (component === GoogleDriveSource) source.state.selectedPaths = [`${driveRoot}/file-id`]
+    else source.state.url = 'https://xhamster.com/videos/drama-abc123'
+    let finish!: (value: unknown) => void
+    mocks.post.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const importing = source.submit()
+    await vi.waitFor(() => expect(finish).toBeTypeOf('function'))
+    useAppStore().dbPath = '/different-library'
+    await nextTick()
+    finish({data: component === NasSources
+      ? {results: [{ok: true, path: 'file.mp4', id: 81, title: 'Movie.mp4', created: true}]}
+      : {id: 81, title: 'Movie.mp4', created: true}})
+    await importing
+    expect(mocks.parseTags).not.toHaveBeenCalled()
+  })
+})

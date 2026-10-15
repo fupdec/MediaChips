@@ -1,7 +1,10 @@
 import {test, expect} from '@playwright/test'
 import {disableFeatureHints, dismissOnboardingIfVisible, waitForAppShell} from './helpers'
 
-test.beforeEach(async ({page}) => { await disableFeatureHints(page) })
+test.beforeEach(async ({page}) => {
+  await disableFeatureHints(page)
+  await page.route('**/api/Task/parsePathTags', route => route.fulfill({json: []}))
+})
 
 test('Google Drive remembers its folder and breadcrumb names across sessions and recovers if the folder disappears', async ({page}) => {
   let unavailable = false
@@ -22,7 +25,7 @@ test('Google Drive remembers its folder and breadcrumb names across sessions and
     await dismissOnboardingIfVisible(page)
     await page.getByRole('button', {name: /^(Add media|Добавить медиа)$/}).first().click()
     const adding = page.locator('.media-adding-dialog')
-    await adding.getByRole('tab', {name: 'Google Drive'}).click()
+    await adding.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
     return adding.locator('.google-drive-source .media-folder-browser')
   }
   await page.goto('/media?mediaTypeId=1')
@@ -71,14 +74,14 @@ test('Google Drive adds remote selections with the shared action and keeps other
   await dismissOnboardingIfVisible(page)
   await page.getByRole('button', {name: /^(Add media|Добавить медиа)$/}).first().click()
   const dialog = page.locator('.media-adding-dialog')
-  await dialog.getByRole('tab', {name: 'Google Drive'}).click()
+  await dialog.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
   const header = dialog.locator('.dialog-header').first()
   const add = header.getByRole('button', {name: /^(Add|Добавить)$/})
   await expect(add).toBeDisabled()
   await dialog.locator('.google-drive-source .v-list-item').filter({hasText: 'Drive movie.mp4'}).getByRole('checkbox').check()
   await expect(add).toBeEnabled()
   await dialog.getByRole('tab', {name: /^(Files|Файлы)$/}).click()
-  await dialog.getByRole('tab', {name: 'Google Drive'}).click()
+  await dialog.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
   await expect(add).toBeEnabled()
   await dialog.screenshot({animations: 'disabled', path: test.info().outputPath('drive-import-desktop.png')})
   await page.setViewportSize({width: 390, height: 844})
@@ -95,7 +98,7 @@ test('Google Drive adds remote selections with the shared action and keeps other
   await expect(dialog.locator('.google-drive-source')).toContainText(/Добавлено: 1|Added: 1/)
 })
 
-test('Connections settings contain Google authorization and SFTP credentials without an import browser', async ({page}) => {
+test('Sources settings contain Google authorization, SFTP credentials and the shared import browser', async ({page}) => {
   await page.route('**/api/drive/status', route => route.fulfill({json: {configured: true, authenticated: false, mock: false,
     hasClientId: true, clientId: 'test-client', redirectUri: 'http://localhost:12321/api/drive/oauth/callback'}}))
   await page.route('**/api/nas/connections', route => route.fulfill({json: [{id: '44f4a4b9-8504-42a5-a530-5b48f61c6539', name: 'My NAS', protocol: 'sftp',
@@ -103,10 +106,9 @@ test('Connections settings contain Google authorization and SFTP credentials wit
   await page.goto('/settings?tab=connections')
   await waitForAppShell(page)
   await dismissOnboardingIfVisible(page)
-  await expect(page.locator('.settings-page')).toContainText(/Подключения|Connections/)
+  await expect(page.locator('.settings-page')).toContainText(/Источники|Sources/)
   await expect(page.getByRole('button', {name: /Подключить Google Drive|Connect Google Drive/})).toBeVisible()
-  await expect(page.locator('.media-folder-browser')).toHaveCount(0)
-  await expect(page.locator('.nas-sources')).toContainText('My NAS')
+  await expect(page.locator('.google-drive-source .media-folder-browser')).toHaveCount(0)
   await page.getByRole('button', {name: /Настройка Google OAuth|Google OAuth setup/}).click()
   await expect(page.getByRole('textbox', {name: 'OAuth Client ID', exact: true})).toHaveValue('test-client')
   await expect(page.getByRole('textbox', {name: 'OAuth Client Secret', exact: true})).toHaveValue('')
@@ -117,6 +119,8 @@ test('Connections settings contain Google authorization and SFTP credentials wit
   await driveEditor.getByRole('button', {name: /^(Cancel|Отмена)$/}).click()
   await expect(driveEditor).toBeHidden()
   await page.locator('.settings-page').screenshot({animations: 'disabled', path: test.info().outputPath('connections-desktop.png')})
+  await page.getByRole('tab', {name: 'NAS / SFTP / FTP', exact: true}).click()
+  await expect(page.locator('.nas-sources')).toContainText('My NAS')
   await page.locator('.nas-sources').getByRole('button', {name: /Добавить подключение|Add connection/}).click()
   await expect(page.locator('.nas-source-editor')).toBeVisible()
   await expect(page.getByRole('textbox', {name: /Адрес NAS|NAS host/})).toBeVisible()
@@ -139,7 +143,7 @@ test('Google connection settings open in a dialog, discard cancelled edits and p
   await dismissOnboardingIfVisible(page)
   await page.getByRole('button', {name: /^(Add media|Добавить медиа)$/}).first().click()
   const adding = page.locator('.media-adding-dialog')
-  await adding.getByRole('tab', {name: 'Google Drive'}).click()
+  await adding.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
   const source = adding.locator('.google-drive-source')
   const setup = source.getByRole('button', {name: /Настройка Google OAuth|Google OAuth setup/})
   const editor = page.locator('.google-drive-source-editor')
@@ -195,7 +199,7 @@ test('Google sign-in runs in a separate window and refreshes the open adding dia
   await dismissOnboardingIfVisible(page)
   await page.getByRole('button', {name: /^(Add media|Добавить медиа)$/}).first().click()
   const dialog = page.locator('.media-adding-dialog')
-  await dialog.getByRole('tab', {name: 'Google Drive'}).click()
+  await dialog.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
   const popupPromise = page.waitForEvent('popup')
   await dialog.getByRole('button', {name: /Подключить Google Drive|Connect Google Drive/}).click()
   const popup = await popupPromise

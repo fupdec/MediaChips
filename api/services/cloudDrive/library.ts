@@ -21,7 +21,7 @@ export function driveLibraryFile(db: ApiDb, id: number) {
 }
 export async function listDriveFolder(db: ApiDb, service: CloudDriveService, folderId: string, pageToken?: string) {
   const sqlite = db.sqlite
-  if (!service.status().authenticated) throw Object.assign(new Error('Connect Google Drive first.'), {status: 409})
+  if (!service.status().authenticated) throw Object.assign(new Error('Connect Google Drive first.'), {code: 'auth_required', status: 409})
   const page = await createDriveSourceAdapter(service.transport).list(DriveFileIdSchema.parse(folderId), pageToken)
   const result = {folderId, nextPageToken: page.nextPageToken, mock: service.config.mock, files: page.entries.map(file => ({
     id: file.resourceKey, name: file.name, mimeType: file.contentType, size: file.size,
@@ -35,7 +35,7 @@ export async function listDriveFolder(db: ApiDb, service: CloudDriveService, fol
 }
 export async function importDriveFile(db: ApiDb, service: CloudDriveService, fileId: string) {
   DriveFileIdSchema.parse(fileId)
-  if (!service.status().authenticated) throw Object.assign(new Error('Connect Google Drive first.'), {status: 409})
+  if (!service.status().authenticated) throw Object.assign(new Error('Connect Google Drive first.'), {code: 'auth_required', status: 409})
   const sqlite = db.sqlite
   const file = await createDriveSourceAdapter(service.transport).stat(fileId)
   if (db.sqlite !== sqlite) throw Object.assign(new Error('The active library changed.'), {status: 409})

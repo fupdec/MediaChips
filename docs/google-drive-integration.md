@@ -8,6 +8,8 @@ The play button beside a file opens a live preview without importing it. Videos 
 
 The Drive browser remembers the last successfully opened folder and its breadcrumb names for each library and server in browser storage. Reopening the app restores that folder; if it was deleted or access was revoked, browsing starts at the Drive root. This preference does not create a library record.
 
+**Import options** includes the same path tag parser as local import, using readable folder and file names instead of Drive IDs. Existing tags and category regex rules are applied to imported media. **Exclude specific paths** accepts paths or fragments, one per line; it matches readable names as well as browser paths with IDs and skips matching files and folders before import. Tag assignment failures keep the file selected for retry.
+
 Recognized video formats include MP4, M4V, WebM, MOV, MKV, AVI, WMV, ASF, MPEG/MPG, FLV, MTS/M2TS/TS, VOB, 3GP/3GPP/3G2, OGV, MXF and RealMedia. Generic binary MIME types are normalized using the video extension for import and streaming. Audio: MP3, M4A, AAC, WAV, OGG, FLAC; images: JPEG, PNG, GIF, WebP, AVIF, BMP. Recognition permits import and preview; built-in decoding depends on browser codecs. If playback fails, **Open in Google Drive** opens the original file in Google's player in the browser, where the user must have access to the file. Remote files do not enter local FFmpeg/transcoding or filesystem maintenance. Video posters and marker images can be saved from the player’s current frame. Images are loaded directly through the proxy.
 
 ## Configure Google OAuth
