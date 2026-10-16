@@ -50,7 +50,7 @@ export interface TranscodeManager {
     options: { startTime: number; maxHeight?: number; copyCodecs?: boolean },
   ): Promise<void>
   getTranscodeStatus(videoPath: string): Promise<TranscodeStatus>
-  getCacheStatsForActiveDb(): Record<string, unknown>
+  getCacheStatsForActiveDb(): Promise<Record<string, unknown>>
   clearCacheForActiveDb(): Record<string, unknown>
   resolveStreamPath(videoPath: string, source: string): Promise<TranscodeStreamInfo>
 }

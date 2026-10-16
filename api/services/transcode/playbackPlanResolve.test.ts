@@ -62,27 +62,27 @@ describe('resolvePlaybackPlanFromPlayability', () => {
     })
   })
 
-  it('marks unsupported when transcode is disabled', () => {
+  it('still offers the original when transcode is disabled', () => {
     expect(resolvePlaybackPlanFromPlayability({
       playability: playability({playable: false, reason: 'video_codec'}),
       transcodeEnabled: false,
     })).toMatchObject({
-      mode: 'unsupported',
+      mode: 'direct',
       transcodeRequired: false,
       transcodeEnabled: false,
-      transcodeStatus: 'disabled',
+      transcodeStatus: 'none',
       reason: 'video_codec',
     })
   })
 
-  it('streams when codecs need transcode and it is enabled', () => {
+  it('leaves the native HEVC/container decision to the playback client', () => {
     expect(resolvePlaybackPlanFromPlayability({
       playability: playability({playable: false, reason: 'video_codec'}),
       transcodeEnabled: true,
     })).toMatchObject({
-      mode: 'stream',
-      transcodeRequired: true,
-      streamPlayback: true,
+      mode: 'direct',
+      transcodeRequired: false,
+      transcodeEnabled: true,
       reason: 'video_codec',
     })
   })

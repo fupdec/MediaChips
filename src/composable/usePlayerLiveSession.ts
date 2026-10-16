@@ -40,6 +40,7 @@ export interface PlayerPlaybackSharedState {
   currentLiveMediaId: number | null
   directPlaybackFallbackAttempted: boolean
   directPlaybackFallbackInFlight: boolean
+  directPlaybackFallbackCandidate?: boolean
   liveStreamCopyCompatible: boolean
   liveStreamAccurateSeek: boolean
   transcodeSessionId: number
@@ -113,6 +114,7 @@ export function createPlayerLiveSession(state: PlayerPlaybackSharedState) {
   const playerStore = usePlayerStore()
   const settingsStore = useSettingsStore()
   const {t} = useI18n()
+  let livePlayController: AbortController | null = null
 
   const getLiveFileDuration = () => resolveLiveFileDuration({
     metadataDuration: metadataNumber(playerStore.metadata, 'duration'),
@@ -142,20 +144,29 @@ export function createPlayerLiveSession(state: PlayerPlaybackSharedState) {
     playerStore.playbackError = true
   }
 
-  const playCurrentLiveStream = () => {
+  const playCurrentLiveStream = (reuseSource = false) => {
     const videoEl = playerStore.player
     const mediaId = state.currentLiveMediaId
     if (!videoEl || mediaId == null) return Promise.resolve()
+    livePlayController?.abort()
+    const controller = new AbortController()
+    livePlayController = controller
+    const generation = state.liveStreamSeekGeneration
+    const session = state.transcodeSessionId
+    const offset = playerStore.liveStreamOffset
+    const height = playerStore.liveTranscodeMaxHeight
+    const options = liveStreamUrlOptions()
     return playLiveStreamWhenReady(
       videoEl,
       () => buildLiveStreamUrl(
         buildApiUrl,
         mediaId,
-        playerStore.liveStreamOffset,
-        playerStore.liveTranscodeMaxHeight,
-        liveStreamUrlOptions(),
+        offset,
+        height,
+        options,
       ),
-      {isCancelled: () => !playerStore.active},
+      {reuseSource, signal: controller.signal, isCancelled: () => !playerStore.active
+        || generation !== state.liveStreamSeekGeneration || session !== state.transcodeSessionId},
     )
   }
 
@@ -169,6 +180,8 @@ export function createPlayerLiveSession(state: PlayerPlaybackSharedState) {
   }
 
   const clearLiveTranscodeHandlers = async () => {
+    livePlayController?.abort()
+    livePlayController = null
     const stoppingMediaId = state.currentLiveMediaId
     playerStore.usesLiveTranscode = false
     playerStore.liveTranscodeStarted = false
@@ -220,6 +233,11 @@ export function createPlayerLiveSession(state: PlayerPlaybackSharedState) {
 
     state.directPlaybackFallbackAttempted = true
     state.directPlaybackFallbackInFlight = true
+    const generation = state.liveStreamSeekGeneration
+    const session = state.transcodeSessionId
+    const stale = () => !playerStore.active || generation !== state.liveStreamSeekGeneration
+      || session !== state.transcodeSessionId
+    const wasPaused = playerStore.paused
     const streamStart = resolveFallbackResumeStreamStart(
       playerStore.player.currentTime,
       playerStore.currentTime || 0,
@@ -249,31 +267,39 @@ export function createPlayerLiveSession(state: PlayerPlaybackSharedState) {
         playerStore.liveTranscodeMaxHeight,
         liveStreamUrlOptions(),
       )
-      await playCurrentLiveStream()
-      if (!playerStore.active) return true
-      playerStore.paused = false
+      if (!wasPaused) await playCurrentLiveStream(true)
+      if (stale()) return true
+      playerStore.paused = wasPaused
       playerStore.currentTime = streamStart
       playerStore.isLiveStreamSeeking = false
-      playerStore.syncPlaybackState()
+      if (!wasPaused) playerStore.syncPlaybackState()
       return true
     } catch (error) {
+      if (stale()) return true
       console.warn('Direct playback re-encode fallback failed:', error)
       failTranscode(playbackErrorMessage(error, 'Playback failed after transcode fallback'))
       return true
     } finally {
-      state.directPlaybackFallbackInFlight = false
+      if (!stale()) state.directPlaybackFallbackInFlight = false
     }
   }
 
-  const armDirectSeekStallWatch = (delayMs = 2500) => {
+  const armDirectSeekStallWatch = (delayMs = 12000) => {
     if (!shouldArmDirectSeekStallWatch({
       usesLiveTranscode: playerStore.usesLiveTranscode,
       fallbackAttempted: state.directPlaybackFallbackAttempted,
-    })) return
+      fallbackCandidate: state.directPlaybackFallbackCandidate,
+    }) || playerStore.liveTranscodeDisabled || state.forceDirectPlayback
+      || settingsStore.transcodeUnsupportedFormats !== '1') return
     clearDirectSeekStallWatch()
+    const video = playerStore.player
+    const time = video?.currentTime || 0
+    const session = state.transcodeSessionId
     state.directSeekStallTimer = setTimeout(() => {
       state.directSeekStallTimer = null
       const videoEl = playerStore.player
+      if (session !== state.transcodeSessionId || videoEl !== video
+        || playerStore.paused || Math.abs((videoEl?.currentTime || 0) - time) > 0.25) return
       if (!shouldTriggerDirectSeekStallFallback({
         active: playerStore.active,
         usesLiveTranscode: playerStore.usesLiveTranscode,
@@ -293,6 +319,8 @@ export function createPlayerLiveSession(state: PlayerPlaybackSharedState) {
     const streamStart = Math.max(0, Number(startTime) || 0)
     const videoEl = playerStore.player
     if (!videoEl || !playerStore.active) return
+    const generation = state.liveStreamSeekGeneration
+    const session = state.transcodeSessionId
     state.forceDirectPlayback = false
     playerStore.liveTranscodeDisabled = false
     playerStore.liveTranscodeOfferable = true
@@ -321,8 +349,8 @@ export function createPlayerLiveSession(state: PlayerPlaybackSharedState) {
       maxHeight,
       liveStreamUrlOptions(),
     )
-    await playCurrentLiveStream()
-    if (!playerStore.active) return
+    await playCurrentLiveStream(true)
+    if (!playerStore.active || generation !== state.liveStreamSeekGeneration || session !== state.transcodeSessionId) return
     playerStore.paused = false
     playerStore.isLiveStreamSeeking = false
     playerStore.syncPlaybackState()
@@ -404,7 +432,8 @@ export function createPlayerLiveSession(state: PlayerPlaybackSharedState) {
     playerStore.currentTime = nextChunkStart
     try {
       if (!wasPaused) {
-        await playCurrentLiveStream()
+        await playCurrentLiveStream(true)
+        if (seekGeneration !== state.liveStreamSeekGeneration || !playerStore.active) return false
         playerStore.paused = false
       }
     } catch (error) {
@@ -507,7 +536,8 @@ export function createPlayerLiveSession(state: PlayerPlaybackSharedState) {
     playerStore.player.addEventListener('playing', onPlaying, {once: true})
     if (!wasPaused) {
       try {
-        await playCurrentLiveStream()
+        await playCurrentLiveStream(true)
+        if (seekGeneration !== state.liveStreamSeekGeneration || !playerStore.active) return
         playerStore.paused = false
       } catch (error) {
         if (seekGeneration !== state.liveStreamSeekGeneration) return
@@ -580,17 +610,7 @@ export function createPlayerLiveSession(state: PlayerPlaybackSharedState) {
     )
     try {
       if (!wasPaused) {
-        await playLiveStreamWhenReady(
-          playerStore.player,
-          () => buildLiveStreamUrl(
-            buildApiUrl,
-            liveMediaId,
-            time,
-            normalized,
-            liveStreamUrlOptions(),
-          ),
-          {isCancelled: () => !playerStore.active},
-        )
+        await playCurrentLiveStream(true)
         if (seekGeneration !== state.liveStreamSeekGeneration || !playerStore.active) return
         playerStore.paused = false
       }

@@ -18,6 +18,7 @@ import {buildLocalFileUrl, checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
 import {ensureMarkThumb, getMarkImagePath} from '@/utils/markThumb'
 import {isIgnorablePlaybackError} from '@/utils/playerBuffer'
+import {hasUnsupportedBrowserAudio} from '@/utils/browserPlaybackSupport'
 import {
   buildLiveStreamUrl,
   buildVideoStreamUrl,
@@ -152,8 +153,10 @@ export function createPlayerLoadSrc({
     _options: {accurateStart?: boolean} = {},
   ) => {
     await liveSession.clearLiveTranscodeHandlers()
-    const playable = await fetchPlayableInfo(mediaId)
-    const playability = playable.playability as {needsRemux?: boolean} | undefined
+    const playable = await fetchPlayableInfo(mediaId).catch(() => ({mode: 'direct'} as Awaited<ReturnType<typeof fetchPlayableInfo>>))
+    const playability = playable.playability as {playable?: boolean; needsRemux?: boolean; audioCodec?: string | null} | undefined
+    state.directPlaybackFallbackCandidate = playability?.playable === false
+      || playable.reason === 'container_layout' || playability?.needsRemux === true
     const plan = resolveVideoSourcePlan({
       playableMode: playable.mode || 'unsupported',
       transcodeRequired: Boolean(playable.transcodeRequired),
@@ -164,6 +167,7 @@ export function createPlayerLoadSrc({
       forceDirectPlayback: state.forceDirectPlayback,
       liveTranscodeDisabled: playerStore.liveTranscodeDisabled,
       transcodeUnsupportedFormatsEnabled: settingsStore.transcodeUnsupportedFormats === '1',
+      audioUnsupported: Boolean(playerStore.player && hasUnsupportedBrowserAudio(playerStore.player, playability?.audioCodec)),
     })
     if (plan.kind === 'unsupported') throw new UnsupportedPlaybackError()
     playerStore.liveTranscodeOfferable = plan.liveTranscodeOfferable
@@ -264,6 +268,7 @@ export function createPlayerLoadSrc({
       liveSession.resetTranscodeState()
       state.directPlaybackFallbackAttempted = false
       state.directPlaybackFallbackInFlight = false
+      state.directPlaybackFallbackCandidate = false
       state.liveStreamCopyCompatible = false
       state.liveStreamAccurateSeek = false
       state.forceDirectPlayback = false
@@ -374,6 +379,7 @@ export function createPlayerLoadSrc({
             : await resolveVideoSource(media.id, targetStartTime)
           if (isLoadSrcStale(session)) return
           videoEl.src = source
+          if (media.id > 0 && !playerStore.usesLiveTranscode) liveSession.armDirectSeekStallWatch()
         }
       } catch (error) {
         if (isLoadSrcStale(session)) return
@@ -430,7 +436,7 @@ export function createPlayerLoadSrc({
         if (options.paused) {
           videoEl.pause()
         } else if (playerStore.usesLiveTranscode) {
-          await liveSession.playCurrentLiveStream()
+          await liveSession.playCurrentLiveStream(true)
           if (isLoadSrcStale(session)) return
           playerStore.currentTime = targetStartTime
           playerStore.syncPlaybackState()

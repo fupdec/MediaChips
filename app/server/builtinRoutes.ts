@@ -584,13 +584,13 @@ function registerBuiltinRoutes({
     }
   })
 
-  router.get('/api/transcode/cache', (req: ApiRequest, res: ApiResponse) => {
+  router.get('/api/transcode/cache', async (req: ApiRequest, res: ApiResponse) => {
     if (!transcodeManager) {
       return res.json({bytes: 0, files: 0, entries: 0})
     }
 
     try {
-      res.json(transcodeManager.getCacheStatsForActiveDb())
+      res.json(await transcodeManager.getCacheStatsForActiveDb())
     } catch (err: unknown) {
       console.error('Transcode cache stats error:', err)
       safeJsonError(res, req, 500, {message: err instanceof Error ? apiErrorMessage(err) : String(err) || 'Failed to read transcode cache stats'})

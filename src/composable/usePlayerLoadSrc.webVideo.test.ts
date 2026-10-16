@@ -4,16 +4,18 @@ import {beforeEach, afterEach, describe, expect, it, vi} from 'vitest'
 import {usePlayerStore} from '@/stores/player'
 import {typedApi} from '@/services/typedApi'
 import {buildLocalFileUrl} from '@/services/fileService'
-import {fetchPlayableInfo} from '@/services/transcodeService'
+import {fetchPlayableInfo, buildVideoStreamUrl, buildLiveStreamUrl} from '@/services/transcodeService'
 import {attachWebVideo, disposeWebVideo, prepareWebVideoPlayback} from '@/services/webVideoPlayback'
 import {createPlayerLoadSrc} from './usePlayerLoadSrc'
 import type {MediaItem, PlayerPlaylistItem} from '@/types/stores'
 import type {PlayerPlaybackSharedState} from './usePlayerLiveSession'
 
-const mocks = vi.hoisted(() => ({countViewNumber: vi.fn(), closeMarkAdding: vi.fn()}))
+const mocks = vi.hoisted(() => ({countViewNumber: vi.fn(), closeMarkAdding: vi.fn(), settings: {
+  restorePlaybackTime: '1', transcodeUnsupportedFormats: '1', transcodeMaxHeight: '1080',
+}}))
 vi.mock('vue-i18n', () => ({useI18n: () => ({t: (key: string) => key})}))
 vi.mock('@/stores/app', () => ({useAppStore: () => ({mediaTypes: [], mediaPath: '/tmp/media'})}))
-vi.mock('@/stores/settings', () => ({useSettingsStore: () => ({restorePlaybackTime: '1'})}))
+vi.mock('@/stores/settings', () => ({useSettingsStore: () => mocks.settings}))
 vi.mock('@/stores/dialogs', () => ({useDialogsStore: () => ({closeMarkAdding: mocks.closeMarkAdding})}))
 vi.mock('@/stores/items', () => ({useItemsStore: () => ({countViewNumber: mocks.countViewNumber})}))
 vi.mock('@/utils/eventBus', () => ({useEventBus: () => ({emit: vi.fn()})}))
@@ -37,6 +39,7 @@ describe('web video quality changes and recovery', () => {
   let ready: ReturnType<typeof ref<boolean>>
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.settings.transcodeUnsupportedFormats = '1'
     setActivePinia(createPinia())
     player = usePlayerStore()
     video = document.createElement('video')
@@ -45,6 +48,9 @@ describe('web video quality changes and recovery', () => {
     vi.spyOn(video, 'pause').mockImplementation(() => {})
     vi.spyOn(video, 'load').mockImplementation(() => {video.currentTime = 0})
     vi.spyOn(video, 'play').mockResolvedValue()
+    vi.spyOn(video, 'canPlayType').mockImplementation(type => type.includes('mp4a') ? 'probably' : '')
+    vi.mocked(buildVideoStreamUrl).mockReturnValue('/api/video/17?source=direct')
+    vi.mocked(buildLiveStreamUrl).mockReturnValue('/api/video/17/transcode/stream')
     vi.spyOn(player, 'trackCurrentTime').mockImplementation(() => {})
     vi.spyOn(player, 'changePlayerStatusText').mockImplementation(() => {})
     player.player = video
@@ -62,7 +68,8 @@ describe('web video quality changes and recovery', () => {
       title: 'Test', qualities: [1080, 720, 480], quality: 480, adaptive: false})
     const state = {transcodeSessionId: 0} as PlayerPlaybackSharedState
     const liveSession = {resetTranscodeState: vi.fn(), clearLiveTranscodeHandlers: vi.fn(async () => {}),
-      clearDirectSeekStallWatch: vi.fn(), failTranscode: vi.fn(() => {player.playbackError = true})}
+      liveStreamUrlOptions: () => ({}), playCurrentLiveStream: vi.fn(async () => {}),
+      armDirectSeekStallWatch: vi.fn(), clearDirectSeekStallWatch: vi.fn(), failTranscode: vi.fn(() => {player.playbackError = true})}
     ready = ref(false)
     loader = createPlayerLoadSrc({state, liveSession: liveSession as never, isReady: ready, marks: ref(null),
       isPlayerWindow: ref(false), updateItemVideo: vi.fn(), updatePlayerWindowTitle: vi.fn(), ensureVideoElement: async () => video})
@@ -70,6 +77,47 @@ describe('web video quality changes and recovery', () => {
   afterEach(() => {
     clearInterval(player.currentTimeTimeout)
     clearTimeout(player.statusTimeout)
+  })
+
+  it.each([
+    ['/tmp/h264.mp4', 'direct', '1'], ['/tmp/hevc.mp4', 'stream', '1'],
+    ['/tmp/hevc.mkv', 'unsupported', '0'], ['/tmp/hevc.mov', 'stream', '1'],
+  ])('tries original %s despite server mode %s (transcode setting %s)', async (path, mode, setting) => {
+    mocks.settings.transcodeUnsupportedFormats = setting
+    vi.mocked(fetchPlayableInfo).mockResolvedValue({mode, transcodeRequired: mode === 'stream',
+      playability: {playable: false, videoCodec: 'hevc', audioCodec: 'aac'}})
+    const media = {...item, path}
+    player.media = media
+    player.playlist = [{...media, key: '17'} as PlayerPlaylistItem]
+    await loader.loadSrc(media)
+    expect(buildVideoStreamUrl).toHaveBeenCalledWith(expect.any(Function), 17, 'direct')
+    expect(buildLiveStreamUrl).not.toHaveBeenCalled()
+    expect(video.getAttribute('src')).toBe('/api/video/17?source=direct')
+    expect(video.play).toHaveBeenCalledOnce()
+    expect(player.usesLiveTranscode).toBe(false)
+    expect(player.playbackError).toBe(false)
+  })
+
+  it('still tries original playback if the advisory probe request fails', async () => {
+    vi.mocked(fetchPlayableInfo).mockRejectedValueOnce(new Error('probe unavailable'))
+    const media = {...item, path: '/tmp/movie.mp4'}
+    player.playlist = [{...media, key: '17'} as PlayerPlaylistItem]
+    await loader.loadSrc(media)
+    expect(video.play).toHaveBeenCalledOnce()
+    expect(player.playbackError).toBe(false)
+    expect(buildLiveStreamUrl).not.toHaveBeenCalled()
+  })
+
+  it.each(['1', '0'])('handles unsupported audio with transcode setting %s', async setting => {
+    mocks.settings.transcodeUnsupportedFormats = setting
+    vi.mocked(fetchPlayableInfo).mockResolvedValue({mode: 'direct',
+      playability: {playable: false, videoCodec: 'hevc', audioCodec: 'ac3'}})
+    const media = {...item, path: '/tmp/surround.mkv'}
+    player.playlist = [{...media, key: '17'} as PlayerPlaylistItem]
+    await loader.loadSrc(media)
+    expect(player.usesLiveTranscode).toBe(setting === '1')
+    if (setting === '1') expect(buildLiveStreamUrl).toHaveBeenCalledOnce()
+    else expect(buildVideoStreamUrl).toHaveBeenCalledWith(expect.any(Function), 17, 'direct')
   })
 
   it('changes quality at the same time while keeping pause, speed and volume, without counting another view', async () => {

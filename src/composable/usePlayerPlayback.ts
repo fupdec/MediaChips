@@ -247,13 +247,11 @@ export function usePlayerPlayback({
     playerStore.player.addEventListener('waiting', () => {
       if (playerStore.isWebVideo) { playerStore.isStreamWaiting = true; return }
       if (!playerStore.usesLiveTranscode) {
-        // Cold-start / NAS buffering always fires `waiting` with readyState < 3.
-        // Arming stall fallback there falsely flipped healthy direct plays into live
-        // transcode (spinner + HD icon). Only watch mid-playback freezes, and use a
-        // longer grace so slow volumes do not false-promote to live encode.
+        // The watchdog only accepts suspect codec/container plans. Normal
+        // buffering on slow disks or NAS must not promote a healthy original.
         const currentTime = Number(playerStore.player?.currentTime) || 0
         if (currentTime > 2) {
-          liveSession.armDirectSeekStallWatch(8000)
+          liveSession.armDirectSeekStallWatch()
         }
         return
       }

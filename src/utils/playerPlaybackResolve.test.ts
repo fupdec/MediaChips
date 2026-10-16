@@ -97,7 +97,7 @@ describe('shouldPreferDirectPlayback / resolveLiveStreamCopyCompatible', () => {
       transcodeRequired: true,
       forceDirectPlayback: false,
       liveTranscodeDisabled: false,
-    })).toBe(false)
+    })).toBe(true)
   })
 
   it('prefers direct for container_layout; live remains offerable as fallback', () => {
@@ -300,6 +300,7 @@ describe('direct seek stall / fallback gates', () => {
     expect(shouldArmDirectSeekStallWatch({
       usesLiveTranscode: false,
       fallbackAttempted: false,
+      fallbackCandidate: true,
     })).toBe(true)
     expect(shouldArmDirectSeekStallWatch({
       usesLiveTranscode: true,
@@ -357,9 +358,9 @@ describe('direct seek stall / fallback gates', () => {
 })
 
 describe('resolveVideoSourcePlan', () => {
-  it('rejects unsupported playable modes', () => {
+  it('rejects missing files', () => {
     expect(resolveVideoSourcePlan({
-      playableMode: 'unsupported',
+      playableMode: 'missing',
       transcodeRequired: false,
       startTime: 0,
       forceDirectPlayback: false,
@@ -368,7 +369,7 @@ describe('resolveVideoSourcePlan', () => {
     })).toEqual({kind: 'unsupported'})
   })
 
-  it('prefers direct auto when browser can decode', () => {
+  it('uses original bytes when browser can decode', () => {
     expect(resolveVideoSourcePlan({
       playableMode: 'file',
       transcodeRequired: false,
@@ -378,7 +379,7 @@ describe('resolveVideoSourcePlan', () => {
       transcodeUnsupportedFormatsEnabled: false,
     })).toEqual({
       kind: 'direct',
-      streamMode: 'auto',
+      streamMode: 'direct',
       lockForcedDirect: false,
       liveTranscodeOfferable: false,
     })
@@ -400,12 +401,13 @@ describe('resolveVideoSourcePlan', () => {
     })
   })
 
-  it('plans live remux-copy only near t=0', () => {
+  it('uses live playback for a confirmed unsupported audio track', () => {
     expect(resolveVideoSourcePlan({
       playableMode: 'stream',
       transcodeRequired: true,
       remuxCopy: true,
-      reason: 'codec',
+      reason: 'audio_codec',
+      audioUnsupported: true,
       startTime: 0,
       forceDirectPlayback: false,
       liveTranscodeDisabled: false,
@@ -413,12 +415,12 @@ describe('resolveVideoSourcePlan', () => {
     })).toMatchObject({
       kind: 'live',
       streamStart: 0,
-      copyCompatible: true,
+      copyCompatible: false,
       liveTranscodeOfferable: true,
     })
   })
 
-  it('plans direct-first for container_layout; live only when codecs require it', () => {
+  it('tries the original even for a server codec warning', () => {
     expect(resolveVideoSourcePlan({
       playableMode: 'stream',
       transcodeRequired: true,
@@ -428,9 +430,9 @@ describe('resolveVideoSourcePlan', () => {
       liveTranscodeDisabled: false,
       transcodeUnsupportedFormatsEnabled: true,
     })).toEqual({
-      kind: 'live',
-      streamStart: 12,
-      copyCompatible: false,
+      kind: 'direct',
+      streamMode: 'direct',
+      lockForcedDirect: false,
       liveTranscodeOfferable: true,
     })
 
@@ -445,7 +447,7 @@ describe('resolveVideoSourcePlan', () => {
       transcodeUnsupportedFormatsEnabled: true,
     })).toEqual({
       kind: 'direct',
-      streamMode: 'auto',
+      streamMode: 'direct',
       lockForcedDirect: false,
       liveTranscodeOfferable: true,
     })
