@@ -30,7 +30,7 @@
         style="height: 40px;"
       >
 
-        <DialogMediaAdding v-if="showAddMediaButton"/>
+        <AppBarButton v-if="showAddMediaButton" :action="() => appShell.showAddMediaDialog()" :text="t('media.adding.add_media')" icon="plus"/>
         <TagsAdd v-if="itemsStore.type == 'tag'"/>
         <TagsAdd v-else :button="false"/>
 
@@ -155,7 +155,7 @@
         class="d-flex align-center"
         style="height: 40px;"
       >
-        <DialogMediaAdding v-if="showAddMediaButton"/>
+        <AppBarButton v-if="showAddMediaButton" :action="() => appShell.showAddMediaDialog()" :text="t('media.adding.add_media')" icon="plus"/>
 
         <AppBarButton
           v-if="itemsStore.type === 'playlist'"
@@ -178,7 +178,7 @@
         class="d-flex align-center"
         style="height: 40px;"
       >
-        <DialogMediaAdding/>
+        <AppBarButton :action="() => appShell.showAddMediaDialog()" :text="t('media.adding.add_media')" icon="plus"/>
       </div>
 
       <v-spacer/>
@@ -226,6 +226,7 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useRegistrationStore} from '@/stores/registration'
+import {useAppShell} from '@/composable/appShell'
 import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
 import {FREE_LIBRARY_CAP} from '@/utils/freeLibraryCap'
 import {useI18n} from 'vue-i18n'
@@ -247,7 +248,7 @@ import type { TabLike } from '@/types/common'
 const ItemsSelection = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsSelection.vue'))
 const ItemsFilter = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsFilter.vue'))
 const TagsAdd = defineAsyncComponent(() => import('@/components/app/appbar/elements/TagsAdd.vue'))
-const DialogMediaAdding = defineAsyncComponent(() => import('@/components/dialogs/DialogMediaAdding.vue'))
+const appShell = useAppShell()
 const ItemsEditMeta = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsEditMeta.vue'))
 const AppBarButton = defineAsyncComponent(() => import('@/components/app/appbar/AppBarButton.vue'))
 const Tabs = defineAsyncComponent(() => import('@/components/app/appbar/Tabs.vue'))

@@ -66,6 +66,7 @@ function waitForMediaEvent(
   videoEl: HTMLVideoElement,
   eventName: 'loadedmetadata' | 'seeked',
   timeoutMs = 8000,
+  signal?: AbortSignal,
 ): Promise<void> {
   return new Promise((resolve) => {
     let settled = false
@@ -73,12 +74,17 @@ function waitForMediaEvent(
       if (settled) return
       settled = true
       videoEl.removeEventListener(eventName, onEvent)
+      videoEl.removeEventListener('error', onEvent)
+      signal?.removeEventListener('abort', onEvent)
       window.clearTimeout(timeoutId)
       resolve()
     }
     const onEvent = () => finish()
     const timeoutId = window.setTimeout(finish, timeoutMs)
     videoEl.addEventListener(eventName, onEvent, {once: true})
+    videoEl.addEventListener('error', onEvent, {once: true})
+    signal?.addEventListener('abort', onEvent, {once: true})
+    if (signal?.aborted) finish()
   })
 }
 
@@ -86,12 +92,13 @@ export async function seekDirectPlaybackTo(
   videoEl: HTMLVideoElement,
   time: number,
   isCancelled?: () => boolean,
+  signal?: AbortSignal,
 ) {
   let target = Math.max(0, Number(time) || 0)
-  if (!Number.isFinite(target)) return
+  if (!Number.isFinite(target) || isCancelled?.() || signal?.aborted || videoEl.error) return
   if (videoEl.readyState < HTMLMediaElement.HAVE_METADATA) {
-    await waitForMediaEvent(videoEl, 'loadedmetadata')
-    if (isCancelled?.()) return
+    await waitForMediaEvent(videoEl, 'loadedmetadata', 8000, signal)
+    if (isCancelled?.() || signal?.aborted || videoEl.error) return
   }
   const fileDuration = Number(videoEl.duration)
   if (Number.isFinite(fileDuration) && fileDuration > 0) {
@@ -99,7 +106,7 @@ export async function seekDirectPlaybackTo(
   }
   if (Math.abs((videoEl.currentTime || 0) - target) <= 0.12) return
   videoEl.currentTime = target
-  await waitForMediaEvent(videoEl, 'seeked', 4000)
+  await waitForMediaEvent(videoEl, 'seeked', 4000, signal)
 }
 
 export function createPlayerLiveSession(state: PlayerPlaybackSharedState) {

@@ -136,18 +136,23 @@ const showTaskSummary = () => {
   }, 5000)
 }
 
-const notifications = computed(() => notificationsStore.getNotifications)
+const notifications = computed(() => notificationsStore.getNotifications.filter(notification =>
+  !(tasksStore.mediaAdding.dialogProcess && notification.scope === 'media-adding'),
+))
 const tasks = computed(() => tasksStore.list)
+const summaryTasks = computed(() => tasks.value.filter(task =>
+  !(tasksStore.mediaAdding.dialogProcess && task.id === tasksStore.mediaAdding.notificationTaskId),
+))
 
 const taskSummaryItem = computed((): TaskSummaryItem | null => {
-  if (!taskSummaryVisible.value || tasks.value.length === 0) return null
+  if (!taskSummaryVisible.value || summaryTasks.value.length === 0) return null
   return {
     kind: 'task-summary',
     key: 'task-summary',
     title: t('appbar.processStarted'),
-    text: tasks.value.length === 1
+    text: summaryTasks.value.length === 1
       ? t('appbar.openProcessInNotifications')
-      : t('appbar.activeProcessesCount', {count: tasks.value.length}),
+      : t('appbar.activeProcessesCount', {count: summaryTasks.value.length}),
   }
 })
 
@@ -201,6 +206,19 @@ const onBeforeLeave = (el: Element) => {
   node.style.height = `${height}px`
   node.style.margin = '0'
 }
+
+// The process window already shows this run's progress and result. Keep its
+// notifications in the list without replaying them over the picker on close.
+watch(
+  () => [tasksStore.mediaAdding.dialogProcess, notificationsStore.notifications.length] as const,
+  ([visible]) => {
+    if (!visible) return
+    for (const notification of notificationsStore.notifications) {
+      if (notification.scope === 'media-adding' && !notification.hidden) notificationsStore.hideNotification(notification.id)
+    }
+  },
+  {immediate: true, flush: 'sync'},
+)
 
 watch(taskSummaryEl, (el) => {
   if (el) bindWheel(el)

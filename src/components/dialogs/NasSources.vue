@@ -47,6 +47,7 @@
         v-model:selected-paths="selectedPaths"
         :base-url="app.localhost || ''"
         :directory-loader="directoryLoader"
+        :extensions="extensions"
         :error-message="apiError"
         :disabled="busy"
         :enable-folder-tags="false"
@@ -60,7 +61,7 @@
                              :file="entry" :disabled="busy || loading" :preview-action="() => previewFile(entry)" />
         </template>
       </MediaFolderBrowser>
-      <RemoteImportOptions v-model="importOptions" :disabled="busy" />
+      <MediaImportOptions v-if="!embedded" v-model="importOptions" :disabled="busy" />
       <div v-if="!embedded" class="nas-sources__import-bar">
         <div class="nas-sources__import-actions">
           <v-btn v-if="!embedded && mediaEntries.length" size="small" variant="text" rounded="lg" :disabled="busy || browserLoading" @click="importSelected(mediaEntries.map(entry => entry.path))">{{ t('nas.import_visible') }}</v-btn>
@@ -70,19 +71,7 @@
           </v-btn>
         </div>
       </div>
-      <RemoteImportProgress :active="batchActive" :scanning="scanning" :processed="batchProcessed" :total="batchTotal"
-                            :stats="batchStats" :retry-count="selectedPaths.length"
-                            :can-retry="canSubmit && (batchErrors.length > 0 || batchProcessed < batchTotal)" @retry="importSelected()" />
-      <v-btn v-if="batchActive && !embedded" size="small" variant="text" rounded="lg" :disabled="stopRequested" @click="stopBatch">{{ t(stopRequested ? 'nas.stopping' : 'nas.stop_import') }}</v-btn>
-      <v-expansion-panels v-if="batchErrors.length" class="my-2">
-        <v-expansion-panel :title="t('nas.batch_errors', {count: batchErrors.length})">
-          <v-expansion-panel-text>
-            <div v-for="failure in batchErrors" :key="failure.path" class="text-body-2 mb-2" style="overflow-wrap: anywhere">
-              {{ failure.path }}: {{ failure.message }}
-            </div>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-      </v-expansion-panels>
+
     </div>
 
     <v-dialog v-model="editing" max-width="560" persistent scrollable>
@@ -94,14 +83,14 @@
             <div class="nas-source-editor__fields">
               <div class="nas-source-editor__pair">
                 <v-text-field v-model="draft.name" :label="t('nas.name')" :disabled="saving" variant="outlined" />
-                <v-select v-model="draft.protocol" :items="['sftp', 'ftps', 'ftp']" :label="t('nas.protocol')" :disabled="saving || !!editId" variant="outlined" />
+                <v-select v-model="draft.protocol" :items="[{title: 'SFTP', value: 'sftp'}, {title: 'FTPS', value: 'ftps'}, {title: 'FTP', value: 'ftp'}, {title: 'WebDAV HTTPS', value: 'webdav'}]" :label="t('nas.protocol')" :disabled="saving || !!editId" variant="outlined" />
               </div>
               <div class="nas-source-editor__pair nas-source-editor__pair--address">
                 <v-text-field v-model="draft.host" :label="t('nas.host')" :disabled="saving || !!editId" variant="outlined" />
                 <v-text-field v-model.number="draft.port" :label="t('nas.port')" type="number" :disabled="saving || !!editId" variant="outlined" />
               </div>
               <v-text-field v-model="draft.username" :label="t('nas.username')" :disabled="saving || !!editId" autocomplete="off" variant="outlined" />
-              <v-text-field v-model="draft.root" :label="t('nas.root')" :disabled="saving || !!editId" :hint="t('nas.root_hint')" persistent-hint variant="outlined" />
+              <v-text-field v-model="draft.root" :label="t('nas.root')" :disabled="saving || !!editId" :hint="t(draft.protocol === 'webdav' ? 'nas.webdav_hint' : 'nas.root_hint')" persistent-hint variant="outlined" />
               <v-select v-if="draft.protocol === 'sftp'" v-model="authMode" :items="authModes" :label="t('nas.auth')" :disabled="saving" variant="outlined" />
               <v-text-field v-if="authMode === 'password' || draft.protocol !== 'sftp'" v-model="draft.password" :type="showPassword ? 'text' : 'password'"
                             :label="t('nas.password')" :disabled="saving" autocomplete="new-password" variant="outlined"
@@ -140,8 +129,8 @@ import SourceHealth from './SourceHealth.vue'
 import {computed, onMounted, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import MediaImportSection from './MediaImportSection.vue'
-import RemoteImportOptions from './RemoteImportOptions.vue'
-import {defaultRemoteImportOptions, remotePathExcluder} from '@/services/remoteImportOptions'
+import MediaImportOptions from './MediaImportOptions.vue'
+import {defaultRemoteImportOptions, remotePathExcluder, importExtensionMatcher, type RemoteImportOptions} from '@/services/remoteImportOptions'
 import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
 import {NasConnectionSchema, type NasConnection, type NasConnectionInput, type NasImportResult} from '@shared/nas'
 import MediaFolderBrowser from './MediaFolderBrowser.vue'
@@ -151,7 +140,7 @@ import type {BrowseDirectoryEntry, BrowseDirectoryLoader} from '@/services/typed
 import {listNasDirectory, nasBrowserPath, nasRelativePath} from '@/services/nasBrowse'
 import {runRemoteImportQueue} from '@/services/remoteImportQueue'
 import {expandRemoteSelection} from '@/services/remoteImportSelection'
-import RemoteImportProgress from './RemoteImportProgress.vue'
+import {useRemoteMediaAddingProcess} from '@/composable/useRemoteMediaAddingProcess'
 import {loadNasBrowserPrefs, persistNasBrowserLocation, restoreNasBrowserFolder} from '@/services/nasBrowserPrefs'
 import {apiClient} from '@/services/apiClient'
 import {nasMediaPath} from '@shared/remoteMedia'
@@ -163,7 +152,9 @@ import {useEventBus} from '@/utils/eventBus'
 import {getApiErrorMessage} from '@/types/vue'
 
 const {t} = useI18n()
-const {embedded = false, connectionsOnly = false} = defineProps<{embedded?: boolean; connectionsOnly?: boolean}>()
+const addingProcess = useRemoteMediaAddingProcess(t)
+const emit = defineEmits<{started: []}>()
+const {embedded = false, connectionsOnly = false, extensions} = defineProps<{embedded?: boolean; connectionsOnly?: boolean; extensions?: string}>()
 const app = useAppStore()
 const {preview} = useFilePreview()
 const sync = useItemsListSync()
@@ -199,7 +190,7 @@ function onVisibleEntries(visible: BrowseDirectoryEntry[]) {
   for (const entry of visible) if (entry.isDirectory) directories.add(entry.path)
 }
 const selectedPaths = ref<string[]>([])
-const importOptions = ref(defaultRemoteImportOptions())
+const importOptions = defineModel<RemoteImportOptions>('importOptions', {default: defaultRemoteImportOptions})
 const mediaEntries = computed(() => entries.value.filter(entry => !entry.isDirectory && entry.addable && !entry.inLibrary))
 const batchActive = ref(false)
 const batchProcessed = ref(0)
@@ -333,11 +324,13 @@ async function previewFile(entry: BrowseDirectoryEntry) {
   finally { if (current === generation) busy.value = false }
 }
 async function importSelected(paths: string[] = selectedPaths.value) {
-  if (busy.value || browserLoading.value || !selected.value?.hasCredentials || !paths.length) return
+  if (addingProcess.active || busy.value || browserLoading.value || !selected.value?.hasCredentials || !paths.length) return
   const current = generation
   const connection = selected.value
   const connectionId = connection.id
   const options = {...importOptions.value}
+  const matchesExtension = importExtensionMatcher(extensions)
+  const acceptFile = (path: string) => matchesExtension(path)
   const isExcluded = remotePathExcluder(options)
   const controller = new AbortController()
   let stopped = false
@@ -347,11 +340,18 @@ async function importSelected(paths: string[] = selectedPaths.value) {
   scanning.value = true; batchProcessed.value = 0; batchTotal.value = new Set(paths).size; batchErrors.value = []
   message.value = ''; error.value = false
   batchStats.value = {found: 0, skipped: 0, inLibrary: 0, added: 0, duplicates: 0}
+  const run = addingProcess.begin({source: connection.name, stop: stopBatch, retry: () => importSelected(),
+    readablePath: path => path.startsWith(connection.root + '/') || path === connection.root ? path : nasBrowserPath(connection.root, path),
+    snapshot: () => ({scanning: scanning.value, stopped: stopRequested.value, processed: batchProcessed.value,
+      total: batchTotal.value, ...batchStats.value, remaining: selectedPaths.value.length, errors: batchErrors.value}),
+  })
+  if (!run) { busy.value = false; batchActive.value = false; return }
+  emit('started')
   try {
     const expanded = await expandRemoteSelection({
-      paths, directories, isExcluded, shouldStop: () => stopped || current !== generation,
+      paths, directories, isExcluded, acceptFile, onExisting: entry => run.recordExisting(entry.path), shouldStop: () => stopped || current !== generation,
       onProgress: progress => { if (current === generation) Object.assign(batchStats.value, progress) },
-      load: path => listNasDirectory(connection, {path, showHidden: showHidden.value}, controller.signal, Infinity),
+      load: path => listNasDirectory(connection, {path, extensions, showHidden: showHidden.value}, controller.signal, Infinity),
       onFolderError(path, err) {
         directories.add(path)
         batchErrors.value.push({path, message: err instanceof Error && err.message === 'truncated' ? t('nas.truncated') : apiError(err)})
@@ -377,6 +377,7 @@ async function importSelected(paths: string[] = selectedPaths.value) {
         return Math.min(10, Math.max(0, gate.freeCap - gate.libraryCount.value))
       },
       async request(chunk) {
+        run.phase('importing')
         const {data} = await apiClient.post<{results: NasImportResult[]}>('/api/nas/import-batch', {connectionId, paths: chunk},
           {timeout: 180_000, signal: controller.signal})
         return data.results
@@ -392,12 +393,14 @@ async function importSelected(paths: string[] = selectedPaths.value) {
         if (current !== generation) return
         for (const result of results) {
           if (result.ok) {
+            run.record(result.path, result.id, result.created)
             if (result.created) added++; else duplicates++
           } else batchErrors.value.push({path: result.path, message: apiError({response: {data: result}})})
         }
         const successful = results.filter((result): result is Extract<NasImportResult, {ok: true}> => result.ok)
         let tagsFailed = false
         if (options.parseTags) {
+          run.phase('tagging')
           try {
             await parseAndAssignImportPathTags(successful.map(result => ({
               path: nasBrowserPath(connection.root, result.path), mediaId: result.id,
@@ -418,17 +421,19 @@ async function importSelected(paths: string[] = selectedPaths.value) {
       },
     })
     if (current !== generation) return
+    stopRequested.value ||= result.stopped
     message.value = t('nas.batch_summary', {added, duplicates: duplicates + batchStats.value.inLibrary, errors: batchErrors.value.length})
       + (result.stopped ? ` ${t('nas.batch_stopped', {count: result.total - result.processed})}` : '')
     error.value = batchErrors.value.length > 0
   } catch (err) {
     if (current === generation) {
       error.value = true
+      batchErrors.value.push({path: '', message: apiError(err)})
       message.value = `${t('nas.batch_summary', {added, duplicates, errors: batchErrors.value.length})} ${apiError(err)} ${t('nas.batch_retry')}`
       refreshLibrary(); await gate.refreshLibraryCount()
     }
   } finally {
-    if (current === generation) { busy.value = false; batchActive.value = false; scanning.value = false; importController = undefined; stopCurrentBatch = undefined; await browser.value?.refresh() }
+    if (current === generation) { busy.value = false; batchActive.value = false; scanning.value = false; importController = undefined; stopCurrentBatch = undefined; await browser.value?.refresh(); run.finish() }
   }
 }
 watch(selectedId, () => {
@@ -443,7 +448,7 @@ watch(selectedId, () => {
 watch(folder, path => {
   if (selected.value && path) persistNasBrowserLocation(browserPrefsScope(), selected.value.id, path)
 })
-watch(() => draft.value.protocol, protocol => { if (!editId.value) draft.value.port = protocol === 'sftp' ? 22 : 21; fingerprint.value = '' })
+watch(() => draft.value.protocol, protocol => { if (!editId.value) draft.value.port = protocol === 'sftp' ? 22 : protocol === 'webdav' ? 443 : 21; fingerprint.value = '' })
 watch([() => app.dbPath, () => app.config?.id, () => app.localhost], () => {
   generation++; health.value = {}; checking.value = false; connections.value = []; selectedId.value = undefined; entries.value = []; directories.clear(); folder.value = ''; busy.value = false; saving.value = false
   importController?.abort(); stopCurrentBatch?.(); batchActive.value = false; selectedPaths.value = []; batchErrors.value = []
@@ -451,7 +456,7 @@ watch([() => app.dbPath, () => app.config?.id, () => app.localhost], () => {
 })
 onMounted(loadConnections)
 onBeforeUnmount(() => { generation++; stopCurrentBatch?.(); importController?.abort() })
-const canSubmit = computed(() => !!selected.value?.hasCredentials && !busy.value && !browserLoading.value && !!selectedPaths.value.length)
+const canSubmit = computed(() => !!selected.value?.hasCredentials && !addingProcess.active && !busy.value && !browserLoading.value && !!selectedPaths.value.length)
 const selectionCount = computed(() => selectedPaths.value.length)
 defineExpose({refreshConnections: loadConnections, canSubmit, busy: computed(() => busy.value || saving.value || editing.value), selectionCount, submit: () => importSelected(), stop: stopBatch, stopping: stopRequested, canStop: batchActive})
 </script>

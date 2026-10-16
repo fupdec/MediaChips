@@ -1,3 +1,4 @@
+import {importExtensionMatcher} from './remoteImportOptions'
 import {mediaFileKind} from '@shared/mediaFormats'
 import type {NasConnection, NasDirectoryResult} from '@shared/nas'
 import type {BrowseDirectoryInput, BrowseDirectoryResult} from '@/services/typedApi/browse'
@@ -22,6 +23,7 @@ export function nasRelativePath(root: string, absolute: string) {
 }
 
 export async function listNasDirectory(connection: NasConnection, input: BrowseDirectoryInput, signal?: AbortSignal, maxEntries = 5000): Promise<BrowseDirectoryResult> {
+  const matchesExtension = importExtensionMatcher(input.extensions)
   const {entries, truncated} = await collectRemoteDirectoryPages({signal, maxEntries,
     load: async pageToken => {
       const {data} = await apiClient.get<NasDirectoryResult>(`/api/nas/connections/${connection.id}/files`, {
@@ -43,7 +45,7 @@ export async function listNasDirectory(connection: NasConnection, input: BrowseD
       size: entry.isDirectory ? null : entry.size, mtimeMs: entry.modifiedAt ?? null,
       extension: entry.isDirectory ? null : entry.name.match(/\.([^.]+)$/)?.[1]?.toLowerCase() ?? null,
       inLibrary: entry.mediaId != null, mediaId: entry.mediaId ?? null,
-      addable: !entry.isDirectory && entry.mediaId == null && !!mediaFileKind(entry.name) && entry.size > 0,
+      addable: !entry.isDirectory && entry.mediaId == null && matchesExtension(entry.name) && !!mediaFileKind(entry.name) && entry.size > 0,
     })),
   }
 }

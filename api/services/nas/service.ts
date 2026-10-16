@@ -303,6 +303,9 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
         res.setHeader('Accept-Ranges', 'bytes')
         res.setHeader('ETag', etag)
         res.setHeader('Cache-Control', 'no-store')
+        if (req.query.download === '1') {
+          res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path.posix.basename(session.path))}`)
+        }
         res.setHeader('Content-Length', range.end - range.start + 1)
         if (range.partial) res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${session.size}`)
         if (req.method === 'HEAD') { res.end(); return }

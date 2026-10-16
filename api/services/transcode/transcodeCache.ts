@@ -2,6 +2,8 @@ import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
 
+const activeCacheWrites = new Set<string>()
+
 function buildCacheKey(filePath: string, stat: {mtimeMs: number; size: number}) {
   const payload = `${filePath}|${stat.mtimeMs}|${stat.size}`
   return crypto.createHash('sha256').update(payload).digest('hex')
@@ -32,6 +34,8 @@ function readCacheMeta(metaPath: string) {
 
 function writeCacheMeta(metaPath: string, meta: Record<string, unknown>) {
   fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2))
+  if (meta.status === 'running') activeCacheWrites.add(metaPath)
+  else activeCacheWrites.delete(metaPath)
 }
 
 function resolveExistingCache(databasesPath: string, dbId: string, filePath: string) {
@@ -100,30 +104,42 @@ function clearCacheExcept(databasesPath: string, dbId: string, keepCacheKey: str
   return removed
 }
 
+/** Include orphaned outputs and failed jobs, while leaving active writers alone. */
 function trimCacheToLimit(databasesPath: string, dbId: string, maxGb: number) {
-  const maxBytes = Number(maxGb) * 1024 * 1024 * 1024
-  if (!Number.isFinite(maxBytes) || maxBytes <= 0) return {removed: 0, bytes: 0}
-
-  const entries = listCacheEntries(databasesPath, dbId)
-    .filter((entry) => entry.status === 'done' && entry.size > 0)
-    .sort((a, b) => (a.updatedAt || a.createdAt || 0) - (b.updatedAt || b.createdAt || 0))
-
+  const configuredBytes = Number(maxGb) * 1024 * 1024 * 1024
+  const maxBytes = Number.isFinite(configuredBytes) && configuredBytes > 0 ? configuredBytes : 2 * 1024 ** 3
+  const cacheDir = getCacheDir(databasesPath, dbId)
+  if (!fs.existsSync(cacheDir)) return {removed: 0, bytes: 0}
+  const groups = new Map<string, {paths: string[]; at: number; running: boolean}>()
+  let bytes = 0
+  for (const name of fs.readdirSync(cacheDir)) {
+    const filePath = path.join(cacheDir, name)
+    const stat = fs.statSync(filePath)
+    if (!stat.isFile()) continue
+    bytes += stat.size
+    const key = name.replace(/(?:\.part)?\.mp4$|\.json$/, '')
+    const group = groups.get(key) || {paths: [], at: stat.mtimeMs, running: false}
+    group.paths.push(filePath)
+    group.at = Math.max(group.at, stat.mtimeMs)
+    if (name.endsWith('.json')) group.running = activeCacheWrites.has(filePath)
+    groups.set(key, group)
+  }
   let removed = 0
-
-  for (const entry of entries) {
-    const stats = getCacheStats(databasesPath, dbId)
-    if (stats.bytes <= maxBytes) break
-
-    try {
-      if (fs.existsSync(entry.outputPath)) fs.unlinkSync(entry.outputPath)
-      if (fs.existsSync(entry.metaPath)) fs.unlinkSync(entry.metaPath)
-      removed += 1
-    } catch (error) {
-      console.error('Failed to trim transcode cache entry:', error)
+  for (const group of [...groups.values()].sort((a, b) => a.at - b.at)) {
+    if (bytes <= maxBytes) break
+    if (group.running) continue
+    for (const filePath of group.paths) {
+      try {
+        const size = fs.statSync(filePath).size
+        fs.unlinkSync(filePath)
+        bytes -= size
+        removed++
+      } catch (error) {
+        console.error('Failed to trim transcode cache file:', error)
+      }
     }
   }
-
-  return {removed, bytes: getCacheStats(databasesPath, dbId).bytes}
+  return {removed, bytes}
 }
 
 function getCacheStats(databasesPath: string, dbId: string) {

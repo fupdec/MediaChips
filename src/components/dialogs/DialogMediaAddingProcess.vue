@@ -6,29 +6,31 @@
     width="800"
     persistent
   >
-    <v-card rounded="xl">
+    <v-card rounded="xl" class="media-adding-process">
       <DialogHeader
         @close="closeProcessDialog"
-        :header="t('media.adding.files')"
+        :header="t('media.adding.title')"
+        :subheader="t('media.adding.process_source', {source: task.remoteImport?.source || t('media.adding.source_local')})"
         :buttons="buttons"
         closable
       />
 
       <v-card-actions class="pa-4">
         <v-progress-linear
-          v-model="task.progress"
+          :model-value="task.progress"
+          :indeterminate="progressIndeterminate"
           :striped="task.active && !task.stopped"
           height="20"
           color="primary"
           rounded
         >
           <template v-slot:default="{ value }">
-            <strong class="process-percents">{{ Math.ceil(value) }} %</strong>
+            <strong class="process-percents">{{ progressIndeterminate ? t('common.loading') : `${Math.ceil(value)} %` }}</strong>
           </template>
         </v-progress-linear>
       </v-card-actions>
 
-      <div class="d-flex justify-space-between px-4">
+      <div class="d-flex justify-space-between ga-3 px-4" role="status" aria-live="polite">
         <div>{{ task.status }}</div>
         <v-card class="text-medium-emphasis text-caption" variant="flat">
           <v-progress-linear v-if="task.active && !task.stopped" height="3" indeterminate reverse/>
@@ -37,6 +39,20 @@
       </div>
 
       <v-card-text class="pa-4 process-dialog-body">
+        <section class="process-dialog-section process-dialog-section--panel">
+          <div class="d-flex flex-wrap ga-2 remote-process-counts">
+            <v-chip size="small" color="success">{{ addedCountLabel }}</v-chip>
+            <v-chip size="small" color="info">{{ t('media.adding.existing_count', {count: Math.max(duplicates_by_path.length, (task.remoteImport?.inLibrary || 0))}) }}</v-chip>
+            <v-chip v-if="task.remoteImport" size="small">{{ t('media.adding.skipped_count', {count: task.remoteImport.skipped}) }}</v-chip>
+            <v-chip size="small" :color="task.errors.length ? 'error' : undefined">{{ t('media.adding.errors_count', {count: task.errors.length}) }}</v-chip>
+          </div>
+          <template v-if="task.finished && task.remoteImport?.retry && task.remoteImport.remaining">
+            <v-btn class="mt-3" color="primary" variant="tonal" rounded="lg" @click="task.remoteImport.retry()">
+              {{ t('media.adding.retry_remaining', {count: task.remoteImport.remaining}) }}
+            </v-btn>
+            <div class="text-caption text-medium-emphasis mt-2">{{ t('media.adding.retry_remaining_hint') }}</div>
+          </template>
+        </section>
         <!-- Process added files -->
         <section
           v-if="task.added.length > 0 && canMakeLibrarySmart"
@@ -730,7 +746,6 @@ import {useSettingsStore} from '@/stores/settings'
 import {useOperationsStore} from '@/stores/operations'
 import {parseMatchAutoBlindTagsForm} from '@/utils/faceSettingsForm'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
-import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {MEDIA_BULK_LITE_ADDED_CAP} from '@shared/mediaBulkImport'
 import {useAutoSceneScrapeBatch} from '@mediachips/plugin-adult/composables/useAutoSceneScrapeBatch'
 
@@ -921,6 +936,7 @@ const duplicateMarkers = {
 
 // Computed properties
 const task = computed(() => tasksStore.mediaAdding)
+const progressIndeterminate = computed(() => task.value.active && ['scanning', 'resolving'].includes(task.value.remoteImport?.phase || ''))
 const addedTotal = computed(() => {
   const total = Number(task.value.addedTotal || 0)
   return total > 0 ? total : task.value.added.length
@@ -938,14 +954,14 @@ const isAddedVideo = computed(() =>
 const canDetectFaces = computed(() => (
   task.value.finished &&
   task.value.added.length > 0 &&
-  isAddedVideo.value
+  isAddedVideo.value && !task.value.remoteImport
 ))
 const canReparseTags = computed(() => (
   task.value.finished &&
   task.value.addedMedia.length > 0
 ))
 const canMakeLibrarySmart = computed(() => (
-  task.value.finished &&
+  !task.value.remoteImport && task.value.finished &&
   task.value.addedMedia.length > 0
 ))
 
@@ -1244,7 +1260,7 @@ const clearStopButton = () => {
 }
 
 const syncStopButton = () => {
-  const running = Boolean(task.value?.active && !task.value?.finished && !task.value?.stopped)
+  const running = Boolean(task.value?.active && !task.value?.finished && !task.value?.stopped && !task.value.remoteImport?.stopping)
   if (running) {
     if (!buttons.value.length) initButtons()
     return
@@ -1253,6 +1269,11 @@ const syncStopButton = () => {
 }
 
 const stop = () => {
+  if (task.value.remoteImport) {
+    task.value.remoteImport.stop()
+    clearStopButton()
+    return
+  }
   tasksStore.mediaAdding.stopped = true
   clearStopButton()
   const notificationTaskId = task.value.notificationTaskId
@@ -2088,7 +2109,7 @@ watch(() => tasksStore.mediaAdding.dialogProcess, (open, wasOpen) => {
 })
 
 watch(
-  () => [task.value?.active, task.value?.finished, task.value?.stopped] as const,
+  () => [task.value?.active, task.value?.finished, task.value?.stopped, task.value.remoteImport?.stopping] as const,
   () => {
     syncStopButton()
   },
@@ -2097,7 +2118,7 @@ watch(
 watch(() => task.value?.finished, (finished) => {
   if (finished) {
     clearStopButton()
-    if (task.value) {
+    if (task.value && !task.value.stopped) {
       task.value.progress = 100
     }
     const notificationTaskId = task.value?.notificationTaskId
@@ -2109,7 +2130,7 @@ watch(() => task.value?.finished, (finished) => {
     }
     if (
       task.value.added.length > 0 &&
-      String(task.value.addedMediaType || '').toLowerCase() === 'video'
+      !task.value.remoteImport && String(task.value.addedMediaType || '').toLowerCase() === 'video'
     ) {
       fetchClipModelStatus()
       fetchFaceModelStatus()

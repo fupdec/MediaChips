@@ -1,4 +1,6 @@
 import {nextTick, watch, onBeforeUnmount} from 'vue'
+import {abortVideoPlayback} from '@/utils/liveTranscodeLifecycle'
+import {usePlayerPositionPersistence} from './usePlayerPositionPersistence'
 import {disposeWebVideo} from '@/services/webVideoPlayback'
 import {isRemoteMediaPath} from '@shared/remoteMedia'
 import {isNasMediaPath} from '@shared/remoteMedia'
@@ -302,16 +304,25 @@ export function usePlayerPlayback({
     ensureVideoElement,
   })
 
+  usePlayerPositionPersistence(playerStore, isReady, loadSrcSession.updatePlaybackTime)
+
   watch(() => playerStore.active, (active) => {
     if (!active) {
+      ++state.transcodeSessionId
       loadSrcSession.disposeRemoteLoad()
       disposeWebVideo(playerStore.player)
+      abortVideoPlayback(playerStore.player)
+      clearInterval(playerStore.currentTimeTimeout)
+      void liveSession.clearLiveTranscodeHandlers()
     }
-  })
+  }, {flush: 'sync'})
   onBeforeUnmount(() => {
     ++state.transcodeSessionId
     loadSrcSession.disposeRemoteLoad()
     disposeWebVideo(playerStore.player)
+    abortVideoPlayback(playerStore.player)
+    clearInterval(playerStore.currentTimeTimeout)
+    void liveSession.clearLiveTranscodeHandlers()
   })
 
   return {

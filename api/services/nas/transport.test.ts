@@ -131,7 +131,7 @@ describe('SFTP and FTP socket transports', () => {
   })
   it('reports a failed SFTP login without exposing the password', async () => {
     const server = await sftpServer()
-    await expect(connectNas(config(server.port, 'sftp'), {password: 'wrong-secret'})).rejects.toMatchObject({code: 'connection_failed'})
+    await expect(connectNas(config(server.port, 'sftp'), {password: 'wrong-secret'})).rejects.toMatchObject({code: 'auth_required'})
   })
   it('lists FTP folders, filters symlinks and implements start and end bounds using REST', async () => {
     const server = await ftpServer()

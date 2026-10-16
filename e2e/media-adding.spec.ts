@@ -6,8 +6,13 @@ const connection = {id: '44f4a4b9-8504-42a5-a530-5b48f61c6539', name: 'Test SFTP
 
 async function openAdding(page: Page) {
   await disableFeatureHints(page)
+  await page.addInitScript(() => {
+    localStorage.setItem('mediachips.media-adding.source', 'local')
+    localStorage.setItem('mediachips.sources.provider', 'drive')
+  })
   await page.route('**/api/browse/places', route => route.fulfill({json: {container: false, places: [{id: 'home', name: 'Test files', path: '/test', icon: 'mdi-folder'}]}}))
   await page.route('**/api/browse/listDirectory', route => route.fulfill({json: {currentPath: '/test', rootPath: '/test', parentPath: null, platform: 'linux', truncated: false, entries: []}}))
+  await page.route('**/api/Task/parsePathTags', route => route.fulfill({json: []}))
   await page.route('**/api/Media/get-stats', route => route.fulfill({json: {total: 0, filesize: 0}}))
   await page.route('**/api/nas/connections', route => route.fulfill({json: [connection]}))
   await page.route('**/api/nas/connections/*/files*', route => route.fulfill({json: {
@@ -56,11 +61,12 @@ test('one add action follows the source and preserves local paths and link draft
   await expect(paths).toBeHidden()
   await expect(add).toBeDisabled()
   const link = dialog.locator('.web-video-import input')
-  await link.fill('https://invalid.example/video')
+  await link.fill('not a link')
   await expect(add).toBeDisabled()
   await link.fill('https://xhamster.com/videos/example-video-xhAb12')
   await expect(add).toBeEnabled()
-  await dialog.getByRole('tab', {name: 'SFTP / NAS'}).click()
+  await dialog.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
+  await dialog.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
   await expect(add).toBeDisabled()
   await dialog.locator('.nas-sources .v-list-item').filter({hasText: 'movie.mp4'}).getByRole('checkbox').check()
   await expect(add).toBeEnabled()
@@ -79,7 +85,7 @@ test('one add action follows the source and preserves local paths and link draft
   await dialog.screenshot({path: test.info().outputPath('media-adding-links-mobile.png')})
 })
 
-test('shared add imports only the active link and blocks source changes while working', async ({page}) => {
+test('links use the common process window with progress and results', async ({page}) => {
   await page.setViewportSize({width: 1440, height: 1000})
   const imported: string[] = []
   await page.route('**/api/web-video/import', async route => {
@@ -92,14 +98,16 @@ test('shared add imports only the active link and blocks source changes while wo
   const link = dialog.locator('.web-video-import input')
   await link.fill('https://xhamster.com/videos/example-video-xhAb12')
   await dialog.locator('.dialog-header').first().getByRole('button', {name: /^(Add|Добавить)$/}).click()
-  await expect(dialog.getByRole('tab', {name: 'SFTP / NAS'})).toBeDisabled()
-  await expect(link).toHaveValue('')
+  const process = page.locator('.media-adding-process')
+  await expect(dialog).toBeHidden()
+  await expect(process).toBeVisible()
+  await expect(process.locator('.process-percents')).toHaveText('100 %')
   expect(imported).toEqual(['https://xhamster.com/videos/example-video-xhAb12'])
-  await expect(dialog.locator('.web-video-import__notice')).toContainText('Test video')
-  await expect(dialog.getByRole('tab', {name: 'SFTP / NAS'})).toBeEnabled()
+  await expect(process.locator('.remote-process-counts')).toContainText(/Added \(1\)|Добавлено \(1\)/)
+  await expect(link).toHaveValue('')
 })
 
-test('shared add imports SFTP selection and shows stop in the same header', async ({page}) => {
+test('SFTP uses the same process window and stop action as local files', async ({page}) => {
   await page.setViewportSize({width: 1440, height: 1000})
   const imported: string[][] = []
   await page.route('**/api/nas/import-batch', async route => {
@@ -109,16 +117,19 @@ test('shared add imports SFTP selection and shows stop in the same header', asyn
     await route.fulfill({json: {results: paths.map(path => ({path, ok: true, id: 1, title: path, created: true}))}})
   })
   const dialog = await openAdding(page)
-  await dialog.getByRole('tab', {name: 'SFTP / NAS'}).click()
+  await dialog.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
+  await dialog.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
   await dialog.locator('.nas-sources .v-list-item').filter({hasText: 'movie.mp4'}).getByRole('checkbox').check()
   const header = dialog.locator('.dialog-header').first()
   await header.getByRole('button', {name: /^(Add|Добавить)$/}).click()
-  await expect(header.getByRole('button', {name: /^(Stop|Остановить)$/})).toBeVisible()
-  await expect(dialog.getByRole('tab', {name: /^(Files|Файлы)$/})).toBeDisabled()
-  await expect(header.getByRole('button', {name: /^(Add|Добавить)$/})).toBeVisible()
+  const process = page.locator('.media-adding-process')
+  await expect(dialog).toBeHidden()
+  await expect(process).toBeVisible()
+  await expect(process.getByRole('button', {name: /^(Stop|Остановить)$/})).toBeVisible()
+  await expect(process.locator('.process-percents')).toHaveText('100 %')
   expect(imported).toEqual([['movie.mp4']])
-  await expect(header.getByRole('button', {name: /^(Add|Добавить)$/})).toBeDisabled()
-  await dialog.screenshot({path: test.info().outputPath('media-adding-sftp-desktop.png')})
+  await expect(process.getByRole('button', {name: /^(Stop|Остановить)$/})).toHaveCount(0)
+  await process.screenshot({path: test.info().outputPath('media-adding-sftp-process-desktop.png')})
 })
 
 test('shared add starts local import with only the selected media type', async ({page}) => {
@@ -143,4 +154,98 @@ test('shared add starts local import with only the selected media type', async (
   expect(imports[0].roots).toEqual(['/test/media'])
   await expect.poll(() => page.locator('.process-percents').textContent()).toBe('100 %')
   expect(imports).toHaveLength(1)
+})
+
+
+test('shares media types and a single options panel across local, Drive, NAS and links', async ({page}) => {
+  await page.setViewportSize({width: 1440, height: 1000})
+  await page.route('**/api/drive/status*', route => route.fulfill({json: {configured: true, authenticated: true, mock: false}}))
+  await page.route('**/api/drive/folders/*', route => route.fulfill({json: {files: [
+    {id: 'movie-id', name: 'movie.mp4', isFolder: false, size: 100},
+    {id: 'image-id', name: 'photo.jpg', isFolder: false, size: 100},
+  ]}}))
+  const dialog = await openAdding(page)
+  const options = dialog.locator('.media-import-options')
+  await expect(options).toHaveCount(1)
+  const video = dialog.locator('.media-adding-types .v-chip').filter({hasText: /^(Videos|Видео)$/})
+  await video.click()
+  await expect(video).toHaveAttribute('aria-pressed', 'true')
+  await options.getByRole('button', {name: /^(Import settings|Настройки импорта)$/}).click()
+  const parseTags = options.getByRole('checkbox', {name: /Parse tags|Парсить теги/})
+  await parseTags.uncheck()
+  await options.getByRole('checkbox', {name: /^(Exclude specific paths|Исключить определенные пути)$/}).check()
+  const excluded = options.getByRole('textbox')
+  await excluded.fill('trailer')
+  await dialog.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
+  await expect(options).toHaveCount(1)
+  await expect(options.getByRole('checkbox').first()).not.toBeChecked()
+  await expect(excluded).toHaveValue('trailer')
+  const drive = dialog.locator('.google-drive-source .media-folder-browser')
+  await expect(drive.getByRole('checkbox').first()).toBeEnabled()
+  await expect(drive.locator('.v-list-item').filter({hasText: 'photo.jpg'}).getByRole('checkbox')).toBeDisabled()
+  await dialog.screenshot({animations: 'disabled', path: test.info().outputPath('unified-import-drive-desktop.png')})
+  await dialog.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
+  await expect(options).toHaveCount(1)
+  await expect(excluded).toHaveValue('trailer')
+  await expect(dialog.locator('.nas-sources .media-folder-browser')).toBeVisible()
+  await page.setViewportSize({width: 390, height: 844})
+  const dimensions = await dialog.evaluate(el => ({width: el.clientWidth, scrollWidth: el.scrollWidth}))
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width)
+  await dialog.screenshot({animations: 'disabled', path: test.info().outputPath('unified-import-nas-mobile.png')})
+  await dialog.getByRole('tab', {name: /^(Links|Ссылки)$/}).click()
+  await expect(options).toHaveCount(1)
+  await expect(excluded).toHaveValue('trailer')
+  await dialog.getByRole('tab', {name: /^(Files|Файлы)$/}).click()
+  await expect(video).toHaveAttribute('aria-pressed', 'true')
+  await expect(excluded).toHaveValue('trailer')
+})
+
+
+test('hiding a network process keeps it running; Stop finishes the batch and Retry imports only the rest', async ({page}) => {
+  const dialog = await openAdding(page)
+  await page.route('**/api/nas/connections/*/files*', route => route.fulfill({json: {path: '', entries:
+    Array.from({length: 12}, (_, index) => ({name: `clip-${index}.mp4`, path: `clip-${index}.mp4`, isDirectory: false, size: 100})),
+    truncated: false}}))
+  const imported: string[][] = []
+  let release!: () => void
+  const pending = new Promise<void>(resolve => { release = resolve })
+  await page.route('**/api/nas/import-batch', async route => {
+    const paths = route.request().postDataJSON().paths as string[]
+    imported.push(paths)
+    if (imported.length === 1) await pending
+    await route.fulfill({json: {results: paths.map(path => ({path, ok: true, id: 100 + Number(path.match(/\d+/)![0]), title: path, created: true}))}})
+  })
+  await dialog.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
+  await dialog.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
+  await dialog.locator('.nas-sources .media-folder-browser__selection-bar').getByRole('button', {name: /^(Select all|Выбрать все)$/}).click()
+  await dialog.locator('.dialog-header').first().getByRole('button', {name: /^(Add|Добавить)$/}).click()
+  const process = page.locator('.media-adding-process')
+  await expect.poll(() => imported.length).toBe(1)
+  await expect(process).toBeVisible()
+  await process.locator('.dialog-header__close').click()
+  await expect(process).toHaveCount(0)
+  await page.getByRole('button', {name: /^(Add media|Добавить медиа)$/}).first().click()
+  await expect(process).toBeVisible()
+  await expect(dialog).toBeHidden()
+  await process.getByRole('button', {name: /^(Stop|Остановить)$/}).click()
+  await expect(process).toContainText(/Stopping after|Остановка после/)
+  release()
+  const retry = process.getByRole('button', {name: /Retry remaining|Повторить оставшиеся/})
+  await expect(retry).toBeVisible()
+  await expect(process).toContainText(/Adding files stopped|Добавление файлов остановлено/)
+  await expect(process.locator('.process-percents')).not.toHaveText('100 %')
+  expect(imported).toHaveLength(1)
+  expect(imported[0]).toHaveLength(10)
+  await page.setViewportSize({width: 390, height: 844})
+  const dimensions = await process.evaluate(el => ({width: el.clientWidth, scrollWidth: el.scrollWidth}))
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width)
+  await expect(page.locator('.notifications-pool .task-summary')).toHaveCount(0)
+  await expect(page.locator('.notifications-pool .notification')).toHaveCount(0)
+  await process.screenshot({path: test.info().outputPath('network-process-stopped-mobile.png')})
+  await retry.click()
+  await expect(process.locator('.process-percents')).toHaveText('100 %')
+  await expect(retry).toHaveCount(0)
+  expect(imported).toHaveLength(2)
+  expect(imported[1]).toHaveLength(2)
+  expect(new Set(imported.flat()).size).toBe(12)
 })

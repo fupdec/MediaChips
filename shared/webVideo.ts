@@ -18,12 +18,38 @@ export function normalizeXHamsterUrl(value: unknown): string | null {
   }
 }
 
+/** Syntactic check shared with the UI. The server also validates resolved IP addresses. */
+export function isPublicWebHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/\.$/, '')
+  return host.includes('.') && !host.includes(':') && !host.startsWith('[')
+    && !/^[\d.]+$/.test(host)
+    && !/(?:^|\.)(?:localhost|local|internal|lan|home|invalid|test)$/.test(host)
+}
+
+/** Keep video identifiers/query parameters; discard only known tracking and fragment data. */
+export function normalizeWebVideoUrl(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 2048 || /[\x00-\x1f\x7f]/.test(value)) return null
+  try {
+    const url = new URL(value.trim())
+    if (url.protocol !== 'https:' || url.username || url.password || url.port || !isPublicWebHostname(url.hostname)) return null
+    const xhamster = normalizeXHamsterUrl(value)
+    if (xhamster) return xhamster
+    url.hash = ''
+    for (const key of [...url.searchParams.keys()]) {
+      if (/^(?:utm_.+|fbclid|gclid|yclid|mc_cid|mc_eid)$/i.test(key)) url.searchParams.delete(key)
+    }
+    return url.href
+  } catch {
+    return null
+  }
+}
+
 export function isWebVideoPath(path: unknown): boolean {
-  return normalizeXHamsterUrl(path) !== null
+  return normalizeWebVideoUrl(path) !== null
 }
 
 export const WebVideoImportSchema = z.object({
-  url: z.string().refine((value) => normalizeXHamsterUrl(value) !== null, 'Invalid xHamster video URL'),
+  url: z.string().refine((value) => normalizeWebVideoUrl(value) !== null, 'Invalid public HTTPS video page URL'),
 })
 
 export const WebVideoPlayableSchema = z.object({

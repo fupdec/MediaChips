@@ -1,6 +1,8 @@
-# NAS: SFTP, FTP и FTPS
+# NAS: SFTP, FTP, FTPS и WebDAV HTTPS
 
 Подключение доступно в **Добавить файлы → NAS / SFTP / FTP** и в настройках файлов. Основной сценарий — SFTP с логином и паролем.
+
+WebDAV HTTPS использует тот же браузер, импорт, редактор метаданных и плеер. Подключение и воспроизводимая приёмка на Nextcloud и Apache описаны в [WebDAV HTTPS](webdav-integration.md).
 
 ## Подключение
 

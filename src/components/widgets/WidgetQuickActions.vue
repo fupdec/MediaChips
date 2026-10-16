@@ -90,10 +90,6 @@
       </div>
     </v-card-text>
 
-    <DialogMediaAdding
-      v-model="addDialogOpen"
-      hide-activator
-    />
   </v-card>
 </template>
 
@@ -110,7 +106,6 @@ import {getDefaultMediaTypeId, inferMediaTypeFromPaths} from '@/utils/mediaType'
 import {getMediaTypeName} from '@/utils/mediaTypeI18n'
 import {getMetaName} from '@/utils/metaI18n'
 import {collectDroppedPaths, containsDroppedFiles, startDroppedMediaAdding} from '@/utils/mediaDrop'
-import DialogMediaAdding from '@/components/dialogs/DialogMediaAdding.vue'
 import {setNotification} from '@/services/notificationService'
 
 const {t} = useI18n()
@@ -124,7 +119,6 @@ const inboxBadgeCount = mediaInbox.badgeCount
 const showInbox = computed(() => inboxBadgeCount.value > 0)
 const {openInbox} = mediaInbox
 
-const addDialogOpen = ref(false)
 const dropzoneActive = ref(false)
 const dragDepth = ref(0)
 
@@ -138,7 +132,7 @@ const visibleMetas = computed(() =>
 
 function openAddDialog() {
   tasksStore.mediaAdding.media_type_id = itemsStore.environment?.media_type_id ?? null
-  addDialogOpen.value = true
+  appShell.showAddMediaDialog()
 }
 
 function openAddTag() {

@@ -4,8 +4,9 @@
       <v-tab value="drive" :disabled="busy" prepend-icon="mdi-google-drive">{{ t('drive.title') }}</v-tab>
       <v-tab value="nas" :disabled="busy" prepend-icon="mdi-server-network-outline">{{ t('nas.title') }}</v-tab>
     </v-tabs>
-    <div :id="embedded ? undefined : 'settings-google-drive'" v-show="provider === 'drive'"><GoogleDriveSource ref="drive" /></div>
-    <div :id="embedded ? undefined : 'settings-nas'" v-if="visitedNas" v-show="provider === 'nas'"><NasSources ref="nas" embedded /></div>
+    <div :id="embedded ? undefined : 'settings-google-drive'" v-show="provider === 'drive'"><GoogleDriveSource ref="drive" @started="emit('started')" embedded :extensions="extensions" v-model:import-options="importOptions" /></div>
+    <div :id="embedded ? undefined : 'settings-nas'" v-if="visitedNas" v-show="provider === 'nas'"><NasSources ref="nas" @started="emit('started')" embedded :extensions="extensions" v-model:import-options="importOptions" /></div>
+    <MediaImportOptions v-if="!embedded" v-model="importOptions" :disabled="busy" />
     <div v-if="!embedded" class="d-flex flex-wrap justify-end ga-2 mt-3">
       <v-btn v-if="active?.canStop" variant="text" :disabled="active.stopping" @click="active.stop()">{{ t(active.stopping ? 'nas.stopping' : 'nas.stop_import') }}</v-btn>
       <v-btn color="primary" :disabled="!active?.canSubmit || busy" @click="active?.submit()">{{ t('nas.import_selected') }}</v-btn>
@@ -18,8 +19,12 @@ import {useRememberedTab} from '@/composable/useRememberedTab'
 import {useI18n} from 'vue-i18n'
 import GoogleDriveSource from './GoogleDriveSource.vue'
 import NasSources from './NasSources.vue'
-defineProps<{embedded?: boolean}>()
+import MediaImportOptions from './MediaImportOptions.vue'
+import {defaultRemoteImportOptions, type RemoteImportOptions} from '@/services/remoteImportOptions'
+defineProps<{embedded?: boolean; extensions?: string}>()
+const importOptions = defineModel<RemoteImportOptions>('importOptions', {default: defaultRemoteImportOptions})
 const {t} = useI18n()
+const emit = defineEmits<{started: []}>()
 const {tab: provider, restore: restoreProviderTab} = useRememberedTab('mediachips.sources.provider', ['drive', 'nas'] as const, 'drive')
 const visitedNas = ref(provider.value === 'nas')
 watch(provider, value => { if (value === 'nas') visitedNas.value = true })

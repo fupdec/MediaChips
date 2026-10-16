@@ -6,7 +6,8 @@ import path from 'path'
 import {createHash, randomUUID} from 'crypto'
 import type {ApiDb} from '../../types/db'
 import {projectPath} from '../../../shared/projectRoot'
-import {normalizeXHamsterUrl} from '../../../shared/webVideo'
+import {normalizeWebVideoUrl} from '../../../shared/webVideo'
+import {startExtractionProxy} from './network'
 
 const run = promisify(execFile)
 let installing: Promise<string> | null = null
@@ -71,28 +72,34 @@ export async function getYtDlpPath(db: ApiDb): Promise<string> {
   return installing
 }
 
-export async function extractXHamster(db: ApiDb, input: string, signal?: AbortSignal): Promise<unknown> {
+export async function extractWebVideo(db: ApiDb, input: string, signal?: AbortSignal): Promise<unknown> {
   signal?.throwIfAborted()
-  const url = normalizeXHamsterUrl(input)
-  if (!url) throw new Error('Invalid xHamster video URL.')
+  const url = normalizeWebVideoUrl(input)
+  if (!url) throw new Error('Invalid public HTTPS video page URL.')
   const binary = await getYtDlpPath(db)
   signal?.throwIfAborted()
+  const proxy = await startExtractionProxy()
   try {
+    signal?.throwIfAborted()
     const {stdout} = await run(binary, [
       '--ignore-config', '--no-plugin-dirs', '--no-cache-dir', '--no-playlist', '--skip-download',
-      '--use-extractors', 'XHamster',
+      '--proxy', proxy.url, '--playlist-items', '1,2',
+      '--format', 'best[ext=mp4]/best',
       '--dump-single-json', '--no-warnings', '--socket-timeout', '15',
       '--retries', '1', '--extractor-retries', '1', '--', url,
-    ], {timeout: 60_000, maxBuffer: 8 * 1024 * 1024, windowsHide: true, signal})
+    ], {timeout: 60_000, maxBuffer: 8 * 1024 * 1024, windowsHide: true, signal,
+      env: {...process.env, NO_PROXY: '', no_proxy: ''}})
     return JSON.parse(stdout)
   } catch (error) {
     signal?.throwIfAborted()
     // Never expose stderr: it can contain signed URLs, tokens and page contents.
     const failure = error as {killed?: boolean; code?: string; stderr?: string}
     const message = failure.killed || failure.code === 'ETIMEDOUT' || /timed?\s*out|timeout/i.test(failure.stderr || '')
-      ? 'The xHamster request timed out. Check the connection and try opening the page on xHamster.'
-      : 'Unable to extract this xHamster video. It may be unavailable, restricted, or require an updated yt-dlp adapter.'
+      ? 'The video request timed out. Check the connection and try opening the original page.'
+      : 'Unable to extract this video. The site may be unsupported, unavailable, restricted, or require an updated yt-dlp adapter.'
     // eslint-disable-next-line preserve-caught-error -- Retaining the cause would log signed URLs from subprocess stderr.
     throw new Error(message)
+  } finally {
+    proxy.close()
   }
 }

@@ -14,7 +14,19 @@ export interface MediaAddingDuplicate {
   duplicate: unknown
 }
 
+export interface RemoteMediaAddingProcess {
+  source: string
+  phase: 'scanning' | 'importing' | 'tagging' | 'resolving'
+  stopping: boolean
+  skipped: number
+  inLibrary: number
+  remaining: number
+  stop: () => void
+  retry: (() => Promise<void>) | null
+}
+
 export interface MediaAddingState {
+  remoteImport: RemoteMediaAddingProcess | null
   paths: string
   excluded: string
   dialogProcess: boolean
@@ -71,6 +83,7 @@ export const useTasksStore = defineStore('useTasksStore', {
   state: () => ({
     list: [] as TaskItem[],
     mediaAdding: {
+      remoteImport: null,
       paths: '',
       excluded: '',
       dialogProcess: false,

@@ -12,6 +12,8 @@ describe('collectMissingMediaByPathExist', () => {
     const pathExists = vi.fn(async () => false)
     const missing = await collectMissingMediaByPathExist([
       {path: 'https://xhamster.com/videos/test-xhAb12'},
+      {path: 'https://www.xvideos.com/video123/title'},
+      {path: 'https://example.com/watch?v=123'},
       {path: '/missing.mp4'},
     ], {pathExists})
     expect(missing).toEqual([{path: '/missing.mp4'}])

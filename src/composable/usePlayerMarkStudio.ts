@@ -119,7 +119,7 @@ async function refreshThumb(markId: number) {
     if (isRemoteMediaPath(playerStore.media?.path)) {
       const mark = playerStore.marks.find((item) => item.id === markId)
       if (!mark || !await saveWebVideoCurrentFrame({video: playerStore.player, mediaId: Number(playerStore.media?.id),
-        markId, expectedTime: mark.time})) return
+        markId, expectedTime: mark.time, mediaPath: playerStore.media?.path})) return
     } else await typedApi.createMarkThumb({
       markId,
       mediaId: Number(playerStore.media?.id),

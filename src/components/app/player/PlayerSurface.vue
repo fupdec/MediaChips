@@ -64,6 +64,9 @@
             :ref="setVideoPlayerRef"
             :class="{ 'audio-hidden': isAudioMode }"
             :autoplay="!player.usesLiveTranscode && !player.paused"
+            :poster="videoPoster"
+            preload="metadata"
+            playsinline
           />
 
           <div v-if="isAudioMode && !showPlaybackError" class="audio-overlay">
@@ -105,6 +108,11 @@
               class="mt-4 mr-2" color="primary" rounded>
               <v-icon left>mdi-refresh</v-icon>
               <span>{{ t('player.controls.web_video_refresh') }}</span>
+            </v-btn>
+            <v-btn v-if="isNasMediaPath(player.media?.path) && nasDownloadUrl" :href="nasDownloadUrl"
+              :download="currentPlaying" @click.stop class="mt-4 mr-2" color="primary" rounded>
+              <v-icon left>mdi-download</v-icon>
+              <span>{{ t('actions.download') }}</span>
             </v-btn>
             <v-btn v-if="driveViewUrl" @click.stop="openDrivePlayer" class="mt-4 mr-2" color="primary" rounded>
               <v-icon left>mdi-google-drive</v-icon>
@@ -190,6 +198,8 @@
 
 <script setup lang="ts">
 import {computed, inject} from 'vue'
+import {useAppStore} from '@/stores/app'
+import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {isWebVideoPath} from '@shared/webVideo'
 import {driveFileViewUrl, isDriveMediaPath} from '@shared/cloudDrive'
 import {openExternal} from '@/services/shellService'
@@ -250,6 +260,22 @@ const canPlayNext = computed(() => !isPlaylistNavDisabled({
   playlistLength: player.value.playlist.length,
   direction: 'next',
 }))
+
+const appStore = useAppStore()
+const videoPoster = computed(() => {
+  const media = player.value.media
+  if (!media || isAudioMode.value) return undefined
+  const thumb = player.value.playlist[player.value.nowPlaying]?.thumb
+  if (thumb && !thumb.includes('unavailable.png')) return thumb
+  return media.id > 0 ? resolveMediaThumbDisplayUrl(appStore.mediaPath, 'videos', media.id) || undefined : undefined
+})
+const nasDownloadUrl = computed(() => {
+  const src = player.value.player?.src
+  if (!src || !isNasMediaPath(player.value.media?.path)) return undefined
+  const url = new URL(src, window.location.href)
+  url.searchParams.set('download', '1')
+  return url.href
+})
 
 const driveViewUrl = computed(() => driveFileViewUrl(player.value.media?.path))
 async function openDrivePlayer() {

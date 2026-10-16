@@ -446,6 +446,10 @@ const addMediaInitialPaths = ref('')
 const addMediaInitialBrowsePath = ref('')
 
 function openAddMediaDialog(options?: {paths?: string; browsePath?: string}) {
+  if (tasksStore.mediaAdding.active) {
+    tasksStore.mediaAdding.dialogProcess = true
+    return
+  }
   void (async () => {
     const {useFreeLibraryGate} = await import('@/composable/useFreeLibraryGate')
     const gate = useFreeLibraryGate()

@@ -7,10 +7,10 @@ import {closeTestDb, createTestDb, type TestDb} from '../../db/testUtils/createT
 import {createMediaTypesRepository} from '../../db/repositories/mediaTypes'
 import {createMediaRepository} from '../../db/repositories/media'
 import {createVideoMetadataRepository} from '../../db/repositories/videoMetadata'
-import {extractXHamster} from './ytDlp'
+import {extractWebVideo} from './ytDlp'
 import {importWebVideo, parseExtraction, prepareWebVideo, rewriteHlsManifest, selectStreamQuality, streamWebVideo, validateStreamUrl} from './service'
 
-vi.mock('./ytDlp', () => ({extractXHamster: vi.fn()}))
+vi.mock('./ytDlp', () => ({extractWebVideo: vi.fn()}))
 vi.mock('../mediaCacheInvalidation', () => ({invalidateMediaDerivedCaches: vi.fn()}))
 vi.mock('axios', () => ({default: {get: vi.fn()}}))
 
@@ -41,21 +41,52 @@ describe('web video extraction and HLS', () => {
       protocol: 'm3u8_native', manifest_url: 'https://localhost/secret'}]}, page)
     expect(selectStreamQuality(source)).toMatchObject({url: fixture.formats[0].url, adaptive: false})
   })
-  it('selects a combined H264 HLS stream and excludes separate audio/video and untrusted hosts', () => {
+  it('selects a combined H264 HLS stream and excludes separate audio/video and private hosts', () => {
     const data = {...fixture, formats: [...fixture.formats,
       {...fixture.formats[0], height: 2160, acodec: 'none'},
-      {...fixture.formats[0], url: 'https://evil.test/video.mp4', height: 2160},
+      {...fixture.formats[0], url: 'https://localhost/video.mp4', height: 2160},
       {...fixture.formats[0], url: 'https://video.xhcdn.com/master.m3u8', protocol: 'm3u8_native', height: 1080},
     ]}
     expect(parseExtraction(data, page)).toMatchObject({kind: 'hls', height: 1080, headers: {referer: page}})
   })
 
-  it('rejects arbitrary upstream hosts and unsupported formats', () => {
-    for (const url of ['https://localhost/a', 'http://video.xhcdn.com/a', 'https://xhcdn.com.evil.test/a',
+  it('rejects private upstream hosts and unsupported formats', () => {
+    for (const url of ['https://localhost/a', 'http://video.xhcdn.com/a', 'https://private.internal/a',
       'https://user:pass@video.xhcdn.com/a', 'https://127.0.0.1/a', 'https://video.xhcdn.com:1234/a']) {
       expect(() => validateStreamUrl(url)).toThrow()
     }
     expect(() => parseExtraction({...fixture, formats: []}, page)).toThrow('No supported')
+  })
+
+  it('preserves extractor Referer for embeds and accepts external HLS CDNs', () => {
+    const source = parseExtraction({...fixture, http_headers: {Referer: 'https://player.example.com/embed/123', Cookie: 'secret'},
+      formats: [{...fixture.formats[0], protocol: 'm3u8_native', url: 'https://cdn.example.com/high.m3u8',
+        manifest_url: 'https://cdn.example.com/master.m3u8', http_headers: {'User-Agent': 'Test', Authorization: 'secret'}}],
+    }, 'https://example.com/watch/123')
+    expect(source.headers).toEqual({referer: 'https://player.example.com/embed/123', 'user-agent': 'Test'})
+    expect(selectStreamQuality(source).adaptive).toBe(true)
+    const resources: string[] = []
+    rewriteHlsManifest('#EXTM3U\nhttps://other-cdn.example.com/segment.ts', source.url, url => {resources.push(url); return '/proxy'})
+    expect(resources).toEqual(['https://other-cdn.example.com/segment.ts'])
+  })
+
+  it('rejects collections, DRM and formats requiring a separate media pipeline', () => {
+    expect(() => parseExtraction({...fixture, _type: 'playlist'}, page)).toThrow('single video')
+    for (const format of [
+      {...fixture.formats[0], has_drm: true},
+      {...fixture.formats[0], protocol: 'http_dash_segments'},
+      {...fixture.formats[0], acodec: 'none'},
+    ]) expect(() => parseExtraction({...fixture, formats: [format]}, page)).toThrow('No supported')
+  })
+
+  it('unwraps a single embedded video from the generic HTML extractor', () => {
+    expect(parseExtraction({_type: 'playlist', extractor: 'generic', entries: [fixture]}, page))
+      .toMatchObject({title: fixture.title, kind: 'mp4', height: 720})
+    for (const result of [
+      {_type: 'playlist', extractor: 'generic', entries: [fixture, fixture]},
+      {_type: 'playlist', extractor: 'generic', entries: []},
+      {_type: 'playlist', extractor: 'SomeChannel', entries: [fixture]},
+    ]) expect(() => parseExtraction(result, page)).toThrow('single video')
   })
 
   it('rewrites playlists, segments, initialization maps and AES keys', () => {
@@ -75,7 +106,7 @@ describe('web video library and playback proxy', () => {
     vi.clearAllMocks()
     db = createTestDb('web-video')
     createMediaTypesRepository(db.drizzle).create({type: 'video', name: 'Videos'})
-    vi.mocked(extractXHamster).mockResolvedValue(fixture)
+    vi.mocked(extractWebVideo).mockResolvedValue(fixture)
   })
   afterEach(() => closeTestDb(db))
 
@@ -84,33 +115,46 @@ describe('web video library and playback proxy', () => {
     const second = await importWebVideo(db, 'https://ru.xhamster.com/videos/another-title-xhAb12?utm_source=test')
     expect(first.created).toBe(true)
     expect(second).toMatchObject({id: first.id, created: false})
-    expect(extractXHamster).toHaveBeenCalledTimes(1)
+    expect(extractWebVideo).toHaveBeenCalledTimes(1)
     expect(createMediaRepository(db.drizzle).findById(first.id)?.path).toBe('https://xhamster.com/videos/video-xhAb12')
     expect(createVideoMetadataRepository(db.drizzle).findByMediaId(first.id)?.duration).toBe(123)
   })
 
+  it('imports, deduplicates and plays pages from other sites and CDNs', async () => {
+    const page = 'https://www.pornhub.com/view_video.php?viewkey=ph123'
+    vi.mocked(extractWebVideo).mockResolvedValue({...fixture, formats: [
+      {...fixture.formats[0], url: 'https://media.example.com/video.mp4'},
+    ]})
+    const item = await importWebVideo(db, `${page}&utm_source=share#player`)
+    expect(await importWebVideo(db, page)).toMatchObject({id: item.id, created: false})
+    expect(createMediaRepository(db.drizzle).findById(item.id)?.path).toBe(page)
+    expect(await prepareWebVideo(db, item.id)).toMatchObject({kind: 'mp4', qualities: [720]})
+    expect(extractWebVideo).toHaveBeenCalledTimes(1)
+    expect(extractWebVideo).toHaveBeenCalledWith(db, page, expect.any(AbortSignal))
+  })
+
   it('keeps failed extraction out of the library', async () => {
-    vi.mocked(extractXHamster).mockRejectedValue(new Error('Unavailable'))
+    vi.mocked(extractWebVideo).mockRejectedValue(new Error('Unavailable'))
     await expect(importWebVideo(db, page)).rejects.toThrow('Unavailable')
     expect(createMediaRepository(db.drizzle).countAll()).toBe(0)
   })
 
   it('refreshes quality options on request and returns only a session URL to the player', async () => {
     const item = await importWebVideo(db, page)
-    vi.mocked(extractXHamster).mockResolvedValue({...fixture, formats: [fixture.formats[0],
+    vi.mocked(extractWebVideo).mockResolvedValue({...fixture, formats: [fixture.formats[0],
       {...fixture.formats[0], height: 480, url: 'https://video.xhcdn.com/low.mp4?signature=secret'},
     ]})
     const playable = await prepareWebVideo(db, item.id, {quality: 480, fresh: true})
     expect(playable).toMatchObject({qualities: [720, 480], quality: 480, adaptive: false})
     expect(JSON.stringify(playable)).not.toContain('signature')
-    expect(extractXHamster).toHaveBeenCalledTimes(2)
+    expect(extractWebVideo).toHaveBeenCalledTimes(2)
     await expect(prepareWebVideo(db, item.id, {quality: 2160})).rejects.toThrow('quality')
   })
 
   it('cancels extraction when the player disconnects and lets a new request recover', async () => {
     const item = await importWebVideo(db, page)
     let extractionSignal!: AbortSignal
-    vi.mocked(extractXHamster).mockImplementationOnce((_db, _url, signal) => new Promise((_resolve, reject) => {
+    vi.mocked(extractWebVideo).mockImplementationOnce((_db, _url, signal) => new Promise((_resolve, reject) => {
       extractionSignal = signal!
       signal!.addEventListener('abort', () => reject(signal!.reason), {once: true})
     }))
@@ -127,7 +171,7 @@ describe('web video library and playback proxy', () => {
     const item = await importWebVideo(db, page)
     let finish!: (source: unknown) => void
     let extractionSignal!: AbortSignal
-    vi.mocked(extractXHamster).mockImplementationOnce((_db, _url, signal) => new Promise(resolve => {
+    vi.mocked(extractWebVideo).mockImplementationOnce((_db, _url, signal) => new Promise(resolve => {
       extractionSignal = signal!
       finish = resolve
     }))
@@ -140,7 +184,7 @@ describe('web video library and playback proxy', () => {
     expect(extractionSignal.aborted).toBe(false)
     finish(fixture)
     expect((await remaining).url).toContain('/stream?session=')
-    expect(extractXHamster).toHaveBeenCalledTimes(2)
+    expect(extractWebVideo).toHaveBeenCalledTimes(2)
   })
 
   it('forwards Range and Referer and streams 206 without buffering the video', async () => {
@@ -172,7 +216,7 @@ describe('web video library and playback proxy', () => {
   it('refreshes an expired root URL once without storing it in the library', async () => {
     const item = await importWebVideo(db, page)
     const playable = await prepareWebVideo(db, item.id)
-    vi.mocked(extractXHamster).mockResolvedValue({...fixture, formats: [
+    vi.mocked(extractWebVideo).mockResolvedValue({...fixture, formats: [
       {...fixture.formats[0], url: 'https://video.xhcdn.com/refreshed.mp4'},
     ]})
     vi.mocked(axios.get)
@@ -185,17 +229,17 @@ describe('web video library and playback proxy', () => {
       query: Object.fromEntries(new URL(playable.url, 'http://localhost').searchParams), headers: {},
     } as unknown as Request, res, item.id)
     expect(axios.get).toHaveBeenLastCalledWith('https://video.xhcdn.com/refreshed.mp4', expect.any(Object))
-    expect(extractXHamster).toHaveBeenCalledTimes(2)
+    expect(extractWebVideo).toHaveBeenCalledTimes(2)
     expect(createMediaRepository(db.drizzle).findById(item.id)?.path).toContain('xhamster.com/videos/')
   })
 
   it('keeps a fixed quality when an expired root stream is resolved again', async () => {
-    vi.mocked(extractXHamster).mockResolvedValue({...fixture, formats: [fixture.formats[0],
+    vi.mocked(extractWebVideo).mockResolvedValue({...fixture, formats: [fixture.formats[0],
       {...fixture.formats[0], height: 480, url: 'https://video.xhcdn.com/low.mp4'},
     ]})
     const item = await importWebVideo(db, page)
     const playable = await prepareWebVideo(db, item.id, {quality: 480})
-    vi.mocked(extractXHamster).mockResolvedValue({...fixture, formats: [fixture.formats[0],
+    vi.mocked(extractWebVideo).mockResolvedValue({...fixture, formats: [fixture.formats[0],
       {...fixture.formats[0], height: 480, url: 'https://video.xhcdn.com/low-new.mp4'},
     ]})
     vi.mocked(axios.get)
@@ -230,7 +274,7 @@ describe('web video library and playback proxy', () => {
     const res = new Writable() as unknown as Response
     await expect(streamWebVideo(db, {
       query: Object.fromEntries(new URL(playable.url, 'http://localhost').searchParams), headers: {},
-    } as unknown as Request, res, item.id)).rejects.toThrow('Unsupported xHamster stream host')
+    } as unknown as Request, res, item.id)).rejects.toThrow('Unsupported public HTTPS stream URL')
     expect(axios.get).toHaveBeenCalledTimes(1)
   })
 })

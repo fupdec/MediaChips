@@ -7,6 +7,7 @@ export type SourceObject = {
   size: number
   isDirectory: boolean
   modifiedAt?: number
+  etag?: string
   contentType: string
   /** Provider validator, not necessarily a content hash. Empty means not yet checked. */
   version: string
@@ -24,5 +25,5 @@ export interface SourceReadAdapter {
   close(): void
 }
 
-export const nasFileVersion = (file: {size: number; modifiedAt?: number}) => `${file.size}:${file.modifiedAt || 0}`
+export const nasFileVersion = (file: {size: number; modifiedAt?: number; etag?: string}) => `${file.size}:${file.modifiedAt || 0}${file.etag ? `:${file.etag}` : ''}`
 export const driveFileVersion = (file: {size?: number; modifiedTime?: string}) => `${file.size || 0}:${file.modifiedTime || ''}`

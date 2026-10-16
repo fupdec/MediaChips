@@ -45,7 +45,7 @@
     </div>
     <div v-if="!connectionsOnly && status?.authenticated">
       <MediaFolderBrowser ref="browser" v-model:path="folder" v-model:selected-paths="selectedPaths"
-                          :base-url="app.localhost || ''" :directory-loader="directoryLoader" :path-titles="pathTitles"
+                          :extensions="extensions" :base-url="app.localhost || ''" :directory-loader="directoryLoader" :path-titles="pathTitles"
                           :favorites-scope="browserPrefsScope() + ':gdrive'" :error-message="apiError"
                           :disabled="busy" :enable-folder-tags="false" select-addable-only
                           @favorite-titles="titles => Object.assign(pathTitles, titles)" @loading="browserLoading = $event" @visible-entries="visibleEntries" @show-hidden="showHidden = $event">
@@ -53,15 +53,8 @@
           <FilePreviewButton :file="{...entry, path: driveMediaPath(driveFileIdFromPath(entry.path))}" :disabled="busy || loading" />
         </template>
       </MediaFolderBrowser>
-      <RemoteImportOptions v-model="importOptions" :disabled="busy" />
-      <RemoteImportProgress :active="importing" :scanning="scanning" :processed="processed" :total="total"
-                            :stats="batchStats" :retry-count="selectedPaths.length"
-                            :can-retry="canSubmit && (failures.length > 0 || processed < total)" @retry="submit" />
-      <v-expansion-panels v-if="failures.length" class="my-2">
-        <v-expansion-panel :title="t('nas.batch_errors', {count: failures.length})">
-          <v-expansion-panel-text><div v-for="failure in failures" :key="failure.path" class="text-body-2 mb-2">{{ pathTitles[failure.path] || failure.path }}: {{ failure.message }}</div></v-expansion-panel-text>
-        </v-expansion-panel>
-      </v-expansion-panels>
+      <MediaImportOptions v-if="!embedded" v-model="importOptions" :disabled="busy" />
+
     </div>
     <v-dialog v-model="editing" max-width="560" persistent scrollable>
       <v-card class="google-drive-source-editor" rounded="xl">
@@ -100,17 +93,19 @@ import {driveBrowserRoot, driveFileIdFromPath, driveReadablePath, listDriveDirec
 import {loadDriveBrowserLocation, persistDriveBrowserLocation} from '@/services/driveBrowserPrefs'
 import {expandRemoteSelection} from '@/services/remoteImportSelection'
 import {runRemoteImportQueue} from '@/services/remoteImportQueue'
-import RemoteImportProgress from './RemoteImportProgress.vue'
+import {useRemoteMediaAddingProcess} from '@/composable/useRemoteMediaAddingProcess'
 import type {BrowseDirectoryEntry, BrowseDirectoryLoader} from '@/services/typedApi/browse'
 import MediaFolderBrowser from './MediaFolderBrowser.vue'
 import FilePreviewButton from './FilePreviewButton.vue'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
-import RemoteImportOptions from './RemoteImportOptions.vue'
-import {defaultRemoteImportOptions, remotePathExcluder} from '@/services/remoteImportOptions'
+import MediaImportOptions from './MediaImportOptions.vue'
+import {defaultRemoteImportOptions, remotePathExcluder, importExtensionMatcher, type RemoteImportOptions} from '@/services/remoteImportOptions'
 import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
 
-const {connectionsOnly = false} = defineProps<{connectionsOnly?: boolean}>()
+const {connectionsOnly = false, embedded = false, extensions} = defineProps<{connectionsOnly?: boolean; embedded?: boolean; extensions?: string}>()
 const {t, te} = useI18n()
+const addingProcess = useRemoteMediaAddingProcess(t)
+const emit = defineEmits<{started: []}>()
 const app = useAppStore()
 const gate = useFreeLibraryGate()
 const sync = useItemsListSync()
@@ -155,7 +150,7 @@ const browserPrefsScope = () => JSON.stringify([app.dbPath || app.config?.id || 
 const initialLocation = loadDriveBrowserLocation(browserPrefsScope())
 const folder = ref(initialLocation.path)
 const selectedPaths = ref<string[]>([])
-const importOptions = ref(defaultRemoteImportOptions())
+const importOptions = defineModel<RemoteImportOptions>('importOptions', {default: defaultRemoteImportOptions})
 const directories = new Set<string>()
 const pathTitles = ref<Record<string, string>>(initialLocation.pathTitles)
 const browser = ref<InstanceType<typeof MediaFolderBrowser>>()
@@ -284,13 +279,15 @@ async function disconnect() {
   catch (err) { message.value = apiError(err); error.value = true }
   finally { saving.value = false }
 }
-const canSubmit = computed(() => !!status.value?.authenticated && !busy.value && !browserLoading.value && selectedPaths.value.length > 0)
+const canSubmit = computed(() => !!status.value?.authenticated && !addingProcess.active && !busy.value && !browserLoading.value && selectedPaths.value.length > 0)
 async function submit() {
-  if (!canSubmit.value) return
+  if (addingProcess.active || !canSubmit.value) return
   const current = generation
   controller = new AbortController()
   const signal = controller.signal
   const options = {...importOptions.value}
+  const matchesExtension = importExtensionMatcher(extensions)
+  const acceptFile = (path: string) => matchesExtension(pathTitles.value[path] || path)
   const excludes = remotePathExcluder(options)
   const isExcluded = (path: string) => {
     const readable = driveReadablePath(path, pathTitles.value)
@@ -300,13 +297,21 @@ async function submit() {
   batchStats.value = {found: 0, skipped: 0, inLibrary: 0, added: 0, duplicates: 0}
   total.value = selectedPaths.value.length
   let added = 0; let duplicates = 0
+  const run = addingProcess.begin({source: t('drive.title'),
+    stop: () => { stopRequested.value = true; if (scanning.value) controller?.abort() }, retry: submit,
+    readablePath: path => driveReadablePath(path, pathTitles.value),
+    snapshot: () => ({scanning: scanning.value, stopped: stopRequested.value, processed: processed.value,
+      total: total.value, ...batchStats.value, remaining: selectedPaths.value.length, errors: failures.value}),
+  })
+  if (!run) { importing.value = false; return }
+  emit('started')
   const refreshLibrary = () => { sync.getItemsFromDb({ids: [], type: 'media'}); events.emit('library:nav-counts-changed') }
   try {
     const original = [...selectedPaths.value]
-    const expanded = await expandRemoteSelection({paths: original, directories, isExcluded, shouldStop: () => stopRequested.value || current !== generation,
+    const expanded = await expandRemoteSelection({paths: original, directories, isExcluded, acceptFile, onExisting: entry => run.recordExisting(entry.path), shouldStop: () => stopRequested.value || current !== generation,
       onProgress: progress => { if (current === generation) Object.assign(batchStats.value, progress) },
       load: async path => {
-        const result = await listDriveDirectory({path, showHidden: showHidden.value}, signal, Infinity)
+        const result = await listDriveDirectory({path, extensions, showHidden: showHidden.value}, signal, Infinity)
         if (current === generation) {
           directories.add(result.currentPath)
           for (const entry of result.entries) {
@@ -326,6 +331,7 @@ async function submit() {
       paths: expanded.paths, shouldStop: () => stopRequested.value || current !== generation,
       nextChunkSize: async () => await gate.ensureCanImportMedia() ? 1 : 0,
       async request([path]) {
+        run.phase('importing')
         const {data} = await apiClient.post<DriveImportResult>('/api/drive/import', {fileId: driveFileIdFromPath(path)}, {timeout: 40_000, signal})
         return [{...data, path}]
       },
@@ -342,9 +348,11 @@ async function submit() {
         batchStats.value.added = added; batchStats.value.duplicates = duplicates
         // The import response provides the authoritative filename even after a rename.
         pathTitles.value[path] = data.title
+        run.record(path, data.id, data.created)
         refreshLibrary(); await gate.refreshLibraryCount()
         if (current !== generation) return
         try {
+          if (options.parseTags) run.phase('tagging')
           if (options.parseTags) await parseAndAssignImportPathTags([
             {path: driveReadablePath(path, pathTitles.value), mediaId: data.id},
           ], {shouldStop: () => current !== generation})
@@ -355,11 +363,12 @@ async function submit() {
       },
     })
     if (current !== generation) return
+    stopRequested.value ||= result.stopped
     message.value = t('nas.batch_summary', {added, duplicates: duplicates + batchStats.value.inLibrary, errors: failures.value.length})
       + (result.stopped ? ` ${t('nas.batch_stopped', {count: result.total - result.processed})}` : '')
     error.value = failures.value.length > 0
-  } catch (err) { if (current === generation) { message.value = apiError(err); error.value = true; refreshLibrary() } }
-  finally { if (current === generation) { importing.value = false; scanning.value = false; controller = undefined; await browser.value?.refresh() } }
+  } catch (err) { if (current === generation) { message.value = apiError(err); error.value = true; failures.value.push({path: '', message: apiError(err)}); refreshLibrary() } }
+  finally { if (current === generation) { importing.value = false; scanning.value = false; controller = undefined; await browser.value?.refresh(); run.finish() } }
 }
 function onFocus() { if (!busy.value) void refresh() }
 // Watch the actual library/server identity, not a new array on every config refresh.

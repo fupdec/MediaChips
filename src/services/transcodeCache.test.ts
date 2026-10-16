@@ -8,7 +8,7 @@ import {
   getCacheStats,
   getCacheDir,
   trimCacheToLimit,
-} from '../../api/services/transcode/transcodeCache.js'
+} from '../../api/services/transcode/transcodeCache'
 
 describe('transcodeCache single-video policy', () => {
   let rootDir: string

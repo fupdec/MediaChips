@@ -6,8 +6,9 @@ import {Client as FtpClient} from 'basic-ftp'
 import type {NasConnectionInput, NasEntry} from '../../../shared/nas'
 import type {NasCredentials} from './credentials'
 import {NasError, normalizeNasError} from './errors'
+import {connectWebDav} from './webdav'
 
-export type NasFile = {size: number; modifiedAt?: number; isDirectory: boolean}
+export type NasFile = {size: number; modifiedAt?: number; isDirectory: boolean; etag?: string}
 export type NasTransport = {
   list(relativePath: string): Promise<NasEntry[]>
   stat(relativePath: string): Promise<NasFile>
@@ -32,6 +33,7 @@ function safeName(name: string): boolean {
 
 export async function connectNas(config: NasConnectionInput, credentials: NasCredentials, signal?: AbortSignal): Promise<NasTransport> {
   if (signal?.aborted) throw new NasError('cancelled', 'Request cancelled.', 499)
+  if (config.protocol === 'webdav') return connectWebDav(config, credentials, signal)
   return config.protocol === 'sftp' ? connectSftp(config, credentials, signal) : connectFtp(config, credentials, signal)
 }
 

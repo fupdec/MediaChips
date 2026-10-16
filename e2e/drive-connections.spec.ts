@@ -119,7 +119,7 @@ test('Sources settings contain Google authorization, SFTP credentials and the sh
   await driveEditor.getByRole('button', {name: /^(Cancel|Отмена)$/}).click()
   await expect(driveEditor).toBeHidden()
   await page.locator('.settings-page').screenshot({animations: 'disabled', path: test.info().outputPath('connections-desktop.png')})
-  await page.getByRole('tab', {name: 'NAS / SFTP / FTP', exact: true}).click()
+  await page.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
   await expect(page.locator('.nas-sources')).toContainText('My NAS')
   await page.locator('.nas-sources').getByRole('button', {name: /Добавить подключение|Add connection/}).click()
   await expect(page.locator('.nas-source-editor')).toBeVisible()

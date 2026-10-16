@@ -93,16 +93,22 @@ export function createPlayerLoadSrc({
   }
 
   const getMarks = async (media: MediaItem) => {
+    const session = state.transcodeSessionId
+    const isStale = () => isLoadSrcStale(session) || playerStore.media?.id !== media.id
     if (media.id <= 0) { playerStore.marks = []; return }
     try {
       const res = await typedApi.getMarksForVideo(media.id)
+      if (isStale()) return
       playerStore.marks = res.data
       if (isRemoteMediaPath(media.path)) return
       if (!media?.id || !appStore.mediaPath) return
-      for (const mark of playerStore.marks) {
+      for (const mark of res.data) {
+        if (isStale()) return
         if (mark.id == null) continue
         const imgPath = getMarkImagePath(appStore.mediaPath, mark.id)
-        if (await checkFileExists(imgPath)) {
+        const exists = await checkFileExists(imgPath)
+        if (isStale()) return
+        if (exists) {
           eventBus.emit('updateMarkImage', mark.id)
           continue
         }
@@ -112,12 +118,13 @@ export function createPlayerLoadSrc({
             videoPath: media.path,
             mediaPath: appStore.mediaPath,
             mediaId: media.id,
-            onUpdated: (markId: number | string) => eventBus.emit('updateMarkImage', markId),
+            onUpdated: (markId: number | string) => { if (!isStale()) eventBus.emit('updateMarkImage', markId) },
           })
         } catch (e) {
           console.error('Failed to create mark thumb:', e)
         }
       }
+      if (isStale()) return
       eventBus.emit('refreshMarkThumbs')
       if (marks.value?.getThumbs) await marks.value.getThumbs()
     } catch (e) {
@@ -212,9 +219,9 @@ export function createPlayerLoadSrc({
   } = {}) => {
     const session = ++state.transcodeSessionId
     disposeRemoteLoad()
-    const remoteController = isRemoteMediaPath(media.path) ? new AbortController() : null
+    const remoteController = new AbortController()
     remoteLoadController = remoteController
-    if (remoteController) {
+    if (isRemoteMediaPath(media.path)) {
       playerStore.cancelRemoteLoadHandler = () => {
         if (isLoadSrcStale(session)) return
         ++state.transcodeSessionId
@@ -241,6 +248,7 @@ export function createPlayerLoadSrc({
     playerStore.paused = Boolean(options.paused)
     playerStore.bufferedRanges = []
     playerStore.isStreamWaiting = false
+    if (!options.preservePlayback) playerStore.marks = []
     if (!options.preservePlayback) {
       playerStore.webVideoQualities = []
       playerStore.webVideoQuality = null
@@ -391,7 +399,7 @@ export function createPlayerLoadSrc({
       videoEl.muted = playerStore.muted
       if (!playerStore.usesLiveTranscode) {
         if (shouldSeekDirectOnLoadSrc({explicitStart, targetStartTime, segmentStart})) {
-          await seekDirectPlaybackTo(videoEl, targetStartTime, () => isLoadSrcStale(session))
+          await seekDirectPlaybackTo(videoEl, targetStartTime, () => isLoadSrcStale(session), remoteController.signal)
           if (isLoadSrcStale(session)) {
             await liveSession.clearLiveTranscodeHandlers()
             return
@@ -479,15 +487,26 @@ export function createPlayerLoadSrc({
       webFresh: options.fresh, preservePlayback: true, paused})
   }
 
-  const updatePlaybackTime = async (media: MediaItem) => {
-    if (media.id <= 0) return
-    const time = Number(playerStore.currentTime) || 0
-    try {
-      await typedApi.updateVideoMetadata(media.id, {time})
-      updateItemVideo(media.id, {time})
-    } catch (error) {
-      console.warn('Failed to save playback time:', error)
-    }
+  const positionWrites = new Map<number, Promise<boolean>>()
+  const updatePlaybackTime = async (media: MediaItem, position = playerStore.currentTime): Promise<boolean> => {
+    if (media.id <= 0) return false
+    const time = Number(position)
+    if (!Number.isFinite(time) || time < 0) return false
+    // Serialize checkpoints and the final close write for each media item.
+    const write = (positionWrites.get(media.id) || Promise.resolve()).then(async () => {
+      try {
+        await typedApi.updateVideoMetadata(media.id, {time})
+        updateItemVideo(media.id, {time})
+        return true
+      } catch (error) {
+        console.warn('Failed to save playback time:', error)
+        return false
+      }
+    })
+    positionWrites.set(media.id, write)
+    const saved = await write
+    if (positionWrites.get(media.id) === write) positionWrites.delete(media.id)
+    return saved
   }
 
   const initPlayingVideo = async (

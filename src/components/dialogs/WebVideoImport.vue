@@ -30,44 +30,45 @@
         <v-icon size="18" icon="mdi-plus" />
       </v-btn>
     </div>
-    <RemoteImportOptions v-model="importOptions" :disabled="busy" />
+    <MediaImportOptions v-if="!embedded" v-model="importOptions" :disabled="busy" />
     <v-alert v-if="message" :type="error ? 'error' : 'success'" variant="tonal" density="compact" rounded="lg"
              class="web-video-import__notice" role="status" aria-live="polite">
       {{ message }}
     </v-alert>
-    <div v-if="busy" class="web-video-import__progress" role="status" aria-live="polite">
-      <v-progress-linear height="3" color="primary" rounded indeterminate />
-      <div class="web-video-import__hint text-medium-emphasis">{{ t('media.adding.web_video_loading') }}</div>
-    </div>
+
   </MediaImportSection>
 </template>
 
 <script setup lang="ts">
 import {ref, computed, watch, onBeforeUnmount} from 'vue'
+import {useRemoteMediaAddingProcess} from '@/composable/useRemoteMediaAddingProcess'
 import {useI18n} from 'vue-i18n'
 import MediaImportSection from './MediaImportSection.vue'
-import {normalizeXHamsterUrl} from '@shared/webVideo'
+import {normalizeWebVideoUrl} from '@shared/webVideo'
 import {apiClient} from '@/services/apiClient'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
 import {useEventBus} from '@/utils/eventBus'
 import {getApiErrorMessage} from '@/types/vue'
-import RemoteImportOptions from './RemoteImportOptions.vue'
-import {defaultRemoteImportOptions, remotePathExcluder} from '@/services/remoteImportOptions'
+import MediaImportOptions from './MediaImportOptions.vue'
+import {defaultRemoteImportOptions, remotePathExcluder, type RemoteImportOptions} from '@/services/remoteImportOptions'
 import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
 import {useAppStore} from '@/stores/app'
 
 const {t} = useI18n()
+const addingProcess = useRemoteMediaAddingProcess(t)
+const emit = defineEmits<{started: []}>()
 const {embedded = false} = defineProps<{embedded?: boolean}>()
 const app = useAppStore()
 let generation = 0
 let controller: AbortController | undefined
 const url = ref('')
 const busy = ref(false)
+const stopping = ref(false)
 const error = ref(false)
 const message = ref('')
-const importOptions = ref(defaultRemoteImportOptions())
-const validUrl = computed(() => normalizeXHamsterUrl(url.value))
+const importOptions = defineModel<RemoteImportOptions>('importOptions', {default: defaultRemoteImportOptions})
+const validUrl = computed(() => normalizeWebVideoUrl(url.value))
 const readablePath = computed(() => {
   if (!validUrl.value) return ''
   try { return decodeURIComponent(new URL(url.value.trim()).pathname) }
@@ -82,8 +83,9 @@ const gate = useFreeLibraryGate()
 const events = useEventBus()
 
 async function importVideo() {
-  if (!validUrl.value || busy.value || isExcluded.value) return
+  if (addingProcess.active || !validUrl.value || busy.value || isExcluded.value) return
   const path = readablePath.value
+  const originalUrl = url.value.trim()
   const options = {...importOptions.value}
   const current = generation
   controller = new AbortController()
@@ -91,34 +93,58 @@ async function importVideo() {
   busy.value = true
   error.value = false
   message.value = ''
+  stopping.value = false
+  let processed = 0
+  const failures = ref<Array<{path: string; message: string}>>([])
+  // Validate the library limit before opening the process window.
   try {
-    if (!await gate.ensureCanImportMedia()) return
-    if (current !== generation) return
+    if (!await gate.ensureCanImportMedia() || current !== generation) { busy.value = false; return }
+  } catch (err) {
+    if (current === generation) {
+      busy.value = false
+      error.value = true
+      message.value = getApiErrorMessage(err, t('media.adding.web_video_error'))
+    }
+    return
+  }
+  const run = addingProcess.begin({source: t('media.adding.source_links'), phase: 'resolving',
+    stop: () => { stopping.value = true }, retry: importVideo, readablePath: () => originalUrl,
+    snapshot: () => ({scanning: false, stopped: stopping.value, processed, total: 1, found: 1, skipped: 0, inLibrary: 0,
+      remaining: url.value ? 1 : 0, errors: failures.value}),
+  })
+  if (!run) { busy.value = false; return }
+  emit('started')
+  try {
     const {data} = await apiClient.post<{id: number; title: string; created: boolean}>(
-      '/api/web-video/import', {url: url.value.trim()}, {timeout: 240_000, signal},
+      '/api/web-video/import', {url: originalUrl}, {timeout: 240_000, signal},
     )
     if (current !== generation) return
+    run.record(path, data.id, data.created)
     sync.getItemsFromDb({ids: [], type: 'media'})
     events.emit('library:nav-counts-changed')
     await gate.refreshLibraryCount()
+    if (options.parseTags) run.phase('tagging')
     if (options.parseTags) await parseAndAssignImportPathTags([{path, mediaId: data.id}], {shouldStop: () => current !== generation})
     if (current !== generation) return
     if (options.parseTags) sync.getItemsFromDb({ids: [], type: 'media'})
     message.value = t(data.created ? 'media.adding.web_video_added' : 'media.adding.web_video_duplicate', {title: data.title})
+    processed = 1
     url.value = ''
   } catch (err) {
     if (current !== generation) return
     error.value = true
     message.value = getApiErrorMessage(err, t('media.adding.web_video_error'))
+    failures.value.push({path: originalUrl, message: message.value})
+    processed = 1
   } finally {
-    if (current === generation) { busy.value = false; controller = undefined }
+    if (current === generation) { busy.value = false; controller = undefined; run.finish() }
   }
 }
 watch([() => app.dbPath, () => app.localhost], () => {
   generation++; controller?.abort(); busy.value = false; message.value = ''; error.value = false
 })
 onBeforeUnmount(() => { generation++; controller?.abort() })
-const canSubmit = computed(() => !!validUrl.value && !busy.value && !isExcluded.value)
+const canSubmit = computed(() => !!validUrl.value && !addingProcess.active && !busy.value && !isExcluded.value)
 const selectionCount = computed(() => validUrl.value ? 1 : 0)
 defineExpose({canSubmit, busy, selectionCount, submit: importVideo})
 </script>

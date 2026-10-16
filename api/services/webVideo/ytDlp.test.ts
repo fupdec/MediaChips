@@ -7,10 +7,17 @@ import path from 'path'
 import {createHash} from 'crypto'
 import {execFile} from 'child_process'
 import type {ApiDb} from '../../types/db'
-import {extractXHamster, getYtDlpPath, ytDlpAssetName} from './ytDlp'
+import {extractWebVideo, getYtDlpPath, ytDlpAssetName} from './ytDlp'
 
 vi.mock('axios', () => ({default: {get: vi.fn()}}))
-vi.mock('child_process', () => ({execFile: vi.fn()}))
+vi.mock('child_process', () => {
+  const execFile = vi.fn()
+  Object.assign(execFile, {[Symbol.for('nodejs.util.promisify.custom')]: (...args: unknown[]) => new Promise((resolve, reject) => {
+    execFile(...args, (error: Error | null, stdout: string, stderr: string) => error ? reject(error) : resolve({stdout, stderr}))
+  })})
+  return {execFile}
+})
+vi.mock('./network', () => ({startExtractionProxy: vi.fn(async () => ({url: 'http://127.0.0.1:12345', close: vi.fn()}))}))
 
 describe('managed yt-dlp installation', () => {
   let directory = ''
@@ -71,6 +78,20 @@ describe('managed yt-dlp installation', () => {
     expect(axios.get).not.toHaveBeenCalled()
   })
 
+  it('uses all site extractors, a guarded proxy and one combined format', async () => {
+    vi.stubEnv('MEDIA_CHIPS_YTDLP_PATH', '/custom/yt-dlp')
+    vi.mocked(execFile).mockImplementationOnce((...args: unknown[]) => {
+      const callback = args[3] as (error: null, stdout: string, stderr: string) => void
+      callback(null, JSON.stringify({title: 'Example', formats: []}), '')
+      return {} as ReturnType<typeof execFile>
+    })
+    await expect(extractWebVideo({} as ApiDb, 'https://example.com/watch?v=123')).resolves.toMatchObject({title: 'Example'})
+    const args = vi.mocked(execFile).mock.calls[0] as unknown[]
+    expect(args[1]).toEqual(expect.arrayContaining(['--ignore-config', '--no-plugin-dirs', '--no-playlist', '--skip-download', '--proxy', 'http://127.0.0.1:12345']))
+    expect(args[1]).not.toContain('--use-extractors')
+    expect((args[1] as string[]).slice(-2)).toEqual(['--', 'https://example.com/watch?v=123'])
+  })
+
   it('passes cancellation to the extraction process and preserves the abort result', async () => {
     vi.stubEnv('MEDIA_CHIPS_YTDLP_PATH', '/custom/yt-dlp')
     vi.mocked(execFile).mockImplementationOnce((...args: unknown[]) => {
@@ -80,7 +101,7 @@ describe('managed yt-dlp installation', () => {
       return {} as ReturnType<typeof execFile>
     })
     const controller = new AbortController()
-    const pending = extractXHamster({} as ApiDb, 'https://xhamster.com/videos/test-xhAb12', controller.signal)
+    const pending = extractWebVideo({} as ApiDb, 'https://xhamster.com/videos/test-xhAb12', controller.signal)
     const rejection = expect(pending).rejects.toMatchObject({name: 'AbortError'})
     await vi.waitFor(() => expect(execFile).toHaveBeenCalled())
     controller.abort()

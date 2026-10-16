@@ -7,8 +7,9 @@ import type {ApiDb} from '../../types/db'
 import {createMediaRepository} from '../../db/repositories/media'
 import {createMediaTypesRepository} from '../../db/repositories/mediaTypes'
 import {createVideoMetadataRepository} from '../../db/repositories/videoMetadata'
-import {normalizeXHamsterUrl} from '../../../shared/webVideo'
-import {extractXHamster} from './ytDlp'
+import {isPublicWebHostname, normalizeWebVideoUrl} from '../../../shared/webVideo'
+import {extractWebVideo} from './ytDlp'
+import {publicHttpsAgent} from './network'
 import {invalidateMediaDerivedCaches} from '../mediaCacheInvalidation'
 
 const FormatSchema = z.object({
@@ -17,27 +18,47 @@ const FormatSchema = z.object({
   vcodec: z.string().nullable().optional(), acodec: z.string().nullable().optional(),
   http_headers: z.record(z.string()).optional(),
   manifest_url: z.string().optional(),
+  has_drm: z.boolean().nullable().optional(),
 })
 const ExtractionSchema = z.object({
   title: z.string(), duration: z.number().nullable().optional(),
   formats: z.array(FormatSchema), http_headers: z.record(z.string()).optional(),
+  _type: z.string().optional(),
+})
+const ExtractionEnvelopeSchema = z.object({
+  _type: z.string().optional(), extractor: z.string().optional(), entries: z.array(z.unknown()).optional(),
 })
 
 export function validateStreamUrl(value: string): string {
   const url = new URL(value)
   if (url.protocol !== 'https:' || url.port || url.username || url.password
-    || !['xhcdn.com', 'xhcdn.net', 'xhamster.com'].some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))) {
-    throw new Error('Unsupported xHamster stream host.')
+    || !isPublicWebHostname(url.hostname)) {
+    throw new Error('Unsupported public HTTPS stream URL.')
   }
   return url.href
 }
 
+function unwrapSingleVideo(raw: unknown): unknown {
+  // Generic HTML extraction wraps even a single <video>/iframe in a playlist.
+  // yt-dlp requests two entries so a real collection cannot look like a single embed.
+  for (let depth = 0; depth < 5; depth++) {
+    const envelope = ExtractionEnvelopeSchema.parse(raw)
+    if (!envelope._type || envelope._type === 'video') return raw
+    if (envelope.extractor === 'generic' && envelope._type === 'playlist' && envelope.entries?.length === 1) {
+      raw = envelope.entries[0]
+      continue
+    }
+    break
+  }
+  throw new Error('Import a single video page, rather than a playlist or channel.')
+}
+
 export function parseExtraction(raw: unknown, pageUrl: string) {
-  const data = ExtractionSchema.parse(raw)
+  const data = ExtractionSchema.parse(unwrapSingleVideo(raw))
   const formats = data.formats.filter((format) => {
     try { validateStreamUrl(format.url) } catch { return false }
-    return format.vcodec !== 'none' && format.acodec !== 'none'
-      && (format.ext === 'mp4' || format.protocol?.startsWith('m3u8'))
+    return !format.has_drm && format.vcodec !== 'none' && format.acodec !== 'none'
+      && (format.protocol?.startsWith('m3u8') || (format.ext === 'mp4' && (!format.protocol || format.protocol === 'https')))
   }).sort((a, b) => {
     const score = (f: typeof a) => (f.vcodec?.startsWith('avc') || f.vcodec?.startsWith('h264') ? 1_000_000 : 0)
       + (f.protocol?.startsWith('m3u8') ? 100_000 : 0) + (f.height || 0)
@@ -48,10 +69,10 @@ export function parseExtraction(raw: unknown, pageUrl: string) {
   const streams = formats.map((item) => {
     const headers: Record<string, string> = {}
     for (const [key, value] of Object.entries({...data.http_headers, ...item.http_headers})) {
-      if (['user-agent', 'origin', 'accept', 'accept-language'].includes(key.toLowerCase())
+      if (['user-agent', 'origin', 'accept', 'accept-language', 'referer'].includes(key.toLowerCase())
         && !/[\r\n]/.test(value)) headers[key.toLowerCase()] = value
     }
-    headers.referer = pageUrl
+    headers.referer ||= pageUrl
     let master: string | undefined
     if (item.protocol?.startsWith('m3u8') && item.manifest_url) {
       try { master = validateStreamUrl(item.manifest_url) } catch {}
@@ -93,7 +114,7 @@ async function resolve(db: ApiDb, page: string, fresh = false, signal?: AbortSig
   if (!entry) {
     if (cache.size >= 100) cache.delete(cache.keys().next().value!)
     const controller = new AbortController()
-    const value = extractXHamster(db, page, controller.signal).then((raw) => parseExtraction(raw, page))
+    const value = extractWebVideo(db, page, controller.signal).then((raw) => parseExtraction(raw, page))
     const created: ExtractionCacheEntry = {expires: Date.now() + 60_000, value, controller, users: 0, pending: true}
     created.value = value.then(source => {
       created.pending = false
@@ -129,8 +150,8 @@ async function resolve(db: ApiDb, page: string, fresh = false, signal?: AbortSig
 
 export async function importWebVideo(db: ApiDb, input: string) {
   const library = dbKey(db)
-  const page = normalizeXHamsterUrl(input)
-  if (!page) throw new Error('Invalid xHamster video URL.')
+  const page = normalizeWebVideoUrl(input)
+  if (!page) throw new Error('Invalid public HTTPS video page URL.')
   const repo = createMediaRepository(db.drizzle)
   const existing = repo.findByPathVariants([page])
   if (existing) {
@@ -157,7 +178,7 @@ export async function importWebVideo(db: ApiDb, input: string) {
 
 function findPage(db: ApiDb, id: number): string {
   const media = createMediaRepository(db.drizzle).findById(id)
-  const page = media && !media.deletedAt && normalizeXHamsterUrl(media.path)
+  const page = media && !media.deletedAt && normalizeWebVideoUrl(media.path)
   if (!page) throw new Error('Web video not found in the active library.')
   return page
 }
@@ -190,6 +211,7 @@ async function requestStream(url: string, headers: Record<string, string>, signa
   for (let attempt = 0; attempt < 5; attempt++) {
     const response = await axios.get<Readable>(validateStreamUrl(url), {
       headers, signal, responseType: 'stream', maxRedirects: 0, timeout: 30_000,
+      httpsAgent: publicHttpsAgent, proxy: false,
       validateStatus: () => true,
     })
     if (response.status >= 300 && response.status < 400 && response.headers.location) {
@@ -223,7 +245,7 @@ export async function streamWebVideo(db: ApiDb, req: Request, res: Response, med
     let upstream = await requestStream(remote, headers, abort.signal)
     if (resourceId === 'root' && [401, 403, 410].includes(upstream.response.status)) {
       upstream.response.data.destroy()
-      session.source = selectStreamQuality(await resolve(db, session.page, true), session.source.quality)
+      session.source = selectStreamQuality(await resolve(db, session.page, true, abort.signal), session.source.quality)
       session.resources.set('root', session.source.url)
       upstream = await requestStream(session.source.url, {...session.source.headers, ...(req.headers.range ? {Range: req.headers.range} : {})}, abort.signal)
     }

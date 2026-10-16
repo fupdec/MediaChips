@@ -78,6 +78,8 @@ describe('web video playback lifecycle', () => {
     const pending = attachWebVideo(video, source, () => false, vi.fn(), 42)
     const hls = await latest()
     expect(hls.config.startPosition).toBe(42)
+    expect(hls.config).toMatchObject({maxBufferLength: 30, maxMaxBufferLength: 60,
+      maxBufferSize: 30 * 1024 * 1024, backBufferLength: 30})
     expect(video.crossOrigin).toBe('anonymous')
     hls.emit('parsed')
     await pending

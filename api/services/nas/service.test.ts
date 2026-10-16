@@ -114,7 +114,7 @@ describe('NAS library and HTTP playback', () => {
     await vi.waitFor(() => expect(signal.aborted).toBe(true))
     expect((await fetch(base + url)).status).toBe(200)
   })
-  it.each(['sftp', 'ftp', 'ftps'] as const)('imports expanded formats into their own media types over %s', async protocol => {
+  it.each(['sftp', 'ftp', 'ftps', 'webdav'] as const)('imports expanded formats into their own media types over %s', async protocol => {
     const connection = await service.saveConnection(db, {...config, protocol})
     const files = ['clip.MKV', 'clip.WMV', 'clip.AVI', 'clip.M2TS', 'clip.3GP', 'song.FLAC', 'photo.AVIF']
     const {results} = await service.importFiles(db, connection.id, files)
@@ -224,7 +224,7 @@ describe('NAS library and HTTP playback', () => {
     expect(connection.hasCredentials).toBe(true)
     if (process.platform !== 'win32') expect(fs.statSync(path.join(directory, 'master.key')).mode & 0o777).toBe(0o600)
   })
-  it.each(['sftp', 'ftp', 'ftps'] as const)('preserves the saved %s password and vault file when editing without a new password', async protocol => {
+  it.each(['sftp', 'ftp', 'ftps', 'webdav'] as const)('preserves the saved %s password and vault file when editing without a new password', async protocol => {
     const connection = await service.saveConnection(db, {...config, protocol})
     const encrypted = path.join(directory, fs.readdirSync(directory).find(n => n.endsWith('.enc'))!)
     const original = fs.readFileSync(encrypted)
@@ -405,7 +405,10 @@ describe('NAS library and HTTP playback', () => {
     expect(invalid.headers.get('content-range')).toBe(`bytes */${bytes.length}`)
     const stale = await fetch(base + plan.url, {headers: {Range: 'bytes=4-9', 'If-Range': '"old"'}})
     expect(stale.status).toBe(200); expect(await stale.text()).toBe(bytes.toString())
-    expect(closed).toBeGreaterThanOrEqual(6)
+    const download = await fetch(base + plan.url + '&download=1')
+    expect(download.headers.get('content-disposition')).toBe("attachment; filename*=UTF-8''video.mp4")
+    expect(await download.text()).toBe(bytes.toString())
+    expect(closed).toBeGreaterThanOrEqual(7)
   })
   it('disconnects without losing media and invalidates playback sessions', async () => {
     const {connection, item} = await add(db, service)

@@ -20,7 +20,7 @@ vi.mock('@/composable/useFreeLibraryGate', () => ({useFreeLibraryGate: () => ({
 vi.mock('vue-i18n', () => ({useI18n: () => ({t: (key: string) => key, te: () => false})}))
 vi.mock('./MediaFolderBrowser.vue', () => ({default: {}}))
 vi.mock('./FilePreviewButton.vue', () => ({default: {}}))
-vi.mock('./RemoteImportOptions.vue', () => ({default: {}}))
+vi.mock('./MediaImportOptions.vue', () => ({default: {}}))
 vi.mock('./MediaImportSection.vue', () => ({default: {}}))
 vi.mock('@/components/elements/DialogHeader.vue', () => ({default: {}}))
 // Vuetify's template auto-imports include CSS; these tests only run source actions.
@@ -63,8 +63,8 @@ type SourceState = {
 }
 const mounted: ReturnType<typeof createApp>[] = []
 // Exercise the real setup, lifecycle and exposed actions without rendering Vuetify.
-function mountSource(source: unknown) {
-  const app = createApp({...source as ComponentOptions, render: () => null})
+function mountSource(source: unknown, props: Record<string, unknown> = {}) {
+  const app = createApp({...source as ComponentOptions, render: () => null}, props)
   const vm = app.mount(document.createElement('div')) as unknown as {submit: () => Promise<void>; stop: () => void}
   mounted.push(app)
   const state = app._instance!.setupState as SourceState
@@ -91,6 +91,47 @@ beforeEach(() => {
 afterEach(() => { for (const app of mounted.splice(0)) app.unmount() })
 
 describe('remote source import actions', () => {
+  it.each([
+    {name: 'NAS', component: NasSources}, {name: 'Drive', component: GoogleDriveSource},
+  ])('applies the shared media type filter to direct selections and nested $name folders', async ({component}) => {
+    const nas = component === NasSources
+    const source = mountSource(component, {extensions: 'mp4'})
+    await nextTick()
+    if (nas) await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
+    const root = nas ? '/Медиа' : driveRoot
+    mocks.get.mockResolvedValue({data: nas ? {path: '', entries: [
+      {name: 'Nested', path: 'Nested', isDirectory: true, size: 0},
+      {name: 'Photo.JPG', path: 'Photo.JPG', isDirectory: false, size: 100},
+    ]} : {files: [
+      {id: 'nested-id', name: 'Nested', isFolder: true},
+      {id: 'photo-id', name: 'Photo.JPG', isFolder: false, size: 100},
+    ]}})
+    const listing = await source.state.directoryLoader({path: root, extensions: 'mp4'})
+    if (nas) source.state.onVisibleEntries(listing.entries)
+    const photo = listing.entries.find(entry => entry.name === 'Photo.JPG')!
+    expect(photo.addable).toBe(false)
+    source.state.selectedPaths = [root, photo.path]
+    source.state.importOptions = {...source.state.importOptions, parseTags: false}
+    mocks.get.mockImplementation(async (url: string, config?: {params?: {path?: string}}) => {
+      const nested = nas ? config?.params?.path === 'Nested' : url.endsWith('/nested-id')
+      return {data: nas ? {path: nested ? 'Nested' : '', entries: nested ? [
+        {name: 'Movie.MP4', path: 'Nested/Movie.MP4', isDirectory: false, size: 100},
+        {name: 'Song.mp3', path: 'Nested/Song.mp3', isDirectory: false, size: 100},
+      ] : [{name: 'Nested', path: 'Nested', isDirectory: true, size: 0}]} : {files: nested ? [
+        {id: 'movie-id', name: 'Movie.MP4', isFolder: false, size: 100},
+        {id: 'song-id', name: 'Song.mp3', isFolder: false, size: 100},
+      ] : [{id: 'nested-id', name: 'Nested', isFolder: true}]}}
+    })
+    mocks.post.mockResolvedValue({data: nas
+      ? {results: [{ok: true, path: 'Nested/Movie.MP4', id: 91, title: 'Movie.MP4', created: true}]}
+      : {id: 91, title: 'Movie.MP4', created: true}})
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledExactlyOnceWith(nas ? '/api/nas/import-batch' : '/api/drive/import',
+      nas ? {connectionId: connection.id, paths: ['Nested/Movie.MP4']} : {fileId: 'movie-id'}, expect.anything())
+    expect(mocks.parseTags).not.toHaveBeenCalled()
+    expect(source.state.selectedPaths).toEqual([])
+  })
+
   it.each([
     {code: 'network_error', status: 502}, {code: 'permission_denied', status: 403}, {code: 'auth_required', status: 409},
   ])('distinguishes $code during connection checks and recovers on retry', async ({code, status}) => {
@@ -193,8 +234,7 @@ describe('remote source import actions', () => {
     ]}})
     await source.state.directoryLoader({path: driveRoot})
     source.state.selectedPaths = [driveRoot]
-    source.state.importOptions.excluded = 'Пропустить'
-    source.state.importOptions.excludePaths = true
+    source.state.importOptions = {...source.state.importOptions, excluded: 'Пропустить', excludePaths: true}
     mocks.get.mockImplementation(async (url: string) => {
       if (url === '/api/drive/folders/root') return {data: {files: [
         {id: 'folder-id', name: 'Драма', isFolder: true}, {id: 'skip-id', name: 'Пропустить', isFolder: true},
@@ -229,7 +269,7 @@ describe('remote source import actions', () => {
     const source = mountSource(GoogleDriveSource)
     await nextTick()
     source.state.selectedPaths = [`${driveRoot}/file-id`]
-    source.state.importOptions.parseTags = false
+    source.state.importOptions = {...source.state.importOptions, parseTags: false}
     mocks.post.mockResolvedValue({data: {id: 61, title: 'Кино.mp4', created: true}})
     await source.submit()
     expect(source.state.selectedPaths).toEqual([])
@@ -334,6 +374,17 @@ describe('remote source import actions', () => {
     expect(mocks.sync).toHaveBeenCalledTimes(3)
   })
 
+  it('enables import and path tags for a video page from another site', async () => {
+    const source = mountSource(WebVideoImport)
+    source.state.url = 'https://www.xvideos.com/video123/Drama?utm_source=share'
+    expect(source.state.canSubmit).toBe(true)
+    mocks.post.mockResolvedValue({data: {id: 72, title: 'Drama', created: true}})
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledWith('/api/web-video/import', {url: 'https://www.xvideos.com/video123/Drama?utm_source=share'}, expect.anything())
+    expect(mocks.parseTags).toHaveBeenCalledWith([{path: '/video123/Drama', mediaId: 72}], expect.anything())
+    expect(source.state.url).toBe('')
+  })
+
   it('prevents excluded links from importing and lets users disable tag parsing', async () => {
     const source = mountSource(WebVideoImport)
     source.state.url = 'https://xhamster.com/videos/drama-test-abc123'
@@ -341,7 +392,7 @@ describe('remote source import actions', () => {
     expect(source.state.canSubmit).toBe(false)
     await source.submit()
     expect(mocks.post).not.toHaveBeenCalled()
-    source.state.importOptions.excludePaths = false
+    source.state.importOptions = {...source.state.importOptions, excludePaths: false}
     mocks.post.mockResolvedValue({data: {id: 71, title: 'Movie', created: true}})
     await source.submit()
     expect(mocks.post).toHaveBeenCalledTimes(1)

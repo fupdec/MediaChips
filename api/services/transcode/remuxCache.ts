@@ -109,7 +109,7 @@ async function runProgressiveRemuxJob(input: {
     })
 
     trimCacheToLimit(databasesPath, dbId, maxCacheGb)
-    return outputPath
+    return fs.existsSync(outputPath) ? outputPath : null
   } catch (error: unknown) {
     try {
       if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath)
@@ -142,8 +142,12 @@ export function ensureProgressiveRemux(input: {
   const maxCacheGb = Number(input.maxCacheGb)
   const limitGb = Number.isFinite(maxCacheGb) && maxCacheGb > 0 ? maxCacheGb : 2
 
+  trimCacheToLimit(databasesPath, dbId, limitGb)
   const info = resolveExistingCache(databasesPath, dbId, filePath)
   if (!info) return null
+  // Copy remuxing retains approximately the source size. Large files use the
+  // existing live stream path instead of creating an over-budget disk copy.
+  if (info.stat.size > limitGb * 1024 ** 3) return null
 
   const {cacheKey, outputPath, metaPath, stat} = info
   const {tempPath} = getCachePaths(databasesPath, dbId, cacheKey)

@@ -55,7 +55,10 @@ export async function attachWebVideo(
   if (isStale()) return
   if (!Hls.isSupported()) throw new Error('HLS playback is not supported in this browser.')
   disposeWebVideo(video)
-  const hls = new Hls({maxBufferLength: 30, startPosition: startTime})
+  const hls = new Hls({
+    maxBufferLength: 30, maxMaxBufferLength: 60, maxBufferSize: 30 * 1024 * 1024,
+    backBufferLength: 30, startPosition: startTime,
+  })
   let manifestReady = false
   players.set(video, hls)
   hls.on(Hls.Events.ERROR, (_event, error) => {

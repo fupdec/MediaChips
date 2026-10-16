@@ -1,4 +1,4 @@
-import type {BrowseDirectoryResult} from './typedApi/browse'
+import type {BrowseDirectoryEntry, BrowseDirectoryResult} from './typedApi/browse'
 
 export type RemoteSelectionProgress = {found: number; skipped: number; inLibrary: number}
 
@@ -11,7 +11,9 @@ export async function expandRemoteSelection(options: {
   shouldStop: () => boolean
   onFolderError: (path: string, error: unknown) => void
   isExcluded?: (path: string) => boolean
+  acceptFile?: (path: string) => boolean
   onProgress?: (progress: RemoteSelectionProgress) => void
+  onExisting?: (entry: BrowseDirectoryEntry) => void
 }) {
   const skipped = new Set<string>()
   const inLibrary = new Set<string>()
@@ -20,7 +22,12 @@ export async function expandRemoteSelection(options: {
     skipped.add(path)
     return true
   }
-  const files = new Set(options.paths.filter(path => !options.directories.has(path) && !isExcluded(path)))
+  const acceptsFile = (path: string) => {
+    if (options.acceptFile?.(path) !== false) return true
+    skipped.add(path)
+    return false
+  }
+  const files = new Set(options.paths.filter(path => !options.directories.has(path) && !isExcluded(path) && acceptsFile(path)))
   const pending = options.paths.filter(path => options.directories.has(path) && !isExcluded(path))
   const visited = new Set<string>()
   const failedFolders = new Set<string>()
@@ -38,8 +45,9 @@ export async function expandRemoteSelection(options: {
       for (const entry of result.entries) {
         if (isExcluded(entry.path)) continue
         if (entry.isDirectory) pending.push(entry.path)
+        else if (!acceptsFile(entry.path)) continue
         else if (entry.inLibrary) {
-          if (!files.has(entry.path)) inLibrary.add(entry.path)
+          if (!files.has(entry.path)) { inLibrary.add(entry.path); options.onExisting?.(entry) }
         }
         else if (entry.addable) files.add(entry.path)
         else skipped.add(entry.path)
@@ -52,7 +60,7 @@ export async function expandRemoteSelection(options: {
     report()
   }
   // Drive names can become available only after an ancestor has been listed.
-  for (const file of files) if (isExcluded(file)) files.delete(file)
+  for (const file of files) if (isExcluded(file) || !acceptsFile(file)) files.delete(file)
   report()
   return {paths: [...files], failedFolders: [...failedFolders], stopped: options.shouldStop()}
 }

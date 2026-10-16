@@ -282,4 +282,36 @@ describe('web video quality changes and recovery', () => {
     expect(player.playbackError).toBe(false)
     vi.mocked(console.log).mockRestore()
   })
+  it.each(['gdrive://movie', 'nas://11111111-1111-4111-8111-111111111111/movie.mp4'])('restores %s from saved metadata on reopen', async path => {
+    vi.mocked(typedApi.getVideoMetadata).mockResolvedValueOnce({data: {duration: 100, time: 38}} as never)
+    await loader.loadSrc({...item, path})
+    expect(attachWebVideo).toHaveBeenCalledWith(video, expect.any(Object), expect.any(Function), expect.any(Function), 38)
+    expect(video.currentTime).toBe(38)
+    expect(video.play).toHaveBeenCalled()
+  })
+
+  it('does not replace current markers with a late response for the previous video', async () => {
+    let finish!: (value: unknown) => void
+    vi.mocked(typedApi.getMarksForVideo).mockImplementationOnce(() => new Promise(resolve => {finish = resolve}) as never)
+    const old = loader.getMarks(item)
+    player.media = {...item, id: 18}
+    player.marks = [{id: 200, time: 10}] as typeof player.marks
+    finish({data: [{id: 100, time: 2}]})
+    await old
+    expect(player.marks.map(mark => mark.id)).toEqual([200])
+  })
+
+  it('serializes a checkpoint and close write with positions captured when requested', async () => {
+    let finish!: () => void
+    vi.mocked(typedApi.updateVideoMetadata).mockImplementationOnce(() => new Promise(resolve => {finish = () => resolve({} as never)}))
+    const checkpoint = loader.updatePlaybackTime(item, 30)
+    const close = loader.updatePlaybackTime(item, 45)
+    player.currentTime = 0
+    await vi.waitFor(() => expect(typedApi.updateVideoMetadata).toHaveBeenCalledTimes(1))
+    expect(typedApi.updateVideoMetadata).toHaveBeenNthCalledWith(1, 17, {time: 30})
+    finish()
+    await Promise.all([checkpoint, close])
+    expect(typedApi.updateVideoMetadata).toHaveBeenNthCalledWith(2, 17, {time: 45})
+  })
+
 })

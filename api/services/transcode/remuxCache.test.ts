@@ -90,4 +90,19 @@ describe('remuxCache', () => {
     expect(runFfmpegBackground).toHaveBeenCalledTimes(1)
     expect(fs.existsSync(getCacheDir(databasesPath, dbId))).toBe(true)
   })
+  it('uses streaming instead of scheduling a copy larger than the disk budget', () => {
+    expect(ensureProgressiveRemux({databasesPath, dbId, filePath: sourcePath, maxCacheGb: 1 / 1024 ** 3})).toBeNull()
+    expect(runFfmpegBackground).not.toHaveBeenCalled()
+  })
+
+  it('does not return an output that the budget cleanup evicted', async () => {
+    vi.mocked(runFfmpegBackground).mockImplementationOnce(async args => {
+      fs.writeFileSync(args[args.length - 1], Buffer.alloc(2000))
+    })
+    ensureProgressiveRemux({databasesPath, dbId, filePath: sourcePath, maxCacheGb: 1000 / 1024 ** 3})
+    const info = resolveExistingCache(databasesPath, dbId, sourcePath)!
+    expect(await waitForRemuxJob(info.cacheKey)).toBeNull()
+    expect(fs.existsSync(info.outputPath)).toBe(false)
+  })
+
 })
