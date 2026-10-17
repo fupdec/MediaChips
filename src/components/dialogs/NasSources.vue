@@ -39,6 +39,10 @@
     <v-alert v-if="message" :type="error ? 'error' : 'success'" variant="tonal" density="compact" rounded="lg" class="nas-sources__notice">{{ message }}</v-alert>
     <v-progress-linear v-if="busy && !batchActive" indeterminate class="mt-2" rounded />
     <div v-if="!connectionsOnly && selected?.hasCredentials" class="nas-sources__browser-section">
+      <v-btn variant="tonal" size="small" prepend-icon="mdi-file-cog-outline" class="mb-3" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
+      <DialogOriginalOperations v-model="originalsOpen" :media-ids="[]" :scope="{connectionId: selected.id, key: catalogRootKey || ''}" @changed="browser?.refresh()" />
+      <SourceCatalogControls v-if="selected && catalogRootKey !== null" :connection-id="selected.id" :root-key="catalogRootKey" :name="folder"
+                             @updated="browser?.refresh(); sync.getItemsFromDb({ids: [], type: 'media'}); events.emit('library:nav-counts-changed')" />
       <MediaFolderBrowser
         :key="selected.id"
         :favorites-scope="JSON.stringify([app.dbPath, app.localhost, selected.id])"
@@ -125,6 +129,8 @@
 
 <script setup lang="ts">
 import {sourceFailure, type SourceFailure} from '@shared/sourceErrors'
+import SourceCatalogControls from './SourceCatalogControls.vue'
+import DialogOriginalOperations from './DialogOriginalOperations.vue'
 import SourceHealth from './SourceHealth.vue'
 import {computed, onMounted, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
@@ -152,6 +158,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {getApiErrorMessage} from '@/types/vue'
 
 const {t} = useI18n()
+const originalsOpen = ref(false)
 const addingProcess = useRemoteMediaAddingProcess(t)
 const emit = defineEmits<{started: []}>()
 const {embedded = false, connectionsOnly = false, extensions} = defineProps<{embedded?: boolean; connectionsOnly?: boolean; extensions?: string}>()
@@ -201,6 +208,9 @@ const batchErrors = ref<Array<{path: string; message: string}>>([])
 let importController: AbortController | undefined
 let stopCurrentBatch: (() => void) | undefined
 const folder = ref('')
+const catalogRootKey = computed(() => {
+  try { return selected.value ? nasRelativePath(selected.value.root, folder.value) : null } catch { return null }
+})
 const busy = ref(false)
 const checking = ref(false)
 const health = ref<Record<string, {state: SourceFailure | 'ready' | 'unknown'; checkedAt: number}>>({})

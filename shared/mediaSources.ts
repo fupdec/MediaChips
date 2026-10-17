@@ -10,10 +10,13 @@ export type SourceCapabilities = Readonly<{
 export type SourceProvider = 'nas' | 'gdrive'
 export type SourceAvailability = 'unknown' | 'available' | 'unavailable'
 
-// Write operations stay disabled until an adapter implements them and checks account permissions.
+// Read-only providers (including the current Google Drive authorization).
 export const READ_SOURCE_CAPABILITIES: SourceCapabilities = Object.freeze({
   view: true, seek: true, download: true, move: false, delete: false,
 })
+
+/** NAS write requests are checked by the server against the account permissions. */
+export const NAS_SOURCE_CAPABILITIES: SourceCapabilities = Object.freeze({...READ_SOURCE_CAPABILITIES, move: true, delete: true})
 
 /** Existing gdrive:// paths belong to the single configured Drive connection. */
 export const DEFAULT_DRIVE_CONNECTION_ID = 'google-drive'

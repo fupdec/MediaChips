@@ -4,6 +4,7 @@ import {createHash, generateKeyPairSync} from 'crypto'
 import {Server as SshServer, utils} from 'ssh2'
 import {afterEach, describe, expect, it} from 'vitest'
 import {connectNas} from './transport'
+import {Readable} from 'stream'
 import type {NasConnectionInput} from '../../../shared/nas'
 
 const bytes = Buffer.from('0123456789abcdefghijklmnopqrstuvwxyz')
@@ -20,6 +21,7 @@ async function collect(stream: NodeJS.ReadableStream) {
   return Buffer.concat(result)
 }
 async function sftpServer() {
+  const files = new Map<string, Buffer | null>([['/videos', null], ['/videos/video 1.mp4', bytes], ['/videos/Кино', null]])
   const clients = new Set<{end(): void}>()
   const reads: number[] = []
   let authentications = 0
@@ -34,7 +36,8 @@ async function sftpServer() {
         const remote = input.includes('escape') ? '/outside/file.mp4' : input
         channel.name(id, [{filename: remote, longname: remote, attrs: attrs(remote === '/videos')}])
       })
-      channel.on('STAT', (id, remote) => channel.attrs(id, attrs(remote === '/videos')))
+      channel.on('STAT', (id, remote) => files.has(remote) ? channel.attrs(id, {...attrs(files.get(remote) === null), size: files.get(remote)?.length || 0}) : channel.status(id, utils.sftp.STATUS_CODE.NO_SUCH_FILE))
+      channel.on('LSTAT', (id, remote) => remote.endsWith('/escape') ? channel.attrs(id, {...attrs(), mode: 0o120777}) : files.has(remote) ? channel.attrs(id, {...attrs(files.get(remote) === null), size: files.get(remote)?.length || 0}) : channel.status(id, utils.sftp.STATUS_CODE.NO_SUCH_FILE))
       channel.on('FSTAT', id => channel.attrs(id, attrs()))
       channel.on('OPENDIR', id => { listed = false; channel.handle(id, Buffer.from('dir')) })
       channel.on('READDIR', id => {
@@ -46,12 +49,25 @@ async function sftpServer() {
           {filename: 'escape', longname: '', attrs: {...attrs(), mode: 0o120777}},
         ])
       })
-      channel.on('OPEN', id => channel.handle(id, Buffer.from('file')))
-      channel.on('READ', (id, _handle, offset, length) => {
-        reads.push(offset)
-        if (offset >= bytes.length) channel.status(id, utils.sftp.STATUS_CODE.EOF)
-        else channel.data(id, bytes.subarray(offset, offset + length))
+      channel.on('OPEN', (id, remote, flags) => {
+        if ((flags & 32) && files.has(remote)) { channel.status(id, utils.sftp.STATUS_CODE.FAILURE); return }
+        if (flags & 8) files.set(remote, Buffer.alloc(0))
+        channel.handle(id, Buffer.from(remote))
       })
+      channel.on('WRITE', (id, handle, offset, chunk) => {
+        const remote = handle.toString(), old = files.get(remote) || Buffer.alloc(0)
+        const next = Buffer.alloc(Math.max(old.length, offset + chunk.length)); old.copy(next); chunk.copy(next, offset); files.set(remote, next)
+        channel.status(id, utils.sftp.STATUS_CODE.OK)
+      })
+      channel.on('READ', (id, handle, offset, length) => {
+        reads.push(offset)
+        const payload = files.get(handle.toString()) || bytes
+        if (offset >= payload.length) channel.status(id, utils.sftp.STATUS_CODE.EOF)
+        else channel.data(id, payload.subarray(offset, offset + length))
+      })
+      channel.on('MKDIR', (id, remote) => { if (files.has(remote)) channel.status(id, utils.sftp.STATUS_CODE.FAILURE); else { files.set(remote, null); channel.status(id, utils.sftp.STATUS_CODE.OK) } })
+      channel.on('RENAME', (id, from, to) => { if (!files.has(from) || files.has(to)) channel.status(id, utils.sftp.STATUS_CODE.FAILURE); else { files.set(to, files.get(from)!); files.delete(from); channel.status(id, utils.sftp.STATUS_CODE.OK) } })
+      channel.on('REMOVE', (id, remote) => { if (files.delete(remote)) channel.status(id, utils.sftp.STATUS_CODE.OK); else channel.status(id, utils.sftp.STATUS_CODE.NO_SUCH_FILE) })
       channel.on('CLOSE', id => channel.status(id, utils.sftp.STATUS_CODE.OK))
     })))
   })
@@ -61,13 +77,14 @@ async function sftpServer() {
 }
 
 async function ftpServer() {
+  const files = new Map<string, Buffer | null>([['/videos/video 1.mp4', bytes], ['/videos/Кино', null]])
   const sockets = new Set<Socket>()
   const dataServers = new Set<net.Server>()
   const restOffsets: number[] = []
   const server = net.createServer(socket => {
     sockets.add(socket); socket.on('error', () => {}); socket.on('close', () => sockets.delete(socket))
     socket.write('220 Test NAS\r\n')
-    let input = ''; let offset = 0
+    let input = ''; let offset = 0; let renameFrom = ''
     let dataConnection: Promise<Socket>
     const send = (message: string) => socket.write(`${message}\r\n`)
     socket.on('data', chunk => {
@@ -88,14 +105,24 @@ async function ftpServer() {
           }))
           ds.listen(0, '127.0.0.1', () => send(`229 Entering Extended Passive Mode (|||${(ds.address() as net.AddressInfo).port}|)`))
         } else if (command === 'REST') { offset = Number(argument); restOffsets.push(offset); send('350 Restart accepted') }
-        else if (command === 'MLSD' || command === 'LIST' || command === 'RETR') {
+        else if (command === 'MLSD' || command === 'LIST' || command === 'RETR' || command === 'STOR') {
           send('150 Opening data connection')
           void dataConnection.then(data => {
-            const content = command === 'RETR' ? bytes.subarray(offset)
-              : Buffer.from(`type=file;size=${bytes.length};modify=20260101000000; video 1.mp4\r\ntype=dir;modify=20260101000000; Кино\r\ntype=OS.unix=slink:/outside;modify=20260101000000; escape\r\n`)
+            if (command === 'STOR') {
+              const chunks: Buffer[] = []
+              data.on('data', chunk => chunks.push(chunk)); data.on('end', () => { files.set(argument, Buffer.concat(chunks)); data.end(); send('226 Transfer complete') })
+              return
+            }
+            const content = command === 'RETR' ? (files.get(argument) || bytes).subarray(offset)
+              : Buffer.from([...files.entries()].filter(([key]) => key.slice(0, key.lastIndexOf('/')) === argument).map(([key, payload]) => payload === null
+                ? `type=dir;modify=20260101000000; ${key.split('/').pop()}\r\n` : `type=file;size=${payload.length};modify=20260101000000; ${key.split('/').pop()}\r\n`).join('') + (argument === '/videos' ? 'type=OS.unix=slink:/outside;modify=20260101000000; escape\r\n' : ''))
             data.end(content, () => { if (!socket.destroyed) send('226 Transfer complete') })
           })
-        } else if (command === 'QUIT') { send('221 Bye'); socket.end() }
+        } else if (command === 'MKD') { files.set(argument, null); send('257 Directory created') }
+        else if (command === 'RNFR') { renameFrom = argument; send(files.has(argument) ? '350 Ready' : '550 Not found') }
+        else if (command === 'RNTO') { if (files.has(argument)) send('550 Destination exists'); else { files.set(argument, files.get(renameFrom)!); files.delete(renameFrom); send('250 Renamed') } }
+        else if (command === 'DELE') { send(files.delete(argument) ? '250 Deleted' : '550 Not found') }
+        else if (command === 'QUIT') { send('221 Bye'); socket.end() }
         else send('502 Unsupported')
       }
     })
@@ -110,6 +137,24 @@ async function ftpServer() {
 const config = (port: number, protocol: NasConnectionInput['protocol']): NasConnectionInput => ({name: 'NAS', protocol, host: '127.0.0.1', port, username: 'reader', root: '/videos', hostFingerprint: fingerprint})
 
 describe('SFTP and FTP socket transports', () => {
+  it.each(['sftp', 'ftp'] as const)('%s writes folders and staged files, refuses conflicts, then moves and removes files', async protocol => {
+    const server = protocol === 'sftp' ? await sftpServer() : await ftpServer()
+    const transport = await connectNas(config(server.port, protocol), {password: 'secret'})
+    try {
+      await transport.mkdir!('folder')
+      expect((await transport.stat('folder')).isDirectory).toBe(true)
+      await expect(transport.mkdir!('folder')).rejects.toMatchObject({code: 'conflict'})
+      await transport.write!('folder/upload.mp4', Readable.from(['up', 'load']), 6)
+      expect((await transport.stat('folder/upload.mp4')).size).toBe(6)
+      await expect(transport.write!('folder/upload.mp4', Readable.from(['other']), 5)).rejects.toMatchObject({code: 'conflict'})
+      await transport.move!('folder/upload.mp4', 'folder/renamed.mp4')
+      expect((await transport.stat('folder/renamed.mp4')).size).toBe(6)
+      await transport.remove!('folder/renamed.mp4')
+      await expect(transport.stat('folder/renamed.mp4')).rejects.toBeTruthy()
+      await expect(transport.remove!('../private')).rejects.toMatchObject({code: 'invalid_path'})
+      if (protocol === 'sftp') await expect(transport.remove!('escape')).rejects.toMatchObject({code: 'invalid_file'})
+    } finally { transport.close() }
+  })
   it('requires explicit SSH key trust before sending a password and rejects a changed host key', async () => {
     const server = await sftpServer()
     await expect(connectNas({...config(server.port, 'sftp'), hostFingerprint: undefined}, {password: 'secret'})).rejects.toMatchObject({code: 'host_key_required', fingerprint})

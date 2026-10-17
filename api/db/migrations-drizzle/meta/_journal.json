@@ -239,6 +239,20 @@
       "when": 1782868800000,
       "tag": "0033_source_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1782872400000,
+      "tag": "0034_source_catalog_offline",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1782876000000,
+      "tag": "0035_original_operations",
+      "breakpoints": true
     }
   ]
 }

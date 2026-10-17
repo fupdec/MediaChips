@@ -7,9 +7,10 @@ import {DriveConfigurationSchema, normalizeDriveClientSecret} from '../../../sha
 import type {DriveConfig} from './types'
 import {validateOAuthClient} from './oauth'
 
-/** Read-only access supports browsing and streaming without changing Drive files. */
+/** Managing previously imported originals requires full Drive access. Existing
+ * read-only tokens continue to read until the user explicitly reconnects. */
 export const DRIVE_SPIKE_SCOPES = [
-  'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/drive',
 ] as const
 
 function envFlag(name: string): boolean {

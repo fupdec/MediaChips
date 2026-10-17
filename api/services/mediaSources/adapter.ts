@@ -17,12 +17,21 @@ export type SourceRead = {status: number; headers: Record<string, string | undef
 
 /** Secrets and server addresses are resolved by the owner of the adapter. */
 export interface SourceReadAdapter {
-  readonly provider: SourceProvider
+  readonly provider: SourceProvider | 'local'
   readonly capabilities: SourceCapabilities
   list(resourceKey: string, pageToken?: string, signal?: AbortSignal): Promise<SourcePage>
   stat(resourceKey: string, signal?: AbortSignal): Promise<SourceObject>
   read(resourceKey: string, rangeHeader?: string, signal?: AbortSignal): Promise<SourceRead>
   close(): void
+}
+
+/** Writes are optional: a read-only connection never advertises these operations. */
+export interface SourceWriteAdapter extends SourceReadAdapter {
+  drive?: import('../cloudDrive/types').DriveTransport
+  mkdir?(key: string, signal?: AbortSignal): Promise<void>
+  write?(key: string, input: Readable, size: number, progress: (bytes: number) => void, signal?: AbortSignal): Promise<void>
+  move?(from: string, to: string, signal?: AbortSignal): Promise<void>
+  remove?(key: string, signal?: AbortSignal): Promise<void>
 }
 
 export const nasFileVersion = (file: {size: number; modifiedAt?: number; etag?: string}) => `${file.size}:${file.modifiedAt || 0}${file.etag ? `:${file.etag}` : ''}`

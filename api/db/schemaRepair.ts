@@ -175,6 +175,40 @@ export function repairSchemaColumns(sqlite: Database.Database): string[] {
 }
 
 const MISSING_TABLE_DDL: Record<string, string> = {
+  originalOperationJobs: `CREATE TABLE "originalOperationJobs" ("id" text PRIMARY KEY NOT NULL, "payload" text NOT NULL)`,
+  sourceCatalogRoots: `CREATE TABLE "sourceCatalogRoots" (
+  "id" text PRIMARY KEY NOT NULL,
+  "name" text NOT NULL DEFAULT '',
+  "connectionId" text NOT NULL REFERENCES "sourceConnections"("id"),
+  "rootKey" text NOT NULL,
+  "intervalMinutes" integer NOT NULL DEFAULT 0,
+  "nextRunAt" integer,
+  "lastCompletedAt" text,
+  "lastResult" text,
+  "lastError" text
+
+  )`,
+  sourceCatalogEntries: `CREATE TABLE "sourceCatalogEntries" (
+  "rootId" text NOT NULL REFERENCES "sourceCatalogRoots"("id") ON DELETE CASCADE,
+  "resourceKey" text NOT NULL,
+  "version" text NOT NULL,
+  "name" text NOT NULL
+
+  )`,
+  offlineCopies: `CREATE TABLE "offlineCopies" (
+  "locationId" text PRIMARY KEY NOT NULL REFERENCES "mediaLocations"("id") ON DELETE CASCADE,
+  "version" text NOT NULL,
+  "size" integer NOT NULL,
+  "fileName" text NOT NULL,
+  "invalidated" integer NOT NULL DEFAULT 0,
+  "contentType" text NOT NULL
+
+  )`,
+  sourceCacheSettings: `CREATE TABLE "sourceCacheSettings" (
+  "id" integer PRIMARY KEY NOT NULL,
+  "limitBytes" integer NOT NULL DEFAULT 5368709120
+
+  )`,
   sourceConnections: `CREATE TABLE "sourceConnections" (
     "id" text PRIMARY KEY NOT NULL, "config" text NOT NULL,
     "credentialRef" text NOT NULL, "createdAt" text NOT NULL, "provider" text NOT NULL DEFAULT 'nas'
@@ -380,6 +414,10 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
     repaired.push(indexName)
   }
 
+  ensureIndex('sourceCatalogRoots', 'source_catalog_root_idx',
+    'CREATE UNIQUE INDEX IF NOT EXISTS "source_catalog_root_idx" ON "sourceCatalogRoots" ("connectionId", "rootKey")')
+  ensureIndex('sourceCatalogEntries', 'source_catalog_entry_idx',
+    'CREATE UNIQUE INDEX IF NOT EXISTS "source_catalog_entry_idx" ON "sourceCatalogEntries" ("rootId", "resourceKey")')
   ensureIndex('mediaLocations', 'media_locations_resource_idx',
     'CREATE UNIQUE INDEX IF NOT EXISTS "media_locations_resource_idx" ON "mediaLocations" ("connectionId", "resourceKey", "version")')
   ensureIndex('mediaLocations', 'media_locations_media_idx',

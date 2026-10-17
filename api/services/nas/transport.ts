@@ -1,6 +1,7 @@
 import path from 'path'
 import {createHash} from 'crypto'
 import {PassThrough, type Readable} from 'stream'
+import {pipeline} from 'stream/promises'
 import {Client as SshClient, type SFTPWrapper} from 'ssh2'
 import {Client as FtpClient} from 'basic-ftp'
 import type {NasConnectionInput, NasEntry} from '../../../shared/nas'
@@ -13,6 +14,10 @@ export type NasTransport = {
   list(relativePath: string): Promise<NasEntry[]>
   stat(relativePath: string): Promise<NasFile>
   read(relativePath: string, start: number, end: number): Promise<Readable>
+  mkdir?(relativePath: string): Promise<void>
+  write?(relativePath: string, input: Readable, size: number): Promise<void>
+  move?(from: string, to: string): Promise<void>
+  remove?(relativePath: string): Promise<void>
   close(): void
 }
 
@@ -79,6 +84,28 @@ async function connectSftp(config: NasConnectionInput, credentials: NasCredentia
     }
     const rootStats = await new Promise<NasFile>((resolve, reject) => sftp.stat(root, (err, st) => err ? reject(err) : resolve({size: st.size, isDirectory: st.isDirectory(), modifiedAt: st.mtime * 1000})))
     if (!rootStats.isDirectory) throw new NasError('not_directory', 'The selected NAS root is not a folder.')
+    const mutablePath = async (relative: string) => {
+      let remote = root
+      for (const part of normalizeNasRelativePath(relative).split('/').filter(Boolean)) {
+        remote = path.posix.join(remote, part)
+        const stat = await new Promise<import('ssh2').Stats>((resolve, reject) => sftp.lstat(remote, (err, result) => err ? reject(err) : resolve(result)))
+        if (stat.isSymbolicLink()) throw new NasError('invalid_file', 'Original writes cannot follow symbolic links.', 400)
+      }
+      return realPath(relative)
+    }
+    const destination = async (relative: string) => {
+      relative = normalizeNasRelativePath(relative)
+      if (!relative) throw new NasError('invalid_path', 'Select a file below the root.', 400)
+      const parent = await mutablePath(path.posix.dirname(relative) === '.' ? '' : path.posix.dirname(relative))
+      const remote = path.posix.join(parent, path.posix.basename(relative))
+      const existing = await new Promise<boolean>((resolve, reject) => sftp.lstat(remote, (err) => {
+        if (!err) resolve(true)
+        else if ((err as NodeJS.ErrnoException).code === 'ENOENT' || Number((err as NodeJS.ErrnoException).code) === 2) resolve(false)
+        else reject(err)
+      }))
+      if (existing) throw new NasError('conflict', 'Destination already exists.', 409)
+      return remote
+    }
     return {
       async list(relative) {
         const folder = await realPath(relative)
@@ -108,6 +135,21 @@ async function connectSftp(config: NasConnectionInput, credentials: NasCredentia
         stream.on('error', () => {})
         return stream
       },
+      async mkdir(relative) {
+        const remote = await destination(relative)
+        await new Promise<void>((resolve, reject) => sftp.mkdir(remote, err => err ? reject(err) : resolve()))
+      },
+      async write(relative, input) { await pipeline(input, sftp.createWriteStream(await destination(relative), {flags: 'wx'})) },
+      async move(from, to) {
+        const remote = await mutablePath(from)
+        const target = await destination(to)
+        // Standard SFTP rename refuses an existing target; do not use posix-rename.
+        await new Promise<void>((resolve, reject) => sftp.rename(remote, target, err => err ? reject(err) : resolve()))
+      },
+      async remove(relative) {
+        const remote = await mutablePath(relative)
+        await new Promise<void>((resolve, reject) => sftp.unlink(remote, err => err ? reject(err) : resolve()))
+      },
       close,
     }
   } catch (err) { close(); throw hostError || err }
@@ -135,6 +177,15 @@ async function connectFtp(config: NasConnectionInput, credentials: NasCredential
         insideRoot(root, folder)
       }
       return {remote: folder, entry}
+    }
+    const destination = async (relative: string) => {
+      relative = normalizeNasRelativePath(relative)
+      if (!relative) throw new NasError('invalid_path', 'Select a file below the root.', 400)
+      const parentKey = path.posix.dirname(relative)
+      const {remote: parent, entry} = await resolveEntry(parentKey === '.' ? '' : parentKey)
+      if (entry && !entry.isDirectory) throw new NasError('not_directory', 'Destination parent is not a folder.', 400)
+      if ((await client.list(parent)).some(file => file.name === path.posix.basename(relative))) throw new NasError('conflict', 'Destination already exists.', 409)
+      return path.posix.join(parent, path.posix.basename(relative))
     }
     return {
       async list(relative) {
@@ -172,6 +223,13 @@ async function connectFtp(config: NasConnectionInput, credentials: NasCredential
         })
         return stream
       },
+      async mkdir(relative) {
+        const remote = await destination(relative)
+        await client.send(`MKD ${remote}`)
+      },
+      async write(relative, input) { await client.uploadFrom(input, await destination(relative)) },
+      async move(from, to) { const {remote} = await resolveEntry(from); await client.rename(remote, await destination(to)) },
+      async remove(relative) { const {remote, entry} = await resolveEntry(relative); if (!entry?.isFile) throw new NasError('invalid_file', 'Select a regular file.', 400); await client.remove(remote, false) },
       close,
     }
   } catch (err) { close(); throw err }

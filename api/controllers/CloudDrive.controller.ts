@@ -1,3 +1,6 @@
+import {offlinePlayback, sendOfflineFile} from '../services/mediaSources/offline'
+import {createMediaRepository} from '../db/repositories/media'
+import {driveMediaPath} from '../../shared/cloudDrive'
 import type {Request, Response} from 'express'
 import {sourceFailure, sourceRateLimited} from '../../shared/sourceErrors'
 import {getCloudDriveService, resetCloudDriveService} from '../services/cloudDrive'
@@ -92,6 +95,8 @@ function createCloudDriveController(db: ApiDb) {
     async playable(req: Request, res: Response) {
       try {
         const {row, fileId} = driveLibraryFile(db, z.coerce.number().int().positive().parse(req.params.id))
+        const offline = offlinePlayback(db, row.id)
+        if (offline) return res.json(offline)
         if (!getCloudDriveService().status().authenticated) return res.status(409).json({code: 'auth_required', message: 'Reconnect Google Drive in Settings → Sources.'})
         res.json({url: `/api/drive/files/${fileId}/stream`, kind: 'mp4', title: row.name || row.basename,
           qualities: [], quality: null, adaptive: false})
@@ -132,6 +137,8 @@ function createCloudDriveController(db: ApiDb) {
     async stream(req: Request, res: Response) {
       try {
         const service = getCloudDriveService()
+        const cachedMedia = createMediaRepository(db.drizzle).findByPathVariants([driveMediaPath(DriveFileIdSchema.parse(req.params.fileId))])
+        if (cachedMedia && !cachedMedia.deletedAt && offlinePlayback(db, cachedMedia.id)) { sendOfflineFile(db, cachedMedia.id, res); return }
         if (!service.config.mock && !service.store.get()?.accessToken) {
           return res.status(409).json({code: 'auth_required', message: 'Reconnect Google Drive in Settings → Sources.'})
         }

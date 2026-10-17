@@ -7,6 +7,8 @@ import { useAppStore } from '@/stores/app'
 import { getReadableDuration, getReadableFileSize } from '@/services/formatUtils'
 import type { MoveErrorMessage, MoveWsMessage } from '@/types/stores'
 import type { Locale } from '@/utils/translate'
+import type {OriginalOperation} from '@shared/originalOperations'
+import {originalOperationsApi} from '@/services/typedApi/originalOperations'
 
 interface MovingRunOptions {
   onMessage?: (msg: MoveWsMessage) => void
@@ -43,6 +45,38 @@ export const useOperationsStore = defineStore('useOperationsStore', {
     migrationLowDb: { dialog: false, paths: {} as Record<string, string> },
   }),
   actions: {
+    async runOriginalOperations(items: OriginalOperation[], onProgress?: (msg: MoveWsMessage) => void): Promise<MovingRunResult> {
+      const tasks = useTasksStore()
+      const started = Date.now()
+      const title = this.t('originals.title')
+      const taskId = tasks.setTask({title, subtitle: this.t('operations.moving.preparing'), icon: 'file-move', progress: 0})
+      this.moving.active = true
+      try {
+        let {data: job} = await originalOperationsApi.create(items)
+        while (true) {
+          const totalBytes = job.items.reduce((sum, item) => sum + item.total, 0)
+          const transferred = job.items.reduce((sum, item) => sum + item.bytes, 0)
+          const current = job.items.find(item => item.state === 'running')
+          const progress = totalBytes ? Math.min(99, transferred / totalBytes * 100) : 0
+          const message = {type: 'progress', total: job.items.length, current: job.items.filter(item => item.state === 'completed').length,
+            totalBytes, overallProgress: progress, fileName: current?.target?.key || current?.source?.key || ''}
+          tasks.updateTask(taskId, {progress, subtitle: message.fileName})
+          onProgress?.(message)
+          if (job.state === 'completed' || job.state === 'failed' || job.state === 'interrupted') {
+            const moved = job.items.filter(item => item.state === 'completed' || item.state === 'skipped').length
+            const failed = job.items.length - moved
+            for (const item of job.items) if (item.mediaId && item.state === 'completed') this.moving.callback(item.mediaId)
+            if (failed) useNotificationsStore().setNotification({type: 'error', title, text: this.t('originals.errors.' + (job.items.find(item => item.error)?.error || 'operation_failed'))})
+            return {success: failed === 0 && moved > 0, moved, failed, total: job.items.length, totalBytes, elapsedSeconds: (Date.now() - started) / 1000}
+          }
+          await new Promise(resolve => setTimeout(resolve, 600))
+          job = (await originalOperationsApi.job(job.id)).data
+        }
+      } catch {
+        useNotificationsStore().setNotification({type: 'error', title, text: this.t('originals.errors.operation_failed')})
+        return {success: false, aborted: true}
+      } finally { tasks.removeTask(taskId); this.moving.active = false }
+    },
     t(key: string, params: Record<string, string | number> = {}) {
       const settings = useSettingsStore()
       return translate(key, params, (settings.locale || 'en') as Locale)
@@ -323,12 +357,14 @@ export const useOperationsStore = defineStore('useOperationsStore', {
     },
 
     async renameFilePath({
+      mediaId,
       oldPath,
       newPath,
       onProgress,
       notifyOnComplete = false,
       notifyOnError = true,
     }: {
+      mediaId?: number
       oldPath: string
       newPath: string
       onProgress?: (msg: MoveWsMessage) => void
@@ -342,7 +378,7 @@ export const useOperationsStore = defineStore('useOperationsStore', {
       const fileName = oldPath.split(/[/\\]/).pop() || oldPath
       return queue.enqueue(
         {label: `Rename ${fileName}`, kind: 'move', entryCount: 1},
-        () => this._runMovingWebSocket(
+        () => mediaId ? this.runOriginalOperations([{kind: oldPath.replace(/[/\\][^/\\]*$/, '') === newPath.replace(/[/\\][^/\\]*$/, '') ? 'rename' : 'move', mediaId, target: {key: newPath}, conflict: 'fail'}], onProgress) : this._runMovingWebSocket(
           {type: 'rename', old_path: oldPath, new_path: newPath},
           {
             taskTitle: this.t('operations.moving.rename_title'),
@@ -367,14 +403,18 @@ export const useOperationsStore = defineStore('useOperationsStore', {
 
       return queue.enqueue(
         {label: `Move ${items.length} item(s)`, kind: 'move', entryCount: items.length},
-        () => this._runMovingWebSocket(
-          {type: 'move', items},
-          {
-            onFinish: () => {
-              this.moving.items = null
-            },
-          },
-        ),
+        async () => {
+          try {
+            const operations: OriginalOperation[] = []
+            for (const item of items) {
+              const {data: info} = await originalOperationsApi.source(item.id)
+              operations.push({kind: 'move', mediaId: item.id, conflict: 'fail', target: {connectionId: info.source.connectionId,
+                key: info.provider === 'gdrive' ? item.folder : item.folder.replace(/[/\\]+$/, '') + (item.folder.includes('\\') ? '\\' : '/') + info.name,
+                ...(info.provider === 'gdrive' ? {name: info.name} : {})}})
+            }
+            return await this.runOriginalOperations(operations)
+          } finally { this.moving.items = null }
+        },
       )
     },
   },

@@ -55,7 +55,7 @@ describe('cloudDrive config', () => {
     const config = getDriveConfig()
     expect(config.mock).toBe(false)
     expect(config.configured).toBe(false)
-    expect(config.scopes[0]).toContain('drive.readonly')
+    expect(config.scopes[0]).toBe('https://www.googleapis.com/auth/drive')
   })
 
   it('uses live mode when client id/secret are set', () => {

@@ -51,12 +51,15 @@
       :action="openDelete"
     />
 
+    <AppBarButton v-if="itemsStore.type === 'media'" icon="file-cog-outline" :text="t('originals.title')" :disabled="itemsStore.selection.length === 0" :action="() => { originalsOpen = true }" />
+    <DialogOriginalOperations v-if="itemsStore.type === 'media'" v-model="originalsOpen" :media-ids="itemsStore.selection" />
+
     <span class="text-caption ml-6" v-html="selectedText"></span>
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, defineAsyncComponent, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
 import {useAppStore} from '@/stores/app'
@@ -71,6 +74,8 @@ import {setNotification} from '@/services/notificationService'
 import {useEventBus} from '@/utils/eventBus'
 import type {MediaItem, Tag} from '@/types/stores'
 
+const DialogOriginalOperations = defineAsyncComponent(() => import('@/components/dialogs/DialogOriginalOperations.vue'))
+const originalsOpen = ref(false)
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()

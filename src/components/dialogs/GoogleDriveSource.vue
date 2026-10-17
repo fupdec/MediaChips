@@ -44,6 +44,14 @@
       <v-btn size="small" variant="text" @click="cancelOAuth">{{ t('common.cancel') }}</v-btn>
     </div>
     <div v-if="!connectionsOnly && status?.authenticated">
+      <v-alert v-if="status.capabilities?.move === false && !status.mock" type="info" variant="tonal" class="mb-3">
+        {{ t('originals.drive_authorization') }}
+        <v-btn size="small" variant="text" :loading="waiting" @click="connect">{{ t('drive.connect') }}</v-btn>
+      </v-alert>
+      <v-btn variant="tonal" size="small" prepend-icon="mdi-file-cog-outline" class="mb-3" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
+      <DialogOriginalOperations v-model="originalsOpen" :media-ids="[]" :scope="{connectionId: 'google-drive', key: driveFileIdFromPath(folder)}" :scope-writable="status.capabilities?.move === true" @changed="browser?.refresh()" />
+      <SourceCatalogControls connection-id="google-drive" :root-key="driveFileIdFromPath(folder)" :name="pathTitles[folder] || t('drive.title')"
+                             @updated="browser?.refresh(); sync.getItemsFromDb({ids: [], type: 'media'}); events.emit('library:nav-counts-changed')" />
       <MediaFolderBrowser ref="browser" v-model:path="folder" v-model:selected-paths="selectedPaths"
                           :extensions="extensions" :base-url="app.localhost || ''" :directory-loader="directoryLoader" :path-titles="pathTitles"
                           :favorites-scope="browserPrefsScope() + ':gdrive'" :error-message="apiError"
@@ -78,6 +86,8 @@
 
 <script setup lang="ts">
 import {sourceFailure, type SourceFailure} from '@shared/sourceErrors'
+import SourceCatalogControls from './SourceCatalogControls.vue'
+import DialogOriginalOperations from './DialogOriginalOperations.vue'
 import SourceHealth from './SourceHealth.vue'
 import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
@@ -104,6 +114,7 @@ import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
 
 const {connectionsOnly = false, embedded = false, extensions} = defineProps<{connectionsOnly?: boolean; embedded?: boolean; extensions?: string}>()
 const {t, te} = useI18n()
+const originalsOpen = ref(false)
 const addingProcess = useRemoteMediaAddingProcess(t)
 const emit = defineEmits<{started: []}>()
 const app = useAppStore()

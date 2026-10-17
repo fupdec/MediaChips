@@ -47,7 +47,7 @@ describe.skipIf(process.env.WEBDAV_ACCEPTANCE !== '1')('WebDAV interoperability 
     const connected = await post('/api/nas/connections', config)
     expect(connected.status, await connected.clone().text()).toBe(200)
     const connection = await connected.json()
-    expect(connection).toMatchObject({protocol: 'webdav', hasPassword: true, capabilities: {view: true, seek: true, download: true, move: false, delete: false}})
+    expect(connection).toMatchObject({protocol: 'webdav', hasPassword: true, capabilities: {view: true, seek: true, download: true, move: true, delete: true}})
     expect(JSON.stringify(connection)).not.toContain(config.password)
     const rootListing = await fetch(`${base}/api/nas/connections/${connection.id}/files`)
     expect((await rootListing.json()).entries).toContainEqual(expect.objectContaining({name: 'Кино & тест', isDirectory: true}))

@@ -2,7 +2,7 @@ import {Readable} from 'stream'
 import {DriveFileIdSchema, driveMediaContentType} from '../../../shared/cloudDrive'
 import {READ_SOURCE_CAPABILITIES} from '../../../shared/mediaSources'
 import type {DriveTransport, DriveFileEntry} from '../cloudDrive/types'
-import {driveFileVersion, type SourceReadAdapter, type SourceObject} from './adapter'
+import {driveFileVersion, type SourceWriteAdapter, type SourceObject} from './adapter'
 import {sourceOperation, sourceStream} from './cancellation'
 
 const object = (file: Omit<DriveFileEntry, 'isFolder'> & {isFolder?: boolean}): SourceObject => ({
@@ -12,9 +12,10 @@ const object = (file: Omit<DriveFileEntry, 'isFolder'> & {isFolder?: boolean}): 
   contentType: driveMediaContentType(file.name, file.mimeType), version: driveFileVersion(file),
 })
 
-export function createDriveSourceAdapter(transport: DriveTransport): SourceReadAdapter {
+export function createDriveSourceAdapter(transport: DriveTransport, writable = false): SourceWriteAdapter {
   return {
-    provider: 'gdrive', capabilities: READ_SOURCE_CAPABILITIES,
+    drive: transport,
+    provider: 'gdrive', capabilities: {...READ_SOURCE_CAPABILITIES, move: writable, delete: writable},
     async list(key, pageToken, signal) {
       const page = await sourceOperation(() => transport.listFolder(DriveFileIdSchema.parse(key || 'root'), pageToken, signal), signal)
       return {entries: page.files.map(object), nextPageToken: page.nextPageToken}

@@ -28,4 +28,4 @@ export {valuesInTags} from './valuesInTag'
 export {videoMetadata} from './videoMetadata'
 export {mediaTypesInWatchedFolders, watchedFolders} from './watchedFolders'
 
-export {sourceConnections, mediaLocations} from './mediaSources'
+export {sourceConnections, mediaLocations, sourceCatalogRoots, sourceCatalogEntries, offlineCopies, sourceCacheSettings, originalOperationJobs} from './mediaSources'

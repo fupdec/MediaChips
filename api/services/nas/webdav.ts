@@ -1,6 +1,6 @@
 import https from 'https'
 import type {ClientRequest, IncomingMessage} from 'http'
-import {Transform} from 'stream'
+import {Transform, type Readable} from 'stream'
 import {DOMParser} from '@xmldom/xmldom'
 import type {NasConnectionInput, NasEntry} from '../../../shared/nas'
 import type {NasCredentials} from './credentials'
@@ -49,7 +49,7 @@ export async function connectWebDav(config: NasConnectionInput, credentials: Nas
     if (base.some((part, i) => parts[i] !== part) || parts.length < base.length) throw invalidResponse()
     return normalizeNasRelativePath(parts.slice(base.length).join('/'))
   }
-  const request = async (url: URL, method: string, headers: Record<string, string>, body?: string, redirects = 0): Promise<IncomingMessage> => {
+  const request = async (url: URL, method: string, headers: Record<string, string>, body?: string | Readable, redirects = 0): Promise<IncomingMessage> => {
     if (closed) throw new NasError('cancelled', 'WebDAV request cancelled.', 499)
     let response: IncomingMessage
     try {
@@ -60,7 +60,11 @@ export async function connectWebDav(config: NasConnectionInput, credentials: Nas
         req.on('close', () => pending.delete(req))
         req.on('error', reject)
         req.setTimeout(15_000, () => req.destroy(new NasError('network_error', 'WebDAV server timed out.', 502)))
-        req.end(body)
+        if (body && typeof body !== 'string') {
+          body.on('error', err => req.destroy(err))
+          req.once('close', () => body.destroy())
+          body.pipe(req)
+        } else req.end(body)
       })
     } catch (err) {
       const code = (err as NodeJS.ErrnoException).code || ''
@@ -69,17 +73,19 @@ export async function connectWebDav(config: NasConnectionInput, credentials: Nas
     }
     if ([301, 302, 307, 308].includes(response.statusCode || 0)) {
       response.destroy()
-      if (redirects >= 3 || !response.headers.location) throw invalidResponse()
+      if (redirects >= 3 || !response.headers.location || !['GET', 'PROPFIND'].includes(method)) throw invalidResponse()
       keyFor(response.headers.location, url)
       return request(new URL(response.headers.location, url), method, headers, body, redirects + 1)
     }
-    if (![200, 206, 207].includes(response.statusCode || 0)) {
+    if (![200, 201, 204, 206, 207].includes(response.statusCode || 0)) {
       response.destroy()
       const status = response.statusCode
       if (status === 401) throw new NasError('auth_required', 'WebDAV sign-in is required. Check the username and app password.', 409)
       if (status === 403) throw new NasError('permission_denied', 'The WebDAV account cannot read this folder.', 403)
       if (status === 404) throw new NasError('not_found', 'WebDAV file or folder is unavailable.', 404)
+      if (status === 412 && ['PUT', 'MKCOL'].includes(method)) throw new NasError('conflict', 'Destination already exists.', 409)
       if (status === 412) throw new NasError('file_changed', 'The WebDAV file changed. Open the new version.', 409)
+      if (status === 409 || status === 405) throw new NasError('conflict', 'Destination exists or its parent is unavailable.', 409)
       if (status === 416) throw new NasError('invalid_range', 'Invalid WebDAV byte range.', 416)
       throw new NasError('connection_failed', 'The WebDAV request failed.', 502)
     }
@@ -168,6 +174,37 @@ export async function connectWebDav(config: NasConnectionInput, credentials: Nas
         stream.once('close', () => response.destroy())
         response.pipe(stream)
         return stream
+      },
+      async mkdir(key) {
+        if (!normalizeNasRelativePath(key)) throw new NasError('invalid_path', 'Cannot change the NAS root.', 400)
+        const response = await request(urlFor(key), 'MKCOL', {'If-None-Match': '*'})
+        response.resume()
+      },
+      async write(key, input, size) {
+        if (!normalizeNasRelativePath(key)) throw new NasError('invalid_path', 'Cannot change the NAS root.', 400)
+        const response = await request(urlFor(key), 'PUT', {'If-None-Match': '*', 'Content-Type': 'application/octet-stream', 'Content-Length': String(size)}, input)
+        response.resume()
+      },
+      async move(from, to) {
+        if (!normalizeNasRelativePath(from) || !normalizeNasRelativePath(to)) throw new NasError('invalid_path', 'Cannot change the NAS root.', 400)
+        const etag = validators.get(from)
+        try {
+          const response = await request(urlFor(from), 'MOVE', {Destination: urlFor(to).href, Overwrite: 'F', ...(etag ? {'If-Match': etag} : {})})
+          response.resume()
+        } catch (err) {
+          if (err instanceof NasError && err.code === 'file_changed') {
+            let exists = false
+            try { await stat(to); exists = true } catch { /* Keep the original conditional error if the target is inaccessible. */ }
+            if (exists) throw new NasError('conflict', 'Destination already exists.', 409)
+          }
+          throw err
+        }
+      },
+      async remove(key) {
+        if (!normalizeNasRelativePath(key)) throw new NasError('invalid_path', 'Cannot change the NAS root.', 400)
+        const etag = validators.get(key)
+        const response = await request(urlFor(key), 'DELETE', {...(etag ? {'If-Match': etag} : {})})
+        response.resume()
       }, close,
     }
   } catch (err) { close(); throw err }

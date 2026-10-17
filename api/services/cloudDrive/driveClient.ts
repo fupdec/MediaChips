@@ -1,9 +1,11 @@
 import axios from 'axios'
-import type {DriveConfig, DriveFileEntry, DriveHttpResponse, DriveListResult, DriveTransport} from './types'
+import type {DriveConfig, DriveFileEntry, DriveFileMeta, DriveHttpResponse, DriveListResult, DriveTransport} from './types'
+import {DriveFileIdSchema} from '../../../shared/cloudDrive'
 import type {DriveTokenStore} from './tokenStore'
 import {getValidAccessToken} from './oauth'
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3'
+const META_FIELDS = 'id,name,mimeType,size,modifiedTime,parents,md5Checksum,trashed,capabilities(canEdit,canDelete,canAddChildren)'
 
 type DriveApiFile = {
   id: string
@@ -37,8 +39,16 @@ function createGoogleDriveTransport(
     const token = await getValidAccessToken(config, store)
     return {Authorization: `Bearer ${token}`}
   }
-
-  return {
+  const requireWrite = () => {
+    if (!store.get()?.scope?.split(/\s+/).includes('https://www.googleapis.com/auth/drive')) {
+      throw Object.assign(new Error('Reconnect Google Drive to authorize managing originals.'), {code: 'drive_write_authorization', status: 409})
+    }
+  }
+  const toMeta = (data: Omit<DriveFileMeta, 'size'> & {size?: number | string}, etag?: string): DriveFileMeta => ({
+    id: data.id, name: data.name, mimeType: data.mimeType, size: Number(data.size || 0), modifiedTime: data.modifiedTime,
+    parents: data.parents, md5Checksum: data.md5Checksum, capabilities: data.capabilities, etag,
+  })
+  const transport: DriveTransport = {
     async listFolder(folderId: string, pageToken?: string, signal?: AbortSignal): Promise<DriveListResult> {
       const parent = folderId || 'root'
       const params: Record<string, string> = {
@@ -67,22 +77,17 @@ function createGoogleDriveTransport(
     },
 
     async getFileMeta(fileId: string, signal?: AbortSignal) {
-      const {data} = await axios.get(`${DRIVE_API}/files/${encodeURIComponent(fileId)}`, {
+      const {data, headers} = await axios.get(`${DRIVE_API}/files/${encodeURIComponent(fileId)}`, {
         params: {
-          fields: 'id, name, mimeType, size, modifiedTime',
+          fields: META_FIELDS,
           supportsAllDrives: 'true',
         },
         headers: await authHeaders(),
         timeout: 30_000,
         signal,
       })
-      return {
-        id: data.id as string,
-        name: data.name as string,
-        mimeType: data.mimeType as string,
-        size: data.size ? Number(data.size) : 0,
-        modifiedTime: data.modifiedTime as string | undefined,
-      }
+      if (data.trashed) throw Object.assign(new Error('File is in Drive Trash.'), {status: 404})
+      return toMeta(data, headers?.etag as string | undefined)
     },
 
     async downloadFile(fileId: string, rangeHeader?: string, signal?: AbortSignal): Promise<DriveHttpResponse> {
@@ -114,6 +119,62 @@ function createGoogleDriveTransport(
       }
     },
   }
+  const metadata = (id: string, signal?: AbortSignal) => transport.getFileMeta(DriveFileIdSchema.parse(id), signal)
+  const requireCapability = (allowed: boolean | undefined) => {
+    if (allowed !== true) throw Object.assign(new Error('The Drive account cannot change this file.'), {code: 'permission_denied', status: 403})
+  }
+  transport.originals = {
+    async generateId(signal) {
+      requireWrite()
+      const {data} = await axios.get(`${DRIVE_API}/files/generateIds`, {params: {count: 1, space: 'drive', type: 'files'}, headers: await authHeaders(), signal, timeout: 30_000})
+      return DriveFileIdSchema.parse(data.ids?.[0])
+    },
+    async create(id, parent, name, input, size, signal, contentType = 'application/octet-stream') {
+      requireWrite(); DriveFileIdSchema.parse(id)
+      requireCapability((await metadata(parent, signal)).capabilities?.canAddChildren)
+      const body = {id, name, parents: [parent], mimeType: input ? contentType : 'application/vnd.google-apps.folder'}
+      const params = {supportsAllDrives: true, fields: META_FIELDS}
+      if (!input) {
+        const {data, headers} = await axios.post(`${DRIVE_API}/files`, body, {params, headers: await authHeaders(), signal, timeout: 30_000})
+        return toMeta(data, headers?.etag as string | undefined)
+      }
+      // The reserved ID is journaled before starting a resumable session. A retry
+      // can discover a committed upload even when its final response was lost.
+      const session = await axios.post('https://www.googleapis.com/upload/drive/v3/files', body, {
+        params: {...params, uploadType: 'resumable'}, signal, timeout: 30_000,
+        headers: {...await authHeaders(), 'X-Upload-Content-Type': contentType, 'X-Upload-Content-Length': String(size)},
+      })
+      const url = new URL(String(session.headers.location))
+      if (url.origin !== 'https://www.googleapis.com' || !url.pathname.startsWith('/upload/drive/')) throw new Error('Invalid Drive upload session')
+      const response = await axios.put(url.href, input, {signal, timeout: 2 * 60 * 60_000, maxBodyLength: Infinity, maxRedirects: 0,
+        headers: {...await authHeaders(), 'Content-Type': contentType, 'Content-Length': String(size)}})
+      return toMeta(response.data, response.headers?.etag as string | undefined)
+    },
+    async update(id, name, parent, etag, signal) {
+      requireWrite()
+      const before = await metadata(id, signal)
+      requireCapability(before.capabilities?.canEdit)
+      if (etag && before.etag && etag !== before.etag) throw Object.assign(new Error('Source changed'), {code: 'source_changed', status: 409})
+      const params: Record<string, string | boolean> = {supportsAllDrives: true, fields: META_FIELDS}
+      if (parent && !before.parents?.includes(parent)) {
+        requireCapability((await metadata(parent, signal)).capabilities?.canAddChildren)
+        params.addParents = parent
+        if (before.parents?.length) params.removeParents = before.parents.join(',')
+      }
+      const {data, headers} = await axios.patch(`${DRIVE_API}/files/${encodeURIComponent(id)}`, {name}, {params, signal, timeout: 30_000,
+        headers: {...await authHeaders(), ...(etag ? {'If-Match': etag} : {})}})
+      return toMeta(data, headers?.etag as string | undefined)
+    },
+    async remove(id, etag, signal) {
+      requireWrite()
+      const before = await metadata(id, signal)
+      requireCapability(before.capabilities?.canDelete)
+      if (etag && before.etag && etag !== before.etag) throw Object.assign(new Error('Source changed'), {code: 'source_changed', status: 409})
+      await axios.delete(`${DRIVE_API}/files/${encodeURIComponent(id)}`, {params: {supportsAllDrives: true}, signal, timeout: 30_000,
+        headers: {...await authHeaders(), ...(etag ? {'If-Match': etag} : {})}})
+    },
+  }
+  return transport
 }
 
 export {createGoogleDriveTransport}

@@ -33,6 +33,8 @@ import registerValuesInMedia from '../../api/routes/ValuesInMedia.routes'
 import registerVideoMetadata from '../../api/routes/VideoMetadata.routes'
 import registerWatchedFolder from '../../api/routes/WatchedFolder.routes'
 import registerCloudDrive from '../../api/routes/CloudDrive.routes'
+import registerSourceCatalog from '../../api/routes/SourceCatalog.routes'
+import registerOriginalOperations from '../../api/routes/OriginalOperations.routes'
 import registerNas from '../../api/routes/Nas.routes'
 import { isSfwBuild } from '../../shared/buildFlags'
 import { bindPluginMainRuntime } from '../../api/services/pluginMainRuntime'
@@ -62,6 +64,8 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     // Settings early so renderer getSettings can succeed while Task/face still load.
     { routeFile: 'Setting.routes', register: registerSetting },
     { routeFile: 'Nas.routes', register: registerNas },
+    { routeFile: 'SourceCatalog.routes', register: registerSourceCatalog },
+    { routeFile: 'OriginalOperations.routes', register: registerOriginalOperations },
   ]
 
   // Task.routes pulls faces/ffmpeg controllers; load only when routes are registered

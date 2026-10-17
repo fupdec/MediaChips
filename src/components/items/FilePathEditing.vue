@@ -418,6 +418,7 @@ const updateFilePath = async () => {
 
     try {
       const result = await operationsStore.renameFilePath({
+        mediaId: props.media.id,
         oldPath: display_path.value || props.media.path || '',
         newPath: filePath,
         onProgress: handleMoveProgress,
@@ -436,18 +437,16 @@ const updateFilePath = async () => {
         return
       }
 
-      const saved = await savePathToDb(filePath, { notify: false })
-
-      if (saved) {
-        setNotification({
-          type: "success",
-          title: t("media.file_path.moved_renamed"),
-          text: basename,
-          icon: 'folder-edit',
-        })
-        dialog_edit.value = false
-        await refreshPathAvailability(filePath)
-      }
+      // The durable server operation has already linked the existing card.
+      applyPathUpdate(filePath)
+      setNotification({
+        type: "success",
+        title: t("media.file_path.moved_renamed"),
+        text: basename,
+        icon: 'folder-edit',
+      })
+      dialog_edit.value = false
+      await refreshPathAvailability(filePath)
     } finally {
       is_file_moving.value = false
       resetMoveState()

@@ -9,6 +9,7 @@ import type {NasConnectionInput} from '../../../shared/nas'
 import {NasConnectionSchema} from '../../../shared/nas'
 import {connectNas} from './transport'
 import {nasFileVersion} from '../mediaSources/adapter'
+import {Readable} from 'stream'
 
 const bytes = Buffer.from('0123456789abcdefghijklmnopqrstuvwxyz')
 const root = '/remote.php/dav/files/reader/'
@@ -20,7 +21,8 @@ let directory: string
 let originalCA: typeof https.globalAgent.options.ca
 let responseXml: string | undefined
 let mode = ''
-let requests: Array<{method?: string; url?: string; range?: string; ifMatch?: string}>
+let requests: Array<{method?: string; url?: string; range?: string; ifMatch?: string; destination?: string; overwrite?: string; ifNoneMatch?: string}>
+let writableObjects: Map<string, Buffer | null>
 const entry = (href: string, folder = false, prefix = 'd') => `<${prefix}:response><${prefix}:href>${escaped(href)}</${prefix}:href><${prefix}:propstat><${prefix}:prop><${prefix}:resourcetype>${folder ? `<${prefix}:collection/>` : ''}</${prefix}:resourcetype><${prefix}:getcontentlength>${folder ? 0 : bytes.length}</${prefix}:getcontentlength><${prefix}:getlastmodified>Wed, 14 Oct 2026 10:00:00 GMT</${prefix}:getlastmodified><${prefix}:getetag>"revision-1"</${prefix}:getetag></${prefix}:prop><${prefix}:status>HTTP/1.1 200 OK</${prefix}:status></${prefix}:propstat></${prefix}:response>`
 const multistatus = (items: string) => `<d:multistatus xmlns:d="DAV:" xmlns:x="DAV:">${items}</d:multistatus>`
 
@@ -31,7 +33,7 @@ beforeAll(async () => {
   originalCA = https.globalAgent.options.ca
   https.globalAgent.options.ca = cert
   server = https.createServer({key: fs.readFileSync(path.join(directory, 'key.pem')), cert}, (req, res) => {
-    requests.push({method: req.method, url: req.url, range: req.headers.range, ifMatch: req.headers['if-match']})
+    requests.push({method: req.method, url: req.url, range: req.headers.range, ifMatch: req.headers['if-match'], destination: req.headers.destination as string, overwrite: req.headers.overwrite as string, ifNoneMatch: req.headers['if-none-match']})
     if (req.headers.authorization !== `Basic ${Buffer.from('reader:secret').toString('base64')}`) { res.writeHead(401).end(); return }
     if (mode === 'denied') { res.writeHead(403).end(); return }
     if (mode === 'missing') { res.writeHead(404).end(); return }
@@ -40,6 +42,27 @@ beforeAll(async () => {
     if (mode === 'outside') { res.writeHead(301, {Location: '/elsewhere/'}).end(); return }
     if (mode === 'loop') { res.writeHead(308, {Location: root}).end(); return }
     if (mode === 'slow') return
+    if (mode === 'writes') {
+      const key = req.url!
+      if (req.method === 'PROPFIND') {
+        if (!writableObjects.has(key)) { res.writeHead(404).end(); return }
+        const value = writableObjects.get(key)
+        res.writeHead(207).end(multistatus(entry(key, value === null).replace(`<d:getcontentlength>${bytes.length}</d:getcontentlength>`, `<d:getcontentlength>${value?.length || 0}</d:getcontentlength>`)))
+      } else if (req.method === 'MKCOL') {
+        if (writableObjects.has(key)) { res.writeHead(405).end(); return }
+        writableObjects.set(key, null); res.writeHead(201).end()
+      } else if (req.method === 'PUT') {
+        if (writableObjects.has(key)) { res.writeHead(412).end(); return }
+        const chunks: Buffer[] = []
+        req.on('data', chunk => chunks.push(chunk)); req.on('end', () => { writableObjects.set(key, Buffer.concat(chunks)); res.writeHead(201).end() })
+      } else if (req.method === 'MOVE') {
+        const destination = new URL(req.headers.destination as string).pathname
+        if (req.headers.overwrite !== 'F' || writableObjects.has(destination)) { res.writeHead(412).end(); return }
+        writableObjects.set(destination, writableObjects.get(key)!); writableObjects.delete(key); res.writeHead(201).end()
+      } else if (req.method === 'DELETE') { writableObjects.delete(key); res.writeHead(204).end() }
+      else res.writeHead(405).end()
+      return
+    }
     if (req.method === 'PROPFIND') {
       if (responseXml) { res.writeHead(207).end(responseXml); return }
       const href = req.url!
@@ -68,11 +91,33 @@ afterAll(async () => {
   await new Promise<void>(resolve => server.close(() => resolve()))
   fs.rmSync(directory, {recursive: true, force: true})
 })
-beforeEach(() => { mode = ''; responseXml = undefined; requests = [] })
+beforeEach(() => { mode = ''; responseXml = undefined; requests = []; writableObjects = new Map([[root, null]]) })
 const connect = () => connectNas(config, {password: 'secret'})
 const collect = async (body: AsyncIterable<Buffer>) => { const chunks = []; for await (const chunk of body) chunks.push(chunk); return Buffer.concat(chunks).toString() }
 
 describe('WebDAV HTTPS transport', () => {
+  it('creates folders, streams uploads and conditionally moves/deletes without replacing a target', async () => {
+    mode = 'writes'
+    const transport = await connect()
+    try {
+      await transport.mkdir!('folder')
+      expect((await transport.stat('folder')).isDirectory).toBe(true)
+      await expect(transport.mkdir!('folder')).rejects.toMatchObject({code: 'conflict'})
+      await transport.write!('folder/upload.mp4', Readable.from(['up', 'load']), 6)
+      expect((await transport.stat('folder/upload.mp4')).size).toBe(6)
+      await expect(transport.write!('folder/upload.mp4', Readable.from(['other']), 5)).rejects.toMatchObject({code: 'conflict'})
+      expect(writableObjects.get(root + 'folder/upload.mp4')?.toString()).toBe('upload')
+      await transport.move!('folder/upload.mp4', 'folder/renamed.mp4')
+      expect(requests.find(request => request.method === 'MOVE')).toMatchObject({overwrite: 'F', ifMatch: '"revision-1"'})
+      await transport.stat('folder/renamed.mp4')
+      await transport.remove!('folder/renamed.mp4')
+      expect(requests.find(request => request.method === 'DELETE')).toMatchObject({ifMatch: '"revision-1"'})
+      expect(writableObjects.has(root + 'folder/renamed.mp4')).toBe(false)
+      const count = requests.length
+      await expect(transport.remove!('../private')).rejects.toMatchObject({code: 'invalid_path'})
+      expect(requests.length).toBe(count)
+    } finally { transport.close() }
+  })
   it('lists namespace-independent multistatus, stats files and reads exact ranges with encoded names', async () => {
     const transport = await connect()
     try {

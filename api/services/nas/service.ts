@@ -1,3 +1,4 @@
+import {offlinePlayback, sendOfflineFile} from '../mediaSources/offline'
 import {randomUUID, createHash} from 'crypto'
 import path from 'path'
 import {Readable} from 'stream'
@@ -11,7 +12,7 @@ import {createMediaTypesRepository} from '../../db/repositories/mediaTypes'
 import {createVideoMetadataRepository} from '../../db/repositories/videoMetadata'
 import {NasConnectionSchema, type NasConnectionInput, type NasConnection, type NasImportResult} from '../../../shared/nas'
 import {nasMediaPath, parseNasMediaPath} from '../../../shared/remoteMedia'
-import {READ_SOURCE_CAPABILITIES} from '../../../shared/mediaSources'
+import {NAS_SOURCE_CAPABILITIES} from '../../../shared/mediaSources'
 import {createNasSourceAdapter} from '../mediaSources/nasAdapter'
 import {nasFileVersion, type SourceReadAdapter} from '../mediaSources/adapter'
 import {resolveMediaLocation, nasVersionMatches} from '../mediaSources/locations'
@@ -66,7 +67,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     }
     const hasPassword = Boolean(credentials.password)
     const hasPrivateKey = Boolean(credentials.privateKey)
-    return {...config, id: row.id, hasCredentials: hasPassword || hasPrivateKey, hasPassword, hasPrivateKey, capabilities: READ_SOURCE_CAPABILITIES}
+    return {...config, id: row.id, hasCredentials: hasPassword || hasPrivateKey, hasPassword, hasPrivateKey, capabilities: NAS_SOURCE_CAPABILITIES}
   }
   const withTransport = async <T>(db: ApiDb, id: string, action: (transport: SourceReadAdapter, assertCurrent: () => void) => Promise<T>, signal?: AbortSignal) => {
     const library = libraryKey(db)
@@ -229,6 +230,8 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     async prepare(db: ApiDb, mediaId: number, signal?: AbortSignal) {
       const media = createMediaRepository(db.drizzle).findById(mediaId)
       if (!media || media.deletedAt || !parseNasMediaPath(media.path)) throw new NasError('not_found', 'NAS file is unavailable.', 404)
+      const offline = offlinePlayback(db, mediaId)
+      if (offline) return offline
       let resolved: ReturnType<typeof resolveMediaLocation>
       try { resolved = resolveMediaLocation(db, mediaId) }
       catch { throw new NasError('location_not_found', 'NAS location is missing. Reconnect and import the file again.', 409) }
@@ -252,8 +255,9 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
       const abort = () => controller.abort()
       res.once('close', abort)
       try {
-        const row = mediaPath.includes('?v=') ? createMediaRepository(db.drizzle).findByPathVariants([mediaPath]) : null
+        const row = createMediaRepository(db.drizzle).findByPathVariants([mediaPath])
         if (mediaPath.includes('?v=') && !row) throw new NasError('not_found', 'NAS image is unavailable.', 404)
+        if (row && offlinePlayback(db, row.id)) { sendOfflineFile(db, row.id, res); return }
         const plan = row ? await this.prepare(db, row.id, controller.signal)
           : await this.preparePreview(db, parsed.connectionId, parsed.relativePath, controller.signal)
         const sessionId = new URL(plan.url, 'http://localhost').searchParams.get('session')!

@@ -21,6 +21,8 @@
 
       <v-card-text class="edit-dialog-card__body">
         <MediaCatalogSourceInfo v-if="media" :media="media" />
+        <v-btn v-if="media" variant="tonal" prepend-icon="mdi-file-cog-outline" class="mb-3" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
+        <DialogOriginalOperations v-if="media" v-model="originalsOpen" :media-ids="[media.id]" />
         <EditPinnedMetaValues
           v-if="media"
           :key="media.id"
@@ -128,6 +130,8 @@ import {
   isVideoMediaType,
 } from '@/utils/mediaType'
 const DialogHeader = defineAsyncComponent(() => import("@/components/elements/DialogHeader.vue"))
+const DialogOriginalOperations = defineAsyncComponent(() => import('@/components/dialogs/DialogOriginalOperations.vue'))
+const originalsOpen = ref(false)
 
 interface DialogHeaderButton {
   icon?: string

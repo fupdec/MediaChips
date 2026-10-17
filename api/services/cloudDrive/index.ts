@@ -1,4 +1,4 @@
-import {READ_SOURCE_CAPABILITIES, type SourceCapabilities} from '../../../shared/mediaSources'
+import {READ_SOURCE_CAPABILITIES, NAS_SOURCE_CAPABILITIES, type SourceCapabilities} from '../../../shared/mediaSources'
 import {getDriveConfig} from './config'
 import {randomBytes} from 'crypto'
 import {DriveOAuthError, driveOAuthErrorCode, type DriveOAuthErrorCode} from './oauthErrors'
@@ -67,7 +67,7 @@ function createCloudDriveService(options?: {
     status() {
       return {
         configured: config.configured,
-        capabilities: READ_SOURCE_CAPABILITIES,
+        capabilities: config.mock || store.get()?.scope?.split(/\s+/).includes('https://www.googleapis.com/auth/drive') ? NAS_SOURCE_CAPABILITIES : READ_SOURCE_CAPABILITIES,
         mock: config.mock,
         authenticated: config.mock ? true : Boolean(store.get()?.accessToken),
         redirectUri: config.redirectUri,

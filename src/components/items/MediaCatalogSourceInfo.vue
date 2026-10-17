@@ -8,11 +8,13 @@
         {{ t('sources.catalog.states.' + (media.availability || 'unknown')) }}
       </v-chip>
     </div>
+    <MediaOfflineCopy v-if="kinds.some(kind => kind === 'nas' || kind === 'gdrive')" :media-id="media.id" />
     <div class="text-caption text-medium-emphasis mt-1">{{ t('sources.catalog.offline_editing') }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
+import MediaOfflineCopy from './MediaOfflineCopy.vue'
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import type {MediaItem} from '@shared/entities/media'
