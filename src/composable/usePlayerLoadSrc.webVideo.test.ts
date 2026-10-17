@@ -3,7 +3,7 @@ import {createPinia, setActivePinia} from 'pinia'
 import {beforeEach, afterEach, describe, expect, it, vi} from 'vitest'
 import {usePlayerStore} from '@/stores/player'
 import {typedApi} from '@/services/typedApi'
-import {buildLocalFileUrl} from '@/services/fileService'
+import {buildLocalFileUrl, checkFileExists} from '@/services/fileService'
 import {fetchPlayableInfo, buildVideoStreamUrl, buildLiveStreamUrl} from '@/services/transcodeService'
 import {attachWebVideo, disposeWebVideo, prepareWebVideoPlayback} from '@/services/webVideoPlayback'
 import {createPlayerLoadSrc} from './usePlayerLoadSrc'
@@ -118,6 +118,17 @@ describe('web video quality changes and recovery', () => {
     expect(player.usesLiveTranscode).toBe(setting === '1')
     if (setting === '1') expect(buildLiveStreamUrl).toHaveBeenCalledOnce()
     else expect(buildVideoStreamUrl).toHaveBeenCalledWith(expect.any(Function), 17, 'direct')
+  })
+
+  it('plays a verified alternative when the compatibility local file is missing', async () => {
+    const media = {...item, path: '/missing/original.mp4', hasCopies: 1}
+    player.playlist = [{...media, key: '17'} as PlayerPlaylistItem]
+    vi.mocked(checkFileExists).mockResolvedValueOnce(false)
+    await loader.loadSrc(media)
+    expect(prepareWebVideoPlayback).toHaveBeenCalledWith(17, expect.objectContaining({copies: true, path: media.path}))
+    expect(fetchPlayableInfo).not.toHaveBeenCalled()
+    expect(player.is_file_exists).toBe(true)
+    expect(video.play).toHaveBeenCalledOnce()
   })
 
   it('changes quality at the same time while keeping pause, speed and volume, without counting another view', async () => {

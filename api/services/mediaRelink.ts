@@ -1,3 +1,4 @@
+import {updateVerifiedCopyPath} from './mediaSources/copyPathUpdates'
 import {createHash} from 'node:crypto'
 import {createReadStream} from 'node:fs'
 import {stat} from 'node:fs/promises'
@@ -107,6 +108,7 @@ export async function applyMediaRelinks(db: ApiDb, inputs: MediaRelinkInput[]) {
       const current = createMediaRepository(db.drizzle).findById(candidate.id)
       if (current?.path !== candidate.oldPath) throw new HttpError(409, 'Media path changed; refresh the preview')
       const parsed = parseMediaFilePath(candidate.newPath)
+      updateVerifiedCopyPath(db, candidate.id, candidate.oldPath, parsed.path)
       // Preserve card identity, custom title, chips, markers, and generated assets.
       db.drizzle.update(media).set({path: parsed.path, basename: parsed.basename, ext: parsed.ext, contentHash: candidate.contentHash})
         .where(eq(media.id, candidate.id)).run()

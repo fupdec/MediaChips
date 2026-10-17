@@ -37,6 +37,7 @@ import {
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {isDriveMediaPath} from '@shared/cloudDrive'
 import {isRemoteMediaPath, isNasMediaPath} from '@shared/remoteMedia'
+
 import {attachWebVideo, disposeWebVideo, prepareWebVideoPlayback} from '@/services/webVideoPlayback'
 import {
   isLoadSrcSessionStale,
@@ -55,6 +56,8 @@ import {
   seekDirectPlaybackTo,
   type PlayerPlaybackSharedState,
 } from '@/composable/usePlayerLiveSession'
+
+const usesCopyOrRemoteSource = (media: Pick<MediaItem, 'path' | 'hasCopies'>) => Boolean(media.hasCopies) || isRemoteMediaPath(media.path)
 
 type PlayerLiveSession = ReturnType<typeof createPlayerLiveSession>
 
@@ -101,7 +104,7 @@ export function createPlayerLoadSrc({
       const res = await typedApi.getMarksForVideo(media.id)
       if (isStale()) return
       playerStore.marks = res.data
-      if (isRemoteMediaPath(media.path)) return
+      if (usesCopyOrRemoteSource(media)) return
       if (!media?.id || !appStore.mediaPath) return
       for (const mark of res.data) {
         if (isStale()) return
@@ -225,7 +228,7 @@ export function createPlayerLoadSrc({
     disposeRemoteLoad()
     const remoteController = new AbortController()
     remoteLoadController = remoteController
-    if (isRemoteMediaPath(media.path)) {
+    if (usesCopyOrRemoteSource(media)) {
       playerStore.cancelRemoteLoadHandler = () => {
         if (isLoadSrcStale(session)) return
         ++state.transcodeSessionId
@@ -247,7 +250,7 @@ export function createPlayerLoadSrc({
       }
     }
     clearInterval(playerStore.currentTimeTimeout)
-    playerStore.webVideoLoading = isRemoteMediaPath(media.path)
+    playerStore.webVideoLoading = usesCopyOrRemoteSource(media)
     playerStore.webVideoFrameReady = false
     playerStore.paused = Boolean(options.paused)
     playerStore.bufferedRanges = []
@@ -260,7 +263,7 @@ export function createPlayerLoadSrc({
     }
     try {
       disposeWebVideo(playerStore.player)
-      if (playerStore.player && (isRemoteMediaPath(media.path) || isRemoteMediaPath(playerStore.media?.path))) {
+      if (playerStore.player && (usesCopyOrRemoteSource(media) || isRemoteMediaPath(playerStore.media?.path))) {
         playerStore.player.pause()
         playerStore.player.removeAttribute('src')
         playerStore.player.load()
@@ -311,7 +314,7 @@ export function createPlayerLoadSrc({
       media = mergeClipFields(resolved.video, requestedMedia)
       const mediaType = findMediaTypeById(appStore.mediaTypes, media.mediaTypeId)
       playerStore.isAudioMode = isAudioMediaType(mediaType) || isAudioFilePath(media.path)
-      playerStore.is_file_exists = media.path ? await checkFileExists(media.path) : false
+      playerStore.is_file_exists = Boolean(media.hasCopies) || (media.path ? await checkFileExists(media.path) : false)
       if (isLoadSrcStale(session)) return
       if (playerStore.playlist.length > 0) playerStore.nowPlaying = resolved.index
 
@@ -356,10 +359,10 @@ export function createPlayerLoadSrc({
       playerStore.currentTime = targetStartTime
 
       try {
-        if (isRemoteMediaPath(media.path)) {
+        if (usesCopyOrRemoteSource(media)) {
           videoEl.autoplay = !options.paused
           const source = await prepareWebVideoPlayback(media.id, {quality: options.webQuality, fresh: options.webFresh,
-            signal: remoteController?.signal, path: media.path})
+            signal: remoteController?.signal, path: media.path, copies: Boolean(media.hasCopies)})
           if (isLoadSrcStale(session)) return
           playerStore.webVideoQualities = source.qualities
           playerStore.webVideoQuality = source.quality
@@ -389,7 +392,7 @@ export function createPlayerLoadSrc({
         if (error instanceof UnsupportedPlaybackError) {
           playerStore.playbackError = true
         } else {
-          liveSession.failTranscode(playbackErrorMessage(error, 'Failed to prepare video source'))
+          liveSession.failTranscode(playbackErrorMessage(error, media.hasCopies ? t('copies.errors.no_available_copy') : 'Failed to prepare video source'))
         }
         isReady.value = true
         return
@@ -459,7 +462,7 @@ export function createPlayerLoadSrc({
             liveSession.failTranscode(playbackErrorMessage(e, 'Live transcode playback failed'))
           }
           console.log(e)
-          if (isRemoteMediaPath(media.path) && (e as {name?: string})?.name !== 'NotAllowedError') {
+          if (usesCopyOrRemoteSource(media) && (e as {name?: string})?.name !== 'NotAllowedError') {
             playerStore.playbackError = true
             playerStore.transcodeError = t(isDriveMediaPath(media.path) ? 'drive.playback_error' : isNasMediaPath(media.path) ? 'nas.playback_error' : 'media.adding.web_video_playback_error')
             playerStore.paused = Boolean(options.paused)
@@ -486,7 +489,7 @@ export function createPlayerLoadSrc({
 
   const reloadWebVideo = async (options: {quality?: number | null; fresh?: boolean} = {}) => {
     const media = playerStore.media
-    if (!media || !isRemoteMediaPath(media.path) || playerStore.webVideoLoading) return
+    if (!media || !usesCopyOrRemoteSource(media) || playerStore.webVideoLoading) return
     const time = playerStore.currentTime
     const paused = playerStore.paused
     await loadSrc(media, time, {webQuality: options.quality === undefined ? playerStore.webVideoQuality : options.quality,

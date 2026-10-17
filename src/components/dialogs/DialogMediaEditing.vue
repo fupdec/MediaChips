@@ -21,6 +21,7 @@
 
       <v-card-text class="edit-dialog-card__body">
         <MediaCatalogSourceInfo v-if="media" :media="media" />
+        <MediaCopies v-if="media" :media-id="media.id" />
         <v-btn v-if="media" variant="tonal" prepend-icon="mdi-file-cog-outline" class="mb-3" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
         <DialogOriginalOperations v-if="media" v-model="originalsOpen" :media-ids="[media.id]" />
         <EditPinnedMetaValues
@@ -116,6 +117,7 @@ import {buildLocalFileUrl, checkFileExists as checkPathExists} from '@/services/
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import EditPinnedMetaValues from "@/components/items/EditPinnedMetaValues.vue"
+import MediaCopies from '@/components/items/MediaCopies.vue'
 import MediaCatalogSourceInfo from '@/components/items/MediaCatalogSourceInfo.vue'
 import EditDialogMediaPanel from "@/components/items/EditDialogMediaPanel.vue"
 import DialogConfirm from "@/components/dialogs/DialogConfirm.vue"

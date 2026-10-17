@@ -37,6 +37,7 @@ export function toNavigationItem(item: NavigationMediaItem) {
   return {
     id: item.id,
     path: item.path,
+    hasCopies: item.hasCopies,
     name: item.name,
     basename: item.basename,
     ext: item.ext,

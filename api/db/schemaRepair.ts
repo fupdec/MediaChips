@@ -213,6 +213,14 @@ const MISSING_TABLE_DDL: Record<string, string> = {
     "id" text PRIMARY KEY NOT NULL, "config" text NOT NULL,
     "credentialRef" text NOT NULL, "createdAt" text NOT NULL, "provider" text NOT NULL DEFAULT 'nas'
   )`,
+  verifiedMediaCopies: `CREATE TABLE "verifiedMediaCopies" (
+    "id" text PRIMARY KEY NOT NULL, "mediaId" integer NOT NULL REFERENCES "media"("id") ON DELETE CASCADE,
+    "path" text NOT NULL, "version" text NOT NULL, "sha256" text NOT NULL, "size" integer NOT NULL,
+    "contentType" text NOT NULL, "availability" text NOT NULL DEFAULT 'unknown', "verifiedAt" text NOT NULL
+  )`,
+  mediaCopyPreferences: `CREATE TABLE "mediaCopyPreferences" (
+    "mediaId" integer PRIMARY KEY NOT NULL REFERENCES "media"("id") ON DELETE CASCADE, "copyId" text NOT NULL
+  )`,
   mediaLocations: `CREATE TABLE "mediaLocations" (
     "id" text PRIMARY KEY NOT NULL,
     "mediaId" integer NOT NULL REFERENCES "media"("id") ON DELETE CASCADE,
@@ -711,6 +719,11 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
       `CREATE UNIQUE INDEX IF NOT EXISTS "${spec.indexName}" ON "${spec.table}" (${quotedCols})`,
     )
     repaired.push(removed > 0 ? `${spec.indexName} (deduped ${removed})` : spec.indexName)
+  }
+
+  if (hasTable(sqlite, 'verifiedMediaCopies') && !hasIndex(sqlite, 'verified_media_copies_path_idx')) {
+    sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS verified_media_copies_path_idx ON verifiedMediaCopies (mediaId, path)')
+    repaired.push('verified_media_copies_path_idx')
   }
 
   return repaired

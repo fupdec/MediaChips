@@ -253,6 +253,13 @@
       "when": 1782876000000,
       "tag": "0035_original_operations",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1782883200000,
+      "tag": "0037_verified_media_copies",
+      "breakpoints": true
     }
   ]
 }

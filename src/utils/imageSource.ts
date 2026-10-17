@@ -1,3 +1,4 @@
+import {mediaCopyStreamUrl} from '@/services/typedApi/mediaCopies'
 import path from 'path-browserify'
 import {isDriveMediaPath} from '@shared/cloudDrive'
 import {isNasMediaPath} from '@shared/remoteMedia'
@@ -14,6 +15,7 @@ export const IMAGE_UNAVAILABLE_URL = '/images/unavailable.png'
 interface MediaWithPath {
   id?: number
   path?: string
+  hasCopies?: boolean | number
 }
 
 export async function loadImageDisplayUrl(
@@ -22,6 +24,7 @@ export async function loadImageDisplayUrl(
   { preferFull = false, cacheBust = false } = {},
 ): Promise<string> {
   if (!media?.id) return IMAGE_UNAVAILABLE_URL
+  if (media.hasCopies) return mediaCopyStreamUrl(media.id)
   if (isDriveMediaPath(media.path) || isNasMediaPath(media.path)) return buildLocalFileUrl(media.path!, true)
 
   if (!cacheBust && !preferFull) {
@@ -43,6 +46,7 @@ export async function loadThumbDisplayUrl(
   mediaPath: string,
 ): Promise<string> {
   if (!media?.id) return IMAGE_UNAVAILABLE_URL
+  if (media.hasCopies) return mediaCopyStreamUrl(media.id)
   if (isDriveMediaPath(media.path) || isNasMediaPath(media.path)) return buildLocalFileUrl(media.path!, true)
 
   const key = mediaThumbKey('images', media.id)
@@ -67,6 +71,7 @@ export async function loadFilmstripThumbDisplayUrl(
   {cacheBust = false as boolean | number} = {},
 ): Promise<string> {
   if (!media?.id) return IMAGE_UNAVAILABLE_URL
+  if (media.hasCopies) return mediaCopyStreamUrl(media.id)
   if (isDriveMediaPath(media.path) || isNasMediaPath(media.path)) return buildLocalFileUrl(media.path!, true)
 
   const key = mediaThumbKey('images-filmstrip', media.id)
@@ -93,6 +98,7 @@ export async function loadFullImageDisplayUrl(
   {maxEdge = VIEWER_MAX_EDGE as number | false} = {},
 ): Promise<string> {
   if (!media?.path) return IMAGE_UNAVAILABLE_URL
+  if (media.hasCopies && media.id) return mediaCopyStreamUrl(media.id)
 
   if (maxEdge === false) {
     return buildLocalFileUrl(media.path, true)

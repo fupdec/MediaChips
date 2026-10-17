@@ -1,3 +1,6 @@
+import {verifyCopiesForMerge, remapVerifiedCopies} from './mediaSources/copies'
+import {pinSourceDb} from './mediaSources/context'
+import {verifiedMediaCopies, mediaCopyPreferences} from '../db/schema/mediaCopies'
 import {eq, inArray} from 'drizzle-orm'
 import type {ApiDb} from '../types/db'
 import {media} from '../db/schema/media'
@@ -41,6 +44,7 @@ export interface MergeMediaInput {
   survivorId: number
   sourceIds: number[]
   withFile?: boolean
+  signal?: AbortSignal
 }
 
 /** Real disk paths for losers; skip empty and virtual ZIP entry paths. */
@@ -203,6 +207,8 @@ export function mergeMediaItemsTx(
     .where(inArray(faces.mediaId, sourceIds))
     .run()
 
+  remapVerifiedCopies(tx, survivorId, sourceIds)
+
   // Retain remote copies when their library cards are explicitly merged.
   tx.update(mediaLocations).set({mediaId: survivorId}).where(inArray(mediaLocations.mediaId, sourceIds)).run()
 
@@ -249,12 +255,29 @@ export async function mergeMediaItems(
     throw new MediaMergeError('At least one source media item is required')
   }
 
+  if (input.withFile) throw new MediaMergeError('Copy merging preserves all files. Disable file deletion.', 400)
+  const pinned = pinSourceDb(db)
+  db = pinned.db
+  const verification = await verifyCopiesForMerge(db, [survivorId, ...sourceIds], input.signal || AbortSignal.timeout(30 * 60_000))
+  pinned.assertCurrent()
   const losers = db.drizzle.select().from(media).where(inArray(media.id, sourceIds)).all()
   const mediaTypesRepo = createMediaTypesRepository(db.drizzle)
 
-  const result = db.drizzle.transaction((tx) =>
-    mergeMediaItemsTx(tx, {survivorId, sourceIds}),
-  )
+  const result = db.drizzle.transaction((tx) => {
+    verification.assertUnchanged()
+    const merged = mergeMediaItemsTx(tx, {survivorId, sourceIds})
+    for (const copy of verification.copies) tx.insert(verifiedMediaCopies).values({...copy, mediaId: survivorId})
+      .onConflictDoUpdate({target: [verifiedMediaCopies.mediaId, verifiedMediaCopies.path], set: {
+        version: copy.version, sha256: copy.sha256, size: copy.size, contentType: copy.contentType,
+        availability: copy.availability, verifiedAt: copy.verifiedAt,
+      }}).run()
+    // A previous implicit original ID becomes a durable copy ID after verification.
+    const preferred = tx.select().from(mediaCopyPreferences).where(eq(mediaCopyPreferences.mediaId, survivorId)).get()
+    if (preferred && !verification.copies.some(copy => copy.id === preferred.copyId)) {
+      tx.delete(mediaCopyPreferences).where(eq(mediaCopyPreferences.mediaId, survivorId)).run()
+    }
+    return merged
+  })
 
   if (db.path) {
     await Promise.all(losers.map(async (row) => {

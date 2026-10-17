@@ -55,15 +55,10 @@
           {{ t('media.dialogs.merge_media_keep_note') }}
         </v-alert>
 
-        <v-checkbox
-          v-model="withFile"
-          density="compact"
-          hide-details
-          color="primary"
-          class="mt-3"
-          :label="t('actions.also_delete_files')"
-          :disabled="saving"
-        />
+        <div v-if="saving" role="status" class="mt-3 text-caption">
+          <v-progress-linear indeterminate class="mb-2" />
+          {{ t('copies.checking') }}
+        </div>
       </v-card-text>
     </v-card>
   </v-dialog>
@@ -90,7 +85,6 @@ const notificationsStore = useNotificationsStore()
 const listSync = useItemsListSync()
 
 const survivorId = ref<number | null>(null)
-const withFile = ref(false)
 const saving = ref(false)
 
 const items = computed(() => dialogsStore.mediaMerge.items)
@@ -141,7 +135,7 @@ async function merge() {
     const res = await typedApi.mergeMedia({
       survivorId: Number(survivorId.value),
       sourceIds,
-      with_file: withFile.value,
+      with_file: false,
     })
 
     const survivor = res.data.survivor
@@ -174,7 +168,8 @@ async function merge() {
     notificationsStore.setNotification({
       type: 'error',
       title: t('media.dialogs.merge_media_failed'),
-      text: getErrorResponseData<{message?: string}>(error)?.message
+      text: (getErrorResponseData<{code?: string}>(error)?.code === 'copy_content_mismatch' ? t('copies.errors.copy_content_mismatch') : '')
+        || getErrorResponseData<{message?: string}>(error)?.message
         || (error instanceof Error ? error.message : String(error)),
     })
   } finally {
@@ -190,7 +185,6 @@ watch(
       survivorId.value = Number.isFinite(preferred) && preferred > 0
         ? preferred
         : pickDefaultSurvivorId(dialogsStore.mediaMerge.items)
-      withFile.value = false
       saving.value = false
     }
   },

@@ -1,3 +1,4 @@
+import {createRequestAbortSignal} from '../services/requestAbortSignal'
 import type { ApiDb, FilterLike } from '../types/db'
 import { apiErrorMessage, sendControllerError, sendNotFound, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
@@ -273,6 +274,7 @@ export default function (db: ApiDb) {
         survivorId: Number(body.survivorId),
         sourceIds: Array.isArray(body.sourceIds) ? body.sourceIds : [],
         withFile: Boolean(body.with_file),
+        signal: createRequestAbortSignal(req, res),
       })
       sendOk(res, result)
     } catch (err) {
@@ -361,7 +363,10 @@ export default function (db: ApiDb) {
   const getOneById = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = mediaRepo.findById(Number(req.params.id)) ?? null
-      sendOk(res, data)
+      const hasCopies = data && db.sqlite.prepare(
+        'SELECT EXISTS (SELECT 1 FROM verifiedMediaCopies WHERE mediaId = ?) AS value',
+      ).get(data.id) as {value: number} | null
+      sendOk(res, data ? {...data, hasCopies: Boolean(hasCopies?.value)} : null)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while retrieving media.")
     }

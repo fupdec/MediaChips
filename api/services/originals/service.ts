@@ -1,3 +1,4 @@
+import {updateVerifiedCopyPath} from '../mediaSources/copyPathUpdates'
 import fs from 'fs'
 import path from 'path'
 import {createHash, randomUUID} from 'crypto'
@@ -144,6 +145,8 @@ export function createOriginalOperationsService(publicDb: ApiDb, options: {
     guard(); assertCard(db, item, true)
     // Update every card referring to this physical original; titles and all relations stay intact.
     db.sqlite.transaction(() => {
+      const linkedCards = db.drizzle.select({id: media.id}).from(media).where(eq(media.path, item.sourcePath!)).all()
+      for (const card of linkedCards) updateVerifiedCopyPath(db, card.id, item.sourcePath!, nextPath)
       db.drizzle.update(media).set({path: nextPath, basename, ext: target.connectionId ? path.extname(basename).slice(1).toLowerCase() : path.extname(basename)})
         .where(eq(media.path, item.sourcePath!)).run()
       for (const tag of inherited) db.drizzle.insert(tagsInMedia).values(tag).onConflictDoNothing().run()

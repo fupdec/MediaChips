@@ -92,6 +92,7 @@ LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
 LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId`
 
 const NAVIGATION_SELECT = `SELECT
+  EXISTS (SELECT 1 FROM verifiedMediaCopies mc WHERE mc.mediaId = media.id) AS hasCopies,
   media.id,
   media.path,
   media.name,

@@ -261,7 +261,7 @@ export const mediaApi = {
   },
 
   mergeMedia(body: MergeMediaPayload) {
-    return apiClient.post<MergeMediaResult>(API_ROUTES.mediaMerge, body)
+    return apiClient.post<MergeMediaResult>(API_ROUTES.mediaMerge, body, {timeout: 30 * 60_000})
   },
 
   getMediaDuplicateGroups(body: MediaDuplicateGroupsPayload) {

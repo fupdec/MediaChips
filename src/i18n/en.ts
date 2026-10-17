@@ -1,4 +1,22 @@
 const en = {
+  copies: {
+    title: 'File copies',
+    hint: 'One card and shared chips for identical files. The preferred source is tried first; another verified copy is used if it is unavailable.',
+    preferred: 'Preferred source', automatic: 'Automatic (local copy first)',
+    verified: 'Content verified', unverified: 'Content not compared',
+    local_path: 'Path to an existing local copy', attach: 'Verify and add copy',
+    detach: 'Unlink copy (keep the file)', checking: 'Reading and comparing complete files… This may take time.',
+    merge_hint: 'For NAS or cloud copies, select their cards in the library and choose Merge. Files must match exactly. Different edits stay separate.',
+    errors: {
+      copy_already_cataloged: 'This file already has a card. Select both cards in the library and merge them.',
+      copy_content_mismatch: 'The contents differ. These are different files or edits; keep separate cards.',
+      source_version_changed: 'A file changed. Refresh its source and try again.',
+      no_available_copy: 'No verified copy is available. Connect a source and try again.',
+      copy_not_verified: 'Compare the contents before selecting this copy.',
+      last_copy: 'The last copy cannot be unlinked.',
+      failed: 'Could not verify or update copies. Check that every source is available.',
+    },
+  },
   originals: {
     "delete_count": "Permanently delete these originals ({count}):",
     "same_connection": "Select files from one connection for this operation.",
@@ -3418,7 +3436,7 @@ const en = {
     dialogs: {
       merge_media_title: 'Merge media',
       merge_media_hint: 'Select which item to keep. The other {count} selected item(s) will be merged into it and removed from the library.',
-      merge_media_keep_note: 'Tags, metadata values, marks, faces and playlist links move to the kept item. Favorite is combined; rating takes the highest value; views are summed. Files on disk stay unless you also choose to delete them.',
+      merge_media_keep_note: 'Tags, metadata values, marks, faces and playlist links move to the kept item. Favorite is combined; rating takes the highest value; views are summed. All file copies are kept. Merging requires a complete content comparison; different edits remain separate cards.',
       merge_media_confirm: 'Merge',
       merge_media_keep_badge: 'Keep',
       merge_media_done: 'Media merged',

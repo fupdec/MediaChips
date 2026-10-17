@@ -17,16 +17,26 @@ const fallbackConnection = `CASE
 const storedTokens = `SELECT sc.provider AS value FROM mediaLocations ml
   JOIN sourceConnections sc ON sc.id = ml.connectionId WHERE ml.mediaId = media.id
   UNION SELECT 'connection:' || ml.connectionId FROM mediaLocations ml WHERE ml.mediaId = media.id`
+const noVerifiedCopies = `NOT EXISTS (SELECT 1 FROM verifiedMediaCopies mc WHERE mc.mediaId = media.id)`
+const copyTokens = `SELECT CASE WHEN mc.path LIKE 'nas://%' THEN 'nas' WHEN mc.path LIKE 'gdrive://%' THEN 'gdrive' ELSE 'local' END AS value
+  FROM verifiedMediaCopies mc WHERE mc.mediaId = media.id
+  UNION SELECT CASE WHEN mc.path LIKE 'nas://%' THEN 'connection:' || substr(mc.path, 7, 36) ELSE 'connection:google-drive' END
+  FROM verifiedMediaCopies mc WHERE mc.mediaId = media.id AND (mc.path LIKE 'nas://%' OR mc.path LIKE 'gdrive://%')`
 const noLocations = `NOT EXISTS (SELECT 1 FROM mediaLocations ml WHERE ml.mediaId = media.id)`
 export const CATALOG_SOURCE_TOKENS_SQL = `(SELECT json_group_array(value) FROM (
-  ${storedTokens}
-  UNION SELECT ${fallbackKind} WHERE ${noLocations} OR ${fallbackKind} = 'local'
-  UNION SELECT ${fallbackConnection} WHERE ${noLocations} AND ${fallbackConnection} IS NOT NULL
+  ${copyTokens}
+  UNION SELECT value FROM (${storedTokens}) WHERE ${noVerifiedCopies}
+  UNION SELECT ${fallbackKind} WHERE ${noVerifiedCopies} AND (${noLocations} OR ${fallbackKind} = 'local')
+  UNION SELECT ${fallbackConnection} WHERE ${noVerifiedCopies} AND ${noLocations} AND ${fallbackConnection} IS NOT NULL
 ))`
 
 // A card is usable if any original was available; unverified alternatives remain unknown.
 // Local and legacy remote paths have no persisted availability observation.
 export const CATALOG_AVAILABILITY_SQL = `CASE
+  WHEN NOT (${noVerifiedCopies}) THEN CASE
+    WHEN EXISTS (SELECT 1 FROM verifiedMediaCopies mc WHERE mc.mediaId = media.id AND mc.availability = 'available') THEN 'available'
+    WHEN EXISTS (SELECT 1 FROM verifiedMediaCopies mc WHERE mc.mediaId = media.id AND mc.availability = 'unknown') THEN 'unknown'
+    ELSE 'unavailable' END
   WHEN EXISTS (SELECT 1 FROM mediaLocations ml WHERE ml.mediaId = media.id AND ml.availability = 'available') THEN 'available'
   WHEN ${noLocations} OR ${fallbackKind} = 'local' OR EXISTS (SELECT 1 FROM mediaLocations ml WHERE ml.mediaId = media.id AND ml.availability = 'unknown') THEN 'unknown'
   ELSE 'unavailable' END`
@@ -65,5 +75,8 @@ export function listCatalogSources(db: ApiDb): Array<{value: string; name: strin
 
 export function markCatalogSourceDisconnected(db: ApiDb, connectionId: string): void {
   db.sqlite.prepare("UPDATE mediaLocations SET availability = 'unavailable' WHERE connectionId = ?").run(connectionId)
+  db.sqlite.prepare("UPDATE verifiedMediaCopies SET availability = 'unavailable' WHERE path LIKE ?").run(
+    connectionId === 'google-drive' ? 'gdrive://%' : `nas://${connectionId}/%`,
+  )
   invalidateMediaDerivedCaches()
 }

@@ -514,7 +514,7 @@ export async function resolvePlayableVideo(
   for (const {video: candidate, index} of candidates) {
     if (!candidate?.path) continue
 
-    if (await checkFileExistsFn(candidate.path)) {
+    if (candidate.hasCopies || await checkFileExistsFn(candidate.path)) {
       return {video: candidate, index}
     }
   }

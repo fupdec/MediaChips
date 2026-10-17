@@ -29,3 +29,5 @@ export {videoMetadata} from './videoMetadata'
 export {mediaTypesInWatchedFolders, watchedFolders} from './watchedFolders'
 
 export {sourceConnections, mediaLocations, sourceCatalogRoots, sourceCatalogEntries, offlineCopies, sourceCacheSettings, originalOperationJobs} from './mediaSources'
+
+export {verifiedMediaCopies, mediaCopyPreferences} from './mediaCopies'

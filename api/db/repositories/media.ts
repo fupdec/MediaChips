@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, gt, inArray, isNull, like, or, sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { media } from '../schema/media'
+import {verifiedMediaCopies} from '../schema/mediaCopies'
 import { tagsInMedia } from '../schema/tagsInMedia'
 import { folderPaths, tagsInFolders } from '../schema/folderPaths'
 import { nowIso } from '../utils/timestamps'
@@ -283,9 +284,10 @@ export function createMediaRepository(db: DrizzleClient) {
     findByPathVariants(variants: string[]): MediaRow | undefined {
       if (!variants.length) return undefined
 
-      const conditions = variants.map((variant) =>
+      const conditions = variants.map((variant) => or(
         sql`lower(${media.path}) = ${variant.toLowerCase()}`,
-      )
+        sql`EXISTS (SELECT 1 FROM ${verifiedMediaCopies} WHERE ${verifiedMediaCopies.mediaId} = ${media.id} AND lower(${verifiedMediaCopies.path}) = ${variant.toLowerCase()})`,
+      ))
 
       return db.select()
         .from(media)
@@ -362,7 +364,9 @@ export function createMediaRepository(db: DrizzleClient) {
     },
 
     findOrCreateByPath(pathValue: string, defaults: Partial<MediaInsert>): {row: MediaRow; created: boolean} {
-      const existing = db.select().from(media).where(eq(media.path, pathValue)).get()
+      const existing = db.select().from(media).where(or(eq(media.path, pathValue),
+        sql`EXISTS (SELECT 1 FROM ${verifiedMediaCopies} WHERE ${verifiedMediaCopies.mediaId} = ${media.id} AND ${verifiedMediaCopies.path} = ${pathValue})`,
+      )).get()
       if (existing) {
         return {row: existing, created: false}
       }
@@ -437,8 +441,12 @@ export function createMediaRepository(db: DrizzleClient) {
     bulkCreateLite(items: Array<Partial<MediaInsert>>): Array<Pick<MediaRow, 'id' | 'path'>> {
       if (!items.length) return []
 
+      const retainedPaths = new Set(mapChunks(items, chunk => db.select({path: verifiedMediaCopies.path})
+        .from(verifiedMediaCopies).where(inArray(verifiedMediaCopies.path, chunk.map(item => item.path ?? ''))).all()).map(row => row.path))
+      const newItems = items.filter(item => !retainedPaths.has(item.path ?? ''))
+      if (!newItems.length) return []
       const timestamp = nowIso()
-      return mapChunks(items, (chunk) => (
+      return mapChunks(newItems, (chunk) => (
         db.insert(media)
           .values(chunk.map((item) => ({
             path: item.path ?? '',

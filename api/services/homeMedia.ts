@@ -4,6 +4,7 @@ import { queryAll } from '../db/utils/rawQuery'
 import { MEDIA_NOT_IN_TRASH_SQL } from '../../shared/mediaTrash'
 
 const MEDIA_HOME_SELECT = `SELECT media.id,
+  EXISTS (SELECT 1 FROM verifiedMediaCopies mc WHERE mc.mediaId = media.id) AS hasCopies,
   media.path,
   media.name,
   media.basename,
@@ -27,6 +28,7 @@ LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId`
 const mapHomeItem = (row: AnyRecord) => ({
   id: row.id,
   path: row.path,
+  hasCopies: Boolean(row.hasCopies),
   name: row.name,
   basename: row.basename,
   ext: row.ext,

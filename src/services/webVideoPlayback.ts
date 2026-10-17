@@ -13,7 +13,7 @@ export function disposeWebVideo(video: HTMLVideoElement | null) {
   players.delete(video)
 }
 
-export async function prepareWebVideoPlayback(mediaId: number, options: {quality?: number | null; fresh?: boolean; path?: string; signal?: AbortSignal} = {}) {
+export async function prepareWebVideoPlayback(mediaId: number, options: {quality?: number | null; fresh?: boolean; path?: string; copies?: boolean; signal?: AbortSignal} = {}) {
   const drivePreview = mediaId === 0 ? parseDriveMediaPath(options.path) : null
   if (drivePreview) {
     const token = getAuthToken()
@@ -29,7 +29,7 @@ export async function prepareWebVideoPlayback(mediaId: number, options: {quality
     delete params.fresh
     params.path = preview.relativePath
   }
-  const route = preview ? `/api/nas/connections/${preview.connectionId}/playable`
+  const route = options.copies && mediaId > 0 ? `/api/Media/${mediaId}/copies/playable` : preview ? `/api/nas/connections/${preview.connectionId}/playable`
     : isDriveMediaPath(options.path) ? `/api/drive/media/${mediaId}/playable`
     : isNasMediaPath(options.path) ? `/api/nas/media/${mediaId}/playable` : `/api/web-video/${mediaId}/playable`
   const response = await apiClient.get(route, {timeout: 180_000, params, signal: options.signal})

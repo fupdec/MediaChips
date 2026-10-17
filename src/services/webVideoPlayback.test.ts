@@ -87,6 +87,13 @@ describe('web video playback lifecycle', () => {
     expect(hls.destroyed).toBe(true)
   })
 
+  it.each(['/tmp/local.mp4', 'nas://11111111-1111-4111-8111-111111111111/movie.mp4', 'gdrive://movie'])('selects a verified copy independently of the compatibility path %s', async path => {
+    vi.mocked(apiClient.get).mockResolvedValue({data: {kind: 'mp4', url: '/api/Media/8/copies/stream?copyId=copy&version=v1', title: ''}})
+    const result = await prepareWebVideoPlayback(8, {path, copies: true})
+    expect(apiClient.get).toHaveBeenCalledWith('/api/Media/8/copies/playable', expect.any(Object))
+    expect(result.url).toContain('copyId=copy&version=v1&token=test%20token')
+  })
+
   it('prepares an authenticated NAS stream using the NAS API', async () => {
     vi.mocked(apiClient.get).mockResolvedValue({data: {...source, kind: 'mp4', url: '/api/nas/media/8/stream?session=nas'}})
     const result = await prepareWebVideoPlayback(8, {path: 'nas://11111111-1111-4111-8111-111111111111/film.mp4'})

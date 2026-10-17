@@ -208,6 +208,7 @@ export function groupSlimNeedsMetadataJoin(
 
 /** List/inspector hydrate — omit fingerprint/hash blobs (use dedicated queries for those). */
 export const MEDIA_BASE_SELECT = `SELECT
+  EXISTS (SELECT 1 FROM verifiedMediaCopies mc WHERE mc.mediaId = media.id) AS hasCopies,
   ${CATALOG_SOURCE_TOKENS_SQL} AS sourceTokens,
   ${CATALOG_AVAILABILITY_SQL} AS availability,
   (SELECT group_concat(COALESCE(CASE WHEN json_valid(sc.config) THEN json_extract(sc.config, '$.name') END, sc.id), ', ')

@@ -94,3 +94,50 @@ edits, catalog search, typed chip filters, saved rows, pagination, ID selection,
 summaries, merged locations and the legacy filter worker against a migrated test
 database. `remote-metadata.spec.ts` covers the editor and filter controls with
 disconnected-source responses in the browser.
+
+## Verified copies of one file
+
+Migration `0037_verified_media_copies` adds `verifiedMediaCopies` and
+`mediaCopyPreferences`. A card owns all chips, values and marks; a copy stores an
+address, a full SHA-256, byte count, provider validator and last verification time.
+Local files remain ordinary filesystem paths. NAS and Drive use the existing
+connections and credential stores. Copy rows contain no credentials.
+
+The card editor's **File copies** panel lists locations, selects a preferred copy,
+adds an existing local file after comparison, and unlinks a copy without deleting
+its file. The last copy cannot be unlinked. Unlinking the compatibility original
+promotes a retained address. Import NAS/Drive copies as cards and select **Merge**
+to consolidate them. An already cataloged local path must use the same merge flow
+so its chips are retained.
+
+Merging now reads every selected file and retained copy completely through the
+source adapters, checks the byte count and stat before/after reading, and compares
+full SHA-256 hashes. Sampled content fingerprints, oshash, filenames, size and
+visual similarity never authorize this operation. No cards, chips or locations
+change if a source is unreadable, its version changes, the active library changes,
+or content differs. Identical bytes can have different names and timestamps.
+Different edits and different encodings remain separate cards. The old option to
+delete losing files is rejected: copy consolidation preserves every file.
+
+Playback uses the preference first, then local copies, then other verified copies.
+A source connection/stat attempt has a 30-second deadline before fallback. A changed
+validator requires full hash verification again; a different montage cannot silently
+inherit the original timeline. Stream URLs pin a copy ID and version, so range
+requests cannot silently switch files. Images use the same source selection.
+The existing offline cache can be used when its source version matches a retained
+verified copy. Availability remains a last recorded observation, and catalog
+source/availability filters include retained local, NAS and Drive copies.
+
+Existing locations are not automatically declared identical by migration. Legacy
+cards retain their original playback behavior; unverified alternatives cannot be
+selected as preferred sources until content has been compared. There is no
+background replication or synchronization: adding a copy links an existing file.
+Full verification transfers all bytes from remote storage and may take time.
+Copy playback currently streams the original format directly; the local live-transcode
+workflow is not integrated with this selector. Browser codec support still applies.
+
+`mediaSources/copies.test.ts` covers atomic mismatch rejection, shared chips,
+repeated merges, local attachment/detachment, preference and fallback, changed
+content, mixed NAS/Drive adapters, cancellation, stale snapshots, and pinned byte
+ranges. The mixed-source tests use adapters rather than real NAS or Drive accounts.
+`media-copies.spec.ts` exercises the editor's preference and mismatch controls.

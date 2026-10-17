@@ -4,6 +4,8 @@ import {pipeline} from 'stream/promises'
 import {Transform} from 'stream'
 import type {SourceObject, SourceWriteAdapter} from './adapter'
 import {sourceError} from './context'
+import {parseSourceRange} from './range'
+import {mediaFileContentType} from '../../../shared/mediaFormats'
 
 export function localOriginalKey(key: string) {
   if (!path.isAbsolute(key) || key.includes('://') || key.includes('!/') || /[\x00-\x1f]/.test(key)) throw sourceError('invalid_path', 400)
@@ -18,14 +20,24 @@ export function createLocalOriginalAdapter(): SourceWriteAdapter {
       const stat = await fs.promises.lstat(key)
       if (!stat.isFile() && !stat.isDirectory()) throw sourceError('invalid_file', 400)
       return {resourceKey: key, name: path.basename(key), size: stat.size, isDirectory: stat.isDirectory(),
-        version: `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}:${stat.ctimeMs}`, contentType: 'application/octet-stream'}
+        version: `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}:${stat.ctimeMs}`, contentType: mediaFileContentType(key) || 'application/octet-stream'}
     },
     async list(key) {
       const entries = []
       for (const name of await fs.promises.readdir(keyFor(key))) entries.push(await this.stat(path.join(key, name)))
       return {entries}
     },
-    async read(key, _range, signal) { return {status: 200, headers: {}, body: fs.createReadStream(keyFor(key), {signal})} },
+    async read(key, rangeHeader, signal) {
+      key = keyFor(key)
+      const file = await this.stat(key, signal)
+      if (file.isDirectory) throw sourceError('invalid_file', 400)
+      const range = parseSourceRange(rangeHeader, file.size)
+      if (!range) throw sourceError('invalid_range', 416)
+      return {status: range.partial ? 206 : 200, headers: {
+        'content-type': file.contentType, 'content-length': String(file.size ? range.end - range.start + 1 : 0),
+        'accept-ranges': 'bytes', 'content-range': range.partial ? `bytes ${range.start}-${range.end}/${file.size}` : undefined,
+      }, body: fs.createReadStream(key, {signal, start: range.start, ...(file.size ? {end: range.end} : {})})}
+    },
     async mkdir(key) { await fs.promises.mkdir(keyFor(key)) },
     async write(key, input, size, progress, signal) {
       let bytes = 0

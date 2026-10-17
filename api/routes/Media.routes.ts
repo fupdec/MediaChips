@@ -1,3 +1,4 @@
+import {mediaCopiesRouter} from './MediaCopies.routes'
 import type { ApiDb } from '../types/db'
 import type { Express } from 'express'
 
@@ -70,6 +71,8 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/updatePath', validateBody(MediaPathUpdateRequestSchema), Media.updatePath)
 
   router.put('/:id', validateBody(EntityUpdateRequestSchema), Media.update)
+
+  router.use('/:id/copies', mediaCopiesRouter(db))
 
   router.get('/:id', Media.getOneById)
 
