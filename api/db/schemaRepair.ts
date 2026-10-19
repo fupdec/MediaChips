@@ -38,6 +38,7 @@ function addColumnIfMissing(
 }
 
 const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
+  {table: 'offlineCopies', column: 'invalidated', definition: 'integer NOT NULL DEFAULT 0'},
   {table: 'sourceConnections', column: 'provider', definition: "text NOT NULL DEFAULT 'nas'"},
   {table: 'mediaLocations', column: 'availability', definition: "text NOT NULL DEFAULT 'unknown'"},
   {table: 'mediaLocations', column: 'lastVerifiedAt', definition: 'text'},
