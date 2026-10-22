@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {spawnSync} from 'child_process'
 import {createRequire} from 'module'
-import {mkdirSync, readFileSync, statSync, writeFileSync} from 'fs'
+import {existsSync, mkdirSync, readFileSync, statSync, writeFileSync} from 'fs'
 import {dirname, join} from 'path'
 import {fileURLToPath} from 'url'
 
@@ -92,6 +92,19 @@ if (!force && electronAbi && electronAbi !== nodeAbi && hasElectronNativeBuild(e
   process.exit(0)
 }
 
+// electron-rebuild invokes node-gyp directly, bypassing cpu-features' install
+// script. Cached/partially installed dependencies may lack its generated input.
+const cpuFeaturesDir = join(root, 'node_modules/cpu-features')
+const cpuFeaturesCheck = join(cpuFeaturesDir, 'buildcheck.js')
+const cpuFeaturesGyp = join(cpuFeaturesDir, 'buildcheck.gypi')
+if (existsSync(cpuFeaturesCheck) && !existsSync(cpuFeaturesGyp)) {
+  const checked = spawnSync(process.execPath, ['buildcheck.js'], {cwd: cpuFeaturesDir, encoding: 'utf8'})
+  if (checked.status !== 0) {
+    console.error(checked.stderr || 'Failed to prepare cpu-features for Electron rebuild.')
+    process.exit(checked.status ?? 1)
+  }
+  writeFileSync(cpuFeaturesGyp, checked.stdout)
+}
 run('npx', ['electron-rebuild', '-f', '-w', 'better-sqlite3'])
 run('node', ['scripts/sign-native-modules.mjs'])
 

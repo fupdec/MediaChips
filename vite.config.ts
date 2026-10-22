@@ -207,6 +207,8 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       'packages/**/*.test.ts',
       'scripts/**/*.test.{mjs,ts}',
     ],
+    // Release validation uses node:test and runs separately in CI.
+    exclude: ['**/node_modules/**', '**/.git/**', 'scripts/release.test.mjs'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

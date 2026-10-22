@@ -5,6 +5,13 @@ import {fileURLToPath} from 'url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
+// Tests rebuild SQLite for Node; restore the Electron binding before launch.
+const native = spawnSync(process.execPath, ['scripts/ensure-electron-native.mjs'], {
+  cwd: root,
+  stdio: 'inherit',
+})
+if (native.status !== 0) process.exit(native.status ?? 1)
+
 const result = spawnSync('npx', ['electron', '.'], {
   cwd: root,
   stdio: 'inherit',
