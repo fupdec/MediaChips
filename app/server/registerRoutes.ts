@@ -1,3 +1,5 @@
+import registerChangeHistory from '../../api/routes/ChangeHistory.routes'
+import {withChangeOperation} from '../../api/db/changeHistory'
 import type { ApiDb } from '../../api/types/db'
 import type { Express } from 'express'
 import { apiErrorMessage, apiErrorStack } from '../../api/types/errors'
@@ -158,6 +160,7 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'Plugin.routes', register: registerPlugin },
     { routeFile: 'Tab.routes', register: registerTab },
     { routeFile: 'BulkMeta.routes', register: registerBulkMeta },
+    { routeFile: 'ChangeHistory.routes', register: registerChangeHistory },
     { routeFile: 'LibraryReset.routes', register: registerLibraryReset },
     { routeFile: 'tasks/TasksBackups.routes', register: registerTasksBackups },
     { routeFile: 'ValuesInTag.routes', register: registerValuesInTag },
@@ -183,6 +186,11 @@ export async function registerApiRoutes(
   },
 ) {
   const routeLoadErrors: Array<{ routeFile: string; message: string }> = []
+
+  app.use('/api', (req, _res, next) => {
+    if (req.path.startsWith('/change-history')) return next()
+    withChangeOperation(`${req.method} ${req.originalUrl.split('?')[0]}`, next)
+  })
 
   for (const { routeFile, register } of buildRouteRegistrars()) {
     try {

@@ -3,6 +3,7 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import * as schema from './schema'
 import { applySqlitePragmas } from './pragmas'
 import { registerMediaGroupByFunctions } from './mediaGroupByFunctions'
+import { installChangeHistory } from './changeHistory'
 
 export type DrizzleSchema = typeof schema
 
@@ -34,6 +35,7 @@ export function createDrizzleClient(
   }
 
   registerMediaGroupByFunctions(sqlite)
+  if (!options.readonly) installChangeHistory(sqlite)
   const drizzleDb = drizzle(sqlite, {schema})
 
   return {

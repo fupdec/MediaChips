@@ -223,6 +223,10 @@
                 <SettingsOpenDataFolder/>
               </SettingsSection>
 
+              <SettingsSection id="settings-change-history">
+                <DialogChangeHistory/>
+              </SettingsSection>
+
               <SettingsGroupLabel
                 :title="t('settings.groups.maintenance')"
                 icon="wrench-outline"
@@ -324,6 +328,7 @@
 </template>
 
 <script setup lang="ts">
+import DialogChangeHistory from '@/components/dialogs/DialogChangeHistory.vue'
 import {computed, ref, onMounted, watch, nextTick, defineAsyncComponent, type Component} from "vue"
 import {useRoute, useRouter} from "vue-router"
 import {useI18n} from "vue-i18n"

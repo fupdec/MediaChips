@@ -176,6 +176,11 @@ export function repairSchemaColumns(sqlite: Database.Database): string[] {
 }
 
 const MISSING_TABLE_DDL: Record<string, string> = {
+  changeHistory: `CREATE TABLE "changeHistory" (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT, "operationId" TEXT NOT NULL,
+    "source" TEXT NOT NULL, "occurredAt" TEXT NOT NULL, "entityType" TEXT NOT NULL,
+    "entityId" INTEGER NOT NULL, "field" TEXT NOT NULL, "beforeValue" TEXT NOT NULL,
+    "afterValue" TEXT NOT NULL, "restoredAt" TEXT)`,
   originalOperationJobs: `CREATE TABLE "originalOperationJobs" ("id" text PRIMARY KEY NOT NULL, "payload" text NOT NULL)`,
   sourceCatalogRoots: `CREATE TABLE "sourceCatalogRoots" (
   "id" text PRIMARY KEY NOT NULL,
@@ -423,6 +428,10 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
     repaired.push(indexName)
   }
 
+  ensureIndex('changeHistory', 'change_history_operation_idx',
+    'CREATE INDEX IF NOT EXISTS change_history_operation_idx ON changeHistory(operationId, id)')
+  ensureIndex('changeHistory', 'change_history_entity_idx',
+    'CREATE INDEX IF NOT EXISTS change_history_entity_idx ON changeHistory(entityType, entityId, id)')
   ensureIndex('sourceCatalogRoots', 'source_catalog_root_idx',
     'CREATE UNIQUE INDEX IF NOT EXISTS "source_catalog_root_idx" ON "sourceCatalogRoots" ("connectionId", "rootKey")')
   ensureIndex('sourceCatalogEntries', 'source_catalog_entry_idx',

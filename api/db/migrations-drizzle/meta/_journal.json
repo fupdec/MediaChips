@@ -255,6 +255,13 @@
       "breakpoints": true
     },
     {
+      "idx": 36,
+      "version": "6",
+      "when": 1782879600000,
+      "tag": "0036_change_history",
+      "breakpoints": true
+    },
+    {
       "idx": 37,
       "version": "6",
       "when": 1782883200000,

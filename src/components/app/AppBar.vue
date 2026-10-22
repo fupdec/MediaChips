@@ -201,6 +201,11 @@
           <GlobalSearch/>
         </div>
         <MediaTrash/>
+        <DialogChangeHistory>
+          <template #activator="{open}">
+            <v-btn icon="mdi-history" :title="t('change_history.title')" :aria-label="t('change_history.title')" @click="open" />
+          </template>
+        </DialogChangeHistory>
         <Documentation/>
         <Notifications/>
       </div>
@@ -255,6 +260,7 @@ const Tabs = defineAsyncComponent(() => import('@/components/app/appbar/Tabs.vue
 const GlobalSearch = defineAsyncComponent(() => import('@/components/app/appbar/GlobalSearch.vue'))
 const Documentation = defineAsyncComponent(() => import('@/components/app/appbar/Documentation.vue'))
 const MediaTrash = defineAsyncComponent(() => import('@/components/app/appbar/MediaTrash.vue'))
+const DialogChangeHistory = defineAsyncComponent(() => import('@/components/dialogs/DialogChangeHistory.vue'))
 const Notifications = defineAsyncComponent(() => import('@/components/app/appbar/Notifications.vue'))
 const DialogTabEditing = defineAsyncComponent(() => import('@/components/dialogs/DialogTabEditing.vue'))
 

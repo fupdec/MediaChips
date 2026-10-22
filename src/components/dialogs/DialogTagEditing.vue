@@ -46,6 +46,15 @@
                 :meta-id="Number(meta.id)"
               />
             </div>
+            <div class="d-flex flex-wrap ga-2 mt-3">
+              <DialogChangeHistory entity-type="tag" :entity-id="tag.id" :disabled="formDirty" @restored="requestClose">
+                <template #activator="{open}">
+                  <v-btn class="edit-dialog-media-action" color="primary" variant="tonal" rounded="xl" size="small" prepend-icon="mdi-history" :disabled="formDirty" @click="open">
+                    {{ t('change_history.title') }}
+                  </v-btn>
+                </template>
+              </DialogChangeHistory>
+            </div>
           </template>
         </EditPinnedMetaValues>
       </v-card-text>
@@ -75,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+import DialogChangeHistory from '@/components/dialogs/DialogChangeHistory.vue'
 import {ref, computed, onMounted, onBeforeUnmount, shallowRef, nextTick, watch} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useRouter} from 'vue-router'

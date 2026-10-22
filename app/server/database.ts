@@ -3,6 +3,7 @@ import { apiErrorMessage } from '../../api/types/errors'
 import path from 'path'
 import { createDrizzleClient, smokeTestDrizzle } from '../../api/db'
 import { bootstrapDatabase } from '../../api/db/migrationRunner'
+import {installChangeHistory} from '../../api/db/changeHistory'
 import { createApiDb } from '../../api/createApiDb'
 import { scheduleLegacyTimelineCleanup } from '../../api/services/legacyTimelineCleanup'
 
@@ -28,6 +29,7 @@ function setupDatabase({databasesPath, dbConfig}: { databasesPath: string; dbCon
   console.log('\x1b[36m%s\x1b[0m', `Database ID: ${db.config?.id}`)
 
   bootstrapDatabase(dbPath).then(() => {
+    installChangeHistory(drizzleConnection.sqlite)
     console.log('\x1b[36m%s\x1b[0m', '✅ Database synchronized')
     console.log('\x1b[32m%s\x1b[0m', '✅ Migrations applied')
 

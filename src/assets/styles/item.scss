@@ -3495,7 +3495,7 @@ body > .video-preview-container.video-preview-container--expanded {
       min-height: 14px;
     }
 
-    .v-btn:not(.v-btn--icon):not(.restore) {
+    .v-btn:not(.v-btn--icon):not(.restore):not(.edit-dialog-media-action) {
       min-height: var(--edit-deck-control-h);
       font-size: 0.8125rem;
     }

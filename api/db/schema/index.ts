@@ -1,3 +1,4 @@
+export {changeHistory} from './changeHistory'
 export {faces} from './faces'
 export {faceEnrollments} from './faceEnrollments'
 export {media} from './media'
