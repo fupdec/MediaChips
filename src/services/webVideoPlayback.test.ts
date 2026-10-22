@@ -2,7 +2,7 @@ import {beforeEach, afterEach, describe, expect, it, vi} from 'vitest'
 import {WebVideoPlayableSchema} from '@shared/webVideo'
 import {apiClient} from './apiClient'
 import Hls from 'hls.js'
-import {attachWebVideo, disposeWebVideo, prepareWebVideoPlayback} from './webVideoPlayback'
+import {attachWebVideo, disposeWebVideo, prepareWebVideoPlayback, hlsFailureCode, hlsFailure} from './webVideoPlayback'
 
 vi.mock('./apiClient', () => ({apiClient: {get: vi.fn()}, buildApiUrl: (url: string) => `http://localhost:12321${url}`}))
 vi.mock('./authSession', () => ({getAuthToken: () => 'test token'}))
@@ -112,7 +112,7 @@ describe('web video playback lifecycle', () => {
 
   it('rejects a fatal manifest failure and cleans up instead of accepting a broken stream', async () => {
     const pending = attachWebVideo(video, source, () => false, vi.fn())
-    const rejection = expect(pending).rejects.toThrow('Unable to load')
+    const rejection = expect(pending).rejects.toMatchObject({code: 'network_error'})
     const hls = await latest()
     hls.emit('error', {fatal: true})
     await rejection
@@ -170,4 +170,12 @@ describe('Google Drive playback proxy', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/api/drive/media/99/playable', expect.objectContaining({params: {}}))
     expect(source.url).toBe('http://localhost:12321/api/drive/files/movie/stream?token=test%20token')
   })
+})
+
+ it.each([[410, 'session_expired'], [401, 'auth_required'], [403, 'permission_denied'], [429, 'rate_limited']])('classifies HLS HTTP %s without exposing URLs', (code, expected) => {
+  expect(hlsFailureCode({response: {code: Number(code)}})).toBe(expected)
+})
+
+it('retains the HLS response retry delay without passing its diagnostics to the UI', () => {
+  expect(hlsFailure({response: {code: 429}, networkDetails: {getResponseHeader: () => '12', responseURL: 'https://secret?token=private'}})).toEqual({code: 'rate_limited', retryAfter: 12})
 })

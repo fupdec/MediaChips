@@ -1,10 +1,10 @@
 // @vitest-environment node
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {lookup} from 'dns/promises'
 import http from 'http'
 import {isPublicAddress, publicLookup, resolvePublicHost, startExtractionProxy} from './network'
 
-vi.mock('dns/promises', () => ({lookup: vi.fn()}))
+const lookupAll = vi.hoisted(() => vi.fn<(hostname: string, options: {all: true; verbatim: true}) => Promise<import('dns').LookupAddress[]>>())
+vi.mock('dns/promises', () => ({lookup: lookupAll}))
 
 beforeEach(() => vi.clearAllMocks())
 afterEach(() => vi.restoreAllMocks())
@@ -20,14 +20,14 @@ describe('public web video networking', () => {
   })
 
   it('rejects DNS answers containing any private address', async () => {
-    vi.mocked(lookup).mockResolvedValue([{address: '8.8.8.8', family: 4}, {address: '127.0.0.1', family: 4}])
+    lookupAll.mockResolvedValue([{address: '8.8.8.8', family: 4}, {address: '127.0.0.1', family: 4}])
     await expect(resolvePublicHost('cdn.example.com')).rejects.toThrow('Private or reserved')
     await expect(resolvePublicHost('localhost')).rejects.toThrow('public web hosts')
     await expect(resolvePublicHost('127.0.0.1')).rejects.toThrow('public web hosts')
   })
 
   it('pins the validated address and rechecks DNS on the next connection', async () => {
-    vi.mocked(lookup).mockResolvedValueOnce([{address: '8.8.8.8', family: 4}])
+    lookupAll.mockResolvedValueOnce([{address: '8.8.8.8', family: 4}])
       .mockResolvedValueOnce([{address: '192.168.1.1', family: 4}])
     const first = vi.fn()
     publicLookup('cdn.example.com', {all: true}, first)
@@ -38,7 +38,7 @@ describe('public web video networking', () => {
   })
 
   it('blocks private CONNECT targets and HTTP redirects inside extractor traffic', async () => {
-    vi.mocked(lookup).mockResolvedValue([{address: '127.0.0.1', family: 4}])
+    lookupAll.mockResolvedValue([{address: '127.0.0.1', family: 4}])
     const proxy = await startExtractionProxy()
     const request = (method: string, target: string) => new Promise<number>(resolve => {
       const req = http.request(proxy.url, {method, path: target})

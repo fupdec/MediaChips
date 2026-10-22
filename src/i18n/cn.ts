@@ -1,4 +1,18 @@
 const cn = {
+  remote_errors: {
+    "auth_required": "登录已过期或访问权限已被撤销。请在设置 → 来源中重新登录。",
+    "network_error": "无法连接到来源。请恢复网络或 VPN 连接后重试。",
+    "permission_denied": "访问被拒绝。请检查此账户对文件或文件夹的访问权限后重试。",
+    "source_changed": "原始文件已更改。请刷新来源列表并检查文件后重试。",
+    "session_expired": "播放会话已过期。请点击“刷新流”，从当前位置继续播放。",
+    "unsupported_codec": "播放器不支持此文件的编解码器。请选择其他可用画质，或使用兼容的播放器打开原始文件。",
+    "rate_limited": "来源限制了请求频率。请稍后重试。",
+    "retry_after": "来源限制了请求频率。请在 {seconds} 秒后重试。",
+    "extraction_failed": "无法从此页面提取视频。请检查页面地址；此网站可能不受支持。",
+    "not_found": "原始文件不存在或已被移动。请在来源中找到文件并恢复访问。",
+    "unknown": "对来源的请求失败。请手动重试。如果问题仍然存在，请在设置 → 来源中检查来源。"
+},
+
   appbar: {
     buttons: {
       search: '搜索',
@@ -3661,6 +3675,7 @@ const cn = {
   },
   player: {
     controls: {
+      web_video_refresh: '刷新流',
       play: '播放',
       pause: '暂停',
       previous: '上一个',

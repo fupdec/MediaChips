@@ -1,3 +1,4 @@
+import {sourceFailure, sourceRateLimited, sourceRetryAfter} from '../../shared/sourceErrors'
 import express, {type Express} from 'express'
 import type {ApiDb} from '../types/db'
 import {validateBody, validateQuery} from '../middleware/validateBody'
@@ -7,11 +8,18 @@ import {saveWebVideoFrame} from '../services/webVideo/frames'
 
 export default function registerWebVideo(app: Express, db: ApiDb) {
   const router = express.Router()
+  const failure = (err: unknown, res: express.Response) => {
+    const rateLimited = sourceRateLimited(err) || (err as {code?: string})?.code === 'rate_limited'
+    const code = rateLimited ? 'rate_limited' : sourceFailure(err) || 'extraction_failed'
+    const delay = rateLimited ? sourceRetryAfter(err) : undefined
+    if (delay !== undefined) res.setHeader('Retry-After', delay)
+    res.status(rateLimited ? 429 : code === 'network_error' ? 502 : code === 'permission_denied' ? 403 : 422).json({code, message: 'Unable to extract this video page.'})
+  }
   router.post('/import', validateBody(WebVideoImportSchema), async (req, res) => {
     try {
       res.json(await importWebVideo(db, req.body.url))
     } catch (err) {
-      res.status(422).json({message: err instanceof Error ? err.message : 'Web video import failed.'})
+      failure(err, res)
     }
   })
   router.post('/:id/frame', validateBody(WebVideoFrameSchema), async (req, res) => {
@@ -31,7 +39,7 @@ export default function registerWebVideo(app: Express, db: ApiDb) {
       res.json(await prepareWebVideo(db, Number(req.params.id), {quality: query.quality, fresh: query.fresh === '1', signal: controller.signal}))
     } catch (err) {
       if (res.destroyed) return
-      res.status(422).json({message: err instanceof Error ? err.message : 'Unable to prepare web video.'})
+      failure(err, res)
     } finally {
       res.off('close', abort)
     }

@@ -1,4 +1,18 @@
 const de = {
+  remote_errors: {
+    "auth_required": "Die Anmeldung ist abgelaufen oder der Zugriff wurde widerrufen. Melde dich unter Einstellungen → Quellen erneut bei der Quelle an.",
+    "network_error": "Die Quelle ist nicht erreichbar. Stelle die Netzwerk- oder VPN-Verbindung wieder her und versuche es erneut.",
+    "permission_denied": "Zugriff verweigert. Prüfe die Berechtigungen dieses Kontos für die Datei oder den Ordner und versuche es erneut.",
+    "source_changed": "Das Original wurde geändert. Aktualisiere die Dateiliste der Quelle und prüfe die Datei vor einem erneuten Versuch.",
+    "session_expired": "Die Wiedergabesitzung ist abgelaufen. Klicke auf „Stream aktualisieren“, um an der aktuellen Position fortzufahren.",
+    "unsupported_codec": "Der Player unterstützt den Codec dieser Datei nicht. Wähle eine andere verfügbare Qualität oder öffne das Original in einem kompatiblen Player.",
+    "rate_limited": "Die Quelle begrenzt die Anfragen. Warte vor einem erneuten Versuch.",
+    "retry_after": "Die Quelle begrenzt die Anfragen. Versuche es in {seconds} Sekunden erneut.",
+    "extraction_failed": "Das Video konnte nicht von dieser Seite extrahiert werden. Prüfe die Seitenadresse; diese Website wird möglicherweise nicht unterstützt.",
+    "not_found": "Das Original fehlt oder wurde verschoben. Suche es in der Quelle und stelle den Zugriff wieder her.",
+    "unknown": "Die Anfrage an die Quelle ist fehlgeschlagen. Versuche es manuell erneut. Prüfe bei anhaltenden Problemen die Quelle unter Einstellungen → Quellen."
+},
+
   appbar: {
     buttons: {
       search: 'Suchen',
@@ -3661,6 +3675,7 @@ const de = {
   },
   player: {
     controls: {
+      web_video_refresh: 'Stream aktualisieren',
       play: 'Spielen',
       pause: 'Pause',
       previous: 'Zurück',

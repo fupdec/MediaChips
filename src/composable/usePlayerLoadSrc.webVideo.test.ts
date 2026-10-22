@@ -373,4 +373,18 @@ describe('web video quality changes and recovery', () => {
     expect(typedApi.updateVideoMetadata).toHaveBeenNthCalledWith(2, 17, {time: 45})
   })
 
+  it.each(['auth_required', 'network_error', 'source_changed', 'expired_session', 'rate_limited'])('recovers from %s on explicit refresh without losing position or retrying automatically', async code => {
+    player.paused = true
+    vi.mocked(prepareWebVideoPlayback).mockRejectedValueOnce({response: {status: code === 'rate_limited' ? 429 : 409, data: {code}}})
+    await loader.reloadWebVideo({fresh: true})
+    expect(player.playbackError).toBe(true)
+    expect(player.currentTime).toBe(43)
+    expect(prepareWebVideoPlayback).toHaveBeenCalledTimes(1)
+    await loader.reloadWebVideo({fresh: true})
+    expect(prepareWebVideoPlayback).toHaveBeenCalledTimes(2)
+    expect(player.playbackError).toBe(false)
+    expect(video.currentTime).toBe(43)
+    expect(player.paused).toBe(true)
+  })
+
 })

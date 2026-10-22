@@ -22,6 +22,15 @@ const fixture = {
 }
 
 describe('web video extraction and HLS', () => {
+  it('keeps the remote cover and ignores unsafe image URLs', () => {
+    expect(parseExtraction({...fixture, thumbnail: 'https://images.example.com/poster.webp'}, page).thumbnail)
+      .toBe('https://images.example.com/poster.webp')
+    expect(parseExtraction({...fixture, thumbnail: 'https://localhost/private',
+      thumbnails: [{url: 'https://images.example.com/fallback.jpg'}]}, page).thumbnail)
+      .toBe('https://images.example.com/fallback.jpg')
+    expect(parseExtraction({...fixture, thumbnail: 'https://127.0.0.1/private'}, page).thumbnail).toBeNull()
+  })
+
   it('offers unique resolutions and selects a fixed variant or an adaptive HLS master', () => {
     const source = parseExtraction({...fixture, formats: [...fixture.formats,
       {...fixture.formats[0], url: 'https://video.xhcdn.com/low.m3u8', protocol: 'm3u8_native', height: 480,
@@ -201,6 +210,55 @@ describe('web video library and playback proxy', () => {
     expect(res.status).toHaveBeenCalledWith(206)
     expect(axios.get).toHaveBeenCalledWith(fixture.formats[0].url, expect.objectContaining({headers: expect.objectContaining({Range: 'bytes=0-3', referer: 'https://xhamster.com/videos/video-xhAb12'})}))
     expect(res.setHeader).toHaveBeenCalledWith('content-range', 'bytes 0-3/20')
+  })
+
+  it('uses a working same-resolution MP4 mirror after an initial 404 and pins later seek ranges to it', async () => {
+    const mirror = 'https://cdn.example.com/mirror.mp4'
+    vi.mocked(extractWebVideo).mockResolvedValue({...fixture, formats: [fixture.formats[0],
+      {...fixture.formats[0], url: 'https://cdn.example.com/low.mp4', height: 480},
+      {...fixture.formats[0], url: mirror, http_headers: {Referer: 'https://player.example.com/'}},
+    ]})
+    const item = await importWebVideo(db, page)
+    const playable = await prepareWebVideo(db, item.id, {quality: 720})
+    const stale = Readable.from([])
+    vi.mocked(axios.get)
+      .mockResolvedValueOnce({status: 404, headers: {}, data: stale})
+      .mockResolvedValueOnce({status: 206, headers: {}, data: Readable.from(['first'])})
+      .mockResolvedValueOnce({status: 206, headers: {}, data: Readable.from(['seek'])})
+      .mockResolvedValueOnce({status: 404, headers: {}, data: Readable.from([])})
+    const stream = async (range: string) => {
+      const chunks: Buffer[] = []
+      const res = new Writable({write(chunk, _encoding, done) { chunks.push(Buffer.from(chunk)); done() }}) as unknown as Response
+      res.status = vi.fn(() => res)
+      res.setHeader = vi.fn(() => res)
+      res.json = vi.fn(() => res)
+      await streamWebVideo(db, {query: Object.fromEntries(new URL(playable.url, 'http://localhost').searchParams),
+        headers: {range}} as unknown as Request, res, item.id)
+      return {res, text: Buffer.concat(chunks).toString()}
+    }
+    expect((await stream('bytes=0-4')).text).toBe('first')
+    expect(stale.destroyed).toBe(true)
+    expect(axios.get).toHaveBeenNthCalledWith(2, mirror, expect.objectContaining({headers: {referer: 'https://player.example.com/', Range: 'bytes=0-4'}}))
+    expect((await stream('bytes=10-13')).text).toBe('seek')
+    expect(axios.get).toHaveBeenNthCalledWith(3, mirror, expect.objectContaining({headers: expect.objectContaining({Range: 'bytes=10-13'})}))
+    expect((await stream('bytes=14-17')).res.status).toHaveBeenCalledWith(404)
+    expect(axios.get).toHaveBeenCalledTimes(4)
+    expect(extractWebVideo).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not replace a missing fixed-quality MP4 with a different resolution', async () => {
+    vi.mocked(extractWebVideo).mockResolvedValue({...fixture, formats: [fixture.formats[0],
+      {...fixture.formats[0], url: 'https://cdn.example.com/low.mp4', height: 480},
+    ]})
+    const item = await importWebVideo(db, page)
+    const playable = await prepareWebVideo(db, item.id, {quality: 720})
+    vi.mocked(axios.get).mockResolvedValue({status: 404, headers: {}, data: Readable.from([])})
+    const res = new Writable({write(_chunk, _encoding, done) { done() }}) as unknown as Response
+    res.status = vi.fn(() => res)
+    res.json = vi.fn(() => res)
+    await streamWebVideo(db, {query: Object.fromEntries(new URL(playable.url, 'http://localhost').searchParams), headers: {}} as unknown as Request, res, item.id)
+    expect(res.status).toHaveBeenCalledWith(404)
+    expect(axios.get).toHaveBeenCalledTimes(1)
   })
 
   it('does not accept an arbitrary URL instead of a registered resource', async () => {

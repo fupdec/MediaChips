@@ -1,3 +1,4 @@
+import {remoteSourceErrorMessage, remoteMediaError} from '@/services/remoteSourceErrors'
 import {nextTick} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
@@ -35,8 +36,7 @@ import {
   playlistItemKey,
 } from '@/utils/mediaItem'
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
-import {isDriveMediaPath} from '@shared/cloudDrive'
-import {isRemoteMediaPath, isNasMediaPath} from '@shared/remoteMedia'
+import {isRemoteMediaPath} from '@shared/remoteMedia'
 
 import {attachWebVideo, disposeWebVideo, prepareWebVideoPlayback} from '@/services/webVideoPlayback'
 import {
@@ -369,9 +369,9 @@ export function createPlayerLoadSrc({
           playerStore.webVideoAdaptive = source.adaptive
           playerStore.usesLiveTranscode = false
           playerStore.liveStreamOffset = 0
-          await attachWebVideo(videoEl, source, () => isLoadSrcStale(session), (message) => {
+          await attachWebVideo(videoEl, source, () => isLoadSrcStale(session), (error) => {
             if (isLoadSrcStale(session)) return
-            playerStore.transcodeError = message
+            playerStore.transcodeError = remoteSourceErrorMessage(error, t)
             playerStore.playbackError = true
             isReady.value = true
           }, targetStartTime)
@@ -386,13 +386,13 @@ export function createPlayerLoadSrc({
         }
       } catch (error) {
         if (isLoadSrcStale(session)) return
-        console.error('Player: Failed to prepare video source:', error)
+        if (!usesCopyOrRemoteSource(media)) console.error('Player: Failed to prepare video source:', error)
         await liveSession.clearLiveTranscodeHandlers()
         liveSession.resetTranscodeState()
         if (error instanceof UnsupportedPlaybackError) {
           playerStore.playbackError = true
         } else {
-          liveSession.failTranscode(playbackErrorMessage(error, media.hasCopies ? t('copies.errors.no_available_copy') : 'Failed to prepare video source'))
+          liveSession.failTranscode(usesCopyOrRemoteSource(media) ? remoteSourceErrorMessage(error, t) : playbackErrorMessage(error, 'Failed to prepare video source'))
         }
         isReady.value = true
         return
@@ -461,10 +461,10 @@ export function createPlayerLoadSrc({
           if (playerStore.usesLiveTranscode) {
             liveSession.failTranscode(playbackErrorMessage(e, 'Live transcode playback failed'))
           }
-          console.log(e)
+          if (!usesCopyOrRemoteSource(media)) console.log(e)
           if (usesCopyOrRemoteSource(media) && (e as {name?: string})?.name !== 'NotAllowedError') {
             playerStore.playbackError = true
-            playerStore.transcodeError = t(isDriveMediaPath(media.path) ? 'drive.playback_error' : isNasMediaPath(media.path) ? 'nas.playback_error' : 'media.adding.web_video_playback_error')
+            playerStore.transcodeError = remoteSourceErrorMessage(remoteMediaError(videoEl.error), t)
             playerStore.paused = Boolean(options.paused)
           } else playerStore.paused = true
         }
@@ -475,7 +475,7 @@ export function createPlayerLoadSrc({
     } catch (error) {
       if (isLoadSrcStale(session)) return
       playerStore.playbackError = true
-      playerStore.transcodeError = playbackErrorMessage(error, t(isDriveMediaPath(media.path) ? 'drive.playback_error' : isNasMediaPath(media.path) ? 'nas.playback_error' : 'media.adding.web_video_playback_error'))
+      playerStore.transcodeError = usesCopyOrRemoteSource(media) ? remoteSourceErrorMessage(error, t) : playbackErrorMessage(error, t('media.adding.web_video_playback_error'))
       isReady.value = true
     } finally {
       if (!isLoadSrcStale(session)) {

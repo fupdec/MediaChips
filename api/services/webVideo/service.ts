@@ -1,3 +1,4 @@
+import {sourceRetryAfter} from '../../../shared/sourceErrors'
 import axios from 'axios'
 import type {Readable} from 'stream'
 import type {Request, Response} from 'express'
@@ -21,6 +22,8 @@ const FormatSchema = z.object({
   has_drm: z.boolean().nullable().optional(),
 })
 const ExtractionSchema = z.object({
+  thumbnail: z.string().nullish(),
+  thumbnails: z.array(z.object({url: z.string()})).optional(),
   title: z.string(), duration: z.number().nullable().optional(),
   formats: z.array(FormatSchema), http_headers: z.record(z.string()).optional(),
   _type: z.string().optional(),
@@ -81,6 +84,9 @@ export function parseExtraction(raw: unknown, pageUrl: string) {
       headers, width: item.width || 0, height: item.height || 0, master}
   })
   return {
+    thumbnail: [data.thumbnail, ...(data.thumbnails || []).map(item => item.url).reverse()].find(url => {
+      try { return !!url && !!validateStreamUrl(url) } catch { return false }
+    }) || null,
     title: data.title.slice(0, 1000), duration: Math.max(0, data.duration || 0),
     ...streams[0], streams,
     qualities: [...new Set(streams.map((item) => item.height).filter((height) => height > 0))].sort((a, b) => b - a),
@@ -95,7 +101,7 @@ export function selectStreamQuality(source: Extraction, quality: number | null =
   const adaptive = quality == null && Boolean(selected.master)
   return {...source, ...selected, url: adaptive ? selected.master! : selected.url, quality, adaptive}
 }
-type Session = {dbKey: string; mediaId: number; page: string; source: Extraction; resources: Map<string, string>; expires: number}
+type Session = {dbKey: string; mediaId: number; page: string; source: Extraction; resources: Map<string, string>; expires: number; started?: boolean}
 const sessions = new Map<string, Session>()
 type ExtractionCacheEntry = {expires: number; value: Promise<Extraction>; controller: AbortController; users: number; pending: boolean}
 const cache = new Map<string, ExtractionCacheEntry>()
@@ -176,6 +182,14 @@ export async function importWebVideo(db: ApiDb, input: string) {
   return result
 }
 
+export async function resolveWebVideoThumbnail(db: ApiDb, mediaId: number, signal?: AbortSignal): Promise<Buffer | null> {
+  const page = findPage(db, mediaId)
+  const source = await resolve(db, page, false, signal)
+  if (!source.thumbnail) return null
+  const {downloadRemoteThumbnail} = await import('../remoteThumbnailDownload')
+  return downloadRemoteThumbnail(source.thumbnail, signal, source.headers)
+}
+
 function findPage(db: ApiDb, id: number): string {
   const media = createMediaRepository(db.drizzle).findById(id)
   const page = media && !media.deletedAt && normalizeWebVideoUrl(media.path)
@@ -230,7 +244,7 @@ export async function streamWebVideo(db: ApiDb, req: Request, res: Response, med
   const session = sessions.get(sessionId)
   if (!session || session.mediaId !== mediaId || session.dbKey !== dbKey(db)
     || session.expires < Date.now() || findPage(db, mediaId) !== session.page) {
-    res.status(410).json({message: 'Playback session expired. Open the video again.'})
+    res.status(410).json({code: 'session_expired', message: 'Playback session expired. Open the video again.'})
     return
   }
   const remote = session.resources.get(resourceId)
@@ -249,11 +263,30 @@ export async function streamWebVideo(db: ApiDb, req: Request, res: Response, med
       session.resources.set('root', session.source.url)
       upstream = await requestStream(session.source.url, {...session.source.headers, ...(req.headers.range ? {Range: req.headers.range} : {})}, abort.signal)
     }
+    // HTML players can advertise a stale <source> before a working mirror.
+    // Select a mirror before publishing bytes; never splice MP4 encodings after
+    // the player has already read an index or started requesting seek ranges.
+    if (resourceId === 'root' && session.source.kind === 'mp4' && !session.started && upstream.response.status === 404) {
+      const alternatives = session.source.streams.filter(item => item.kind === 'mp4'
+        && item.url !== session.source.url && item.width === session.source.width && item.height === session.source.height).slice(0, 3)
+      for (const alternative of alternatives) {
+        if (session.started || upstream.response.status !== 404) break
+        upstream.response.data.destroy()
+        upstream = await requestStream(alternative.url, {...alternative.headers, ...(req.headers.range ? {Range: req.headers.range} : {})}, abort.signal)
+        if ([200, 206].includes(upstream.response.status)) {
+          session.source = {...session.source, ...alternative}
+          session.resources.set('root', alternative.url)
+        }
+      }
+    }
     const {response, url} = upstream
     body = response.data
     if (![200, 206].includes(response.status)) {
       body.destroy()
-      res.status(response.status === 416 ? 416 : 502).json({message: 'The remote video stream is unavailable.'})
+      const status = [403, 404, 410, 416, 429].includes(response.status) ? response.status : 502
+      const delay = status === 429 ? sourceRetryAfter({response}) : undefined
+      if (delay !== undefined) res.setHeader('Retry-After', delay)
+      res.status(status).json({code: status === 429 ? 'rate_limited' : status === 410 ? 'session_expired' : status === 403 ? 'permission_denied' : status === 404 ? 'not_found' : 'network_error', message: 'The remote video stream is unavailable.'})
       return
     }
     res.setHeader('Cache-Control', 'no-store')
@@ -284,6 +317,7 @@ export async function streamWebVideo(db: ApiDb, req: Request, res: Response, med
       return
     }
     res.status(response.status)
+    if (resourceId === 'root') session.started = true
     res.setHeader('Content-Type', resourceId === 'root' ? 'video/mp4' : (type || 'application/octet-stream'))
     for (const name of ['content-length', 'content-range', 'accept-ranges']) {
       if (response.headers[name]) res.setHeader(name, String(response.headers[name]))

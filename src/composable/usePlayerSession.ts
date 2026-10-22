@@ -1,3 +1,4 @@
+import {remoteMediaError, remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 import {ref, computed, onMounted, onBeforeUnmount, watch, nextTick, type InjectionKey} from 'vue'
 import type { Handler } from 'mitt'
 import {useI18n} from 'vue-i18n'
@@ -30,7 +31,6 @@ import {setNotification} from '@/services/notificationService'
 import {openPath as openFilePath, openExternal} from '@/services/shellService'
 import {isWebVideoPath} from '@shared/webVideo'
 import {isRemoteMediaPath, isNasMediaPath, parseNasMediaPath} from '@shared/remoteMedia'
-import {isDriveMediaPath} from '@shared/cloudDrive'
 import {
   loadPlayerVolumePrefs,
   persistPlayerMuted,
@@ -148,7 +148,7 @@ export function usePlayerSession() {
   })
   const formatErrorMessage = computed(() => {
     if (isRemoteMediaPath(playerStore.media?.path)) {
-      return playerStore.transcodeError || t(isDriveMediaPath(playerStore.media?.path) ? 'drive.playback_error' : isNasMediaPath(playerStore.media?.path) ? 'nas.playback_error' : 'media.adding.web_video_playback_error')
+      return playerStore.transcodeError || remoteSourceErrorMessage(remoteMediaError(playerStore.player?.error || null), t)
     }
     if (playerStore.transcodeError) {
       return `${t('player.transcode_error')}: ${playerStore.transcodeError}`

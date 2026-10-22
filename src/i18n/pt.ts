@@ -1,4 +1,18 @@
 const pt = {
+  remote_errors: {
+    "auth_required": "A sessão expirou ou o acesso foi revogado. Entre novamente na fonte em Configurações → Fontes.",
+    "network_error": "A fonte está inacessível. Restabeleça a conexão de rede ou VPN e tente novamente.",
+    "permission_denied": "Acesso negado. Verifique as permissões desta conta para o arquivo ou pasta e tente novamente.",
+    "source_changed": "O original foi alterado. Atualize a lista da fonte e verifique o arquivo antes de tentar novamente.",
+    "session_expired": "A sessão de reprodução expirou. Clique em «Atualizar transmissão» para continuar a partir da posição atual.",
+    "unsupported_codec": "O reprodutor não oferece suporte ao codec deste arquivo. Escolha outra qualidade disponível ou abra o original num reprodutor compatível.",
+    "rate_limited": "A fonte limitou as solicitações. Aguarde antes de tentar novamente.",
+    "retry_after": "A fonte limitou as solicitações. Tente novamente dentro de {seconds} segundos.",
+    "extraction_failed": "Não foi possível extrair o vídeo desta página. Verifique o endereço; este site pode não ser compatível.",
+    "not_found": "O original não foi encontrado ou foi movido. Localize-o na fonte e restabeleça o acesso.",
+    "unknown": "A solicitação à fonte falhou. Tente novamente manualmente. Se o problema persistir, verifique a fonte em Configurações → Fontes."
+},
+
   appbar: {
     buttons: {
       search: 'Pesquisar',
@@ -3661,6 +3675,7 @@ const pt = {
   },
   player: {
     controls: {
+      web_video_refresh: 'Atualizar transmissão',
       play: 'Jogar',
       pause: 'Pausa',
       previous: 'Anterior',

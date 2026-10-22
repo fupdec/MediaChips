@@ -1,4 +1,18 @@
 const fr = {
+  remote_errors: {
+    "auth_required": "La session a expiré ou l’accès a été révoqué. Reconnectez-vous à la source dans Paramètres → Sources.",
+    "network_error": "La source est inaccessible. Rétablissez la connexion réseau ou VPN, puis réessayez.",
+    "permission_denied": "Accès refusé. Vérifiez les autorisations de ce compte pour le fichier ou le dossier, puis réessayez.",
+    "source_changed": "L’original a été modifié. Actualisez la liste de la source et vérifiez le fichier avant de réessayer.",
+    "session_expired": "La session de lecture a expiré. Cliquez sur « Actualiser le flux » pour reprendre à la position actuelle.",
+    "unsupported_codec": "Le lecteur ne prend pas en charge le codec de ce fichier. Choisissez une autre qualité disponible ou ouvrez l’original dans un lecteur compatible.",
+    "rate_limited": "La source a limité les requêtes. Patientez avant de réessayer.",
+    "retry_after": "La source a limité les requêtes. Réessayez dans {seconds} secondes.",
+    "extraction_failed": "Impossible d’extraire la vidéo de cette page. Vérifiez l’adresse ; ce site n’est peut-être pas pris en charge.",
+    "not_found": "L’original est introuvable ou a été déplacé. Retrouvez-le dans la source et rétablissez l’accès.",
+    "unknown": "La requête vers la source a échoué. Réessayez manuellement. Si le problème persiste, vérifiez la source dans Paramètres → Sources."
+},
+
   appbar: {
     buttons: {
       search: 'Rechercher',
@@ -3661,6 +3675,7 @@ const fr = {
   },
   player: {
     controls: {
+      web_video_refresh: 'Actualiser le flux',
       play: 'Jouer',
       pause: 'Pause',
       previous: 'Précédent',

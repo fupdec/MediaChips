@@ -1,3 +1,5 @@
+import {useI18n} from 'vue-i18n'
+import {remoteMediaError, remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 import {nextTick, watch, onBeforeUnmount} from 'vue'
 import {abortVideoPlayback} from '@/utils/liveTranscodeLifecycle'
 import {usePlayerPositionPersistence} from './usePlayerPositionPersistence'
@@ -45,6 +47,7 @@ export function usePlayerPlayback({
   updatePlayerWindowTitle,
 }: UsePlayerPlaybackOptions) {
   const playerStore = usePlayerStore()
+  const {t} = useI18n()
   const state: PlayerPlaybackSharedState = {
     forceDirectPlayback: false,
     liveStreamSeekGeneration: 0,
@@ -135,6 +138,9 @@ export function usePlayerPlayback({
     if (!isRemoteMediaPath(playerStore.media?.path)
       && await liveSession.tryFallbackDirectToLiveTranscode(playerStore.player.error?.code)) return
     playerStore.playbackError = true
+    if (isRemoteMediaPath(playerStore.media?.path) && !playerStore.transcodeError) {
+      playerStore.transcodeError = remoteSourceErrorMessage(remoteMediaError(playerStore.player.error), t)
+    }
     playerStore.webVideoFrameReady = false
     playerStore.isStreamWaiting = false
     if (playerStore.usesLiveTranscode) {

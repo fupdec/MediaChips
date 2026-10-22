@@ -1,4 +1,18 @@
 const es = {
+  remote_errors: {
+    "auth_required": "La sesión ha caducado o se ha revocado el acceso. Vuelve a iniciar sesión en la fuente en Ajustes → Fuentes.",
+    "network_error": "No se puede acceder a la fuente. Restablece la conexión de red o VPN e inténtalo de nuevo.",
+    "permission_denied": "Acceso denegado. Comprueba los permisos de esta cuenta para el archivo o la carpeta e inténtalo de nuevo.",
+    "source_changed": "El original ha cambiado. Actualiza la lista de la fuente y comprueba el archivo antes de volver a intentarlo.",
+    "session_expired": "La sesión de reproducción ha caducado. Pulsa «Actualizar transmisión» para continuar desde la posición actual.",
+    "unsupported_codec": "El reproductor no admite el códec de este archivo. Elige otra calidad disponible o abre el original en un reproductor compatible.",
+    "rate_limited": "La fuente ha limitado las solicitudes. Espera antes de volver a intentarlo.",
+    "retry_after": "La fuente ha limitado las solicitudes. Inténtalo de nuevo en {seconds} segundos.",
+    "extraction_failed": "No se ha podido extraer el vídeo de esta página. Comprueba la dirección; es posible que este sitio no sea compatible.",
+    "not_found": "El original no está disponible o se ha movido. Búscalo en la fuente y restablece el acceso.",
+    "unknown": "La solicitud a la fuente ha fallado. Vuelve a intentarlo manualmente. Si el problema persiste, comprueba la fuente en Ajustes → Fuentes."
+},
+
   appbar: {
     buttons: {
       search: 'Buscar',
@@ -3661,6 +3675,7 @@ const es = {
   },
   player: {
     controls: {
+      web_video_refresh: 'Actualizar transmisión',
       play: 'Reproducir',
       pause: 'Pausa',
       previous: 'Anterior',
