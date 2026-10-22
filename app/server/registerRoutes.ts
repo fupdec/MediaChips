@@ -1,3 +1,4 @@
+import registerRemoteProcessing from '../../api/routes/RemoteProcessing.routes'
 import {registerCloudMetadataBackfill} from './cloudMetadataBackfill'
 import registerCloudAccounts from '../../api/routes/CloudAccounts.routes'
 import type { ApiDb } from '../../api/types/db'
@@ -172,6 +173,7 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     // Google Drive — connections, remote library import and Range streaming.
     { routeFile: 'CloudDrive.routes', register: registerCloudDrive },
     { routeFile: 'CloudAccounts.routes', register: registerCloudAccounts },
+    { routeFile: 'RemoteProcessing.routes', register: registerRemoteProcessing },
   )
 
   return registrars
