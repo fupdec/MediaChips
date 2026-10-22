@@ -1,3 +1,4 @@
+import {runLibraryBackgroundTask} from '../libraryMaintenance'
 import fs from 'fs/promises'
 import path from 'path'
 import {constants, unlinkSync} from 'fs'
@@ -125,25 +126,27 @@ export function createNasMediaAssetsService(db: ApiDb, options: {
   }
   return {
     ensure,
-    async tick() {
-      if (ticking || controller.signal.aborted) return
-      ticking = true
-      try {
-        const pinned = pinSourceDb(db), current = pinned.db
-        let cursor = cursors.get(current.sqlite)
-        if (!cursor) { cursor = {id: 0, nextScan: 0}; cursors.set(current.sqlite, cursor) }
-        if (cursor.nextScan && cursor.nextScan <= now()) { cursor.id = 0; cursor.nextScan = 0 }
-        const rows = current.sqlite.prepare(`SELECT m.id FROM media m JOIN mediaTypes t ON t.id = m.mediaTypeId
-          WHERE m.id > ? AND m.path LIKE 'nas://%' AND (m.deletedAt IS NULL OR m.deletedAt = '')
-          AND t.type IN ('video','image','audio') ORDER BY m.id LIMIT 32`).all(cursor.id) as {id: number}[]
-        for (const row of rows) {
-          pinned.assertCurrent(); if (controller.signal.aborted) return
-          try { await ensure(row.id) } catch { /* Disconnected sources retry later without interrupting the library. */ }
-        }
-        pinned.assertCurrent()
-        if (rows.length) cursor.id = rows[rows.length - 1].id
-        if (rows.length < 32 && !cursor.nextScan) cursor.nextScan = now() + RETRY_MS
-      } finally { ticking = false }
+    tick() {
+      return runLibraryBackgroundTask(async () => {
+        if (ticking || controller.signal.aborted) return
+        ticking = true
+        try {
+          const pinned = pinSourceDb(db), current = pinned.db
+          let cursor = cursors.get(current.sqlite)
+          if (!cursor) { cursor = {id: 0, nextScan: 0}; cursors.set(current.sqlite, cursor) }
+          if (cursor.nextScan && cursor.nextScan <= now()) { cursor.id = 0; cursor.nextScan = 0 }
+          const rows = current.sqlite.prepare(`SELECT m.id FROM media m JOIN mediaTypes t ON t.id = m.mediaTypeId
+            WHERE m.id > ? AND m.path LIKE 'nas://%' AND (m.deletedAt IS NULL OR m.deletedAt = '')
+            AND t.type IN ('video','image','audio') ORDER BY m.id LIMIT 32`).all(cursor.id) as {id: number}[]
+          for (const row of rows) {
+            pinned.assertCurrent(); if (controller.signal.aborted) return
+            try { await ensure(row.id) } catch { /* Disconnected sources retry later without interrupting the library. */ }
+          }
+          pinned.assertCurrent()
+          if (rows.length) cursor.id = rows[rows.length - 1].id
+          if (rows.length < 32 && !cursor.nextScan) cursor.nextScan = now() + RETRY_MS
+        } finally { ticking = false }
+      })
     },
     dispose() { controller.abort() },
   }

@@ -1,3 +1,4 @@
+import {runLibraryOperation} from '../../services/libraryMaintenance'
 import type { TaskControllerShared } from '../../types/tasks'
 import { HttpError, sendAsClientError, sendBadRequest, sendControllerError, sendNotFound, sendOk, sendCreated } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
@@ -118,10 +119,10 @@ export default function createTasksVideoPreviewController(shared: TaskController
           // Respond as soon as the sprite is on disk. Visual hash / CLIP can take
           // much longer (and block the ffmpeg queue for the next Review item).
           sendOk(res, result)
-          void Promise.all([
+          void runLibraryOperation(() => Promise.all([
             ensureVisualHash(true),
             ensureClipEmbedding(),
-          ]).catch(() => undefined)
+          ])).catch(() => undefined)
         } else {
           sendBadRequest(res, 'Unable to probe video duration')
         }
@@ -131,10 +132,10 @@ export default function createTasksVideoPreviewController(shared: TaskController
     } else {
       // Small on-scroll batches often recreate/skip existing grids — still fill missing hashes.
       sendBadRequest(res, 'Grid already exists')
-      void Promise.all([
+      void runLibraryOperation(() => Promise.all([
         ensureVisualHash(false),
         ensureClipEmbedding(),
-      ]).catch(() => undefined)
+      ])).catch(() => undefined)
     }
   }
 

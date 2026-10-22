@@ -1,3 +1,4 @@
+import {assertLibraryOperationCurrent} from '../libraryMaintenance'
 import {getCloudAccounts} from '../cloudAccounts/accounts'
 import {eq} from 'drizzle-orm'
 import type {ApiDb} from '../../types/db'
@@ -15,10 +16,12 @@ export const sourceError = (code: string, status = 409) => Object.assign(new Err
 
 /** The public DB uses stable proxies. Pin the actual connection across every await. */
 export function pinSourceDb(db: ApiDb) {
+  assertLibraryOperationCurrent()
   const active = db.sqlite === getSqliteProxy() ? getActiveConnection() : null
   const pinned: ApiDb = active ? {...db, ...active} : {...db}
   const library = db.path
   return {db: pinned, assertCurrent() {
+    assertLibraryOperationCurrent()
     if (db.path !== library || (active && getActiveConnection() !== active)) throw sourceError('library_changed')
   }}
 }

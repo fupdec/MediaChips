@@ -1,3 +1,4 @@
+import {runLibraryBackgroundTask, runLibraryOperation} from '../libraryMaintenance'
 import {updateVerifiedCopyPath} from '../mediaSources/copyPathUpdates'
 import fs from 'fs'
 import path from 'path'
@@ -420,7 +421,7 @@ export function createOriginalOperationsService(publicDb: ApiDb, options: {
     invalidateMediaDerivedCaches()
     if (item.kind === 'upload') fs.rmSync(spool(db, item), {force: true})
   }
-  async function tick() {
+  async function tickWork() {
     if (busy || disposed) return
     const pinned = pinSourceDb(publicDb)
     initialize(pinned.db)
@@ -450,6 +451,7 @@ export function createOriginalOperationsService(publicDb: ApiDb, options: {
       job.state = job.items.every(terminal) ? 'completed' : 'failed'; persist(pinned.db, job)
     } finally { busy = false; controller = undefined; runningJob = undefined; locks.forEach(lock => sourceOperationLocks.delete(lock)) }
   }
+  const tick = () => runLibraryBackgroundTask(tickWork)
   const wake = () => { void Promise.resolve().then(tick).catch(() => {}) }
   return {
     jobs() { const {db} = pinSourceDb(publicDb); initialize(db); return readJobs(db).map(publicJob) },
@@ -483,37 +485,39 @@ export function createOriginalOperationsService(publicDb: ApiDb, options: {
       job.state = job.items.some(item => item.kind === 'upload' && !item.readyUpload) ? 'awaiting_upload' : 'queued'
       persist(db, job); wake(); return publicJob(job)
     },
-    async upload(id: string, itemId: string, input: Readable) {
-      const pinned = pinSourceDb(publicDb); initialize(pinned.db)
-      const job = load(pinned.db, id)
-      const item = job.items.find(item => item.id === itemId && item.kind === 'upload')
-      if (!item || job.state !== 'awaiting_upload' || item.readyUpload || uploads.size) throw sourceError('conflict')
-      uploads.add(itemId)
-      const dir = directoryFor(pinned.db)
-      fs.mkdirSync(dir, {recursive: true, mode: 0o700})
-      const filename = spool(pinned.db, item)
-      const temporary = filename + '.part'
-      let bytes = 0, last = 0
-      try {
-        fs.rmSync(temporary, {force: true})
-        fs.rmSync(filename, {force: true})
-        if (fs.statfsSync(dir).bavail * fs.statfsSync(dir).bsize < item.uploadSize!) throw sourceError('no_space')
-        await pipeline(input, new Transform({transform(chunk: Buffer, _encoding, callback) {
-          try {
-            pinned.assertCurrent(); bytes += chunk.length
-            if (bytes > item.uploadSize!) throw sourceError('size_mismatch')
-            item.bytes = bytes
-            if (Date.now() - last > 250) { last = Date.now(); persist(pinned.db, job) }
-            callback(null, chunk)
-          } catch (err) { callback(err as Error) }
-        }}), fs.createWriteStream(temporary, {flags: 'w', mode: 0o600}))
-        pinned.assertCurrent()
-        if (bytes !== item.uploadSize) throw sourceError('size_mismatch')
-        fs.renameSync(temporary, filename); item.readyUpload = true; item.bytes = 0; delete item.error
-        if (job.items.every(row => row.kind !== 'upload' || row.readyUpload)) job.state = 'queued'
-        persist(pinned.db, job); wake(); return publicJob(job)
-      } catch (err) { item.error = errorCode(err); persist(pinned.db, job); throw err }
-      finally { uploads.delete(itemId); fs.rmSync(temporary, {force: true}) }
+    upload(id: string, itemId: string, input: Readable) {
+      return runLibraryOperation(async () => {
+        const pinned = pinSourceDb(publicDb); initialize(pinned.db)
+        const job = load(pinned.db, id)
+        const item = job.items.find(item => item.id === itemId && item.kind === 'upload')
+        if (!item || job.state !== 'awaiting_upload' || item.readyUpload || uploads.size) throw sourceError('conflict')
+        uploads.add(itemId)
+        const dir = directoryFor(pinned.db)
+        fs.mkdirSync(dir, {recursive: true, mode: 0o700})
+        const filename = spool(pinned.db, item)
+        const temporary = filename + '.part'
+        let bytes = 0, last = 0
+        try {
+          fs.rmSync(temporary, {force: true})
+          fs.rmSync(filename, {force: true})
+          if (fs.statfsSync(dir).bavail * fs.statfsSync(dir).bsize < item.uploadSize!) throw sourceError('no_space')
+          await pipeline(input, new Transform({transform(chunk: Buffer, _encoding, callback) {
+            try {
+              pinned.assertCurrent(); bytes += chunk.length
+              if (bytes > item.uploadSize!) throw sourceError('size_mismatch')
+              item.bytes = bytes
+              if (Date.now() - last > 250) { last = Date.now(); persist(pinned.db, job) }
+              callback(null, chunk)
+            } catch (err) { callback(err as Error) }
+          }}), fs.createWriteStream(temporary, {flags: 'w', mode: 0o600}))
+          pinned.assertCurrent()
+          if (bytes !== item.uploadSize) throw sourceError('size_mismatch')
+          fs.renameSync(temporary, filename); item.readyUpload = true; item.bytes = 0; delete item.error
+          if (job.items.every(row => row.kind !== 'upload' || row.readyUpload)) job.state = 'queued'
+          persist(pinned.db, job); wake(); return publicJob(job)
+        } catch (err) { item.error = errorCode(err); persist(pinned.db, job); throw err }
+        finally { uploads.delete(itemId); fs.rmSync(temporary, {force: true}) }
+      })
     },
     cancel(id: string) {
       const {db} = pinSourceDb(publicDb)

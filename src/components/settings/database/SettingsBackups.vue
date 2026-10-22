@@ -623,7 +623,11 @@ async function restoreBackup() {
     setNotification({
       type: 'error',
       title: t('settings_labels.database.restore_backup'),
-      text: getApiErrorMessage(error, t('settings_labels.database.restore_backup')),
+      text: getErrorResponseData<{code?: string}>(error)?.code === 'library_busy'
+        ? t('settings_labels.database.restore_busy')
+        : getErrorResponseData<{code?: string}>(error)?.code === 'library_restoring'
+          ? t('settings_labels.database.restore_in_progress')
+          : getApiErrorMessage(error, t('settings_labels.database.restore_backup')),
     })
   } finally {
     dialogsStore.process.show = false

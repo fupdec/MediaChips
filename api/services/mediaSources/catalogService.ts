@@ -1,3 +1,4 @@
+import {isLibraryRestoring, runLibraryOperation} from '../libraryMaintenance'
 import {CloudKeySchema} from '../../../shared/cloudAccounts'
 import {getCloudAccounts} from '../cloudAccounts/accounts'
 import type {Response} from 'express'
@@ -58,7 +59,7 @@ export function createSourceCatalogService(db: ApiDb, options: {open?: typeof op
         if (current.id === 'google-drive' && !getCloudDriveService().status().authenticated) throw sourceError('auth_required')
       }
     }
-    void (async () => {
+    void runLibraryOperation(async () => {
       let adapter: SourceReadAdapter | undefined
       const timeout = setTimeout(() => controller.abort(sourceError('source_timeout')), 2 * 60 * 60_000)
       try {
@@ -88,7 +89,7 @@ export function createSourceCatalogService(db: ApiDb, options: {open?: typeof op
         locks.delete(lock)
         if (kind === 'offline') cacheBusy = false
       }
-    })()
+    }).catch(() => {})
     return {...job}
   }
   const refresh = (id: string) => {
@@ -160,6 +161,7 @@ export function createSourceCatalogService(db: ApiDb, options: {open?: typeof op
         .onConflictDoUpdate({target: sourceCacheSettings.id, set: {limitBytes}}).run()
     },
     tick() {
+      if (isLibraryRestoring()) return
       const pinned = pinSourceDb(db)
       const due = pinned.db.drizzle.select().from(sourceCatalogRoots).where(and(gt(sourceCatalogRoots.intervalMinutes, 0), lte(sourceCatalogRoots.nextRunAt, now()))).all()
       for (const root of due) {

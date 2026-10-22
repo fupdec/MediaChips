@@ -1,3 +1,4 @@
+import {withLibraryRestore} from '../../services/libraryMaintenance'
 import crypto from 'node:crypto'
 import type { Express } from 'express'
 import { HttpError, sendAsClientError, sendControllerError, sendOk } from '../../types/errors'
@@ -65,7 +66,7 @@ export default function (app: Express, db: ApiDb) {
     })
   }
 
-  const restoreBackup = async (req: ApiRequest, res: ApiResponse) => {
+  const restoreBackupLocked = async (req: ApiRequest) => {
     const dbPath = getDbPath()
     const backupPath = path.join(getBackupsPath(), String(req.body.name) + '.zip')
     const zip = new StreamZip.async({
@@ -97,7 +98,6 @@ export default function (app: Express, db: ApiDb) {
         const tasksLowDb = createTasksMigrateFromLowDbController(db)
         await tasksLowDb.migrateFromLowDb(backupPath)
         await getDatabaseManager().reloadCurrentDatabase()
-        sendOk(res)
         return
       }
 
@@ -107,7 +107,6 @@ export default function (app: Express, db: ApiDb) {
         close: () => getDatabaseManager().closeConnection(),
         reload: () => getDatabaseManager().reloadCurrentDatabase(),
       })
-      sendOk(res)
     } catch (e: unknown) {
       console.error('restoreBackup failed:', e)
       try {
@@ -115,7 +114,7 @@ export default function (app: Express, db: ApiDb) {
       } catch (reloadErr: unknown) {
         console.error('restoreBackup reload failed:', reloadErr)
       }
-      sendAsClientError(res, e, 'Failed to restore backup')
+      throw e
     } finally {
       try {
         await zip.close()
@@ -124,6 +123,14 @@ export default function (app: Express, db: ApiDb) {
       }
     }
   };
+
+  const restoreBackup = async (req: ApiRequest, res: ApiResponse) => {
+    try {
+      await withLibraryRestore(() => restoreBackupLocked(req))
+      sendOk(res)
+    }
+    catch (error) { sendAsClientError(res, error, 'Failed to restore backup') }
+  }
 
   const importBackup = async (req: ApiRequest, res: ApiResponse) => {
     try {

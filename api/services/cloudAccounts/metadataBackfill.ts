@@ -1,3 +1,4 @@
+import {runLibraryBackgroundTask} from '../libraryMaintenance'
 import {isNasMediaPath} from '../../../shared/remoteMedia'
 import type {ApiDb} from '../../types/db'
 import {isCloudMediaPath} from '../../../shared/cloudAccounts'
@@ -90,27 +91,29 @@ export function createCloudMetadataBackfill(db: ApiDb, options: {
   let running = false, disposed = false
   const controller = new AbortController()
   return {
-    async tick() {
-      if (running || disposed) return
-      running = true
-      try {
-        const pinned = pinSourceDb(db), current = pinned.db
-        let state = states.get(current.sqlite)
-        if (!state) { state = {cursor: 0, nextScan: 0}; states.set(current.sqlite, state) }
-        if (state.nextScan > now()) return
-        const batchSize = Math.max(1, Math.min(32, options.batchSize || 16))
-        const rows = current.sqlite.prepare(pendingSql).all(state.cursor, batchSize) as {id: number}[]
-        for (let offset = 0; offset < rows.length; offset += 2) {
-          pinned.assertCurrent(); if (disposed) return
-          await Promise.all(rows.slice(offset, offset + 2).map(async row => {
-            try { await refreshCloudMediaMetadata(db, row.id, {signal: controller.signal, open: options.open, now}) }
-            catch { /* Offline / pending provider metadata is retried on the next pass. */ }
-          }))
-          pinned.assertCurrent(); if (disposed) return
-        }
-        if (rows.length < batchSize) { state.cursor = 0; state.nextScan = now() + CLOUD_METADATA_RETRY_MS }
-        else state.cursor = rows[rows.length - 1].id
-      } finally { running = false }
+    tick() {
+      return runLibraryBackgroundTask(async () => {
+        if (running || disposed) return
+        running = true
+        try {
+          const pinned = pinSourceDb(db), current = pinned.db
+          let state = states.get(current.sqlite)
+          if (!state) { state = {cursor: 0, nextScan: 0}; states.set(current.sqlite, state) }
+          if (state.nextScan > now()) return
+          const batchSize = Math.max(1, Math.min(32, options.batchSize || 16))
+          const rows = current.sqlite.prepare(pendingSql).all(state.cursor, batchSize) as {id: number}[]
+          for (let offset = 0; offset < rows.length; offset += 2) {
+            pinned.assertCurrent(); if (disposed) return
+            await Promise.all(rows.slice(offset, offset + 2).map(async row => {
+              try { await refreshCloudMediaMetadata(db, row.id, {signal: controller.signal, open: options.open, now}) }
+              catch { /* Offline / pending provider metadata is retried on the next pass. */ }
+            }))
+            pinned.assertCurrent(); if (disposed) return
+          }
+          if (rows.length < batchSize) { state.cursor = 0; state.nextScan = now() + CLOUD_METADATA_RETRY_MS }
+          else state.cursor = rows[rows.length - 1].id
+        } finally { running = false }
+      })
     },
     dispose() { disposed = true; controller.abort() },
   }

@@ -1,3 +1,4 @@
+import {runLibraryOperation, bindLibraryOperation} from '../libraryMaintenance'
 import {getFfmpegPath} from '../../utils/ffmpegPaths'
 import fs from 'fs'
 import os from 'os'
@@ -60,7 +61,7 @@ export function createRemoteProcessing(options: {limits?: ProcessingLimits; ffmp
       }
       const entry: typeof jobs extends Map<string, infer T> ? T : never = {job, controller, db: pinned.db.sqlite, expires: Date.now() + 30 * 60_000, assertCurrent}
       jobs.set(job.id, entry)
-      void queue.run(async signal => {
+      void runLibraryOperation(() => queue.run(bindLibraryOperation(async (signal: AbortSignal) => {
         job.state = 'running'
         let adapter: SourceReadAdapter | undefined
         try {
@@ -96,7 +97,7 @@ export function createRemoteProcessing(options: {limits?: ProcessingLimits; ffmp
           adapter?.close()
           if (job.state !== 'completed' && entry.directory) fs.rmSync(entry.directory, {recursive: true, force: true})
         }
-      }, controller.signal).catch(err => {
+      }), controller.signal)).catch(err => {
         job.state = controller.signal.aborted ? 'cancelled' : 'failed'
         const code = (err as {code?: string; message?: string})?.code || (err as Error)?.message
         job.error = typeof code === 'string' && /^[a-z_]+$/.test(code) ? code : 'processing_failed'

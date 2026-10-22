@@ -1,3 +1,4 @@
+import {assertLibraryOperationAllowed, runLibraryOperation} from './libraryMaintenance'
 import fs from 'fs'
 import path from 'path'
 import {randomUUID} from 'crypto'
@@ -117,6 +118,7 @@ async function processTrim(job: VideoTrimJob, signal: AbortSignal): Promise<void
 }
 
 export function startVideoTrim(db: ApiDb, input: TrimInput): VideoTrimJob {
+  assertLibraryOperationAllowed()
   const mediaRepo = createMediaRepository(db.drizzle)
   const media = mediaRepo.findById(input.id)
   if (!media) throw new Error(`Media ${input.id} not found`)
@@ -137,7 +139,7 @@ export function startVideoTrim(db: ApiDb, input: TrimInput): VideoTrimJob {
   const controller = new AbortController()
   controllers.set(job.id, controller)
 
-  void (async () => {
+  void runLibraryOperation(async () => {
     try {
       await processTrim(job, controller.signal)
     } catch (error) {
@@ -149,7 +151,7 @@ export function startVideoTrim(db: ApiDb, input: TrimInput): VideoTrimJob {
     } finally {
       controllers.delete(job.id)
     }
-  })()
+  }).catch(error => { job.status = 'error'; job.error = error instanceof Error ? error.message : String(error); controllers.delete(job.id) })
 
   return job
 }

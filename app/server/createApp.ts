@@ -1,3 +1,4 @@
+import {libraryMaintenanceMiddleware} from './libraryMaintenance'
 import type { Express, Request, Response, NextFunction } from 'express'
 import {projectPath} from '../../shared/projectRoot'
 import history from 'connect-history-api-fallback'
@@ -46,6 +47,7 @@ function createExpressApp() {
     next()
   })
 
+  app.use(libraryMaintenanceMiddleware)
   app.use(router)
 
   return {app, router}

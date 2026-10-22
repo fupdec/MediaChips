@@ -1,3 +1,4 @@
+import {runLibraryBackgroundTask} from '../libraryMaintenance'
 import fs from 'fs'
 import type {ApiDb} from '../../types/db'
 import type {CopyDiscoveryTrigger, CopyDiscoveryInput} from '../../../shared/copyDiscovery'
@@ -108,36 +109,38 @@ export function createCopyDiscoveryAutomation(db: ApiDb, discovery: {
     })()
   }
   return {
-    async tick() {
-      if (disposed) return
-      const pinned = pinSourceDb(db), current = pinned.db
-      configured(current); flush(current)
-      if (polling || now() - lastPoll < 5000) return
-      polling = true; lastPoll = now()
-      try {
-        const roots = current.sqlite.prepare('SELECT * FROM copyDiscoveryAutoRoots WHERE monitor = 1 AND connectionId IS NULL').all() as AutoRoot[]
-        for (let offset = 0; offset < roots.length; offset += 8) {
-          await Promise.all(roots.slice(offset, offset + 8).map(async root => {
-            try {
-              const observation = await probe(root.key)
-              pinned.assertCurrent(); if (disposed) return
-              // Skip a root whose configuration changed while its filesystem request was pending.
-              const latest = current.sqlite.prepare('SELECT * FROM copyDiscoveryAutoRoots WHERE id = ?').get(root.id) as AutoRoot | undefined
-              if (!latest || latest.excluded !== root.excluded || !latest.monitor) return
-              current.sqlite.prepare('UPDATE copyDiscoveryAutoRoots SET available = ?, identity = ?, observedAt = ? WHERE id = ?')
-                .run(Number(!!observation), observation?.identity || null, now(), root.id)
-              if (observation && (root.available !== 1 || root.identity !== observation.identity)) {
-                const alreadyChecking = root.available === null && (current.sqlite.prepare(
-                  "SELECT roots FROM copyDiscoveryJobs WHERE mediaId IS NULL AND state IN ('queued','discovering','verifying')"
-                ).all() as {roots: string}[]).some(job => (JSON.parse(job.roots) as AutomaticRoot[])
-                  .some(selected => !selected.connectionId && selected.key === root.key))
-                if (!alreadyChecking) requestAutomaticCopyDiscovery(current, [rootInput(root)], 'reconnect', {now: now()})
-              }
-            } catch { /* A permission failure/timeout is not proof of disconnect; preserve the observation. */ }
-          }))
-          pinned.assertCurrent(); if (disposed) return
-        }
-      } finally { polling = false }
+    tick() {
+      return runLibraryBackgroundTask(async () => {
+        if (disposed) return
+        const pinned = pinSourceDb(db), current = pinned.db
+        configured(current); flush(current)
+        if (polling || now() - lastPoll < 5000) return
+        polling = true; lastPoll = now()
+        try {
+          const roots = current.sqlite.prepare('SELECT * FROM copyDiscoveryAutoRoots WHERE monitor = 1 AND connectionId IS NULL').all() as AutoRoot[]
+          for (let offset = 0; offset < roots.length; offset += 8) {
+            await Promise.all(roots.slice(offset, offset + 8).map(async root => {
+              try {
+                const observation = await probe(root.key)
+                pinned.assertCurrent(); if (disposed) return
+                // Skip a root whose configuration changed while its filesystem request was pending.
+                const latest = current.sqlite.prepare('SELECT * FROM copyDiscoveryAutoRoots WHERE id = ?').get(root.id) as AutoRoot | undefined
+                if (!latest || latest.excluded !== root.excluded || !latest.monitor) return
+                current.sqlite.prepare('UPDATE copyDiscoveryAutoRoots SET available = ?, identity = ?, observedAt = ? WHERE id = ?')
+                  .run(Number(!!observation), observation?.identity || null, now(), root.id)
+                if (observation && (root.available !== 1 || root.identity !== observation.identity)) {
+                  const alreadyChecking = root.available === null && (current.sqlite.prepare(
+                    "SELECT roots FROM copyDiscoveryJobs WHERE mediaId IS NULL AND state IN ('queued','discovering','verifying')"
+                  ).all() as {roots: string}[]).some(job => (JSON.parse(job.roots) as AutomaticRoot[])
+                    .some(selected => !selected.connectionId && selected.key === root.key))
+                  if (!alreadyChecking) requestAutomaticCopyDiscovery(current, [rootInput(root)], 'reconnect', {now: now()})
+                }
+              } catch { /* A permission failure/timeout is not proof of disconnect; preserve the observation. */ }
+            }))
+            pinned.assertCurrent(); if (disposed) return
+          }
+        } finally { polling = false }
+      })
     },
     dispose() { disposed = true },
   }

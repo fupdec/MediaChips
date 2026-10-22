@@ -1,3 +1,4 @@
+import {runLibraryOperation} from '../../api/services/libraryMaintenance'
 import type { ApiDb } from '../../api/types/db'
 import type {
   AppWebSocket,
@@ -362,19 +363,21 @@ export function createMovingWsHandler(db: ApiDb): WsHandler {
 
     ws.on('message', async (rawMsg: unknown) => {
       try {
-        const parsed = JSON.parse(String(rawMsg)) as MovingWsMessage
-        switch (parsed.type) {
-          case 'move':
-            await moveFiles(parsed)
-            break
-          case 'rename':
-            await renameFileOnDisk(parsed)
-            break
-        }
+        await runLibraryOperation(async () => {
+          const parsed = JSON.parse(String(rawMsg)) as MovingWsMessage
+          switch (parsed.type) {
+            case 'move':
+              await moveFiles(parsed)
+              break
+            case 'rename':
+              await renameFileOnDisk(parsed)
+              break
+          }
+        })
       } catch (error: unknown) {
         console.error('Moving WebSocket error:', error)
         if (ws.readyState === 1) {
-          ws.send(JSON.stringify({ type: 'close', moved: 0, failed: 0, total: 0, error: true }))
+          ws.send(JSON.stringify({ type: 'close', moved: 0, failed: 0, total: 0, error: true, code: (error as {code?: string})?.code }))
         }
       }
     })

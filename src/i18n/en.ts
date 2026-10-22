@@ -2997,6 +2997,8 @@ const en = {
       backups_sort_size: 'Size',
       backup_size_mb: '{size} MB',
       create_backup: 'Create',
+      restore_busy: 'Background operations are still running. Wait for them to finish and retry restoration. The library has not been replaced.',
+      restore_in_progress: 'The library is being restored. Wait for restoration to finish before starting new operations.',
       restore_backup: 'Restore',
       delete_backup: 'Delete',
       import_backup: 'Import',

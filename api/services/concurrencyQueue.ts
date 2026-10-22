@@ -1,3 +1,4 @@
+import {runLibraryOperation, bindLibraryOperation} from './libraryMaintenance'
 type QueueTask<T> = () => Promise<T>
 
 export type ConcurrencyEnqueueOptions = {
@@ -119,14 +120,14 @@ function createConcurrencyQueue(
     const priority = options.priority ?? (++defaultPriorityCounter)
     const seq = ++seqCounter
 
-    return new Promise<T>((resolve, reject) => {
+    return runLibraryOperation(() => new Promise<T>((resolve, reject) => {
       if (options.signal?.aborted) {
         reject(createAbortError())
         return
       }
 
       const entry: QueueEntry = {
-        task: task as QueueTask<unknown>,
+        task: bindLibraryOperation(task) as QueueTask<unknown>,
         resolve: resolve as (value: unknown) => void,
         reject,
         priority,
@@ -146,7 +147,7 @@ function createConcurrencyQueue(
 
       insertPending(entry)
       pump()
-    })
+    }))
   }
 
   function enqueueVoid(

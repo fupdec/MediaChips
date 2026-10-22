@@ -1,3 +1,4 @@
+import {runLibraryBackgroundTask} from '../libraryMaintenance'
 import {parseCloudMediaPath, cloudMediaPath, CloudKeySchema} from '../../../shared/cloudAccounts'
 import path from 'path'
 import {randomUUID} from 'crypto'
@@ -309,59 +310,61 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
       })
       return view(current, id)
     },
-    async tick() {
-      if (busy || disposed) return
-      const pinned = pinSourceDb(db), current = pinned.db
-      const job = current.sqlite.prepare(`SELECT * FROM copyDiscoveryJobs WHERE state IN ${activeStates} ORDER BY rowid LIMIT 1`).get() as JobRow | undefined
-      if (!job) return
-      const connections = current.sqlite.prepare('SELECT * FROM sourceConnections ORDER BY id').all()
-      const connectionSnapshot = JSON.stringify(connections)
-      // Share the writer locks: reconciliation and managed moves cannot race publication.
-      const neededLocks = () => {
-        const ids = new Set((JSON.parse(job.roots) as Root[]).map(root => root.connectionId || 'local'))
-        const sizes = current.sqlite.prepare("SELECT DISTINCT size FROM copyDiscoveryItems WHERE jobId = ? AND state IN ('candidate','checking')").all(job.id) as {size: number}[]
-        for (const {size} of sizes) for (const row of libraryCopyResources(current, size, job.mediaId)) ids.add(sourceId(row.path))
-        for (const row of current.sqlite.prepare("SELECT DISTINCT path FROM copyDiscoveryItems WHERE jobId = ? AND state IN ('candidate','checking')").all(job.id) as {path: string}[]) ids.add(sourceId(row.path))
-        return [...ids].map(id => `${current.sqlite.name}:${id}`)
-      }
-      const locks = neededLocks()
-      if (locks.some(lock => sourceOperationLocks.has(lock))) return
-      busy = true; runningId = job.id; runningDb = current; controller = new AbortController()
-      const signal = controller.signal
-      locks.forEach(lock => sourceOperationLocks.add(lock))
-      const assertCurrent = () => {
-        pinned.assertCurrent(); signal.throwIfAborted()
-        if (connectionSnapshot !== JSON.stringify(current.sqlite.prepare('SELECT * FROM sourceConnections ORDER BY id').all())) throw sourceError('source_changed')
-      }
-      try {
-        current.sqlite.prepare("UPDATE copyDiscoveryItems SET state = 'candidate' WHERE jobId = ? AND state = 'checking'").run(job.id)
-        if (!job.listingComplete) { updateJob(current, job.id, 'discovering'); await discover(current, job, signal, assertCurrent) }
-        // Listing may discover references on additional sources. Wait for their writers.
-        const additional = neededLocks().filter(lock => !locks.includes(lock))
-        if (additional.some(lock => sourceOperationLocks.has(lock))) { updateJob(current, job.id, 'queued'); return }
-        additional.forEach(lock => { locks.push(lock); sourceOperationLocks.add(lock) })
-        assertCurrent(); updateJob(current, job.id, 'verifying')
-        const cache = new Map<string, Checked>()
-        while (true) {
-          assertCurrent()
-          const item = current.sqlite.prepare("SELECT * FROM copyDiscoveryItems WHERE jobId = ? AND state = 'candidate' ORDER BY rowid LIMIT 1").get(job.id) as ItemRow | undefined
-          if (!item) break
-          updateItem(current, item.id, 'checking', JSON.parse(item.candidateIds))
-          try { await verify(current, job, item, AbortSignal.any([signal, AbortSignal.timeout(30 * 60_000)]), assertCurrent, cache) }
-          catch (err) {
-            assertCurrent()
-            updateItem(current, item.id, 'failed', JSON.parse(item.candidateIds), null, null, errorCode(err))
-          }
-          await new Promise(resolve => setImmediate(resolve))
+    tick() {
+      return runLibraryBackgroundTask(async () => {
+        if (busy || disposed) return
+        const pinned = pinSourceDb(db), current = pinned.db
+        const job = current.sqlite.prepare(`SELECT * FROM copyDiscoveryJobs WHERE state IN ${activeStates} ORDER BY rowid LIMIT 1`).get() as JobRow | undefined
+        if (!job) return
+        const connections = current.sqlite.prepare('SELECT * FROM sourceConnections ORDER BY id').all()
+        const connectionSnapshot = JSON.stringify(connections)
+        // Share the writer locks: reconciliation and managed moves cannot race publication.
+        const neededLocks = () => {
+          const ids = new Set((JSON.parse(job.roots) as Root[]).map(root => root.connectionId || 'local'))
+          const sizes = current.sqlite.prepare("SELECT DISTINCT size FROM copyDiscoveryItems WHERE jobId = ? AND state IN ('candidate','checking')").all(job.id) as {size: number}[]
+          for (const {size} of sizes) for (const row of libraryCopyResources(current, size, job.mediaId)) ids.add(sourceId(row.path))
+          for (const row of current.sqlite.prepare("SELECT DISTINCT path FROM copyDiscoveryItems WHERE jobId = ? AND state IN ('candidate','checking')").all(job.id) as {path: string}[]) ids.add(sourceId(row.path))
+          return [...ids].map(id => `${current.sqlite.name}:${id}`)
         }
-        assertCurrent(); updateJob(current, job.id, 'completed')
-      } catch (err) {
-        // A disposed worker leaves durable checkpoints for the next server instance.
-        try { pinned.assertCurrent(); if (!signal.aborted) updateJob(current, job.id, 'failed', errorCode(err)) } catch { /* The previous library is closed. */ }
-      } finally {
-        locks.forEach(lock => sourceOperationLocks.delete(lock))
-        busy = false; controller = undefined; runningId = undefined; runningDb = undefined
-      }
+        const locks = neededLocks()
+        if (locks.some(lock => sourceOperationLocks.has(lock))) return
+        busy = true; runningId = job.id; runningDb = current; controller = new AbortController()
+        const signal = controller.signal
+        locks.forEach(lock => sourceOperationLocks.add(lock))
+        const assertCurrent = () => {
+          pinned.assertCurrent(); signal.throwIfAborted()
+          if (connectionSnapshot !== JSON.stringify(current.sqlite.prepare('SELECT * FROM sourceConnections ORDER BY id').all())) throw sourceError('source_changed')
+        }
+        try {
+          current.sqlite.prepare("UPDATE copyDiscoveryItems SET state = 'candidate' WHERE jobId = ? AND state = 'checking'").run(job.id)
+          if (!job.listingComplete) { updateJob(current, job.id, 'discovering'); await discover(current, job, signal, assertCurrent) }
+          // Listing may discover references on additional sources. Wait for their writers.
+          const additional = neededLocks().filter(lock => !locks.includes(lock))
+          if (additional.some(lock => sourceOperationLocks.has(lock))) { updateJob(current, job.id, 'queued'); return }
+          additional.forEach(lock => { locks.push(lock); sourceOperationLocks.add(lock) })
+          assertCurrent(); updateJob(current, job.id, 'verifying')
+          const cache = new Map<string, Checked>()
+          while (true) {
+            assertCurrent()
+            const item = current.sqlite.prepare("SELECT * FROM copyDiscoveryItems WHERE jobId = ? AND state = 'candidate' ORDER BY rowid LIMIT 1").get(job.id) as ItemRow | undefined
+            if (!item) break
+            updateItem(current, item.id, 'checking', JSON.parse(item.candidateIds))
+            try { await verify(current, job, item, AbortSignal.any([signal, AbortSignal.timeout(30 * 60_000)]), assertCurrent, cache) }
+            catch (err) {
+              assertCurrent()
+              updateItem(current, item.id, 'failed', JSON.parse(item.candidateIds), null, null, errorCode(err))
+            }
+            await new Promise(resolve => setImmediate(resolve))
+          }
+          assertCurrent(); updateJob(current, job.id, 'completed')
+        } catch (err) {
+          // A disposed worker leaves durable checkpoints for the next server instance.
+          try { pinned.assertCurrent(); if (!signal.aborted) updateJob(current, job.id, 'failed', errorCode(err)) } catch { /* The previous library is closed. */ }
+        } finally {
+          locks.forEach(lock => sourceOperationLocks.delete(lock))
+          busy = false; controller = undefined; runningId = undefined; runningDb = undefined
+        }
+      })
     },
     dispose() { disposed = true; controller?.abort() },
   }

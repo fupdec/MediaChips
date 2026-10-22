@@ -49,3 +49,22 @@ it('rejects an invalid archive before replacing any live data', async () => {
     expect(fs.readdirSync(root)).toEqual(['invalid.zip'])
   } finally { db.close() }
 })
+
+it('waits for background writes before replacing assets and releases the barrier after rollback', async () => {
+  const {runLibraryOperation, withLibraryRestore, isLibraryRestoring} = await import('./libraryMaintenance')
+  const root = temp(), stage = temp()
+  fs.writeFileSync(path.join(root, 'db.sqlite'), 'previous')
+  fs.writeFileSync(path.join(stage, 'db.sqlite'), 'replacement')
+  let finish!: () => void
+  const worker = runLibraryOperation(() => new Promise<void>(resolve => { finish = resolve }))
+  let calls = 0
+  const restore = withLibraryRestore(() => replaceLibraryFromStage(root, stage, {
+    close() { expect(isLibraryRestoring()).toBe(true) },
+    async reload() { if (++calls === 1) throw new Error('cannot open restored library') },
+  }))
+  const rejected = expect(restore).rejects.toThrow('cannot open restored library')
+  expect(fs.readFileSync(path.join(root, 'db.sqlite'), 'utf8')).toBe('previous')
+  finish(); await worker; await rejected
+  expect(fs.readFileSync(path.join(root, 'db.sqlite'), 'utf8')).toBe('previous')
+  expect(isLibraryRestoring()).toBe(false)
+})
