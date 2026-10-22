@@ -1,3 +1,4 @@
+import {downloadRemoteThumbnail} from '../remoteThumbnailDownload'
 import axios from 'axios'
 import type {DriveConfig, DriveFileEntry, DriveFileMeta, DriveHttpResponse, DriveListResult, DriveTransport} from './types'
 import {DriveFileIdSchema} from '../../../shared/cloudDrive'
@@ -5,9 +6,9 @@ import type {DriveTokenStore} from './tokenStore'
 import {getValidAccessToken} from './oauth'
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3'
-const META_FIELDS = 'id,name,mimeType,size,modifiedTime,parents,md5Checksum,trashed,capabilities(canEdit,canDelete,canAddChildren)'
+const META_FIELDS = 'id,name,mimeType,size,modifiedTime,parents,md5Checksum,trashed,videoMediaMetadata,imageMediaMetadata(width,height),capabilities(canEdit,canDelete,canAddChildren)'
 
-type DriveApiFile = {
+type DriveApiFile = import('./types').DriveMediaMetadata & {
   id: string
   name: string
   mimeType: string
@@ -24,6 +25,7 @@ function toEntry(file: DriveApiFile): DriveFileEntry {
     size: file.size ? Number(file.size) : undefined,
     modifiedTime: file.modifiedTime,
     isFolder,
+    videoMediaMetadata: file.videoMediaMetadata, imageMediaMetadata: file.imageMediaMetadata,
   }
 }
 
@@ -46,14 +48,25 @@ function createGoogleDriveTransport(
   }
   const toMeta = (data: Omit<DriveFileMeta, 'size'> & {size?: number | string}, etag?: string): DriveFileMeta => ({
     id: data.id, name: data.name, mimeType: data.mimeType, size: Number(data.size || 0), modifiedTime: data.modifiedTime,
+    videoMediaMetadata: data.videoMediaMetadata, imageMediaMetadata: data.imageMediaMetadata,
     parents: data.parents, md5Checksum: data.md5Checksum, capabilities: data.capabilities, etag,
   })
   const transport: DriveTransport = {
+    async thumbnail(fileId, signal) {
+      const headers = await authHeaders()
+      const {data} = await axios.get(`${DRIVE_API}/files/${encodeURIComponent(DriveFileIdSchema.parse(fileId))}`, {
+        params: {fields: 'thumbnailLink', supportsAllDrives: true}, headers, signal, timeout: 30_000,
+      })
+      if (!data.thumbnailLink) return null
+      const url = new URL(data.thumbnailLink)
+      if (!/(^|\.)(googleusercontent\.com|googleapis\.com|google\.com)$/.test(url.hostname)) throw new Error('Invalid Drive thumbnail URL.')
+      return downloadRemoteThumbnail(url.href, signal, headers)
+    },
     async listFolder(folderId: string, pageToken?: string, signal?: AbortSignal): Promise<DriveListResult> {
       const parent = folderId || 'root'
       const params: Record<string, string> = {
         q: `'${parent.replace(/'/g, "\\'")}' in parents and trashed = false`,
-        fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime)',
+        fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, videoMediaMetadata, imageMediaMetadata(width,height))',
         pageSize: '100',
         supportsAllDrives: 'true',
         includeItemsFromAllDrives: 'true',
@@ -129,26 +142,57 @@ function createGoogleDriveTransport(
       const {data} = await axios.get(`${DRIVE_API}/files/generateIds`, {params: {count: 1, space: 'drive', type: 'files'}, headers: await authHeaders(), signal, timeout: 30_000})
       return DriveFileIdSchema.parse(data.ids?.[0])
     },
-    async create(id, parent, name, input, size, signal, contentType = 'application/octet-stream') {
+    async create(id, parent, name, input, size, signal, contentType = 'application/octet-stream', recovery) {
       requireWrite(); DriveFileIdSchema.parse(id)
       requireCapability((await metadata(parent, signal)).capabilities?.canAddChildren)
-      const body = {id, name, parents: [parent], mimeType: input ? contentType : 'application/vnd.google-apps.folder'}
+      const body = {id, name, parents: [parent], mimeType: input || recovery ? contentType : 'application/vnd.google-apps.folder'}
       const params = {supportsAllDrives: true, fields: META_FIELDS}
-      if (!input) {
+      if (!input && !recovery) {
         const {data, headers} = await axios.post(`${DRIVE_API}/files`, body, {params, headers: await authHeaders(), signal, timeout: 30_000})
         return toMeta(data, headers?.etag as string | undefined)
       }
       // The reserved ID is journaled before starting a resumable session. A retry
       // can discover a committed upload even when its final response was lost.
-      const session = await axios.post('https://www.googleapis.com/upload/drive/v3/files', body, {
-        params: {...params, uploadType: 'resumable'}, signal, timeout: 30_000,
-        headers: {...await authHeaders(), 'X-Upload-Content-Type': contentType, 'X-Upload-Content-Length': String(size)},
-      })
-      const url = new URL(String(session.headers.location))
-      if (url.origin !== 'https://www.googleapis.com' || !url.pathname.startsWith('/upload/drive/')) throw new Error('Invalid Drive upload session')
-      const response = await axios.put(url.href, input, {signal, timeout: 2 * 60 * 60_000, maxBodyLength: Infinity, maxRedirects: 0,
-        headers: {...await authHeaders(), 'Content-Type': contentType, 'Content-Length': String(size)}})
-      return toMeta(response.data, response.headers?.etag as string | undefined)
+      const sessionUrl = (value: string) => {
+        const url = new URL(value)
+        if (url.origin !== 'https://www.googleapis.com' || url.username || url.password || url.hash || !url.pathname.startsWith('/upload/drive/')) throw new Error('Invalid Drive upload session')
+        return url.href
+      }
+      let url = recovery?.session && sessionUrl(recovery.session)
+      let offset = 0
+      if (url) {
+        const status = await axios.put(url, undefined, {signal, timeout: 30_000, maxRedirects: 0,
+          headers: {...await authHeaders(), 'Content-Length': '0', 'Content-Range': `bytes */${size}`},
+          validateStatus: status => [200, 201, 308, 404, 410].includes(status)})
+        if ([200, 201].includes(status.status)) { recovery!.save(undefined, size!); return toMeta(status.data, status.headers?.etag as string | undefined) }
+        if ([404, 410].includes(status.status)) { url = undefined; recovery!.save(undefined, 0) }
+        else {
+          const range = status.headers?.range as string | undefined
+          const match = range && /^bytes=0-(\d+)$/.exec(range)
+          if (range && !match) throw new Error('Invalid Drive upload range')
+          offset = match ? Number(match[1]) + 1 : 0
+          if (!Number.isSafeInteger(offset) || offset < 0 || offset >= size!) throw new Error('Invalid Drive upload range')
+          recovery!.save(url, offset)
+        }
+      }
+      if (!url) {
+        const session = await axios.post('https://www.googleapis.com/upload/drive/v3/files', body, {
+          params: {...params, uploadType: 'resumable'}, signal, timeout: 30_000,
+          headers: {...await authHeaders(), 'X-Upload-Content-Type': contentType, 'X-Upload-Content-Length': String(size)},
+        })
+        url = sessionUrl(String(session.headers.location))
+        recovery?.save(url, 0)
+      }
+      const stream = recovery ? recovery.open(offset) : input!
+      try {
+        const response = await axios.put(url, stream, {signal, timeout: 2 * 60 * 60_000, maxBodyLength: Infinity, maxRedirects: 0,
+          headers: {...await authHeaders(), 'Content-Type': contentType, 'Content-Length': String(size! - offset),
+            ...(offset ? {'Content-Range': `bytes ${offset}-${size! - 1}/${size}`} : {})},
+          validateStatus: status => [200, 201, 308].includes(status)})
+        if (response.status === 308) throw new Error('Drive upload incomplete')
+        recovery?.save(undefined, size!)
+        return toMeta(response.data, response.headers?.etag as string | undefined)
+      } finally { if (recovery) stream.destroy() }
     },
     async update(id, name, parent, etag, signal) {
       requireWrite()

@@ -1,3 +1,4 @@
+import {cloudMediaMetadata} from '../cloudAccounts/mediaMetadata'
 import {Readable} from 'stream'
 import {DriveFileIdSchema, driveMediaContentType} from '../../../shared/cloudDrive'
 import {READ_SOURCE_CAPABILITIES} from '../../../shared/mediaSources'
@@ -9,6 +10,7 @@ const object = (file: Omit<DriveFileEntry, 'isFolder'> & {isFolder?: boolean}): 
   resourceKey: file.id, name: file.name, size: file.size || 0,
   isDirectory: file.isFolder ?? file.mimeType === 'application/vnd.google-apps.folder',
   modifiedAt: file.modifiedTime ? Date.parse(file.modifiedTime) : undefined,
+  mediaMetadata: cloudMediaMetadata('gdrive', file),
   contentType: driveMediaContentType(file.name, file.mimeType), version: driveFileVersion(file),
 })
 
@@ -30,6 +32,7 @@ export function createDriveSourceAdapter(transport: DriveTransport, writable = f
       const body = result.body instanceof Readable ? result.body : Readable.from(result.body)
       return {...result, body: sourceStream(body, signal)}
     },
+    thumbnail: transport.thumbnail ? (key, signal) => transport.thumbnail!(DriveFileIdSchema.parse(key), signal) : undefined,
     close() { /* Drive requests are independent; their AbortSignal owns cancellation. */ },
   }
 }

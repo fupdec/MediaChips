@@ -2,16 +2,18 @@ import fs from 'fs'
 import path from 'path'
 import {createHash} from 'crypto'
 import {Transform} from 'stream'
-import {eq} from 'drizzle-orm'
+import {and, eq} from 'drizzle-orm'
 import type {ApiDb} from '../../types/db'
 import type {DriveTransport} from '../cloudDrive/types'
 import type {OriginalItem} from '../../../shared/originalOperations'
 import {driveFileVersion} from '../mediaSources/adapter'
-import {DriveFileIdSchema} from '../../../shared/cloudDrive'
+import {DriveFileIdSchema, driveMediaPath} from '../../../shared/cloudDrive'
 import {sourceError} from '../mediaSources/context'
 import {media} from '../../db/schema/media'
 import {mediaLocations, offlineCopies} from '../../db/schema/mediaSources'
+import {verifiedMediaCopies} from '../../db/schema/mediaCopies'
 import {mediaFileContentType} from '../../../shared/mediaFormats'
+import {createLocalOriginalAdapter} from '../mediaSources/localAdapter'
 
 const missing = (err: unknown) => (err as {status?: number; response?: {status?: number}}).status === 404 || (err as {response?: {status?: number}}).response?.status === 404
 async function fileChecksum(filename: string) {
@@ -70,6 +72,7 @@ export async function runDriveOriginal(options: {db: ApiDb; item: OriginalItem; 
       if (item.kind === 'upload') {
         if (!item.readyUpload) throw sourceError('upload_required')
         item.total = item.uploadSize!; item.drive.checksum = await fileChecksum(spool)
+        item.drive.spoolVersion = (await createLocalOriginalAdapter().stat(spool, signal)).version
       }
       if (!sourceId) item.drive.fileId = await writes.generateId(signal)
     }
@@ -85,7 +88,9 @@ export async function runDriveOriginal(options: {db: ApiDb; item: OriginalItem; 
       await writes.remove(id, current.etag, signal)
     }
     guard()
-    db.drizzle.update(mediaLocations).set({availability: 'unavailable'}).where(eq(mediaLocations.mediaId, item.mediaId!)).run()
+    db.drizzle.update(mediaLocations).set({availability: 'unavailable'})
+      .where(and(eq(mediaLocations.connectionId, 'google-drive'), eq(mediaLocations.resourceKey, id))).run()
+    db.drizzle.update(verifiedMediaCopies).set({availability: 'unavailable'}).where(eq(verifiedMediaCopies.path, driveMediaPath(id))).run()
     item.phase = 'removed'; save()
   } else {
     let current = await stat(id)
@@ -96,15 +101,28 @@ export async function runDriveOriginal(options: {db: ApiDb; item: OriginalItem; 
       let counter: Transform | undefined
       try {
         if (item.kind === 'upload') {
-          stream = fs.createReadStream(spool, {signal})
-          let bytes = 0
-          counter = new Transform({transform(chunk: Buffer, _encoding, callback) {
-            try { bytes += chunk.length; progress(bytes); callback(null, chunk) } catch (err) { callback(err as Error) }
-          }})
-          stream.on('error', err => counter!.destroy(err)); counter.on('error', () => {})
-          stream.pipe(counter)
+          const file = await createLocalOriginalAdapter().stat(spool, signal)
+          if (file.size !== item.total || checkpoint.spoolVersion && file.version !== checkpoint.spoolVersion
+            || await fileChecksum(spool) !== checkpoint.checksum) throw sourceError('source_changed')
         }
-        current = await writes.create(id, checkpoint.parentId, item.kind === 'upload' ? `.mediachips-${item.id}.part` : checkpoint.name, counter, item.total, signal, mediaFileContentType(checkpoint.name) || 'application/octet-stream')
+        // The stream is opened only after Drive reports its committed byte offset.
+        const recovery = item.kind === 'upload' ? {
+          session: checkpoint.uploadSession,
+          save(session: string | undefined, bytes: number) {
+            guard(); checkpoint.uploadSession = session; checkpoint.uploadBytes = bytes; item.bytes = bytes; save()
+          },
+          open(offset: number) {
+            guard(); progress(offset)
+            stream = fs.createReadStream(spool, {signal, start: offset})
+            let bytes = offset
+            counter = new Transform({transform(chunk: Buffer, _encoding, callback) {
+              try { guard(); bytes += chunk.length; progress(bytes); callback(null, chunk) } catch (err) { callback(err as Error) }
+            }})
+            stream.on('error', err => counter!.destroy(err)); counter.on('error', () => {})
+            return stream.pipe(counter)
+          },
+        } : undefined
+        current = await writes.create(id, checkpoint.parentId, item.kind === 'upload' ? `.mediachips-${item.id}.part` : checkpoint.name, undefined, item.total, signal, mediaFileContentType(checkpoint.name) || 'application/octet-stream', recovery)
       } finally { stream?.destroy(); counter?.destroy() }
     }
     if (item.kind !== 'mkdir' && (current.size !== item.total || !checkpoint.checksum || current.md5Checksum !== checkpoint.checksum)) throw sourceError('source_changed')

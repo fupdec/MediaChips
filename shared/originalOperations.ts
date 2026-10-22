@@ -6,18 +6,21 @@ export const OriginalTargetSchema = z.object({
   name: z.string().min(1).max(255).refine(value => !/[\/\\\x00-\x1f]/.test(value) && value !== '.' && value !== '..').optional(),
 }).strict()
 export const OriginalOperationSchema = z.object({
-  kind: z.enum(['download', 'rename', 'mkdir', 'upload', 'move', 'delete']),
+  kind: z.enum(['download', 'transfer', 'rename', 'mkdir', 'upload', 'move', 'delete']),
   mediaId: z.number().int().positive().optional(),
   target: OriginalTargetSchema.optional(),
   conflict: z.enum(['fail', 'skip', 'keep-both']).default('fail'),
   uploadSize: z.number().int().min(0).max(1024 ** 4).optional(),
   confirmDelete: z.literal(true).optional(),
+  removeSource: z.boolean().optional(),
 }).strict().superRefine((item, ctx) => {
   if (!['mkdir', 'upload'].includes(item.kind) && !item.mediaId) ctx.addIssue({code: 'custom', message: 'mediaId required'})
   if (item.kind !== 'delete' && !item.target) ctx.addIssue({code: 'custom', message: 'target required'})
   if (item.kind === 'delete' && !item.confirmDelete) ctx.addIssue({code: 'custom', message: 'Explicit original deletion confirmation required'})
   if (item.kind === 'upload' && item.uploadSize === undefined) ctx.addIssue({code: 'custom', message: 'uploadSize required'})
   if (item.kind === 'download' && item.target?.connectionId) ctx.addIssue({code: 'custom', message: 'Downloads require a local destination on the server'})
+  if (item.removeSource && item.kind !== 'transfer') ctx.addIssue({code: 'custom', message: 'removeSource is only valid for transfers'})
+  if (item.removeSource && !item.confirmDelete) ctx.addIssue({code: 'custom', message: 'Explicit source deletion confirmation required'})
 })
 export const OriginalBatchSchema = z.object({items: z.array(OriginalOperationSchema).min(1).max(500)}).strict()
 export type OriginalOperation = z.infer<typeof OriginalOperationSchema>
@@ -35,7 +38,11 @@ export type OriginalItem = OriginalOperation & {
   digest?: string
   readyUpload?: boolean
   localLink?: boolean
-  drive?: {fileId?: string; parentId: string; name: string; checksum?: string; sourceName?: string; etag?: string}
+  /** Hashes cover consecutive 8 MiB blocks (the final block may be shorter). */
+  resume?: {sourceVersion: string; sourceSize: number; bytes: number; blocks: string[]}
+  drive?: {fileId?: string; parentId: string; name: string; checksum?: string; sourceName?: string; etag?: string;
+    uploadSession?: string; uploadBytes?: number; spoolVersion?: string}
+  transfer?: {upload: OriginalItem; destination?: OriginalTarget; destinationVersion?: string}
 }
 export type OriginalJob = {
   id: string

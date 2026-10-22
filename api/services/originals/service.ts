@@ -11,7 +11,7 @@ import {media} from '../../db/schema/media'
 import {createMediaRepository} from '../../db/repositories/media'
 import {OriginalBatchSchema, type OriginalJob, type OriginalItem, type OriginalTarget} from '../../../shared/originalOperations'
 import {nasMediaPath, isRemoteMediaPath} from '../../../shared/remoteMedia'
-import {resolveMediaLocation, nasVersionMatches} from '../mediaSources/locations'
+import {resolveMediaLocation, nasVersionMatches, ensureDriveConnection} from '../mediaSources/locations'
 import {openSource, pinSourceDb, sourceError} from '../mediaSources/context'
 import {offlineDirectory} from '../mediaSources/offline'
 import {createLocalOriginalAdapter, localOriginalKey} from '../mediaSources/localAdapter'
@@ -23,10 +23,25 @@ import {invalidateMediaDerivedCaches} from '../mediaCacheInvalidation'
 import {sourceFailure} from '../../../shared/sourceErrors'
 import {DriveFileIdSchema} from '../../../shared/cloudDrive'
 import {runDriveOriginal} from './driveOperation'
+import {runOriginalTransfer} from './transfer'
+import {resumableCopy} from './resumableCopy'
 import {loadInheritedFolderTagsForMediaRows} from '../mediaInheritedFolderTags'
 import {tagsInMedia} from '../../db/schema/tagsInMedia'
+import {verifiedMediaCopies} from '../../db/schema/mediaCopies'
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
+// Session URLs authorize an upload and belong only in the private recovery journal.
+const publicJob = (job: OriginalJob): OriginalJob => {
+  const result = clone(job)
+  const redact = (item: OriginalItem) => {
+    if (item.drive) delete item.drive.uploadSession
+    // Block lists grow with large files; polling needs only the visible byte progress.
+    delete item.resume
+    if (item.transfer) redact(item.transfer.upload)
+  }
+  result.items.forEach(redact)
+  return result
+}
 const terminal = (item: OriginalItem) => item.state === 'completed' || item.state === 'skipped'
 const absent = (err: unknown) => {
   const error = err as {code?: string | number; status?: number}
@@ -37,6 +52,7 @@ const errorCode = (err: unknown) => {
   const code = (err as {code?: string}).code || ''
   if (['EEXIST', 'EXISTS', 'conflict'].includes(code)) return 'conflict'
   if (code === 'file_changed') return 'source_changed'
+  if (code === 'source_version_changed') return 'source_changed'
   if (['ENOSPC', 'EDQUOT'].includes(code)) return 'no_space'
   if (['EACCES', 'EPERM', 'permission_denied'].includes(code)) return 'permission_denied'
   if (absent(err)) return 'not_found'
@@ -83,6 +99,9 @@ export function createOriginalOperationsService(publicDb: ApiDb, options: {
         else if (job.state === 'awaiting_upload' && !item.readyUpload && fs.existsSync(spool(db, item)) && fs.statSync(spool(db, item)).size === item.uploadSize) {
           item.readyUpload = true; changed = true
         }
+      }
+      for (const item of job.items.filter(item => item.kind === 'transfer' && terminal(item) && item.transfer)) {
+        fs.rmSync(spool(db, item.transfer!.upload), {force: true})
       }
       if (job.state === 'awaiting_upload' && job.items.every(item => item.kind !== 'upload' || item.readyUpload)) { job.state = 'queued'; changed = true }
       if (changed) persist(db, job)
@@ -170,6 +189,13 @@ export function createOriginalOperationsService(publicDb: ApiDb, options: {
     const save = () => { assertCurrent(); persist(db, job); options.checkpoint?.(clone(item)) }
     const progress = (bytes: number) => { signal.throwIfAborted(); assertCurrent(); item.bytes = bytes; if (Date.now() - lastProgress > 250) { lastProgress = Date.now(); persist(db, job) } }
     let lastProgress = 0
+    if (item.kind === 'transfer') {
+      if (item.target) item.target = cleanTarget(item.target)
+      await runOriginalTransfer({db, item, signal, save, commit: () => { assertCurrent(); persist(db, job) }, guard: assertCurrent, spool: child => spool(db, child), progress,
+        open: ref => open(db, ref, signal), upload: child => runItem(db, job, child, signal, assertCurrent)})
+      invalidateMediaDerivedCaches()
+      return
+    }
     if ((item.source?.connectionId === 'google-drive' && item.kind !== 'download') || item.target?.connectionId === 'google-drive') {
       if (item.source && item.target && ['rename', 'move'].includes(item.kind) && item.source.connectionId !== item.target.connectionId) throw sourceError('cross_connection_move')
       assertCard(db, item)
@@ -197,6 +223,7 @@ export function createOriginalOperationsService(publicDb: ApiDb, options: {
         const info = await stat(db, source.ref, signal)
         if (info.isDirectory) throw sourceError('invalid_file')
         if (source.version && !nasVersionMatches(source.version, info.version)) throw sourceError('source_changed')
+        if (item.resume && (item.resume.sourceVersion !== info.version || item.resume.sourceSize !== info.size)) throw sourceError('source_changed')
         item.version = info.version; item.total = info.size
         if (item.kind === 'rename' || item.kind === 'move') {
           if (item.target?.connectionId !== source.ref.connectionId) throw sourceError('cross_connection_move')
@@ -264,6 +291,8 @@ export function createOriginalOperationsService(publicDb: ApiDb, options: {
         })
       }
       // Deleting bytes never trashes/purges the card.
+      const removedPath = item.source!.connectionId ? nasMediaPath(item.source!.connectionId, item.source!.key) : item.source!.key
+      db.drizzle.update(verifiedMediaCopies).set({availability: 'unavailable'}).where(eq(verifiedMediaCopies.path, removedPath)).run()
       if (item.source!.connectionId) {
         const rows = db.drizzle.select().from(mediaLocations).where(eq(mediaLocations.connectionId, item.source!.connectionId)).all()
         for (const row of rows.filter(row => row.resourceKey === item.source!.key)) db.drizzle.update(mediaLocations).set({availability: 'unavailable'}).where(eq(mediaLocations.id, row.id)).run()
@@ -339,27 +368,15 @@ export function createOriginalOperationsService(publicDb: ApiDb, options: {
       // Copies publish only from a verified, uniquely owned staging file.
       const stage = staged(item)
       if (item.phase === 'prepared') {
-        // Failed transfers can only remove their own UUID staging object.
-        if (await maybeStat(db, stage, signal)) await using(db, stage, signal, async a => { if (!a.remove) throw sourceError('read_only'); await a.remove(stage.key, signal) })
+        await using(db, stage, signal, async adapter => { if (!adapter.write || !adapter.move) throw sourceError('read_only') })
         if (item.source) await checkVersion()
-        if (!stage.connectionId) {
-          const space = fs.statfsSync(path.dirname(stage.key))
-          if (space.bavail * space.bsize < item.total) throw sourceError('no_space', 507)
-        }
         const source = item.source || {key: spool(db, item)}
-        const sourceAdapter = await open(db, source, signal)
-        try {
-          const read = await sourceAdapter.read(source.key, undefined, signal)
-          if (read.status !== 200) { if (!Buffer.isBuffer(read.body)) read.body.destroy(); throw sourceError('size_mismatch') }
-          const input = Buffer.isBuffer(read.body) ? Readable.from([read.body]) : read.body
-          try {
-            await using(db, stage, signal, async a => { if (!a.write || !a.move) throw sourceError('read_only'); await a.write(stage.key, input, item.total, progress, signal) })
-          } finally { input.destroy() }
-        } finally { sourceAdapter.close() }
+        item.digest = await resumableCopy({item, source, destination: stage, signal,
+          open: ref => open(db, ref, signal), guard: () => { assertCurrent(); assertCard(db, item) }, save, progress,
+          expectedVersion: item.source ? item.version : undefined})
         if (item.source) await checkVersion()
-        item.digest = await hash(db, stage, signal)
-        if (item.kind === 'upload' && item.digest !== await hash(db, source, signal)) throw sourceError('size_mismatch')
-        if ((await stat(db, stage, signal)).size !== item.total) throw sourceError('size_mismatch')
+        if (item.digest !== await hash(db, stage, signal)) throw sourceError('size_mismatch')
+        delete item.resume
         item.phase = 'mutating'; save()
       }
       if (item.phase === 'mutating') {
@@ -435,18 +452,19 @@ export function createOriginalOperationsService(publicDb: ApiDb, options: {
   }
   const wake = () => { void Promise.resolve().then(tick).catch(() => {}) }
   return {
-    jobs() { const {db} = pinSourceDb(publicDb); initialize(db); return clone(readJobs(db)) },
-    job(id: string) { const {db} = pinSourceDb(publicDb); initialize(db); return clone(load(db, id)) },
+    jobs() { const {db} = pinSourceDb(publicDb); initialize(db); return readJobs(db).map(publicJob) },
+    job(id: string) { const {db} = pinSourceDb(publicDb); initialize(db); return publicJob(load(db, id)) },
     create(input: unknown) {
       const parsed = OriginalBatchSchema.parse(input)
       const {db} = pinSourceDb(publicDb); initialize(db)
       const job: OriginalJob = {id: randomUUID(), createdAt: new Date().toISOString(), state: parsed.items.some(item => item.kind === 'upload') ? 'awaiting_upload' : 'queued',
         items: parsed.items.map(item => ({...item, id: randomUUID(), state: 'pending', phase: 'pending', bytes: 0, total: item.uploadSize || 0}))}
       // Capture identity at submission; queued operations cannot silently act on a relinked card.
+      if (job.items.some(item => item.target?.connectionId === 'google-drive')) ensureDriveConnection(db)
       for (const item of job.items) if (item.mediaId) { const initial = snapshot(db, item); item.sourcePath = initial.path; item.source = initial.ref; item.version = initial.version }
       job.connectionVersions = Object.fromEntries([...new Set(job.items.flatMap(item => [item.source?.connectionId, item.target?.connectionId]).filter((id): id is string => !!id))]
         .map(id => [id, connectionVersion(db, id)]))
-      persist(db, job); wake(); return clone(job)
+      persist(db, job); wake(); return publicJob(job)
     },
     retry(id: string, conflict?: OriginalItem['conflict']) {
       const {db} = pinSourceDb(publicDb); initialize(db)
@@ -455,12 +473,15 @@ export function createOriginalOperationsService(publicDb: ApiDb, options: {
       for (const item of job.items) if (!terminal(item)) {
         // A refused publication has not changed the original. Re-plan only
         // those destinations; an ambiguous or already published move keeps its checkpoint.
-        if (item.error === 'conflict' && conflict && !item.drive && ['prepared', 'mutating'].includes(item.phase)) item.phase = 'pending'
+        if (item.error === 'conflict' && conflict && item.transfer) {
+          const child = item.transfer.upload
+          if (!child.drive && ['prepared', 'mutating'].includes(child.phase)) child.phase = 'pending'
+        } else if (item.error === 'conflict' && conflict && !item.drive && ['prepared', 'mutating'].includes(item.phase)) item.phase = 'pending'
         item.state = 'pending'; delete item.error
         if (conflict) item.conflict = conflict
       }
       job.state = job.items.some(item => item.kind === 'upload' && !item.readyUpload) ? 'awaiting_upload' : 'queued'
-      persist(db, job); wake(); return clone(job)
+      persist(db, job); wake(); return publicJob(job)
     },
     async upload(id: string, itemId: string, input: Readable) {
       const pinned = pinSourceDb(publicDb); initialize(pinned.db)
@@ -490,7 +511,7 @@ export function createOriginalOperationsService(publicDb: ApiDb, options: {
         if (bytes !== item.uploadSize) throw sourceError('size_mismatch')
         fs.renameSync(temporary, filename); item.readyUpload = true; item.bytes = 0; delete item.error
         if (job.items.every(row => row.kind !== 'upload' || row.readyUpload)) job.state = 'queued'
-        persist(pinned.db, job); wake(); return clone(job)
+        persist(pinned.db, job); wake(); return publicJob(job)
       } catch (err) { item.error = errorCode(err); persist(pinned.db, job); throw err }
       finally { uploads.delete(itemId); fs.rmSync(temporary, {force: true}) }
     },

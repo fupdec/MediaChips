@@ -6,6 +6,7 @@ import {resolveMediaLocation} from '../services/mediaSources/locations'
 import {getCloudDriveService} from '../services/cloudDrive'
 import path from 'path'
 import {OriginalBatchSchema} from '../../shared/originalOperations'
+import {sourceConnections} from '../db/schema/mediaSources'
 
 export default function registerOriginalOperations(app: Express, db: ApiDb, service = createOriginalOperationsService(db)) {
   const router = express.Router()
@@ -18,6 +19,15 @@ export default function registerOriginalOperations(app: Express, db: ApiDb, serv
     }
   }
   const id = (value: unknown) => z.string().uuid().parse(value)
+  router.get('/destinations', handle((_req, res) => {
+    const destinations = [{id: 'local', provider: 'local', name: '', writable: true},
+      ...db.drizzle.select().from(sourceConnections).all().filter(row => row.provider === 'nas').map(row => ({
+        id: row.id, provider: 'nas', name: String(JSON.parse(row.config).name || ''), writable: true,
+      }))]
+    const drive = getCloudDriveService().status()
+    if (drive.authenticated) destinations.push({id: 'google-drive', provider: 'gdrive', name: '', writable: drive.capabilities.move})
+    res.json(destinations)
+  }))
   router.get('/media/:id', handle(async (req, res) => {
     const resolved = resolveMediaLocation(db, z.coerce.number().int().positive().parse(req.params.id))
     let parentKey: string | undefined

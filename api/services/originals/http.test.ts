@@ -28,6 +28,43 @@ afterEach(async () => { app.emit('original-operations:dispose'); server.closeAll
 const post = (url: string, body: unknown) => fetch(base + url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)})
 async function done(id: string) { let job: OriginalJob; await vi.waitFor(async () => { job = await (await fetch(base + '/jobs/' + id)).json(); expect(job.state).toBe('completed') }); return job! }
 describe('original operations HTTP contract', () => {
+  it('keeps saved Drive session URLs private, including nested transfer uploads', async () => {
+    const job: OriginalJob = {id: '00000000-0000-4000-8000-000000000001', createdAt: '2026', state: 'failed', items: [{id: 'copy', kind: 'transfer',
+      conflict: 'fail', phase: 'prepared', state: 'failed', bytes: 2, total: 4, transfer: {upload: {id: 'child', kind: 'upload',
+        conflict: 'fail', phase: 'mutating', state: 'running', bytes: 2, total: 4,
+        drive: {fileId: 'reserved', parentId: 'root', name: 'file', uploadSession: 'https://www.googleapis.com/upload/drive/private-session'}}}}]}
+    fixture.sqlite.prepare('INSERT INTO originalOperationJobs (id,payload) VALUES (?,?)').run(job.id, JSON.stringify(job))
+    const single = await (await fetch(base + '/jobs/' + job.id)).json()
+    const list = await (await fetch(base + '/jobs')).json()
+    expect(single.items[0].transfer.upload.drive.uploadSession).toBeUndefined()
+    expect(JSON.stringify(list)).not.toContain('private-session')
+    expect((fixture.sqlite.prepare('SELECT payload FROM originalOperationJobs WHERE id = ?').get(job.id) as {payload: string}).payload).toContain('private-session')
+  })
+  it('lists transfer destinations without connection secrets', async () => {
+    const connectionId = '22222222-2222-4222-8222-222222222222'
+    fixture.sqlite.prepare("INSERT INTO sourceConnections (id,provider,config,credentialRef,createdAt) VALUES (?,'nas',?,'private-credential','2026')")
+      .run(connectionId, JSON.stringify({name: 'Archive NAS', host: 'private-host', password: 'private-password'}))
+    const response = await fetch(base + '/destinations')
+    expect(response.status).toBe(200)
+    const destinations = await response.json()
+    expect(destinations).toEqual(expect.arrayContaining([
+      {id: 'local', provider: 'local', name: '', writable: true},
+      {id: connectionId, provider: 'nas', name: 'Archive NAS', writable: true},
+    ]))
+    expect(JSON.stringify(destinations)).not.toMatch(/private-/)
+  })
+  it('runs a managed transfer as one request, keeping the source by default', async () => {
+    const target = {key: path.join(directory, 'copy.mp4')}
+    expect((await post('/jobs', {items: [{kind: 'transfer', mediaId: id, target, removeSource: true}]})).status).toBe(400)
+    const response = await post('/jobs', {items: [{kind: 'transfer', mediaId: id, target}]})
+    expect(response.status).toBe(202)
+    const job = await response.json(); const result = await done(job.id)
+    expect(result.items[0]).toMatchObject({kind: 'transfer', phase: 'linked', bytes: 8, total: 8})
+    expect(fs.readFileSync(target.key, 'utf8')).toBe('original')
+    expect(fs.existsSync(path.join(directory, 'old.mp4'))).toBe(true)
+    expect(fixture.sqlite.prepare('SELECT COUNT(*) AS n FROM verifiedMediaCopies WHERE mediaId = ?').get(id)).toEqual({n: 2})
+    expect(createMediaRepository(fixture.drizzle).findById(id)).toMatchObject({name: 'My title', rating: 4, path: path.join(directory, 'old.mp4')})
+  })
   it('streams binary originals without JSON buffering, exposes progress and persists recovery history', async () => {
     const response = await post('/jobs', {items: [{kind: 'upload', target: {key: path.join(directory, 'new.mp4')}, uploadSize: 6}]})
     expect(response.status).toBe(202); expect(response.headers.get('cache-control')).toBe('no-store')

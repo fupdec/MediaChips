@@ -16,24 +16,27 @@ const object = (resourceKey: string, file: NasFile): SourceObject => ({
 /** Owns one NAS session. Only reads already implemented by the transport are advertised. */
 export function createNasSourceAdapter(transport: NasTransport): SourceWriteAdapter {
   const run = <T>(action: () => Promise<T>, signal?: AbortSignal) => sourceOperation(action, signal, () => transport.close())
+  const write = async (key: string, input: import('stream').Readable, size: number, offset: number, progress: (bytes: number) => void, signal?: AbortSignal) => {
+    let bytes = 0
+    const counter = new Transform({transform(chunk: Buffer, _encoding, callback) {
+      bytes += chunk.length; progress(bytes)
+      callback(bytes + offset > size ? new NasError('size_mismatch', 'Upload size changed.', 409) : null, chunk)
+    }})
+    input.on('error', err => counter.destroy(err))
+    counter.on('error', () => {})
+    try {
+      await run(() => offset ? transport.resumeWrite!(normalizeNasRelativePath(key), input.pipe(counter), size, offset)
+        : transport.write!(normalizeNasRelativePath(key), input.pipe(counter), size), signal)
+      if (bytes + offset !== size) throw new NasError('size_mismatch', 'Upload was incomplete.', 409)
+    } finally { input.destroy(); counter.destroy() }
+  }
   return {
     provider: 'nas', capabilities: {...READ_SOURCE_CAPABILITIES, move: !!transport.move, delete: !!transport.remove},
     mkdir: transport.mkdir ? async (key, signal) => run(() => transport.mkdir!(normalizeNasRelativePath(key)), signal) : undefined,
     move: transport.move ? async (from, to, signal) => run(() => transport.move!(normalizeNasRelativePath(from), normalizeNasRelativePath(to)), signal) : undefined,
     remove: transport.remove ? async (key, signal) => run(() => transport.remove!(normalizeNasRelativePath(key)), signal) : undefined,
-    write: transport.write ? async (key, input, size, progress, signal) => {
-      let bytes = 0
-      const counter = new Transform({transform(chunk: Buffer, _encoding, callback) {
-        bytes += chunk.length; progress(bytes)
-        callback(bytes > size ? new NasError('size_mismatch', 'Upload size changed.', 409) : null, chunk)
-      }})
-      input.on('error', err => counter.destroy(err))
-      counter.on('error', () => {})
-      try {
-        await run(() => transport.write!(normalizeNasRelativePath(key), input.pipe(counter), size), signal)
-        if (bytes !== size) throw new NasError('size_mismatch', 'Upload was incomplete.', 409)
-      } finally { input.destroy(); counter.destroy() }
-    } : undefined,
+    write: transport.write ? (key, input, size, progress, signal) => write(key, input, size, 0, progress, signal) : undefined,
+    resumeWrite: transport.resumeWrite ? (key, input, size, offset, progress, signal) => write(key, input, size, offset, progress, signal) : undefined,
     async list(key, pageToken, signal) {
       const offset = pageToken === undefined ? 0 : Number(pageToken)
       if (!Number.isSafeInteger(offset) || offset < 0 || (pageToken !== undefined && String(offset) !== pageToken)) {

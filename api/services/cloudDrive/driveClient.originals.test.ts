@@ -44,6 +44,52 @@ describe('Drive write protocol and authorization', () => {
     await expect(createGoogleDriveTransport(config, store).originals!.create('reserved-id', 'parent', 'file', Readable.from(['data']), 4)).rejects.toThrow('Invalid Drive upload session')
     expect(axios.put).not.toHaveBeenCalled()
   })
+  it('queries a saved session and sends only bytes beyond the provider-confirmed offset', async () => {
+    const open = vi.fn(() => Readable.from(['ta'])), save = vi.fn()
+    vi.mocked(axios.put).mockResolvedValueOnce({status: 308, headers: {range: 'bytes=0-1'}})
+      .mockImplementationOnce(async (_url, input) => {
+        let body = ''; for await (const chunk of input as Readable) body += chunk.toString()
+        expect(body).toBe('ta')
+        return {status: 200, data: file, headers: {}}
+      })
+    const session = 'https://www.googleapis.com/upload/drive/v3/files?upload_id=saved'
+    await createGoogleDriveTransport(config, store).originals!.create('reserved-id', 'parent', 'file', undefined, 4, undefined, 'video/mp4', {session, open, save})
+    expect(axios.post).not.toHaveBeenCalled(); expect(open).toHaveBeenCalledWith(2)
+    expect(axios.put).toHaveBeenNthCalledWith(1, session, undefined, expect.objectContaining({maxRedirects: 0,
+      headers: expect.objectContaining({'Content-Length': '0', 'Content-Range': 'bytes */4'})}))
+    expect(axios.put).toHaveBeenNthCalledWith(2, session, expect.any(Readable), expect.objectContaining({headers: expect.objectContaining({'Content-Length': '2', 'Content-Range': 'bytes 2-3/4'})}))
+    expect(save).toHaveBeenCalledWith(session, 2); expect(save).toHaveBeenLastCalledWith(undefined, 4)
+  })
+  it('journals a new session before consuming bytes and retains it after interruption', async () => {
+    const save = vi.fn(), open = vi.fn(() => { expect(save).toHaveBeenCalledWith(expect.any(String), 0); return Readable.from(['data']) })
+    vi.mocked(axios.post).mockResolvedValueOnce({headers: {location: 'https://www.googleapis.com/upload/drive/v3/files?upload_id=new'}})
+    vi.mocked(axios.put).mockRejectedValueOnce(new Error('Disconnected'))
+    await expect(createGoogleDriveTransport(config, store).originals!.create('reserved-id', 'parent', 'file', undefined, 4, undefined, undefined, {save, open})).rejects.toThrow('Disconnected')
+    expect(save).toHaveBeenCalledTimes(1)
+  })
+  it('starts a new session under the same reserved ID when the saved session expires', async () => {
+    const save = vi.fn(), open = vi.fn(() => Readable.from(['data']))
+    vi.mocked(axios.put).mockResolvedValueOnce({status: 404, headers: {}}).mockResolvedValueOnce({status: 200, data: file, headers: {}})
+    vi.mocked(axios.post).mockResolvedValueOnce({headers: {location: 'https://www.googleapis.com/upload/drive/v3/files?upload_id=new'}})
+    await createGoogleDriveTransport(config, store).originals!.create('reserved-id', 'parent', 'file', undefined, 4, undefined, undefined,
+      {session: 'https://www.googleapis.com/upload/drive/v3/files?upload_id=expired', save, open})
+    expect(open).toHaveBeenCalledWith(0); expect(save).toHaveBeenNthCalledWith(1, undefined, 0)
+    expect(axios.post).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({id: 'reserved-id'}), expect.any(Object))
+  })
+  it('recovers a completed session without opening the spool again', async () => {
+    const open = vi.fn(), save = vi.fn()
+    vi.mocked(axios.put).mockResolvedValueOnce({status: 201, data: file, headers: {}})
+    await createGoogleDriveTransport(config, store).originals!.create('reserved-id', 'parent', 'file', undefined, 4, undefined, undefined,
+      {session: 'https://www.googleapis.com/upload/drive/v3/files?upload_id=complete', save, open})
+    expect(open).not.toHaveBeenCalled(); expect(axios.post).not.toHaveBeenCalled()
+  })
+  it.each(['bytes=1-2', 'bytes=0-4', 'bytes=0-999999999999999999999'])('rejects invalid confirmed offsets: %s', async range => {
+    const open = vi.fn()
+    vi.mocked(axios.put).mockResolvedValueOnce({status: 308, headers: {range}})
+    await expect(createGoogleDriveTransport(config, store).originals!.create('reserved-id', 'parent', 'file', undefined, 4, undefined, undefined,
+      {session: 'https://www.googleapis.com/upload/drive/v3/files?upload_id=saved', save: vi.fn(), open})).rejects.toThrow('Invalid Drive upload range')
+    expect(open).not.toHaveBeenCalled()
+  })
   it('updates parent membership explicitly and uses the observed ETag', async () => {
     vi.mocked(axios.patch).mockResolvedValue({data: {...file, name: 'new.mp4', parents: ['parent']}, headers: {etag: 'v2'}})
     const result = await createGoogleDriveTransport(config, store).originals!.update('file', 'new.mp4', 'parent', 'v1')

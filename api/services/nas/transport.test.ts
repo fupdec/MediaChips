@@ -38,7 +38,11 @@ async function sftpServer() {
       })
       channel.on('STAT', (id, remote) => files.has(remote) ? channel.attrs(id, {...attrs(files.get(remote) === null), size: files.get(remote)?.length || 0}) : channel.status(id, utils.sftp.STATUS_CODE.NO_SUCH_FILE))
       channel.on('LSTAT', (id, remote) => remote.endsWith('/escape') ? channel.attrs(id, {...attrs(), mode: 0o120777}) : files.has(remote) ? channel.attrs(id, {...attrs(files.get(remote) === null), size: files.get(remote)?.length || 0}) : channel.status(id, utils.sftp.STATUS_CODE.NO_SUCH_FILE))
-      channel.on('FSTAT', id => channel.attrs(id, attrs()))
+      channel.on('FSTAT', (id, handle) => channel.attrs(id, {...attrs(), size: files.get(handle.toString())?.length || 0}))
+      channel.on('FSETSTAT', (id, handle, attributes) => {
+        const remote = handle.toString(), old = files.get(remote) || Buffer.alloc(0)
+        files.set(remote, old.subarray(0, attributes.size)); channel.status(id, utils.sftp.STATUS_CODE.OK)
+      })
       channel.on('OPENDIR', id => { listed = false; channel.handle(id, Buffer.from('dir')) })
       channel.on('READDIR', id => {
         if (listed) { channel.status(id, utils.sftp.STATUS_CODE.EOF); return }
@@ -110,7 +114,7 @@ async function ftpServer() {
           void dataConnection.then(data => {
             if (command === 'STOR') {
               const chunks: Buffer[] = []
-              data.on('data', chunk => chunks.push(chunk)); data.on('end', () => { files.set(argument, Buffer.concat(chunks)); data.end(); send('226 Transfer complete') })
+              data.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))); data.on('end', () => { files.set(argument, Buffer.concat(chunks)); data.end(); send('226 Transfer complete') })
               return
             }
             const content = command === 'RETR' ? (files.get(argument) || bytes).subarray(offset)
@@ -137,6 +141,18 @@ async function ftpServer() {
 const config = (port: number, protocol: NasConnectionInput['protocol']): NasConnectionInput => ({name: 'NAS', protocol, host: '127.0.0.1', port, username: 'reader', root: '/videos', hostFingerprint: fingerprint})
 
 describe('SFTP and FTP socket transports', () => {
+  it('resumes an SFTP staging file at the verified offset and truncates an unconfirmed tail', async () => {
+    const server = await sftpServer()
+    const transport = await connectNas(config(server.port, 'sftp'), {password: 'secret'})
+    try {
+      await transport.write!('staged.part', Readable.from(['upload-extra']), 12)
+      await transport.resumeWrite!('staged.part', Readable.from(['loaded']), 8, 2)
+      expect((await transport.stat('staged.part')).size).toBe(8)
+      expect((await collect(await transport.read('staged.part', 0, 7))).toString()).toBe('uploaded')
+      await expect(transport.resumeWrite!('staged.part', Readable.from(['x']), 10, 9)).rejects.toMatchObject({code: 'size_mismatch'})
+      await expect(transport.resumeWrite!('escape', Readable.from(['x']), 1, 0)).rejects.toMatchObject({code: 'invalid_file'})
+    } finally { transport.close() }
+  })
   it.each(['sftp', 'ftp'] as const)('%s writes folders and staged files, refuses conflicts, then moves and removes files', async protocol => {
     const server = protocol === 'sftp' ? await sftpServer() : await ftpServer()
     const transport = await connectNas(config(server.port, protocol), {password: 'secret'})

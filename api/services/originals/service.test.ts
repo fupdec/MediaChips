@@ -14,6 +14,7 @@ import {sourceOperationLocks} from '../mediaSources/operationLocks'
 import type {SourceObject, SourceWriteAdapter} from '../mediaSources/adapter'
 import {nasMediaPath} from '../../../shared/remoteMedia'
 import {NAS_SOURCE_CAPABILITIES} from '../../../shared/mediaSources'
+import {RESUME_BLOCK_SIZE} from './resumableCopy'
 
 vi.mock('../mediaCacheInvalidation', () => ({invalidateMediaDerivedCaches: vi.fn()}))
 let fixture: TestDb, db: ApiDb, directory: string, service: ReturnType<typeof createOriginalOperationsService>
@@ -332,5 +333,269 @@ describe('Google Drive originals', () => {
     const remove = vi.spyOn(transport.originals!, 'remove')
     expect((await finish(service.retry(job.id))).items[0].error).toBe('source_changed')
     expect(remove).not.toHaveBeenCalled()
+  })
+})
+
+describe('managed transfers between sources', () => {
+  const connectionId = '22222222-2222-4222-8222-222222222222'
+  let objects: Map<string, Buffer>, nas: SourceWriteAdapter
+  beforeEach(() => {
+    service.dispose()
+    objects = new Map()
+    fixture.sqlite.prepare("INSERT INTO sourceConnections (id,provider,config,credentialRef,createdAt) VALUES (?,'nas','{}','secret','2026')").run(connectionId)
+    nas = {
+      provider: 'nas', capabilities: NAS_SOURCE_CAPABILITIES, close: vi.fn(), list: async () => ({entries: []}),
+      stat: async key => {
+        const bytes = objects.get(key)
+        if (!bytes) throw Object.assign(new Error('missing'), {status: 404})
+        return {resourceKey: key, name: path.posix.basename(key), size: bytes.length,
+          version: 'version:' + bytes.toString('hex'), isDirectory: false, contentType: 'video/mp4'}
+      },
+      read: async key => ({status: 200, headers: {}, body: Readable.from([objects.get(key)!])}),
+      write: vi.fn(async (key, input, size, progress) => {
+        const chunks: Buffer[] = []
+        for await (const chunk of input) chunks.push(Buffer.from(chunk))
+        const bytes = Buffer.concat(chunks); expect(bytes.length).toBe(size); objects.set(key, bytes); progress(size)
+      }),
+      move: vi.fn(async (from, to) => {
+        if (objects.has(to)) throw Object.assign(new Error('exists'), {code: 'conflict'})
+        objects.set(to, objects.get(from)!); objects.delete(from)
+      }),
+      remove: vi.fn(async key => { objects.delete(key) }),
+    }
+    service = createOriginalOperationsService(db, {directory: path.join(directory, 'spool'), open: async () => nas})
+  })
+  const remote = (key = 'backup.mp4') => ({connectionId, key})
+  const copies = () => fixture.sqlite.prepare('SELECT * FROM verifiedMediaCopies WHERE mediaId = ?').all(id) as Array<{path: string; availability: string; sha256: string; verificationMethod: string}>
+  const useNasOriginal = async () => {
+    objects.set('source.mp4', Buffer.from('original bytes'))
+    const info = await nas.stat('source.mp4')
+    createMediaRepository(db.drizzle).updateById(id, {path: nasMediaPath(connectionId, 'source.mp4')})
+    fixture.sqlite.prepare('INSERT INTO mediaLocations (id,mediaId,connectionId,resourceKey,version) VALUES (?,?,?,?,?)').run('nas-original', id, connectionId, 'source.mp4', info.version)
+  }
+  it('copies local → NAS, retaining both locations and every metadata relation on the same card', async () => {
+    const before = metadata()
+    const result = await run([{kind: 'transfer', mediaId: id, target: remote(), conflict: 'fail'}])
+    expect(result.state, JSON.stringify(result)).toBe('completed')
+    expect(card().path).toBe(original); expect(metadata()).toEqual(before)
+    expect(fs.readFileSync(original, 'utf8')).toBe('original bytes')
+    expect(objects.get('backup.mp4')?.toString()).toBe('original bytes')
+    expect(copies().map(copy => copy.path)).toEqual(expect.arrayContaining([original, nasMediaPath(connectionId, 'backup.mp4')]))
+    expect(copies().every(copy => copy.sha256.length === 64 && copy.verificationMethod === 'sha256')).toBe(true)
+    expect(fixture.sqlite.prepare('SELECT COUNT(*) AS n FROM media').get()).toEqual({n: 1})
+    expect(fs.readdirSync(path.join(directory, 'spool'))).toEqual([])
+  })
+  it('copies a read-only NAS original to local storage without needing source write access', async () => {
+    await useNasOriginal()
+    Object.assign(nas, {capabilities: {...NAS_SOURCE_CAPABILITIES, move: false, delete: false}})
+    const before = metadata()
+    const result = await run([{kind: 'transfer', mediaId: id, target: target('local-copy.mp4'), conflict: 'fail'}])
+    expect(result.state, JSON.stringify(result)).toBe('completed')
+    expect(fs.readFileSync(target('local-copy.mp4').key, 'utf8')).toBe('original bytes')
+    expect(objects.has('source.mp4')).toBe(true); expect(nas.remove).not.toHaveBeenCalled()
+    expect(metadata()).toEqual(before); expect(copies()).toHaveLength(2)
+  })
+  it('requires an explicitly confirmed removal mode, then switches to the verified target before deleting', async () => {
+    expect(() => service.create({items: [{kind: 'transfer', mediaId: id, target: remote(), removeSource: true}]})).toThrow()
+    const before = metadata()
+    const result = await run([{kind: 'transfer', mediaId: id, target: remote(), conflict: 'fail', removeSource: true, confirmDelete: true}])
+    expect(result.state, JSON.stringify(result)).toBe('completed')
+    expect(card().path).toBe(nasMediaPath(connectionId, 'backup.mp4')); expect(metadata()).toEqual(before)
+    expect(fs.existsSync(original)).toBe(false)
+    expect(copies().find(copy => copy.path === original)?.availability).toBe('unavailable')
+    expect(copies().find(copy => copy.path === card().path)?.availability).toBe('available')
+  })
+  it.each(['fail', 'skip', 'keep-both'] as const)('handles destination conflicts with %s and never removes an unverified source', async conflict => {
+    objects.set('backup.mp4', Buffer.from('keep existing'))
+    const result = await run([{kind: 'transfer', mediaId: id, target: remote(), conflict, removeSource: true, confirmDelete: true}])
+    expect(objects.get('backup.mp4')?.toString()).toBe('keep existing')
+    if (conflict === 'keep-both') {
+      expect(result.state, JSON.stringify(result)).toBe('completed')
+      expect(objects.get('backup (1).mp4')?.toString()).toBe('original bytes')
+      expect(card().path).toBe(nasMediaPath(connectionId, 'backup (1).mp4'))
+    } else {
+      expect(result.items[0].state).toBe(conflict === 'skip' ? 'skipped' : 'failed')
+      expect(fs.existsSync(original)).toBe(true); expect(copies()).toHaveLength(0)
+    }
+  })
+  it('rejects corrupted target bytes and leaves the source and card intact', async () => {
+    nas.move = async (from, to) => { objects.set(to, Buffer.from('corrupt bytes!')); objects.delete(from) }
+    const result = await run([{kind: 'transfer', mediaId: id, target: remote(), conflict: 'fail', removeSource: true, confirmDelete: true}])
+    expect(result.items[0].error).toBe('source_changed')
+    expect(fs.existsSync(original)).toBe(true); expect(card().path).toBe(original); expect(copies()).toHaveLength(0)
+  })
+  it.each([false, true])('does not link a destination changed during the final source verification (removeSource: %s)', async removeSource => {
+    await useNasOriginal()
+    const destination = target('changed-copy.mp4')
+    const before = metadata()
+    const read = nas.read.bind(nas)
+    let sourceReads = 0
+    nas.read = async (...args) => {
+      // Spooling, pre-publication verification, then final source verification.
+      if (++sourceReads === 3) fs.writeFileSync(destination.key, 'changed bytes!')
+      return read(...args)
+    }
+    const result = await run([{kind: 'transfer', mediaId: id, target: destination, conflict: 'fail',
+      removeSource, ...(removeSource ? {confirmDelete: true as const} : {})}])
+    expect(result.items[0]).toMatchObject({state: 'failed', phase: 'published', error: 'source_changed'})
+    expect(card().path).toBe(nasMediaPath(connectionId, 'source.mp4'))
+    expect(metadata()).toEqual(before); expect(copies()).toHaveLength(0)
+    expect(objects.has('source.mp4')).toBe(true); expect(nas.remove).not.toHaveBeenCalled()
+  })
+  it('retries a lost NAS publication reply without creating a second copy', async () => {
+    const move = nas.move!
+    nas.move = vi.fn(async (...args: Parameters<typeof move>) => { await move(...args); throw new Error('Lost reply') })
+    const job = await run([{kind: 'transfer', mediaId: id, target: remote(), conflict: 'fail'}])
+    expect(job.state).toBe('failed')
+    const result = await finish(service.retry(job.id))
+    expect(result.state, JSON.stringify(result)).toBe('completed'); expect(nas.move).toHaveBeenCalledTimes(1)
+    expect(copies()).toHaveLength(2)
+  })
+  it('retries a destination conflict with keep-both using the retained spool', async () => {
+    objects.set('backup.mp4', Buffer.from('existing'))
+    const job = await run([{kind: 'transfer', mediaId: id, target: remote(), conflict: 'fail'}])
+    expect(job.items[0].error).toBe('conflict')
+    expect((await finish(service.retry(job.id, 'keep-both'))).state).toBe('completed')
+    expect(objects.get('backup (1).mp4')?.toString()).toBe('original bytes')
+  })
+  it('recovers after linking without repeating the upload or losing metadata', async () => {
+    const before = metadata()
+    service.dispose()
+    service = createOriginalOperationsService(db, {open: async () => nas, directory: path.join(directory, 'spool'),
+      checkpoint(item) { if (item.kind === 'transfer' && item.phase === 'linked') throw new Error('Restart') }})
+    const job = await run([{kind: 'transfer', mediaId: id, target: remote(), conflict: 'fail', removeSource: true, confirmDelete: true}])
+    expect(job.items[0].phase).toBe('linked'); expect(fs.existsSync(original)).toBe(true)
+    service.dispose(); service = createOriginalOperationsService(db, {open: async () => nas, directory: path.join(directory, 'spool')})
+    expect((await finish(service.retry(job.id))).state).toBe('completed')
+    expect(nas.write).toHaveBeenCalledTimes(1); expect(fs.existsSync(original)).toBe(false); expect(metadata()).toEqual(before)
+  })
+  it('never removes the source if the linked destination changes before recovery', async () => {
+    service.dispose()
+    service = createOriginalOperationsService(db, {open: async () => nas, directory: path.join(directory, 'spool'),
+      checkpoint(item) { if (item.kind === 'transfer' && item.phase === 'linked') throw new Error('Restart') }})
+    const job = await run([{kind: 'transfer', mediaId: id, target: remote(), conflict: 'fail', removeSource: true, confirmDelete: true}])
+    objects.set('backup.mp4', Buffer.from('changed target'))
+    service.dispose(); service = createOriginalOperationsService(db, {open: async () => nas})
+    expect((await finish(service.retry(job.id))).items[0].error).toBe('source_changed')
+    expect(fs.existsSync(original)).toBe(true)
+  })
+  it('recovers a lost source deletion reply and marks only that original unavailable', async () => {
+    await useNasOriginal()
+    nas.remove = vi.fn(async key => { objects.delete(key); throw new Error('Lost delete response') })
+    const job = await run([{kind: 'transfer', mediaId: id, target: target('downloaded.mp4'), conflict: 'fail', removeSource: true, confirmDelete: true}])
+    expect(job.items[0].phase).toBe('linked'); expect(objects.has('source.mp4')).toBe(false)
+    const result = await finish(service.retry(job.id))
+    expect(result.state, JSON.stringify(result)).toBe('completed'); expect(nas.remove).toHaveBeenCalledTimes(1)
+    expect(fixture.sqlite.prepare("SELECT availability FROM mediaLocations WHERE id='nas-original'").get()).toEqual({availability: 'unavailable'})
+  })
+  it('materializes inherited chips and redirects a preferred original when removing the source', async () => {
+    const folderId = fixture.sqlite.prepare("INSERT INTO folderPaths (path, createdAt, updatedAt) VALUES (?, '2026', '2026')").run(directory).lastInsertRowid
+    fixture.sqlite.prepare('INSERT INTO tagsInFolders (folderId,tagId,metaId) VALUES (?,10,20)').run(folderId)
+    expect((await run([{kind: 'transfer', mediaId: id, target: remote('first-copy.mp4'), conflict: 'fail'}])).state).toBe('completed')
+    const sourceCopy = fixture.sqlite.prepare('SELECT id FROM verifiedMediaCopies WHERE mediaId = ? AND path = ?').get(id, original) as {id: string}
+    fixture.sqlite.prepare('INSERT INTO mediaCopyPreferences (mediaId,copyId) VALUES (?,?)').run(id, sourceCopy.id)
+    const result = await run([{kind: 'transfer', mediaId: id, target: remote(), conflict: 'fail', removeSource: true, confirmDelete: true}])
+    expect(result.state, JSON.stringify(result)).toBe('completed')
+    expect(fixture.sqlite.prepare('SELECT * FROM tagsInMedia WHERE tagId = 10').get()).toEqual({mediaId: id, tagId: 10, metaId: 20})
+    const preferred = fixture.sqlite.prepare('SELECT c.path FROM verifiedMediaCopies c JOIN mediaCopyPreferences p ON p.copyId = c.id WHERE p.mediaId = ?').get(id)
+    expect(preferred).toEqual({path: nasMediaPath(connectionId, 'backup.mp4')})
+    expect(copies()).toHaveLength(3)
+  })
+  it('keeps an alternate location available when the original is deleted as a separate operation', async () => {
+    const transfer = await run([{kind: 'transfer', mediaId: id, target: remote(), conflict: 'fail'}])
+    expect(transfer.state).toBe('completed')
+    expect((await run([{kind: 'delete', mediaId: id, conflict: 'fail', confirmDelete: true}])).state).toBe('completed')
+    expect(copies().find(copy => copy.path === original)?.availability).toBe('unavailable')
+    expect(copies().find(copy => copy.path === nasMediaPath(connectionId, 'backup.mp4'))?.availability).toBe('available')
+    expect(objects.get('backup.mp4')?.toString()).toBe('original bytes')
+  })
+  it('stops source removal on a read-only connection before publishing any destination', async () => {
+    await useNasOriginal()
+    Object.assign(nas, {capabilities: {...NAS_SOURCE_CAPABILITIES, delete: false}})
+    const result = await run([{kind: 'transfer', mediaId: id, target: target('copy.mp4'), conflict: 'fail', removeSource: true, confirmDelete: true}])
+    expect(result.items[0].error).toBe('read_only')
+    expect(fs.existsSync(target('copy.mp4').key)).toBe(false)
+    expect(objects.has('source.mp4')).toBe(true); expect(copies()).toHaveLength(0)
+  })
+  it('restarts a failed spool copy and keeps later batch deletion paused', async () => {
+    await useNasOriginal()
+    vi.spyOn(nas, 'read').mockRejectedValueOnce(new Error('Network interruption'))
+    const job = await run([
+      {kind: 'transfer', mediaId: id, target: target('copy.mp4'), conflict: 'fail'},
+      {kind: 'delete', mediaId: id, conflict: 'fail', confirmDelete: true},
+    ])
+    expect(job.state).toBe('failed'); expect(job.items[1].state).toBe('pending')
+    expect(objects.has('source.mp4')).toBe(true)
+    expect((await finish(service.retry(job.id))).state).toBe('completed')
+    expect(fs.readFileSync(target('copy.mp4').key, 'utf8')).toBe('original bytes')
+  })
+  it('resumes the interrupted source spool from the SQLite journal after a service restart', async () => {
+    const bytes = Buffer.alloc(RESUME_BLOCK_SIZE + 1024 * 1024, 63)
+    await useNasOriginal(); objects.set('source.mp4', bytes)
+    // Keep provider versions compact, just as real NAS stat validators are.
+    const stat = nas.stat.bind(nas)
+    nas.stat = async (...args) => ({...await stat(...args), version: 'large-v1'})
+    fixture.sqlite.prepare("UPDATE mediaLocations SET version = 'large-v1' WHERE id = 'nas-original'").run()
+    let reads = 0, interrupted = false
+    const ranges: Array<string | undefined> = []
+    nas.read = async (_key, range) => {
+      ranges.push(range); reads++
+      if (reads === 1) return {status: 200, headers: {}, body: Readable.from((async function* () {
+        yield bytes.subarray(0, RESUME_BLOCK_SIZE)
+        await new Promise(resolve => setTimeout(resolve, 30))
+        interrupted = true; throw new Error('Disconnected')
+      })())}
+      const start = range ? Number(/^bytes=(\d+)-/.exec(range)![1]) : 0
+      return {status: range ? 206 : 200, headers: {'content-range': range ? `bytes ${start}-${bytes.length - 1}/${bytes.length}` : undefined}, body: Readable.from([bytes.subarray(start)])}
+    }
+    const job = await run([{kind: 'transfer', mediaId: id, target: target('large-copy.mp4'), conflict: 'fail'}])
+    expect(interrupted).toBe(true)
+    const onDisk = JSON.parse((fixture.sqlite.prepare('SELECT payload FROM originalOperationJobs WHERE id = ?').get(job.id) as {payload: string}).payload)
+    expect(onDisk.items[0].resume.bytes).toBe(RESUME_BLOCK_SIZE)
+    onDisk.state = 'running'; onDisk.items[0].state = 'running'
+    fixture.sqlite.prepare('UPDATE originalOperationJobs SET payload = ? WHERE id = ?').run(JSON.stringify(onDisk), job.id)
+    service.dispose(); service = createOriginalOperationsService(db, {open: async () => nas, directory: path.join(directory, 'spool')})
+    expect(service.job(job.id).state).toBe('interrupted')
+    const result = await finish(service.retry(job.id))
+    expect(result.state, JSON.stringify(result)).toBe('completed')
+    expect(ranges[1]).toBe(`bytes=${RESUME_BLOCK_SIZE}-${bytes.length - 1}`)
+    expect(fs.readFileSync(target('large-copy.mp4').key).equals(bytes)).toBe(true)
+    expect(fs.readdirSync(path.join(directory, 'spool'))).toEqual([])
+  })
+  it('transfers NAS → Drive, recovering the reserved upload ID after a lost response', async () => {
+    await useNasOriginal()
+    const before = metadata()
+    const {createMockDriveTransport} = await import('../cloudDrive/mockTransport')
+    const {createDriveSourceAdapter} = await import('../mediaSources/driveAdapter')
+    const drive = createMockDriveTransport()
+    const create = drive.originals!.create.bind(drive.originals)
+    const upload = vi.spyOn(drive.originals!, 'create').mockImplementationOnce(async (...args) => { await create(...args); throw new Error('Lost upload reply') })
+    service.dispose(); service = createOriginalOperationsService(db, {directory: path.join(directory, 'spool'), open: async (_db, id) => id === connectionId ? nas : createDriveSourceAdapter(drive, true)})
+    const job = await run([{kind: 'transfer', mediaId: id, target: {connectionId: 'google-drive', key: 'root', name: 'cloud.mp4'}, conflict: 'fail'}])
+    expect(job.state).toBe('failed')
+    const result = await finish(service.retry(job.id))
+    expect(result.state, JSON.stringify(result)).toBe('completed'); expect(upload).toHaveBeenCalledTimes(1)
+    expect((await drive.listFolder('root')).files.filter(file => file.name === 'cloud.mp4')).toHaveLength(1)
+    expect(copies().map(copy => copy.path)).toContain('gdrive://' + result.items[0].transfer!.destination!.key)
+    expect(objects.has('source.mp4')).toBe(true); expect(metadata()).toEqual(before)
+  })
+  it.each([true, false])('transfers Drive → NAS with source removal mode %s and marks only the deleted location unavailable', async removeSource => {
+    const {createMockDriveTransport} = await import('../cloudDrive/mockTransport')
+    const {createDriveSourceAdapter} = await import('../mediaSources/driveAdapter')
+    const {recordDriveLocation} = await import('../mediaSources/locations')
+    const drive = createMockDriveTransport()
+    const file = await drive.getFileMeta('mock-video-sample')
+    createMediaRepository(db.drizzle).updateById(id, {path: 'gdrive://mock-video-sample'})
+    recordDriveLocation(db, id, file.id, `${file.size}:${file.modifiedTime}`)
+    const before = metadata()
+    service.dispose(); service = createOriginalOperationsService(db, {directory: path.join(directory, 'spool'), open: async (_db, id) => id === connectionId ? nas : createDriveSourceAdapter(drive, true)})
+    const result = await run([{kind: 'transfer', mediaId: id, target: remote(), conflict: 'fail', removeSource, ...(removeSource ? {confirmDelete: true as const} : {})}])
+    expect(result.state, JSON.stringify(result)).toBe('completed'); expect(objects.get('backup.mp4')).toEqual(Buffer.alloc(file.size))
+    expect(card().path).toBe(removeSource ? nasMediaPath(connectionId, 'backup.mp4') : 'gdrive://mock-video-sample'); expect(metadata()).toEqual(before)
+    if (!removeSource) expect((await run([{kind: 'delete', mediaId: id, conflict: 'fail', confirmDelete: true}])).state).toBe('completed')
+    await expect(drive.getFileMeta(file.id)).rejects.toMatchObject({status: 404})
+    expect(fixture.sqlite.prepare('SELECT connectionId,availability FROM mediaLocations ORDER BY connectionId').all()).toEqual([
+      {connectionId, availability: 'available'}, {connectionId: 'google-drive', availability: 'unavailable'},
+    ])
   })
 })

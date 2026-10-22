@@ -1,6 +1,6 @@
 import path from 'path'
 import {createHash} from 'crypto'
-import {PassThrough, type Readable} from 'stream'
+import {PassThrough, Writable, type Readable} from 'stream'
 import {pipeline} from 'stream/promises'
 import {Client as SshClient, type SFTPWrapper} from 'ssh2'
 import {Client as FtpClient} from 'basic-ftp'
@@ -16,6 +16,7 @@ export type NasTransport = {
   read(relativePath: string, start: number, end: number): Promise<Readable>
   mkdir?(relativePath: string): Promise<void>
   write?(relativePath: string, input: Readable, size: number): Promise<void>
+  resumeWrite?(relativePath: string, input: Readable, size: number, offset: number): Promise<void>
   move?(from: string, to: string): Promise<void>
   remove?(relativePath: string): Promise<void>
   close(): void
@@ -140,6 +141,23 @@ async function connectSftp(config: NasConnectionInput, credentials: NasCredentia
         await new Promise<void>((resolve, reject) => sftp.mkdir(remote, err => err ? reject(err) : resolve()))
       },
       async write(relative, input) { await pipeline(input, sftp.createWriteStream(await destination(relative), {flags: 'wx'})) },
+      async resumeWrite(relative, input, size, offset) {
+        const remote = await mutablePath(relative)
+        const handle = await new Promise<Buffer>((resolve, reject) => sftp.open(remote, 'r+', (err, result) => err ? reject(err) : resolve(result)))
+        try {
+          const file = await new Promise<import('ssh2').Stats>((resolve, reject) => sftp.fstat(handle, (err, result) => err ? reject(err) : resolve(result)))
+          if (!file.isFile() || file.size < offset || offset < 0 || offset > size) throw new NasError('size_mismatch', 'Invalid staging file.', 409)
+          await new Promise<void>((resolve, reject) => sftp.fsetstat(handle, {size: offset}, err => err ? reject(err) : resolve()))
+          let position = offset
+          await pipeline(input, new Writable({write(chunk: Buffer, _encoding, callback) {
+            if (position + chunk.length > size) { callback(new NasError('size_mismatch', 'Upload size changed.', 409)); return }
+            sftp.write(handle, chunk, 0, chunk.length, position, err => {
+              position += chunk.length; callback(err)
+            })
+          }}))
+          if (position !== size) throw new NasError('size_mismatch', 'Upload was incomplete.', 409)
+        } finally { await new Promise<void>((resolve, reject) => sftp.close(handle, err => err ? reject(err) : resolve())) }
+      },
       async move(from, to) {
         const remote = await mutablePath(from)
         const target = await destination(to)

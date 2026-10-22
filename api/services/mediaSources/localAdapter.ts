@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import {pipeline} from 'stream/promises'
-import {Transform} from 'stream'
+import {Transform, Writable} from 'stream'
 import type {SourceObject, SourceWriteAdapter} from './adapter'
 import {sourceError} from './context'
 import {parseSourceRange} from './range'
@@ -22,9 +22,12 @@ export function createLocalOriginalAdapter(): SourceWriteAdapter {
       return {resourceKey: key, name: path.basename(key), size: stat.size, isDirectory: stat.isDirectory(),
         version: `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}:${stat.ctimeMs}`, contentType: mediaFileContentType(key) || 'application/octet-stream'}
     },
-    async list(key) {
+    async list(key, _token, signal) {
       const entries = []
-      for (const name of await fs.promises.readdir(keyFor(key))) entries.push(await this.stat(path.join(key, name)))
+      for (const entry of await fs.promises.readdir(keyFor(key), {withFileTypes: true})) {
+        signal?.throwIfAborted()
+        if (entry.isFile() || entry.isDirectory()) entries.push(await this.stat(path.join(key, entry.name), signal))
+      }
       return {entries}
     },
     async read(key, rangeHeader, signal) {
@@ -47,6 +50,32 @@ export function createLocalOriginalAdapter(): SourceWriteAdapter {
         callback(bytes > size ? sourceError('size_mismatch') : null, chunk)
       }}), fs.createWriteStream(keyFor(key), {flags: 'wx', mode: 0o600}), {signal})
       if (bytes !== size) throw sourceError('size_mismatch')
+    },
+    async resumeWrite(key, input, size, offset, progress, signal) {
+      const handle = await fs.promises.open(keyFor(key), fs.constants.O_RDWR | fs.constants.O_NOFOLLOW)
+      try {
+        const file = await handle.stat()
+        if (!file.isFile() || file.size < offset || offset < 0 || offset > size) throw sourceError('size_mismatch')
+        await handle.truncate(offset)
+        const start = offset
+        let bytes = 0
+        await pipeline(input, new Transform({transform(chunk: Buffer, _encoding, callback) {
+          bytes += chunk.length; progress(bytes)
+          callback(bytes + start > size ? sourceError('size_mismatch') : null, chunk)
+        }}), new Writable({write(chunk: Buffer, _encoding, callback) {
+          const write = async () => {
+            let written = 0
+            while (written < chunk.length) {
+              const result = await handle.write(chunk, written, chunk.length - written, offset)
+              if (!result.bytesWritten) throw sourceError('size_mismatch')
+              written += result.bytesWritten; offset += result.bytesWritten
+            }
+          }
+          void write().then(() => callback(), err => callback(err))
+        }}), {signal})
+        if (offset !== size) throw sourceError('size_mismatch')
+        await handle.sync()
+      } finally { await handle.close() }
     },
     // A hard link publishes an already complete staging file without replacing a racer.
     async move(from, to) { await fs.promises.link(keyFor(from), keyFor(to)); await fs.promises.unlink(from) },
