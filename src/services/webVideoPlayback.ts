@@ -7,12 +7,32 @@ import type Hls from 'hls.js'
 import {isDriveMediaPath, parseDriveMediaPath} from '@shared/cloudDrive'
 import {isNasMediaPath, parseNasMediaPath} from '@shared/remoteMedia'
 
+// crypto.randomUUID is unavailable when the LAN renderer uses plain HTTP.
+function createPlaybackTransferId() {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+const transferIds = new WeakMap<HTMLVideoElement, string>()
+const hlsSpeeds = new WeakMap<HTMLVideoElement, {speed: number; updated: number}>()
+export function getRemotePlaybackTransfer(video: HTMLVideoElement) { return transferIds.get(video) }
+export function getHlsDownloadSpeed(video: HTMLVideoElement) {
+  const sample = hlsSpeeds.get(video)
+  return sample && Date.now() - sample.updated < 4000 ? sample.speed : null
+}
+
 const players = new WeakMap<HTMLVideoElement, Hls>()
 
 export function disposeWebVideo(video: HTMLVideoElement | null) {
   if (!video) return
   players.get(video)?.destroy()
   players.delete(video)
+  transferIds.delete(video)
+  hlsSpeeds.delete(video)
 }
 
 export async function prepareWebVideoPlayback(mediaId: number, options: {quality?: number | null; fresh?: boolean; path?: string; copies?: boolean; signal?: AbortSignal} = {}) {
@@ -74,7 +94,16 @@ export async function attachWebVideo(
 ) {
   video.crossOrigin = 'anonymous'
   if (source.kind === 'mp4' || video.canPlayType('application/vnd.apple.mpegurl')) {
-    if (!isStale()) video.src = source.url
+    if (!isStale()) {
+      disposeWebVideo(video)
+      const url = new URL(source.url, window.location.href)
+      if (source.kind === 'mp4' && url.pathname.startsWith('/api/') && url.pathname.endsWith('/stream')) {
+        const id = createPlaybackTransferId()
+        transferIds.set(video, id)
+        url.searchParams.set('playbackTransfer', id)
+      }
+      video.src = url.href
+    }
     return
   }
   const {default: Hls} = await import('hls.js')
@@ -84,6 +113,11 @@ export async function attachWebVideo(
   const hls = new Hls({
     maxBufferLength: 30, maxMaxBufferLength: 60, maxBufferSize: 30 * 1024 * 1024,
     backBufferLength: 30, startPosition: startTime,
+  })
+  hls.on(Hls.Events.FRAG_LOADED, (_event, data) => {
+    if (isStale()) return
+    const elapsed = data.frag.stats.loading.end - data.frag.stats.loading.start
+    if (elapsed > 0) hlsSpeeds.set(video, {speed: data.frag.stats.loaded * 1000 / elapsed, updated: Date.now()})
   })
   let manifestReady = false
   players.set(video, hls)

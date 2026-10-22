@@ -2,12 +2,12 @@ import {beforeEach, afterEach, describe, expect, it, vi} from 'vitest'
 import {WebVideoPlayableSchema} from '@shared/webVideo'
 import {apiClient} from './apiClient'
 import Hls from 'hls.js'
-import {attachWebVideo, disposeWebVideo, prepareWebVideoPlayback, hlsFailureCode, hlsFailure} from './webVideoPlayback'
+import {attachWebVideo, disposeWebVideo, prepareWebVideoPlayback, hlsFailureCode, hlsFailure, getRemotePlaybackTransfer, getHlsDownloadSpeed} from './webVideoPlayback'
 
 vi.mock('./apiClient', () => ({apiClient: {get: vi.fn()}, buildApiUrl: (url: string) => `http://localhost:12321${url}`}))
 vi.mock('./authSession', () => ({getAuthToken: () => 'test token'}))
 vi.mock('hls.js', () => ({default: class FakeHls {
-  static Events = {ERROR: 'error', MANIFEST_PARSED: 'parsed', DESTROYING: 'destroying'}
+  static Events = {ERROR: 'error', MANIFEST_PARSED: 'parsed', DESTROYING: 'destroying', FRAG_LOADED: 'loaded'}
   static isSupported = () => true
   static instances: FakeHls[] = []
   listeners = new Map<string, Set<(...args: any[]) => void>>()
@@ -178,4 +178,38 @@ describe('Google Drive playback proxy', () => {
 
 it('retains the HLS response retry delay without passing its diagnostics to the UI', () => {
   expect(hlsFailure({response: {code: 429}, networkDetails: {getResponseHeader: () => '12', responseURL: 'https://secret?token=private'}})).toEqual({code: 'rate_limited', retryAfter: 12})
+})
+
+
+describe('remote download speed lifecycle', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+  it('tracks native streams over HTTP without randomUUID and resets when replaced', async () => {
+    const getRandomValues = crypto.getRandomValues.bind(crypto)
+    vi.stubGlobal('crypto', {getRandomValues})
+    const video = document.createElement('video')
+    const native = {...source, kind: 'mp4' as const}
+    await attachWebVideo(video, native, () => false, vi.fn())
+    const first = getRemotePlaybackTransfer(video)
+    expect(first).toMatch(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
+    expect(new URL(video.src).searchParams.get('playbackTransfer')).toBe(first)
+    await attachWebVideo(video, native, () => false, vi.fn())
+    expect(getRemotePlaybackTransfer(video)).not.toBe(first)
+    disposeWebVideo(video)
+    expect(getRemotePlaybackTransfer(video)).toBeUndefined()
+  })
+  it('expires HLS speed samples and clears them on disposal', async () => {
+    instances().length = 0
+    const video = document.createElement('video')
+    vi.spyOn(video, 'canPlayType').mockReturnValue('')
+    const attaching = attachWebVideo(video, source, () => false, vi.fn())
+    const hls = await latest()
+    hls.emit('parsed'); await attaching
+    hls.emit('loaded', {frag: {stats: {loaded: 2000, loading: {start: 100, end: 1100}}}})
+    expect(getHlsDownloadSpeed(video)).toBe(2000)
+    const now = Date.now()
+    vi.spyOn(Date, 'now').mockReturnValue(now + 5000)
+    expect(getHlsDownloadSpeed(video)).toBeNull()
+    disposeWebVideo(video)
+    expect(getHlsDownloadSpeed(video)).toBeNull()
+  })
 })

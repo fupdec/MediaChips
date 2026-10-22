@@ -1,3 +1,4 @@
+import {registerRemotePlaybackSpeed} from '../../api/services/remotePlaybackSpeed'
 import {registerCloudMetadataBackfill} from './cloudMetadataBackfill'
 import registerRemoteProcessing from '../../api/routes/RemoteProcessing.routes'
 import registerCloudAccounts from '../../api/routes/CloudAccounts.routes'
@@ -196,6 +197,7 @@ export async function registerApiRoutes(
 ) {
   const routeLoadErrors: Array<{ routeFile: string; message: string }> = []
 
+  registerRemotePlaybackSpeed(app)
   app.use('/api', (req, _res, next) => {
     if (req.path.startsWith('/change-history')) return next()
     withChangeOperation(`${req.method} ${req.originalUrl.split('?')[0]}`, next)

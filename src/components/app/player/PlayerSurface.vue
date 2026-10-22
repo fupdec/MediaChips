@@ -198,6 +198,7 @@
 
 <script setup lang="ts">
 import {computed, inject} from 'vue'
+import {useRemotePlaybackSpeed} from '@/composable/useRemotePlaybackSpeed'
 import {useAppStore} from '@/stores/app'
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {isWebVideoPath} from '@shared/webVideo'
@@ -288,10 +289,22 @@ const showTranscodeSpinner = computed(() => !player.value.playbackError && (
   || (player.value.isWebVideo && player.value.isStreamWaiting && !player.value.paused)
 ))
 
+const remoteDownloadSpeed = useRemotePlaybackSpeed(
+  computed(() => player.value.player),
+  computed(() => player.value.active && player.value.isWebVideo),
+)
+const remoteDownloadSpeedText = computed(() => {
+  const speed = remoteDownloadSpeed.value
+  if (speed == null) return ''
+  const unit = speed >= 1024 * 1024 ? 'MB' : 'KB'
+  const value = speed / (unit === 'MB' ? 1024 * 1024 : 1024)
+  return `${value.toFixed(1)} ${unit}/s`
+})
+
 const remoteConnectionStatus = computed(() => {
   if (player.value.webVideoLoading) return t('player.remote_connecting')
   if (player.value.isWebVideo && player.value.isStreamWaiting && !player.value.paused) {
-    return t('player.remote_buffering')
+    return t('player.remote_buffering') + (remoteDownloadSpeedText.value ? ` · ${remoteDownloadSpeedText.value}` : '')
   }
   return ''
 })
