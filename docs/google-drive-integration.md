@@ -16,11 +16,11 @@ Recognized video formats include MP4, M4V, WebM, MOV, MKV, AVI, WMV, ASF, MPEG/M
 
 1. Enable Google Drive API in a Google Cloud project.
 2. Configure the consent screen and add your Google account as a test user if the app is in testing.
-3. Create an OAuth client of type **Web application**.
-4. Register the exact callback URL displayed in MediaChips (normally `http://localhost:12321/api/drive/oauth/callback`). For a server, use its accessible origin and the same callback path.
+3. For the existing manually configured API flow, create an OAuth client of type **Web application**. This is an advanced local configuration, not a publisher-managed desktop sign-in. See [release preparation](cloud-oauth-release.md) for the public-release blocker.
+4. Register the exact callback URL displayed in MediaChips (normally `http://127.0.0.1:12321/api/drive/oauth/callback`). For a server, use its accessible origin and the same callback path.
 5. Enter Client ID, Client Secret and Redirect URI in **Settings → Connections → Google OAuth setup**, save, then connect.
 
-Configuration can also come from `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, and `GOOGLE_OAUTH_REDIRECT_URI`. Settings saved in the UI take precedence. Read-only Drive access is requested. The Client Secret is stored in the host-local encrypted vault and never returned to the renderer. Access/refresh tokens stay in a private host-local file with mode 0600, outside static assets and library backups. The server uses one connected Google account; connecting another account changes which Drive files that server can access.
+Configuration can also come from `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, and `GOOGLE_OAUTH_REDIRECT_URI`. Settings saved in the UI take precedence. The legacy connection requests full Drive access for original-file operations. The separate cloudAccounts connection requests read-only Drive access. The Client Secret is stored in the host-local encrypted vault and never returned to the renderer. Access/refresh tokens use an atomic AES-256-GCM host-local vault outside static assets and library backups. Existing private tokens.json is migrated on first read and removed only after the encrypted write succeeds. The vault key is local to the same host; this is not an OS keychain. The server uses one connected Google account; connecting another account changes which Drive files that server can access.
 
 Mock mode requires explicit `MEDIA_CHIPS_DRIVE_MOCK=1`. Missing credentials show setup instructions instead of a pretend connection. The mock stream contains zero bytes and is useful for API tests, not video decoding.
 

@@ -7,21 +7,26 @@ import {parseCatalogSourceFilterValues} from '../utils/catalogSourceFilterValues
 // Catalog observations only. None of these expressions opens a source or its vault.
 const fallbackKind = `CASE
   WHEN media.path LIKE 'nas://%' THEN 'nas'
+  WHEN media.path LIKE 'onedrive://%' THEN 'onedrive'
+  WHEN media.path LIKE 'dropbox://%' THEN 'dropbox'
   WHEN media.path LIKE 'gdrive://%' THEN 'gdrive'
   WHEN media.path LIKE 'https://%' OR media.path LIKE 'http://%' THEN 'web'
   ELSE 'local' END`
 const fallbackConnection = `CASE
   WHEN media.path LIKE 'nas://%' THEN 'connection:' || substr(media.path, 7, 36)
+  WHEN media.path LIKE 'onedrive://%' THEN 'connection:' || substr(media.path, 12, 36)
+  WHEN media.path LIKE 'dropbox://%' THEN 'connection:' || substr(media.path, 11, 36)
+  WHEN media.path LIKE 'gdrive://%/%' THEN 'connection:' || substr(media.path, 10, 36)
   WHEN media.path LIKE 'gdrive://%' THEN 'connection:google-drive'
   ELSE NULL END`
 const storedTokens = `SELECT sc.provider AS value FROM mediaLocations ml
   JOIN sourceConnections sc ON sc.id = ml.connectionId WHERE ml.mediaId = media.id
   UNION SELECT 'connection:' || ml.connectionId FROM mediaLocations ml WHERE ml.mediaId = media.id`
 const noVerifiedCopies = `NOT EXISTS (SELECT 1 FROM verifiedMediaCopies mc WHERE mc.mediaId = media.id)`
-const copyTokens = `SELECT CASE WHEN mc.path LIKE 'nas://%' THEN 'nas' WHEN mc.path LIKE 'gdrive://%' THEN 'gdrive' ELSE 'local' END AS value
+const copyTokens = `SELECT CASE WHEN mc.path LIKE 'nas://%' THEN 'nas' WHEN mc.path LIKE 'gdrive://%' THEN 'gdrive' WHEN mc.path LIKE 'onedrive://%' THEN 'onedrive' WHEN mc.path LIKE 'dropbox://%' THEN 'dropbox' ELSE 'local' END AS value
   FROM verifiedMediaCopies mc WHERE mc.mediaId = media.id
-  UNION SELECT CASE WHEN mc.path LIKE 'nas://%' THEN 'connection:' || substr(mc.path, 7, 36) ELSE 'connection:google-drive' END
-  FROM verifiedMediaCopies mc WHERE mc.mediaId = media.id AND (mc.path LIKE 'nas://%' OR mc.path LIKE 'gdrive://%')`
+  UNION SELECT CASE WHEN mc.path LIKE 'nas://%' THEN 'connection:' || substr(mc.path, 7, 36) WHEN mc.path LIKE 'onedrive://%' THEN 'connection:' || substr(mc.path, 12, 36) WHEN mc.path LIKE 'dropbox://%' THEN 'connection:' || substr(mc.path, 11, 36) WHEN mc.path LIKE 'gdrive://%/%' THEN 'connection:' || substr(mc.path, 10, 36) ELSE 'connection:google-drive' END
+  FROM verifiedMediaCopies mc WHERE mc.mediaId = media.id AND (mc.path LIKE 'nas://%' OR mc.path LIKE 'gdrive://%' OR mc.path LIKE 'onedrive://%' OR mc.path LIKE 'dropbox://%')`
 const noLocations = `NOT EXISTS (SELECT 1 FROM mediaLocations ml WHERE ml.mediaId = media.id)`
 export const CATALOG_SOURCE_TOKENS_SQL = `(SELECT json_group_array(value) FROM (
   ${copyTokens}
@@ -75,8 +80,8 @@ export function listCatalogSources(db: ApiDb): Array<{value: string; name: strin
 
 export function markCatalogSourceDisconnected(db: ApiDb, connectionId: string): void {
   db.sqlite.prepare("UPDATE mediaLocations SET availability = 'unavailable' WHERE connectionId = ?").run(connectionId)
-  db.sqlite.prepare("UPDATE verifiedMediaCopies SET availability = 'unavailable' WHERE path LIKE ?").run(
-    connectionId === 'google-drive' ? 'gdrive://%' : `nas://${connectionId}/%`,
+  db.sqlite.prepare("UPDATE verifiedMediaCopies SET availability = 'unavailable' WHERE path LIKE ? AND (? != 'google-drive' OR path NOT LIKE 'gdrive://%/%')").run(
+    connectionId === 'google-drive' ? 'gdrive://%' : `${(db.sqlite.prepare('SELECT provider FROM sourceConnections WHERE id = ?').get(connectionId) as {provider?: string})?.provider || 'nas'}://${connectionId}/%`, connectionId,
   )
   invalidateMediaDerivedCaches()
 }

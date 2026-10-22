@@ -164,6 +164,7 @@ const PUBLIC_PATHS = new Set([
   '/api/setting',
   // Google OAuth redirect lands here without a MediaChips session cookie.
   '/api/drive/oauth/callback',
+  '/api/cloud-accounts/oauth/callback',
 ])
 
 function isPublicApiPath(url: string): boolean {

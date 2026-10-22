@@ -6,7 +6,12 @@ export type DriveOAuthTokens = {
   scope?: string
 }
 
-export type DriveFileEntry = {
+export type DriveMediaMetadata = {
+  videoMediaMetadata?: {durationMillis?: string | number; width?: number; height?: number}
+  imageMediaMetadata?: {width?: number; height?: number}
+}
+
+export type DriveFileEntry = DriveMediaMetadata & {
   id: string
   name: string
   mimeType: string
@@ -15,7 +20,7 @@ export type DriveFileEntry = {
   isFolder: boolean
 }
 
-export type DriveFileMeta = {
+export type DriveFileMeta = DriveMediaMetadata & {
   id: string
   name: string
   mimeType: string
@@ -29,7 +34,8 @@ export type DriveFileMeta = {
 
 export type DriveOriginalTransport = {
   generateId(signal?: AbortSignal): Promise<string>
-  create(id: string, parent: string, name: string, input?: import('stream').Readable, size?: number, signal?: AbortSignal, contentType?: string): Promise<DriveFileMeta>
+  create(id: string, parent: string, name: string, input?: import('stream').Readable, size?: number, signal?: AbortSignal, contentType?: string,
+    recovery?: {session?: string; save: (session: string | undefined, bytes: number) => void; open: (offset: number) => import('stream').Readable}): Promise<DriveFileMeta>
   update(id: string, name: string, parent?: string, etag?: string, signal?: AbortSignal): Promise<DriveFileMeta>
   remove(id: string, etag?: string, signal?: AbortSignal): Promise<void>
 }
@@ -49,6 +55,7 @@ export type DriveHttpResponse = {
 }
 
 export type DriveTransport = {
+  thumbnail?(fileId: string, signal?: AbortSignal): Promise<Buffer | null>
   originals?: DriveOriginalTransport
   listFolder(folderId: string, pageToken?: string, signal?: AbortSignal): Promise<DriveListResult>
   getFileMeta(fileId: string, signal?: AbortSignal): Promise<DriveFileMeta>

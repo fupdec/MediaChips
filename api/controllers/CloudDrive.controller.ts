@@ -1,8 +1,9 @@
+import {callbackReachesApi} from '../services/cloudOAuthCallback'
 import {offlinePlayback, sendOfflineFile} from '../services/mediaSources/offline'
 import {createMediaRepository} from '../db/repositories/media'
 import {driveMediaPath} from '../../shared/cloudDrive'
 import type {Request, Response} from 'express'
-import {sourceFailure, sourceRateLimited} from '../../shared/sourceErrors'
+import {sourceRetryAfter, sourceFailure, sourceRateLimited} from '../../shared/sourceErrors'
 import {getCloudDriveService, resetCloudDriveService} from '../services/cloudDrive'
 import {saveDriveConfiguration} from '../services/cloudDrive/config'
 import {listDriveFolder, importDriveFile, driveLibraryFile} from '../services/cloudDrive/library'
@@ -15,11 +16,14 @@ import {markCatalogSourceDisconnected} from '../services/mediaCatalogSources'
 import {DEFAULT_DRIVE_CONNECTION_ID} from '../../shared/mediaSources'
 import {checkOAuthClient, validateOAuthClient} from '../services/cloudDrive/oauth'
 import {DriveOAuthError, driveOAuthErrorCode, driveOAuthErrorMessages, type DriveOAuthErrorCode} from '../services/cloudDrive/oauthErrors'
+import {createCloudPlaybackSessions} from '../services/cloudPlayback'
+import {createDriveSourceAdapter} from '../services/mediaSources/driveAdapter'
 
 function createCloudDriveController(db: ApiDb) {
+  const playback = createCloudPlaybackSessions(db)
   const failure = (res: Response, err: unknown) => {
     const status = err instanceof z.ZodError ? 400 : err instanceof DriveOAuthError ? (err.code === 'network_error' ? 502 : 400) : (err as {status?: number; response?: {status?: number}})?.status || (err as {response?: {status?: number}})?.response?.status || 500
-    if (sourceRateLimited(err)) { res.status(429).json({code: 'rate_limited', message: 'Google Drive request limit reached. Try again later.'}); return }
+    if (sourceRateLimited(err)) { const delay = sourceRetryAfter(err); if (delay !== undefined) res.setHeader('Retry-After', delay); res.status(429).json({code: 'rate_limited', message: 'Google Drive request limit reached. Try again later.'}); return }
     const category = sourceFailure(err) || (driveOAuthErrorCode(err) === 'network_error' ? 'network_error' : undefined)
     if (category) {
       const messages = {network_error: 'Google Drive could not be reached. Check the server network.', permission_denied: 'This account does not have permission to read the Google Drive folder.', auth_required: 'Sign in to Google Drive again.'}
@@ -46,8 +50,10 @@ function createCloudDriveController(db: ApiDb) {
       res.setHeader('Cache-Control', 'no-store')
       try {
         const service = getCloudDriveService()
+        if (!callbackReachesApi(service.config.redirectUri, _req.socket.localPort)) throw new DriveOAuthError('redirect_uri_mismatch')
         if (!service.config.mock) await validateOAuthClient(service.config)
         const url = service.getAuthUrl()
+        playback.invalidate()
         res.json({url, oauthState: new URL(url).searchParams.get('state'), redirectUri: service.config.redirectUri, scopes: service.config.scopes})
       } catch (err: unknown) {
         res.status(400).json({code: driveOAuthErrorCode(err), message: err instanceof Error ? err.message : 'Google Drive sign-in failed.'})
@@ -81,7 +87,8 @@ function createCloudDriveController(db: ApiDb) {
 
     async configure(req: Request, res: Response) {
       try {
-        await saveDriveConfiguration(req.body)
+        await saveDriveConfiguration(req.body, req.socket.localPort)
+        playback.invalidate()
         resetCloudDriveService()
         res.json(getCloudDriveService().status())
       } catch (err) { failure(res, err) }
@@ -98,7 +105,8 @@ function createCloudDriveController(db: ApiDb) {
         const offline = offlinePlayback(db, row.id)
         if (offline) return res.json(offline)
         if (!getCloudDriveService().status().authenticated) return res.status(409).json({code: 'auth_required', message: 'Reconnect Google Drive in Settings → Sources.'})
-        res.json({url: `/api/drive/files/${fileId}/stream`, kind: 'mp4', title: row.name || row.basename,
+        const session = await playback.prepare(row.id, () => createDriveSourceAdapter(getCloudDriveService().transport), AbortSignal.timeout(30_000))
+        res.json({url: `/api/drive/files/${fileId}/stream?mediaId=${row.id}&session=${session}`, kind: 'mp4', title: row.name || row.basename,
           qualities: [], quality: null, adaptive: false})
       } catch (err) { failure(res, err) }
     },
@@ -120,6 +128,7 @@ function createCloudDriveController(db: ApiDb) {
 
     async logout(_req: Request, res: Response) {
       getCloudDriveService().logout()
+      playback.invalidate()
       markCatalogSourceDisconnected(db, DEFAULT_DRIVE_CONNECTION_ID)
       res.json({ok: true})
     },
@@ -136,6 +145,11 @@ function createCloudDriveController(db: ApiDb) {
 
     async stream(req: Request, res: Response) {
       try {
+        if (req.query.session !== undefined || req.query.mediaId !== undefined) {
+          await playback.stream(req, res, z.coerce.number().int().positive().parse(req.query.mediaId),
+            z.string().uuid().parse(req.query.session), DriveFileIdSchema.parse(req.params.fileId))
+          return
+        }
         const service = getCloudDriveService()
         const cachedMedia = createMediaRepository(db.drizzle).findByPathVariants([driveMediaPath(DriveFileIdSchema.parse(req.params.fileId))])
         if (cachedMedia && !cachedMedia.deletedAt && offlinePlayback(db, cachedMedia.id)) { sendOfflineFile(db, cachedMedia.id, res); return }

@@ -1,3 +1,4 @@
+import {getCloudAccounts} from '../cloudAccounts/accounts'
 import {eq} from 'drizzle-orm'
 import type {ApiDb} from '../../types/db'
 import {getActiveConnection, getSqliteProxy} from '../../db/connectionHolder'
@@ -26,6 +27,7 @@ export async function openSource(db: ApiDb, connectionId: string, signal: AbortS
   const row = db.drizzle.select().from(sourceConnections).where(eq(sourceConnections.id, connectionId)).get()
   if (!row) throw sourceError('connection_not_found', 404)
   signal.throwIfAborted()
+  if (row.provider !== 'nas' && row.credentialRef === row.id) return getCloudAccounts().adapter(db, connectionId)
   if (row.provider === 'gdrive') {
     const service = getCloudDriveService()
     if (!service.status().authenticated) throw sourceError('auth_required')

@@ -17,6 +17,7 @@ import {
 } from './index'
 import {checkOAuthClient, validateOAuthClient} from './oauth'
 import {DriveConfigurationSchema} from '../../../shared/cloudDrive'
+import {saveDriveConfiguration} from './config'
 import {MOCK_FILE_SIZE, parseRange} from './mockTransport'
 import type {DriveConfig} from './types'
 import type {Request, Response} from 'express'
@@ -56,6 +57,17 @@ describe('cloudDrive config', () => {
     expect(config.mock).toBe(false)
     expect(config.configured).toBe(false)
     expect(config.scopes[0]).toBe('https://www.googleapis.com/auth/drive')
+  })
+
+  it('rejects a callback on another API port before validating or saving credentials', async () => {
+    const probe = vi.spyOn(axios, 'post')
+    try {
+      await expect(saveDriveConfiguration({clientId: 'cid', clientSecret: 'secret',
+        redirectUri: 'http://localhost:5173/api/drive/oauth/callback'}, 12321))
+        .rejects.toMatchObject({code: 'redirect_uri_mismatch'})
+      expect(probe).not.toHaveBeenCalled()
+      expect(getDriveConfig().configured).toBe(false)
+    } finally { probe.mockRestore() }
   })
 
   it('uses live mode when client id/secret are set', () => {
@@ -108,7 +120,8 @@ describe('token store', () => {
     const filePath = path.join(dir, 'tokens.json')
     const store = createTokenStore(filePath)
     store.set({accessToken: 'a', refreshToken: 'r', expiryDate: Date.now() + 60_000})
-    expect(fs.existsSync(filePath)).toBe(true)
+    expect(fs.existsSync(filePath)).toBe(false)
+    expect(fs.existsSync(`${filePath}.vault`)).toBe(true)
     expect(createTokenStore(filePath).get()?.accessToken).toBe('a')
     store.clear()
     expect(fs.existsSync(filePath)).toBe(false)

@@ -1,14 +1,15 @@
 import path from 'path'
+import {DEFAULT_DRIVE_CONNECTION_ID} from '../../../shared/mediaSources'
 import {eq, inArray} from 'drizzle-orm'
 import type {ApiDb} from '../../types/db'
 import {media} from '../../db/schema/media'
 import {createMediaRepository} from '../../db/repositories/media'
 import {createMediaTypesRepository} from '../../db/repositories/mediaTypes'
-import {createVideoMetadataRepository} from '../../db/repositories/videoMetadata'
+import {fillCloudMediaMetadata} from '../cloudAccounts/libraryMetadata'
 import {driveMediaPath, driveMediaKind, parseDriveMediaPath, DriveFileIdSchema} from '../../../shared/cloudDrive'
 import type {CloudDriveService} from './index'
 import {createDriveSourceAdapter} from '../mediaSources/driveAdapter'
-import {resolveMediaLocation, recordDriveLocation} from '../mediaSources/locations'
+import {resolveMediaLocation, recordDriveLocation, ensureDriveConnection} from '../mediaSources/locations'
 import {invalidateMediaDerivedCaches} from '../mediaCacheInvalidation'
 
 export function driveLibraryFile(db: ApiDb, id: number) {
@@ -56,10 +57,7 @@ export async function importDriveFile(db: ApiDb, service: CloudDriveService, fil
       name: file.name, basename: file.name, ext: path.posix.extname(file.name).slice(1).toLowerCase(),
       filesize: file.size, mediaTypeId: type.id,
     })
-    if (kind !== 'image') {
-      const metadata = createVideoMetadataRepository(db.drizzle)
-      if (!metadata.findByMediaId(row.id)) metadata.create({mediaId: row.id, duration: 0})
-    }
+    fillCloudMediaMetadata(db, row.id, kind, file)
     recordDriveLocation(db, row.id, fileId, file.version)
     return {id: row.id, title: row.name || file.name, created}
   })

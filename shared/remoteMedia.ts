@@ -1,3 +1,4 @@
+import {isCloudMediaPath} from './cloudAccounts'
 import {isDriveMediaPath} from './cloudDrive'
 import {isWebVideoPath} from './webVideo'
 
@@ -24,5 +25,5 @@ export function isNasMediaPath(value: unknown): boolean {
 
 /** Remote media must not enter local filesystem/FFmpeg workflows. */
 export function isRemoteMediaPath(value: unknown): boolean {
-  return isWebVideoPath(value) || isNasMediaPath(value) || isDriveMediaPath(value)
+  return isCloudMediaPath(value) || isWebVideoPath(value) || isNasMediaPath(value) || isDriveMediaPath(value)
 }

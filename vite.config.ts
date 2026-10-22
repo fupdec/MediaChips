@@ -5,6 +5,7 @@ import vue from '@vitejs/plugin-vue'
 import vuetify from 'vite-plugin-vuetify'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import fs from 'node:fs'
 import { stripMdiLegacyFontUrls } from './scripts/strip-mdi-legacy-fonts.mjs'
 
 function normalizePlugins(...items: Array<Plugin | Plugin[]>): Plugin[] {
@@ -46,6 +47,9 @@ function stripMdiLegacyFonts(): Plugin {
 }
 
 export default defineConfig(async ({ mode }): Promise<UserConfig> => {
+  for (const name of ['drive-oauth-tokens.json']) {
+    if (fs.existsSync(path.resolve('public', name))) throw new Error(`Remove private OAuth data from public/${name} before starting or building MediaChips.`)
+  }
   // MEDIA_CHIPS_SFW: adult API stripped from asar; UI stays for host:bundled after zip install.
   // MEDIA_CHIPS_MSSTORE: same strip + license bypass (official AppX only).
   // MEDIA_CHIPS_MAS=1 additionally stubs UI (stricter strip).

@@ -1,3 +1,6 @@
+import {isNasMediaPath} from '../../../shared/remoteMedia'
+import {isCloudMediaPath} from '../../../shared/cloudAccounts'
+import {isDriveMediaPath} from '../../../shared/cloudDrive'
 import type { TaskControllerShared, FfprobeInfo } from '../../types/tasks'
 import type { AnyRecord } from '../../types/db'
 import {
@@ -290,11 +293,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       }
     }
 
-    if (!is_check_duplicates) {
-      return processAdd()
-    }
-
-    return withDuplicateLookupLock(duplicateKey, processAdd)
+    return is_check_duplicates ? withDuplicateLookupLock(duplicateKey, processAdd) : processAdd()
   }
 
   // ffprobe concurrency is enforced inside api/utils/ffmpeg.
@@ -431,6 +430,12 @@ export default function createTasksMediaController(shared: TaskControllerShared)
 
       if (media) {
         const mediaPath = String(media.path || '')
+        if (isCloudMediaPath(mediaPath) || isDriveMediaPath(mediaPath) || isNasMediaPath(mediaPath)) {
+          const {refreshCloudMediaMetadata} = await import('../../services/cloudAccounts/metadataBackfill')
+          await refreshCloudMediaMetadata(db, Number(media_id))
+          sendOk(res, 'success')
+          return
+        }
         // Inspector (and other callers) re-probe on every open — skip quietly when
         // the file is missing so we do not spam ffprobe / fail on statSync.
         if (!mediaPath || !(await fileExists(mediaPath))) {
@@ -515,6 +520,15 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         if (!media) return null
 
         const mediaPath = String(media.path || '')
+        if (isCloudMediaPath(mediaPath) || isDriveMediaPath(mediaPath) || isNasMediaPath(mediaPath)) {
+          const {pinSourceDb} = await import('../../services/mediaSources/context')
+          const pinned = pinSourceDb(db)
+          const {refreshCloudMediaMetadata} = await import('../../services/cloudAccounts/metadataBackfill')
+          try { await refreshCloudMediaMetadata(db, mediaId) } catch { /* Keep known metadata while a source is offline. */ }
+          pinned.assertCurrent()
+          const {readCloudMediaMetadata} = await import('../../services/cloudAccounts/libraryMetadata')
+          return readCloudMediaMetadata(pinned.db, mediaId)
+        }
         if (!mediaPath || !(await fileExists(mediaPath))) return null
 
         const typeId = Number(media.mediaTypeId) || 0

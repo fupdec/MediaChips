@@ -1,11 +1,13 @@
 import path from 'path'
 import os from 'os'
-import fs from 'fs'
+import {createTokenStore} from './tokenStore'
 import {FIXED_PORT} from '../../../app/server/ports'
 import {createNasCredentialStore} from '../nas/credentials'
 import {DriveConfigurationSchema, normalizeDriveClientSecret} from '../../../shared/cloudDrive'
 import type {DriveConfig} from './types'
 import {validateOAuthClient} from './oauth'
+import {callbackReachesApi} from '../cloudOAuthCallback'
+import {DriveOAuthError} from './oauthErrors'
 
 /** Managing previously imported originals requires full Drive access. Existing
  * read-only tokens continue to read until the user explicitly reconnects. */
@@ -38,7 +40,7 @@ function getDriveConfig(): DriveConfig {
   const clientSecret = normalizeDriveClientSecret(saved.clientSecret || process.env.GOOGLE_OAUTH_CLIENT_SECRET || '')
   const redirectUri = (
     saved.redirectUri || process.env.GOOGLE_OAUTH_REDIRECT_URI ||
-    `http://localhost:${FIXED_PORT}/api/drive/oauth/callback`
+    `http://127.0.0.1:${(process.server_config as {port?: number} | undefined)?.port || FIXED_PORT}/api/drive/oauth/callback`
   ).trim()
   const mockForced = envFlag('MEDIA_CHIPS_DRIVE_MOCK')
   const hasCreds = Boolean(clientId && clientSecret)
@@ -60,14 +62,15 @@ function driveDataDirectory() {
   return path.join(process.env.MEDIA_CHIPS_DATA_DIR || process.app_folder || path.join(os.homedir(), '.mediachips'), 'google-drive')
 }
 function driveConfigVault() { return createNasCredentialStore(path.join(driveDataDirectory(), 'configuration')) }
-async function saveDriveConfiguration(raw: unknown) {
+async function saveDriveConfiguration(raw: unknown, apiPort?: number) {
   const input = DriveConfigurationSchema.parse(raw)
+  if (apiPort !== undefined && !callbackReachesApi(input.redirectUri, apiPort)) throw new DriveOAuthError('redirect_uri_mismatch')
   const previous = getDriveConfig()
   const clientSecret = input.clientSecret || (input.clientId === previous.clientId ? previous.clientSecret : '')
   if (!clientSecret) throw Object.assign(new Error('Enter the Google OAuth client secret.'), {status: 400})
   await validateOAuthClient({...previous, ...input, clientSecret})
   driveConfigVault().set(CONFIG_ID, {password: JSON.stringify({...input, clientSecret})})
   // Credentials changed: the previous account authorization cannot be reused.
-  fs.rmSync(previous.tokenStorePath, {force: true})
+  createTokenStore(previous.tokenStorePath).clear()
 }
 export {getDriveConfig, resolveTokenStorePath, saveDriveConfiguration}

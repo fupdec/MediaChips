@@ -53,6 +53,7 @@ describe('complete catalog snapshots and offline tasks', () => {
   it('adds, changes and marks missing originals without changing user chips or card identity', async () => {
     const folder = root()
     expect((await refresh(folder.id)).result).toMatchObject({new: 2, changed: 0, missing: 0})
+    expect(fixture.sqlite.prepare('SELECT reasons FROM copyDiscoveryAutoRequests').all()).toEqual([{reasons: JSON.stringify(['folder_update'])}])
     const repo = createMediaRepository(db.drizzle)
     const first = repo.findAllRaw().find(row => row.basename === 'one.mp4')!
     const second = repo.findAllRaw().find(row => row.basename === 'two.mp4')!
@@ -99,7 +100,7 @@ describe('complete catalog snapshots and offline tasks', () => {
     adapter.list = vi.fn(async (_key, token, signal) => {
       if (!token) return {entries: [file('one.mp4', 'v2')], nextPageToken: 'next'}
       entered = true
-      return await new Promise((_resolve, reject) => signal!.addEventListener('abort', () => reject(signal!.reason), {once: true}))
+      return await new Promise<import('./adapter').SourcePage>((_resolve, reject) => signal!.addEventListener('abort', () => reject(signal!.reason), {once: true}))
     })
     const job = service.refresh(folder.id)
     await vi.waitFor(() => expect(entered).toBe(true))
@@ -232,7 +233,7 @@ describe('complete catalog snapshots and offline tasks', () => {
 
   it('tracks Drive folder membership after a successful baseline and preserves custom titles on rename', async () => {
     fixture.sqlite.exec(`UPDATE sourceConnections SET provider = 'gdrive' WHERE id = '${connectionId}'`)
-    adapter.provider = 'gdrive'
+    adapter = {...adapter, provider: 'gdrive'}
     adapter.list = vi.fn(async () => ({entries: [{...file('one.mp4'), resourceKey: 'drive-one'}, {...file('two.mp4'), resourceKey: 'drive-two'}]}))
     const folder = root('drive-folder')
     await refresh(folder.id)

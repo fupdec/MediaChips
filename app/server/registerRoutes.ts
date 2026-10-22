@@ -1,5 +1,5 @@
-import registerChangeHistory from '../../api/routes/ChangeHistory.routes'
-import {withChangeOperation} from '../../api/db/changeHistory'
+import {registerCloudMetadataBackfill} from './cloudMetadataBackfill'
+import registerCloudAccounts from '../../api/routes/CloudAccounts.routes'
 import type { ApiDb } from '../../api/types/db'
 import type { Express } from 'express'
 import { apiErrorMessage, apiErrorStack } from '../../api/types/errors'
@@ -28,6 +28,8 @@ import registerSetting from '../../api/routes/Setting.routes'
 import registerPlugin from '../../api/routes/Plugin.routes'
 import registerTab from '../../api/routes/Tab.routes'
 import registerBulkMeta from '../../api/routes/BulkMeta.routes'
+import registerChangeHistory from '../../api/routes/ChangeHistory.routes'
+import {withChangeOperation} from '../../api/db/changeHistory'
 import registerLibraryReset from '../../api/routes/LibraryReset.routes'
 import registerTasksBackups from '../../api/routes/tasks/TasksBackups.routes'
 import registerValuesInTag from '../../api/routes/ValuesInTag.routes'
@@ -169,6 +171,7 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'WatchedFolder.routes', register: registerWatchedFolder },
     // Google Drive — connections, remote library import and Range streaming.
     { routeFile: 'CloudDrive.routes', register: registerCloudDrive },
+    { routeFile: 'CloudAccounts.routes', register: registerCloudAccounts },
   )
 
   return registrars
@@ -224,6 +227,7 @@ export async function registerApiRoutes(
     }
   }
 
+  registerCloudMetadataBackfill(app, db)
   return routeLoadErrors
 }
 

@@ -1,3 +1,5 @@
+import {fillCloudMediaMetadata} from '../cloudAccounts/libraryMetadata'
+import {cloudMediaPath} from '../../../shared/cloudAccounts'
 import path from 'path'
 import {randomUUID} from 'crypto'
 import {eq} from 'drizzle-orm'
@@ -96,7 +98,7 @@ export function commitCatalog(db: ApiDb, rootId: string, files: Map<string, Sour
       const group = allByKey.get(key) || []
       const location = group.find(row => row.version === file.version) || group.find(row => matches(row.version)) || previous
       let card = location ? repo.findById(location.mediaId) : undefined
-      const mediaPath = connection.provider === 'nas' ? nasMediaPath(root.connectionId, key) : driveMediaPath(key)
+      const mediaPath = connection.provider === 'nas' ? nasMediaPath(root.connectionId, key) : root.connectionId !== 'google-drive' ? cloudMediaPath(connection.provider as import('../../../shared/cloudAccounts').CloudProvider, root.connectionId, key) : driveMediaPath(key)
       if (!card) card = repo.findByPathVariants([mediaPath])
       // A complete refresh must never resurrect something the user put in Trash.
       const trashed = tx.select().from(media).where(eq(media.trashOriginalPath, mediaPath)).get()
@@ -112,6 +114,10 @@ export function commitCatalog(db: ApiDb, rootId: string, files: Map<string, Sour
         report('new', key, file.name, card.id)
       } else if (previous && !matches(previous.version)) {
         report('changed', key, file.name, card.id)
+      }
+      if (connection.provider !== 'nas') {
+        const kind = createMediaTypesRepository(tx).findById(card.mediaTypeId!)?.type || ''
+        fillCloudMediaMetadata({drizzle: tx}, card.id, kind, file)
       }
       for (const alternative of group) if (alternative.id !== location?.id && !matches(alternative.version)) {
         tx.update(mediaLocations).set({availability: 'unavailable', lastVerifiedAt: verifiedAt}).where(eq(mediaLocations.id, alternative.id)).run()

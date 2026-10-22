@@ -1,3 +1,4 @@
+import {isRemoteMediaPath} from '../../shared/remoteMedia'
 import type { ApiDb } from '../types/db'
 import fs from 'fs'
 import path from 'path'
@@ -10,7 +11,7 @@ import { isAbortError } from './concurrencyQueue'
 const THUMB_GENERATION_TIMEOUT_MS = 120_000
 /** Reject empty/corrupt stubs left by failed FFmpeg 6 single-image writes. */
 export const MIN_USABLE_VIDEO_THUMB_BYTES = 512
-const inFlight = new Map<number, Promise<string | null>>()
+const inFlight = new Map<string, Promise<string | null>>()
 
 export type VideoThumbEnsureOptions = {
   /**
@@ -132,6 +133,11 @@ async function generateVideoPreviewThumb(
   const media = createMediaRepository(db.drizzle).findById(mediaId)
   if (!media?.path) return null
 
+  if (isRemoteMediaPath(media.path)) {
+    const {ensureRemoteVideoThumbnail} = await import('./remoteVideoThumbnail')
+    return ensureRemoteVideoThumbnail(db, mediaId)
+  }
+
   const videoPath = resolveActiveDbFilePath(media.path, dbPath)
     ?? resolveFilePath(media.path)
   if (!videoPath || !fs.existsSync(videoPath)) return null
@@ -178,7 +184,13 @@ export async function ensureVideoPreviewThumb(
     removeUnusableVideoThumbFile(outputPath)
   }
 
-  const existing = inFlight.get(mediaId)
+  const media = createMediaRepository(db.drizzle).findById(mediaId)
+  if (media && isRemoteMediaPath(media.path)) {
+    const {ensureRemoteVideoThumbnail} = await import('./remoteVideoThumbnail')
+    return raceWithAbort(ensureRemoteVideoThumbnail(db, mediaId), options.signal)
+  }
+
+  const existing = inFlight.get(outputPath)
   if (existing) {
     // Join shared work; caller abort only unhooks this waiter.
     return raceWithAbort(existing, options.signal)
@@ -190,10 +202,10 @@ export async function ensureVideoPreviewThumb(
   const promise = generateVideoPreviewThumb(mediaId, db, resolveFilePath, {
     priority: options.priority,
   }).finally(() => {
-    inFlight.delete(mediaId)
+    inFlight.delete(outputPath)
   })
 
-  inFlight.set(mediaId, promise)
+  inFlight.set(outputPath, promise)
   return raceWithAbort(promise, options.signal)
 }
 

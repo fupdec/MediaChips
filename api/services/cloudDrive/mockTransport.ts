@@ -100,8 +100,9 @@ function createMockDriveTransport(): DriveTransport {
   }
   transport.originals = {
     async generateId() { return 'mock-' + randomUUID() },
-    async create(id, parent, name, input, _size, _signal, contentType = 'application/octet-stream') {
+    async create(id, parent, name, input, _size, _signal, contentType = 'application/octet-stream', recovery) {
       if (files.has(id)) throw Object.assign(new Error('Already exists'), {status: 409})
+      if (recovery) input = recovery.open(0)
       const chunks: Buffer[] = []
       if (input) for await (const chunk of input) chunks.push(Buffer.from(chunk))
       const payload = Buffer.concat(chunks)

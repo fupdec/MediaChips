@@ -46,7 +46,7 @@ export async function validateOAuthClient(config: DriveConfig): Promise<void> {
   if (!result.valid) throw new DriveOAuthError(result.code || 'unknown')
 }
 
-function buildAuthUrl(config: DriveConfig, state?: string): string {
+function buildAuthUrl(config: DriveConfig, state?: string, challenge?: string): string {
   const params = new URLSearchParams({
     client_id: config.clientId,
     redirect_uri: config.redirectUri,
@@ -56,6 +56,7 @@ function buildAuthUrl(config: DriveConfig, state?: string): string {
     prompt: 'consent',
     include_granted_scopes: 'true',
   })
+  if (challenge) { params.set('code_challenge', challenge); params.set('code_challenge_method', 'S256') }
   if (state) params.set('state', state)
   return `${GOOGLE_AUTH_URL}?${params.toString()}`
 }
@@ -82,6 +83,7 @@ function mapTokenResponse(data: {
 async function exchangeCode(
   config: DriveConfig,
   code: string,
+  verifier?: string,
 ): Promise<DriveOAuthTokens> {
   const body = new URLSearchParams({
     code,
@@ -90,6 +92,7 @@ async function exchangeCode(
     redirect_uri: config.redirectUri,
     grant_type: 'authorization_code',
   })
+  if (verifier) body.set('code_verifier', verifier)
   const {data} = await withOAuthConnectionRetry(() => axios.post(GOOGLE_TOKEN_URL, body.toString(), {
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     timeout: 30_000,
@@ -126,6 +129,7 @@ function isExpired(tokens: DriveOAuthTokens, skewMs = 60_000): boolean {
  * Returns a valid access token, refreshing when needed.
  * OAuth lives in the API process — never expose client secret to the renderer.
  */
+const refreshes = new WeakMap<DriveTokenStore, Promise<string>>()
 async function getValidAccessToken(
   config: DriveConfig,
   store: DriveTokenStore,
@@ -136,10 +140,24 @@ async function getValidAccessToken(
   }
   if (!isExpired(tokens)) return tokens.accessToken
 
-  const refreshed = await refreshAccessToken(config, tokens)
-  if (store.get() !== tokens) throw new Error('Google Drive authorization changed. Try again.')
-  store.set(refreshed)
-  return refreshed.accessToken
+  const existing = refreshes.get(store)
+  if (existing) return existing
+  const active = (async () => {
+    try {
+      const refreshed = await refreshAccessToken(config, tokens)
+      if (store.get() !== tokens) throw new Error('Google Drive authorization changed. Try again.')
+      store.set(refreshed)
+      return refreshed.accessToken
+    } catch (err) {
+      if ((!tokens.refreshToken || driveOAuthErrorCode(err) === 'invalid_grant') && store.get() === tokens) {
+        store.clear()
+        throw Object.assign(new Error('Sign in to Google Drive again.'), {code: 'auth_required', status: 409})
+      }
+      throw err
+    }
+  })().finally(() => refreshes.delete(store))
+  refreshes.set(store, active)
+  return active
 }
 
 export {

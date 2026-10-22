@@ -32,6 +32,20 @@ describe('Google Drive library import', () => {
       configured: true, mock: true, scopes: [], tokenStorePath: path.join(directory, 'tokens.json')}})
   })
   afterEach(() => {closeTestDb(fixture); fs.rmSync(directory, {recursive: true, force: true}); vi.restoreAllMocks()})
+  it('imports provider metadata through the legacy Drive transport and fills gaps on reimport', async () => {
+    const get = service.transport.getFileMeta.bind(service.transport)
+    vi.spyOn(service.transport, 'getFileMeta').mockImplementation(async id => ({...await get(id),
+      videoMediaMetadata: {durationMillis: '45600', width: 1920, height: 1080},
+    }))
+    const added = await importDriveFile(db, service, 'mock-video-sample')
+    const {createVideoMetadataRepository} = await import('../../db/repositories/videoMetadata')
+    const metadata = createVideoMetadataRepository(db.drizzle)
+    expect(metadata.findByMediaId(added.id)).toMatchObject({duration: 45.6, width: 1920, height: 1080})
+    metadata.updateByMediaId(added.id, {height: 0, duration: 100, time: 17})
+    await importDriveFile(db, service, 'mock-video-sample')
+    expect(metadata.findByMediaId(added.id)).toMatchObject({duration: 100, height: 1080, time: 17})
+  })
+
   it('stores remote identity, deduplicates and marks the listing without downloading', async () => {
     const download = vi.spyOn(service.transport, 'downloadFile')
     const added = await importDriveFile(db, service, 'mock-video-sample')
@@ -41,11 +55,13 @@ describe('Google Drive library import', () => {
     expect(row.path).toBe(driveMediaPath(fileId))
     expect(isRemoteMediaPath(row.path)).toBe(true)
     expect(download).not.toHaveBeenCalled()
+    expect(fixture.sqlite.prepare('SELECT reasons FROM copyDiscoveryAutoRequests').all()).toEqual([{reasons: JSON.stringify(['import'])}])
     expect(fixture.drizzle.select().from(mediaLocations).all()).toMatchObject([{mediaId: added.id, resourceKey: fileId, availability: 'available'}])
     expect(resolveMediaLocation(db, added.id)).toMatchObject({provider: 'gdrive', connection: {provider: 'gdrive'}})
     expect(createNasService().connections(db)).toEqual([])
     const listed = await listDriveFolder(db, service, 'root')
     expect(listed.files.find(file => file.id === fileId)?.mediaId).toBe(added.id)
+    expect(fixture.sqlite.prepare("SELECT q.reasons FROM copyDiscoveryAutoRequests q JOIN copyDiscoveryAutoRoots r ON r.id = q.rootId WHERE r.key = 'root'").get()).toEqual({reasons: JSON.stringify(['folder_update'])})
     expect(await collectMissingMediaByPathExist([{id: row.id, path: row.path}], {pathExists: async () => false})).toEqual([])
   })
   it('deduplicates overlapping imports and isolates invalid files without reading originals', async () => {

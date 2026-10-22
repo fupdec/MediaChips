@@ -1,3 +1,4 @@
+import {parseCloudMediaPath} from '../../../shared/cloudAccounts'
 import {createHash, randomUUID} from 'crypto'
 import {and, eq} from 'drizzle-orm'
 import type {ApiDb} from '../../types/db'
@@ -33,12 +34,13 @@ export function nasVersionMatches(storedVersion: string, currentVersion: string)
 export function resolveMediaLocation(db: ApiDb, mediaId: number) {
   const card = createMediaRepository(db.drizzle).findById(mediaId)
   if (!card || card.deletedAt) throw Object.assign(new Error('Media not found.'), {status: 404})
+  const cloud = parseCloudMediaPath(card.path)
   const nas = parseNasMediaPath(card.path)
   const drive = parseDriveMediaPath(card.path)
-  if (!nas && !drive) return {provider: 'local' as const, card, path: card.path}
-  const provider = nas ? 'nas' as const : 'gdrive' as const
-  const connectionId = nas?.connectionId || DEFAULT_DRIVE_CONNECTION_ID
-  const resourceKey = nas?.relativePath || drive!
+  if (!nas && !drive && !cloud) return {provider: 'local' as const, card, path: card.path}
+  const provider = cloud?.provider || (nas ? 'nas' as const : 'gdrive' as const)
+  const connectionId = cloud?.connectionId || nas?.connectionId || DEFAULT_DRIVE_CONNECTION_ID
+  const resourceKey = cloud?.resourceKey || nas?.relativePath || drive!
   const candidates = db.drizzle.select({location: mediaLocations, connection: sourceConnections}).from(mediaLocations)
     .innerJoin(sourceConnections, eq(sourceConnections.id, mediaLocations.connectionId))
     .where(and(eq(mediaLocations.mediaId, mediaId), eq(sourceConnections.provider, provider))).all()

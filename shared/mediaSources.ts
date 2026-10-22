@@ -7,7 +7,7 @@ export type SourceCapabilities = Readonly<{
   delete: boolean
 }>
 
-export type SourceProvider = 'nas' | 'gdrive'
+export type SourceProvider = 'nas' | 'gdrive' | 'onedrive' | 'dropbox'
 export type SourceAvailability = 'unknown' | 'available' | 'unavailable'
 
 // Read-only providers (including the current Google Drive authorization).

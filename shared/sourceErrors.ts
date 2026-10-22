@@ -1,9 +1,9 @@
 /** Stable error categories shared by connection checks and folder browsing. */
 export type SourceFailure = 'network_error' | 'permission_denied' | 'auth_required'
 export function sourceRateLimited(error: unknown): boolean {
-  const err = error as {response?: {status?: number; data?: {code?: string; error?: {errors?: Array<{reason?: string}>}}}}
+  const err = error as {status?: number; code?: string; response?: {status?: number; data?: {code?: string; error?: {errors?: Array<{reason?: string}>}}}}
   const data = err?.response?.data
-  return err?.response?.status === 429 || data?.code === 'rate_limited'
+  return err?.status === 429 || err?.code === 'rate_limited' || err?.response?.status === 429 || data?.code === 'rate_limited'
     || (data?.error != null && typeof data.error === 'object' && Array.isArray(data.error.errors) && data.error.errors.some(item =>
       ['rateLimitExceeded', 'userRateLimitExceeded', 'dailyLimitExceeded', 'downloadQuotaExceeded'].includes(item.reason || '')))
 }
@@ -22,4 +22,13 @@ export function sourceFailure(error: unknown): SourceFailure | undefined {
   if (['network_error', 'ERR_NETWORK', 'ECONNABORTED', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH', 'ENETUNREACH', 'connection_closed'].includes(String(code))
     || err?.level === 'client-timeout') return 'network_error'
   return undefined
+}
+
+/** Only accept a delay, never forward arbitrary upstream header text. */
+export function sourceRetryAfter(error: unknown, now = Date.now()): number | undefined {
+  const err = error as {retryAfter?: unknown; response?: {headers?: Record<string, unknown>; data?: {retryAfter?: unknown}}}
+  const value = err?.response?.headers?.['retry-after'] ?? err?.response?.data?.retryAfter ?? err?.retryAfter
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined
+  const seconds = /^\d+(?:\.\d+)?$/.test(String(value).trim()) ? Number(value) : (Date.parse(String(value)) - now) / 1000
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.min(2147483647, Math.ceil(seconds)) : undefined
 }

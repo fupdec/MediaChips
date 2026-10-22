@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import {createNasCredentialStore} from '../nas/credentials'
 import type {DriveOAuthTokens} from './types'
 
 function readTokenFile(filePath: string): DriveOAuthTokens | null {
@@ -32,23 +33,34 @@ function clearTokenFile(filePath: string): void {
  * Private host-local token store (API/Electron process only).
  */
 function createTokenStore(filePath: string) {
-  let memory: DriveOAuthTokens | null = readTokenFile(filePath)
+  const vault = createNasCredentialStore(`${filePath}.vault`)
+  const id = 'df489adc-cdd5-41ea-8b86-b77600682914'
+  const read = (): DriveOAuthTokens | null => {
+    if (vault.has(id)) {
+      try { return JSON.parse(vault.get(id).password || 'null') } catch { return null }
+    }
+    const legacy = readTokenFile(filePath)
+    if (legacy) { vault.set(id, {password: JSON.stringify(legacy)}); clearTokenFile(filePath) }
+    return legacy
+  }
+  let memory: DriveOAuthTokens | null = read()
 
   return {
     get(): DriveOAuthTokens | null {
       return memory
     },
     set(tokens: DriveOAuthTokens): void {
-      writeTokenFile(filePath, tokens)
+      vault.set(id, {password: JSON.stringify(tokens)})
       memory = tokens
     },
     clear(): void {
       memory = null
+      vault.delete(id)
       clearTokenFile(filePath)
     },
     /** Test helper: reload from disk without process restart. */
     reload(): DriveOAuthTokens | null {
-      memory = readTokenFile(filePath)
+      memory = read()
       return memory
     },
   }

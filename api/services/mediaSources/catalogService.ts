@@ -1,3 +1,5 @@
+import {CloudKeySchema} from '../../../shared/cloudAccounts'
+import {getCloudAccounts} from '../cloudAccounts/accounts'
 import type {Response} from 'express'
 import {randomUUID} from 'crypto'
 import {eq, and, lte, gt} from 'drizzle-orm'
@@ -51,7 +53,8 @@ export function createSourceCatalogService(db: ApiDb, options: {open?: typeof op
       if (!current || current.config !== config?.config || current.credentialRef !== config?.credentialRef) throw sourceError('source_changed')
       if (!options.open) {
         if (current.provider === 'nas' && !createNasCredentialStore().has(current.credentialRef)) throw sourceError('credentials_required')
-        if (current.provider === 'gdrive' && !getCloudDriveService().status().authenticated) throw sourceError('auth_required')
+        if (current.credentialRef === current.id && !getCloudAccounts().list(pinned.db).find(a => a.id === current.id)?.authenticated) throw sourceError('auth_required')
+        if (current.id === 'google-drive' && !getCloudDriveService().status().authenticated) throw sourceError('auth_required')
       }
     }
     void (async () => {
@@ -104,7 +107,7 @@ export function createSourceCatalogService(db: ApiDb, options: {open?: typeof op
       const input = CatalogRootInputSchema.parse(raw)
       const connection = db.drizzle.select().from(sourceConnections).where(eq(sourceConnections.id, input.connectionId)).get()
       if (!connection) throw sourceError('connection_not_found', 404)
-      const rootKey = connection.provider === 'nas' ? normalizeNasRelativePath(input.rootKey) : DriveFileIdSchema.parse(input.rootKey || 'root')
+      const rootKey = connection.provider === 'nas' ? normalizeNasRelativePath(input.rootKey) : connection.id !== 'google-drive' ? CloudKeySchema.parse(input.rootKey || 'root') : DriveFileIdSchema.parse(input.rootKey || 'root')
       const existing = db.drizzle.select().from(sourceCatalogRoots).where(and(eq(sourceCatalogRoots.connectionId, input.connectionId), eq(sourceCatalogRoots.rootKey, rootKey))).get()
       const id = existing?.id || randomUUID()
       const nextRunAt = input.intervalMinutes ? now() + input.intervalMinutes * 60_000 : null

@@ -1,6 +1,6 @@
 import {READ_SOURCE_CAPABILITIES, NAS_SOURCE_CAPABILITIES, type SourceCapabilities} from '../../../shared/mediaSources'
 import {getDriveConfig} from './config'
-import {randomBytes} from 'crypto'
+import {randomBytes, createHash} from 'crypto'
 import {DriveOAuthError, driveOAuthErrorCode, type DriveOAuthErrorCode} from './oauthErrors'
 import {createTokenStore, type DriveTokenStore} from './tokenStore'
 import {buildAuthUrl, exchangeCode} from './oauth'
@@ -49,6 +49,7 @@ function createCloudDriveService(options?: {
   let authGeneration = 0
   const completed = new Map<string, {result: 'waiting' | 'connected' | 'failed'; expires: number; error?: DriveOAuthErrorCode}>()
   const pending = new Map<string, number>()
+  const verifiers = new Map<string, string>()
   const consumeOAuthState = (state: string, error: DriveOAuthErrorCode = 'unknown') => {
     const expires = pending.get(state)
     pending.delete(state)
@@ -69,7 +70,7 @@ function createCloudDriveService(options?: {
         configured: config.configured,
         capabilities: config.mock || store.get()?.scope?.split(/\s+/).includes('https://www.googleapis.com/auth/drive') ? NAS_SOURCE_CAPABILITIES : READ_SOURCE_CAPABILITIES,
         mock: config.mock,
-        authenticated: config.mock ? true : Boolean(store.get()?.accessToken),
+        authenticated: config.mock ? true : Boolean(store.get()?.accessToken && (!store.get()?.expiryDate || store.get()!.expiryDate! > Date.now() || store.get()?.refreshToken)),
         redirectUri: config.redirectUri,
         scopes: config.scopes,
         hasClientId: Boolean(config.clientId),
@@ -84,13 +85,12 @@ function createCloudDriveService(options?: {
       if (!config.clientId || !config.clientSecret) {
         throw new Error('Google OAuth client id/secret not configured')
       }
-      for (const [key, outcome] of completed) if (outcome.expires < Date.now()) completed.delete(key)
-      while (completed.size >= 20) completed.delete(completed.keys().next().value!)
-      for (const [key, expires] of pending) if (expires < Date.now()) pending.delete(key)
-      while (pending.size >= 20) pending.delete(pending.keys().next().value!)
+      authGeneration++; pending.clear(); verifiers.clear(); completed.clear()
       const state = randomBytes(32).toString('hex')
       pending.set(state, Date.now() + 10 * 60_000)
-      return buildAuthUrl(config, state)
+      const verifier = randomBytes(48).toString('base64url')
+      verifiers.set(state, verifier)
+      return buildAuthUrl(config, state, createHash('sha256').update(verifier).digest('base64url'))
     },
 
     oauthResult(state) {
@@ -100,8 +100,8 @@ function createCloudDriveService(options?: {
     },
     oauthError(state) { return completed.get(state)?.error },
     consumeOAuthState,
-    cancelOAuthState(state) { pending.delete(state); completed.delete(state) },
-    cancelOAuth() { authGeneration++; pending.clear(); completed.clear() },
+    cancelOAuthState(state) { pending.delete(state); verifiers.delete(state); completed.delete(state) },
+    cancelOAuth() { authGeneration++; pending.clear(); verifiers.clear(); completed.clear() },
 
     async handleOAuthCallback(code: string, state?: string) {
       if (!state || !consumeOAuthState(state)) throw new DriveOAuthError('expired')
@@ -111,7 +111,9 @@ function createCloudDriveService(options?: {
       const current = authGeneration
       completed.set(state, {result: 'waiting', expires: Date.now() + 10 * 60_000})
       try {
-        const tokens = await exchangeCode(config, code)
+        const verifier = verifiers.get(state)
+        verifiers.delete(state)
+        const tokens = await exchangeCode(config, code, verifier)
         if (current !== authGeneration || !completed.has(state)) throw new DriveOAuthError('cancelled')
         store.set(tokens)
         completed.set(state, {result: 'connected', expires: Date.now() + 10 * 60_000})
@@ -124,6 +126,7 @@ function createCloudDriveService(options?: {
     logout() {
       authGeneration++
       pending.clear()
+      verifiers.clear()
       completed.clear()
       store.clear()
     },
