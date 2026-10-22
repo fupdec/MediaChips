@@ -90,16 +90,22 @@
           <MediaImportOptions v-model="importOptions" :disabled="sourceBusy"
                               :parse-disabled="activeSource === 'local' && mediaAddingState.is_fast_import">
             <template v-if="activeSource === 'local'" #before>
-              <v-checkbox v-model="mediaAddingState.is_fast_import"
-                          :disabled="sourceBusy || mediaAddingState.fast_import_locked"
-                          :label="t('media.adding.fast_import')" :hint="t('media.adding.fast_import_hint')"
-                          persistent-hint class="mt-0" density="compact" @update:model-value="onFastImportToggle" />
-              <v-checkbox v-model="mediaAddingState.is_check_duplicates"
-                          :disabled="sourceBusy || mediaAddingState.is_fast_import"
-                          :label="t('media.adding.check_duplicates')" class="mt-0" hide-details density="compact" />
-              <v-alert v-if="isImageAdding" type="info" variant="tonal" density="compact" rounded="xl" class="text-caption">
-                {{ t('media.adding.images_skip_by_path_hint') }}
-              </v-alert>
+              <div class="import-option import-option--fast">
+                <v-checkbox v-model="mediaAddingState.is_fast_import"
+                            :disabled="sourceBusy || mediaAddingState.fast_import_locked"
+                            :label="t('media.adding.fast_import')" color="primary"
+                            hide-details class="mt-0" density="compact" @update:model-value="onFastImportToggle" />
+                <p class="import-option__hint">{{ t('media.adding.fast_import_hint') }}</p>
+              </div>
+              <div class="import-option">
+                <v-checkbox v-model="mediaAddingState.is_check_duplicates"
+                            :disabled="sourceBusy || mediaAddingState.is_fast_import" color="primary"
+                            :label="t('media.adding.check_duplicates')" class="mt-0" hide-details density="compact" />
+              </div>
+              <div v-if="isImageAdding" class="import-option__note">
+                <v-icon icon="mdi-check-circle-outline" size="16" />
+                <span>{{ t('media.adding.images_skip_by_path_hint') }}</span>
+              </div>
             </template>
             <template v-if="activeSource === 'local' && isElectron" #exclusionActions>
               <v-btn @click="selectMultipleDirectoriesExcluded" :disabled="sourceBusy" color="primary"

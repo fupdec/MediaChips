@@ -90,12 +90,12 @@ test('Google Drive adds remote selections with the shared action and keeps other
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width)
   await dialog.screenshot({animations: 'disabled', path: test.info().outputPath('drive-import-mobile.png')})
   await add.click()
-  await expect(header.getByRole('button', {name: /^(Stop|Остановить)$/})).toBeVisible()
-  await expect(dialog.getByRole('tab', {name: /^(Files|Файлы)$/})).toBeDisabled()
-  await expect(add).toBeVisible()
-  await expect(add).toBeDisabled()
+  const process = page.locator('.media-adding-process')
+  await expect(dialog).toBeHidden()
+  await expect(process).toBeVisible()
+  await expect(process.locator('.process-percents')).toHaveText('100 %')
   expect(imports).toEqual(['movie'])
-  await expect(dialog.locator('.google-drive-source')).toContainText(/Добавлено: 1|Added: 1/)
+  await expect(process.locator('.remote-process-counts')).toContainText(/Добавлено \(1\)|Added \(1\)/)
 })
 
 test('Sources settings contain Google authorization, SFTP credentials and the shared import browser', async ({page}) => {

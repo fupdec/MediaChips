@@ -11,7 +11,7 @@ export function useCatalogSources(enabled: Ref<boolean>) {
     catch (error) { console.error('Unable to load catalog sources', error) }
   }, {immediate: true})
   const sourceOptions = computed(() => [
-    ...['local', 'nas', 'gdrive', 'web'].map(value => ({value, title: t(`sources.catalog.kinds.${value}`)})),
+    ...['local', 'nas', 'gdrive', 'onedrive', 'dropbox', 'web'].map(value => ({value, title: t(`sources.catalog.kinds.${value}`)})),
     ...connections.value.map(row => ({value: row.value, title: row.name})),
   ])
   const availabilityOptions = computed(() => ['available', 'unavailable', 'unknown'].map(value => ({

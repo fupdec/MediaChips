@@ -56,7 +56,7 @@ test('manually reconciles, cancels safely, persists a schedule and edits the off
   await manual.click()
   await controls.getByRole('button', {name: /^(Cancel|Отмена)$/}).click()
   await expect(controls).toContainText(/Cancelled.*Catalog changes were not applied|Отменено.*Изменения каталога не применены/)
-  await controls.getByRole('combobox').filter({hasText: /Update schedule|Расписание обновления/}).click()
+  await controls.getByRole('combobox', {name: /Update schedule|Расписание обновления/}).press('ArrowDown')
   await page.getByRole('option', {name: /Every day|Каждый день/}).click()
   await controls.getByRole('button', {name: /^(Save|Сохранить)$/}).first().click()
   await expect.poll(() => roots[0].intervalMinutes).toBe(1440)

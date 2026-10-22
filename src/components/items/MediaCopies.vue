@@ -1,48 +1,92 @@
 <template>
-  <v-expansion-panels class="media-copies mb-3" variant="accordion">
-    <v-expansion-panel :title="t('copies.title')" @group:selected="onExpanded">
+  <v-expansion-panels class="media-copies mb-2" variant="accordion">
+    <v-expansion-panel elevation="0" @group:selected="onExpanded">
+      <v-expansion-panel-title class="media-copies__header" hide-actions v-slot="{expanded}">
+        <v-icon size="16" class="media-copies__chevron" aria-hidden="true">{{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+        <span class="media-copies__heading">{{ t('copies.title') }}</span>
+        <span v-if="data" class="media-copies__count" aria-hidden="true">{{ data.copies.length }}</span>
+      </v-expansion-panel-title>
       <v-expansion-panel-text>
-        <p class="text-caption text-medium-emphasis mb-3">{{ t('copies.hint') }}</p>
-        <v-progress-linear v-if="loading" indeterminate />
-        <template v-if="data">
-          <v-select
-            :model-value="data.preferredId"
-            :items="choices"
-            :label="t('copies.preferred')"
-            :disabled="pending"
-            hide-details
-            density="compact"
-            @update:model-value="prefer"
-          />
-          <v-list density="compact" class="mt-2">
-            <v-list-item v-for="copy in data.copies" :key="copy.id" :prepend-icon="copy.provider === 'local' ? 'mdi-harddisk' : copy.provider === 'nas' ? 'mdi-server-network' : 'mdi-cloud-outline'">
-              <v-list-item-title class="text-body-2 text-break" style="white-space: normal">{{ copy.path }}</v-list-item-title>
-              <v-list-item-subtitle>{{ t('sources.catalog.states.' + copy.availability) }} · {{ t(copy.verified ? 'copies.verified' : 'copies.unverified') }}</v-list-item-subtitle>
-              <template #append>
-                <v-btn v-if="copy.verified && data.copies.length > 1" icon="mdi-link-off" variant="text" size="small" :title="t('copies.detach')" :disabled="pending" @click="detach(copy.id)" />
-              </template>
-            </v-list-item>
-          </v-list>
-          <v-text-field v-model="localPath" :label="t('copies.local_path')" density="compact" hide-details :disabled="pending" @keydown.enter.prevent="attach" />
-          <v-btn class="mt-2" size="small" variant="tonal" prepend-icon="mdi-file-check-outline" :loading="pending" :disabled="!localPath.trim() || pending" @click="attach">{{ t('copies.attach') }}</v-btn>
-          <p v-if="checking" class="text-caption mt-2" role="status">{{ t('copies.checking') }}</p>
-          <p class="text-caption text-medium-emphasis mt-2">{{ t('copies.merge_hint') }}</p>
-        </template>
-        <p v-if="error" role="alert" class="text-error text-caption mt-2">{{ error }}</p>
+        <div class="media-copies__body">
+          <slot name="source" />
+          <v-progress-linear v-if="loading" indeterminate color="primary" rounded :aria-label="t('copies.title')" />
+          <template v-if="data">
+            <div class="media-copies__preference-row">
+              <span class="media-copies__label">{{ t('copies.preferred') }}</span>
+              <v-select :menu-props="{contentClass: 'media-detail-select-menu', maxHeight: 260}" :list-props="{density: 'compact', slim: true}"
+                class="media-copies__preferred"
+                :model-value="data.preferredId"
+                :items="choices"
+                :aria-label="t('copies.preferred')"
+                :disabled="pending || loading"
+                variant="outlined"
+                rounded="pill"
+                hide-details
+                density="compact"
+                @update:model-value="prefer"
+                single-line
+              />
+            </div>
+            <ul class="media-copies__list">
+              <li v-for="copy in data.copies" :key="copy.id" class="media-copies__copy" :class="{'media-copies__copy--preferred': copy.id === data.preferredId}">
+                <span class="media-copies__provider-icon" aria-hidden="true"><v-icon size="14">{{ providerIcon(copy.provider) }}</v-icon></span>
+                <div class="media-copies__copy-content">
+                  <div class="media-copies__copy-heading">
+                    <span class="media-copies__provider">{{ providerLabel(copy.provider) }}</span>
+                    <v-chip v-if="copy.id === data.preferredId" size="x-small" color="primary" variant="tonal" prepend-icon="mdi-star-four-points-outline">{{ t('copies.preferred') }}</v-chip>
+                  </div>
+                  <div class="media-copies__path" :title="copy.path">{{ copy.path }}</div>
+                  <div class="media-copies__statuses">
+                    <span class="media-copies__availability" :class="availabilityColor(copy.availability) && `text-${availabilityColor(copy.availability)}`">
+                      <span class="media-copies__status-dot" aria-hidden="true" />
+                      {{ t('sources.catalog.states.' + copy.availability) }}
+                    </span>
+                    <span class="media-copies__verification">
+                      <v-icon size="14" :color="copy.verified ? 'success' : undefined" aria-hidden="true">{{ copy.verified ? 'mdi-check-decagram-outline' : 'mdi-shield-outline' }}</v-icon>
+                      {{ t(copy.verified ? copy.verificationMethod ? 'copies.verified_' + copy.verificationMethod : 'copies.verified' : 'copies.unverified') }}
+                    </span>
+                  </div>
+                </div>
+                <v-btn v-if="copy.verified && data.copies.length > 1" class="media-copies__detach" icon="mdi-link-off" variant="text" size="small" :title="t('copies.detach')" :aria-label="t('copies.detach') + ': ' + copy.path" :disabled="pending || loading" @click="detach(copy.id)" />
+              </li>
+            </ul>
+            <MediaCopyDiscovery :media-id="mediaId" @changed="load" />
+            <form class="media-copies__add" @submit.prevent="attach">
+              <div class="media-copies__add-fields">
+                <span class="media-copies__label">{{ t('copies.add_local') }}</span>
+                <v-text-field v-model="localPath" :aria-label="t('copies.local_path')" :placeholder="t('copies.local_path')" variant="outlined" rounded="pill" density="compact" hide-details single-line :disabled="pending || loading" />
+                <v-btn type="submit" class="media-copies__attach" color="primary" variant="tonal" size="x-small" icon="mdi-file-check-outline" :title="t('copies.attach')" :aria-label="t('copies.attach')" :loading="checking" :disabled="!localPath.trim() || pending || loading" />
+              </div>
+              <p v-if="checking" class="media-copies__checking" role="status">{{ t(settings.copyVerificationSha256 === '1' ? 'copies.checking_full' : 'copies.checking') }}</p>
+            </form>
+          </template>
+          <v-alert v-if="error" type="error" variant="tonal" density="compact" class="media-copies__error" role="alert">{{ error }}</v-alert>
+          <details class="media-copies__help">
+            <summary>{{ t('copies.help') }}</summary>
+            <p>{{ t('copies.hint') }}</p>
+            <p>{{ t('copies.merge_hint') }}</p>
+          </details>
+        </div>
       </v-expansion-panel-text>
     </v-expansion-panel>
   </v-expansion-panels>
 </template>
 <script setup lang="ts">
 import {computed, onBeforeUnmount, ref, watch} from 'vue'
+import MediaCopyDiscovery from './MediaCopyDiscovery.vue'
 import {useI18n} from 'vue-i18n'
+import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
 import {mediaCopiesApi as api} from '@/services/typedApi/mediaCopies'
 import {useItemsListSync} from '@/composable/itemsListSync'
-import type {MediaCopies} from '@shared/mediaCopies'
+import type {MediaCopy, MediaCopies} from '@shared/mediaCopies'
 const props = defineProps<{mediaId: number}>()
 const {t, te} = useI18n()
+const providerIcon = (provider: MediaCopy['provider']) => provider === 'local' ? 'mdi-harddisk' : provider === 'nas' ? 'mdi-server-network' : provider === 'gdrive' ? 'mdi-google-drive' : provider === 'dropbox' ? 'mdi-dropbox' : 'mdi-microsoft-onedrive'
+const providerLabel = (provider: MediaCopy['provider']) => provider === 'nas' ? 'NAS' : t(`sources.catalog.kinds.${provider}`)
+const availabilityColor = (availability: MediaCopy['availability']) => availability === 'available' ? 'success' : availability === 'unavailable' ? 'warning' : undefined
 const app = useAppStore()
+const settings = useSettingsStore()
 const sync = useItemsListSync()
 const data = ref<MediaCopies>()
 const loading = ref(false)
@@ -65,6 +109,7 @@ async function load() {
   finally { if (current === generation) loading.value = false }
 }
 function onExpanded(value: {value: boolean}) { if (value.value) void load() }
+defineExpose({refresh: load})
 async function action(run: () => ReturnType<typeof api.list>, refresh = false) {
   if (pending.value) return
   const current = generation
@@ -90,3 +135,61 @@ watch([() => props.mediaId, () => app.dbPath, () => app.localhost], () => {
   void load()
 })
 </script>
+
+<style scoped lang="scss">
+.media-copies {
+  font-size: 0.75rem;
+
+  :deep(.v-expansion-panel) {
+    overflow: hidden;
+    border: 1px solid rgba(var(--v-theme-primary), 0.16);
+    border-radius: var(--edit-deck-radius, 16px) !important;
+    background: rgba(var(--v-theme-primary), 0.03);
+    box-shadow: 0 1px 0 rgba(var(--v-theme-primary), 0.04), 0 8px 22px -16px rgba(0, 0, 0, 0.22);
+  }
+  :deep(.v-expansion-panel-title) { min-height: 28px; padding: 6px 10px; gap: 6px; justify-content: flex-start; }
+  :deep(.v-expansion-panel-text__wrapper) { padding: 0; }
+  &__heading { font-size: 0.75rem; font-weight: 500; line-height: 1.2; }
+  &__chevron { opacity: 0.65; }
+  &__count { font-size: 0.6875rem; opacity: 0.55; font-variant-numeric: tabular-nums; }
+  &__body { border-top: 1px solid rgba(var(--v-theme-primary), 0.1); }
+  &__preference-row, &__add-fields { display: flex; align-items: center; gap: 8px; padding: 6px 12px; }
+  &__label { flex-shrink: 0; font-size: 0.6875rem; color: rgba(var(--v-theme-on-surface), 0.55); }
+  &__preferred { max-width: 380px; min-width: 0; }
+  &__preferred :deep(.v-select__selection-text) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :deep(.v-field) { font-size: 0.75rem; --v-field-padding-start: 10px; --v-field-padding-end: 6px; }
+  :deep(.v-field__input) { min-height: 28px; padding-block: 3px; line-height: 20px; }
+  :deep(.v-field__append-inner) { padding-top: 0; align-items: center; }
+  :deep(.v-field__outline) { --v-field-border-opacity: 0.16; }
+  &__list { padding: 0; margin: 0; list-style: none; }
+  &__copy { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-top: 1px solid rgba(var(--v-theme-primary), 0.1); }
+  &__copy--preferred { background: rgba(var(--v-theme-primary), 0.045); }
+  &__provider-icon { display: flex; color: rgba(var(--v-theme-on-surface), 0.6); }
+  &__copy-content { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+  &__copy-heading { display: flex; align-items: center; gap: 5px; }
+  &__provider { font-weight: 500; }
+  &__path { flex: 1 1 200px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.6875rem; color: rgba(var(--v-theme-on-surface), 0.7); }
+  &__statuses { display: flex; flex-wrap: wrap; gap: 4px 6px; font-size: 0.6875rem; line-height: 1.2; }
+  &__availability, &__verification { display: inline-flex; align-items: center; gap: 4px; min-height: 22px; padding: 0 7px; border: 1px solid rgba(var(--v-theme-primary), 0.12); border-radius: 999px; background: rgba(var(--v-theme-surface), 0.92); }
+  &__status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  &__verification { color: rgba(var(--v-theme-on-surface), 0.62); }
+  &__detach { width: 24px; height: 24px; color: rgba(var(--v-theme-on-surface), 0.5); }
+  &__detach :deep(.v-icon) { font-size: 16px; }
+  &__add { border-top: 1px solid rgba(var(--v-theme-primary), 0.1); }
+  &__add-fields > .v-input { min-width: 0; }
+  &__attach { width: 28px; height: 28px; flex-shrink: 0; }
+  &__checking { margin: 0; padding: 0 12px 6px; font-size: 0.6875rem; }
+  &__error { margin: 4px 12px; padding: 6px 8px; font-size: 0.6875rem; }
+  &__help { padding: 4px 12px 6px; border-top: 1px solid rgba(var(--v-theme-primary), 0.1); color: rgba(var(--v-theme-on-surface), 0.55); font-size: 0.6875rem; line-height: 1.5; }
+  &__help summary { cursor: pointer; width: fit-content; }
+  &__help p { margin: 6px 0 0; max-width: 85ch; }
+
+  @media (max-width: 599px) {
+    &__preference-row, &__add-fields { flex-wrap: wrap; gap: 4px 6px; }
+    &__label { width: 100%; }
+    &__copy-content { column-gap: 6px; }
+    &__path { flex-basis: 100%; order: 1; white-space: normal; overflow-wrap: anywhere; }
+    &__statuses { flex: 1 1 auto; }
+  }
+}
+</style>

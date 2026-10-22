@@ -1,11 +1,36 @@
 <template>
   <section class="sources-panel" :aria-label="t('sources.title')">
     <v-tabs v-model="provider" :aria-label="t('sources.provider')" color="primary" class="mb-4">
-      <v-tab value="drive" :disabled="busy" prepend-icon="mdi-google-drive">{{ t('drive.title') }}</v-tab>
+      <v-tab value="cloud" :disabled="busy" prepend-icon="mdi-cloud-outline">{{ tr('Облако', 'Cloud') }}</v-tab>
       <v-tab value="nas" :disabled="busy" prepend-icon="mdi-server-network-outline">{{ t('nas.title') }}</v-tab>
     </v-tabs>
-    <div :id="embedded ? undefined : 'settings-google-drive'" v-show="provider === 'drive'"><GoogleDriveSource ref="drive" @started="emit('started')" embedded :extensions="extensions" v-model:import-options="importOptions" /></div>
+    <div v-show="provider === 'cloud'" class="sources-panel__cloud-picker">
+      <v-select :model-value="selectedAccount" :items="cloudAccounts" :placeholder="tr('Новый аккаунт', 'New account')" :aria-label="tr('Облачный аккаунт', 'Cloud account')" :disabled="busy" variant="outlined" rounded="lg" density="compact" hide-details @update:model-value="selectAccount">
+        <template #selection="{item}">
+          <v-icon :icon="item.raw.icon" size="20" class="mr-2" />
+          <span class="text-truncate">{{ item.title }}</span>
+          <span class="sources-panel__account-status" :class="{'sources-panel__account-status--connected': item.raw.connected}"><span class="sources-panel__status-light" aria-hidden="true" />{{ item.raw.connected ? tr('Подключён', 'Connected') : tr('Не подключён', 'Disconnected') }}</span>
+        </template>
+        <template #item="{props: itemProps, item}">
+          <v-list-item v-bind="itemProps" :subtitle="item.raw.subtitle">
+            <template #prepend><v-icon :icon="item.raw.icon" size="22" /></template>
+          </v-list-item>
+        </template>
+      </v-select>
+      <div class="nas-sources__connection-actions">
+        <v-btn size="small" variant="tonal" color="primary" rounded="lg" class="connection-action--primary" icon="mdi-plus" :disabled="busy" :aria-label="tr('Добавить аккаунт', 'Add account')" v-tooltip:top="tr('Добавить аккаунт', 'Add account')" @click="addAccount" />
+        <div v-show="driveSelected" ref="accountActions" class="sources-panel__account-actions" />
+        <template v-if="!driveSelected">
+          <v-btn v-if="cloud?.account" size="small" variant="text" rounded="lg" icon="mdi-key-outline" :disabled="busy" :aria-label="tr('Настроить аккаунт', 'Configure account')" v-tooltip:top="tr('Настроить аккаунт', 'Configure account')" @click="cloud?.editAccount()" />
+          <v-btn v-if="cloud?.account" size="small" variant="text" rounded="lg" icon="mdi-login" :disabled="busy" :aria-label="tr('Подключить / сменить вход', 'Connect / sign in again')" v-tooltip:top="tr('Подключить / сменить вход', 'Connect / sign in again')" @click="cloud?.connect()" />
+          <v-btn size="small" variant="text" rounded="lg" icon="mdi-refresh" :disabled="busy" :aria-label="tr('Обновить', 'Refresh')" v-tooltip:top="tr('Обновить', 'Refresh')" @click="cloud?.refresh()" />
+          <v-btn v-if="cloud?.account?.authenticated" size="small" variant="text" rounded="lg" class="connection-action--disconnect" icon="mdi-link-off" :disabled="busy" :aria-label="tr('Отключить', 'Disconnect')" v-tooltip:top="tr('Отключить', 'Disconnect')" @click="cloud?.logout()" />
+        </template>
+      </div>
+    </div>
+    <div :id="embedded ? undefined : 'settings-google-drive'" v-show="provider === 'cloud' && driveSelected"><GoogleDriveSource ref="drive" :actions-target="accountActions" unified @started="emit('started')" embedded :extensions="extensions" v-model:import-options="importOptions" /></div>
     <div :id="embedded ? undefined : 'settings-nas'" v-if="visitedNas" v-show="provider === 'nas'"><NasSources ref="nas" @started="emit('started')" embedded :extensions="extensions" v-model:import-options="importOptions" /></div>
+    <CloudAccountsSource v-show="provider === 'cloud' && !driveSelected" unified ref="cloud" :extensions="extensions" :import-options="importOptions" @started="emit('started')" />
     <MediaImportOptions v-if="!embedded" v-model="importOptions" :disabled="busy" />
     <div v-if="!embedded" class="d-flex flex-wrap justify-end ga-2 mt-3">
       <v-btn v-if="active?.canStop" variant="text" :disabled="active.stopping" @click="active.stop()">{{ t(active.stopping ? 'nas.stopping' : 'nas.stop_import') }}</v-btn>
@@ -17,27 +42,77 @@
 import {computed, nextTick, ref, watch} from 'vue'
 import {useRememberedTab} from '@/composable/useRememberedTab'
 import {useI18n} from 'vue-i18n'
+import CloudAccountsSource from './CloudAccountsSource.vue'
 import GoogleDriveSource from './GoogleDriveSource.vue'
 import NasSources from './NasSources.vue'
 import MediaImportOptions from './MediaImportOptions.vue'
 import {defaultRemoteImportOptions, type RemoteImportOptions} from '@/services/remoteImportOptions'
 defineProps<{embedded?: boolean; extensions?: string}>()
 const importOptions = defineModel<RemoteImportOptions>('importOptions', {default: defaultRemoteImportOptions})
-const {t} = useI18n()
+const {t, locale} = useI18n()
+const tr = (ru: string, en: string) => locale.value.startsWith('ru') ? ru : en
 const emit = defineEmits<{started: []}>()
-const {tab: provider, restore: restoreProviderTab} = useRememberedTab('mediachips.sources.provider', ['drive', 'nas'] as const, 'drive')
+const {tab: provider, restore: restoreProviderTab} = useRememberedTab('mediachips.sources.provider', ['drive', 'nas', 'cloud'] as const, 'drive')
+// Preserve old saved tabs while presenting a single cloud tab.
+if (provider.value === 'drive') provider.value = 'cloud'
+watch(provider, value => { if (value === 'drive') { driveSelected.value = true; provider.value = 'cloud' } }, {flush: 'sync'})
+const cloud = ref<InstanceType<typeof CloudAccountsSource>>()
 const visitedNas = ref(provider.value === 'nas')
 watch(provider, value => { if (value === 'nas') visitedNas.value = true })
 const drive = ref<InstanceType<typeof GoogleDriveSource>>()
 const nas = ref<InstanceType<typeof NasSources>>()
-const active = computed(() => provider.value === 'nas' ? nas.value : drive.value)
-const busy = computed(() => !!drive.value?.busy || !!nas.value?.busy)
+const accountActions = ref<HTMLElement>()
+const driveSelected = ref(true)
+const selectedAccount = computed(() => driveSelected.value ? 'drive' : cloud.value?.accountId)
+const serviceStyle = (service: string) => service === 'dropbox' ? {icon: 'mdi-dropbox', color: '#0061ff', title: 'Dropbox'}
+  : service === 'onedrive' ? {icon: 'mdi-microsoft-onedrive', color: '#0078d4', title: 'OneDrive'}
+  : {icon: 'mdi-google-drive', color: '#34a853', title: 'Google Drive'}
+const cloudAccounts = computed(() => [
+  {value: 'drive', title: 'Google Drive', connected: !!drive.value?.status?.authenticated, icon: 'mdi-google-drive', color: '#34a853',
+    subtitle: tr('Основное подключение', 'Main connection') + ' · ' + tr(drive.value?.status?.authenticated ? 'Подключён' : 'Не подключён', drive.value?.status?.authenticated ? 'Connected' : 'Disconnected')},
+  ...(cloud.value?.accounts || []).map(account => ({value: account.id, title: account.name, connected: account.authenticated,
+    ...{icon: serviceStyle(account.provider).icon, color: serviceStyle(account.provider).color},
+    subtitle: serviceStyle(account.provider).title + ' · ' + tr(account.authenticated ? 'Подключён' : 'Не подключён', account.authenticated ? 'Connected' : 'Disconnected')
+      + (account.provider === 'gdrive' ? ' · ' + tr('Только чтение', 'Read-only') : '')})),
+])
+async function selectAccount(id: string) {
+  driveSelected.value = id === 'drive'
+  if (!driveSelected.value) await cloud.value?.selectAccount(id)
+}
+function addAccount() { cloud.value?.addAccount() }
+let accountBeforeEditing: string | undefined
+watch(() => cloud.value?.editing, (editing, wasEditing) => {
+  if (editing) { accountBeforeEditing = cloud.value?.accountId; return }
+  if (!wasEditing) return
+  if (cloud.value?.accountId && cloud.value.accountId !== accountBeforeEditing) {
+    driveSelected.value = false
+  } else if (!cloudAccounts.value.some(account => account.value === selectedAccount.value)) {
+    const fallback = cloudAccounts.value[0]
+    if (fallback) void selectAccount(fallback.value)
+  }
+})
+const active = computed(() => provider.value === 'nas' ? nas.value : driveSelected.value ? drive.value : cloud.value)
+const busy = computed(() => !!cloud.value?.busy || !!drive.value?.busy || !!nas.value?.busy)
 defineExpose({busy, canSubmit: computed(() => !!active.value?.canSubmit), selectionCount: computed(() => active.value?.selectionCount || 0),
   submit: () => active.value?.submit(), canStop: computed(() => !!active.value?.canStop), stopping: computed(() => !!active.value?.stopping), stop: () => active.value?.stop(),
   refresh: async () => {
     restoreProviderTab()
     await nextTick()
-    await Promise.all([drive.value?.refresh(), nas.value?.refreshConnections()])
+    await Promise.all([drive.value?.refresh(), nas.value?.refreshConnections(), cloud.value?.refresh()])
   }})
 </script>
-<style scoped>.sources-panel { min-width: 0; }</style>
+<style scoped>.sources-panel { min-width: 0; }
+.sources-panel__cloud-picker { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.sources-panel__cloud-picker :deep(.v-select) { min-width: 0; }
+.sources-panel__cloud-picker :deep(.v-field), .sources-panel__add-account { border-radius: 12px !important; }
+.sources-panel__cloud-picker :deep(.v-select__selection) { width: 100%; max-width: 100%; flex-wrap: nowrap; }
+.sources-panel__account-status { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; padding-left: 12px; font-size: 12px; white-space: nowrap; color: rgba(var(--v-theme-on-surface), .55); }
+.sources-panel__status-light { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: rgba(var(--v-theme-on-surface), .35); }
+.sources-panel__account-status--connected .sources-panel__status-light { background: rgb(var(--v-theme-success)); box-shadow: 0 0 5px rgba(var(--v-theme-success), .4); }
+.sources-panel__account-actions, .sources-panel__add-account { flex-shrink: 0; }
+.sources-panel__account-actions { display: contents; }
+.sources-panel__account-actions :deep(.google-drive-source__connection-bar),
+.sources-panel__account-actions :deep(.google-drive-source__connection-actions) { display: contents; }
+@media (max-width: 600px) { .sources-panel__cloud-picker { flex-wrap: wrap; } .sources-panel__cloud-picker :deep(.v-select) { flex-basis: 100%; } }</style>
+
+<style scoped lang="scss" src="@/assets/styles/source-connection-actions.scss"></style>

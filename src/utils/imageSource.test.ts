@@ -58,9 +58,10 @@ describe('loadFilmstripThumbDisplayUrl', () => {
   })
 })
 
-it.each([loadImageDisplayUrl, loadThumbDisplayUrl, loadFilmstripThumbDisplayUrl])('loads NAS images through their remote original instead of missing local thumbnails (%#)', async load => {
+it.each([loadImageDisplayUrl, loadThumbDisplayUrl, loadFilmstripThumbDisplayUrl])('loads cached NAS thumbnails without streaming the original (%#)', async load => {
   buildLocalFileUrl.mockClear()
   const path = 'nas://11111111-1111-4111-8111-111111111111/photo.png'
   await load({id: 9, path}, '/db/media')
-  expect(buildLocalFileUrl).toHaveBeenCalledWith(path, true)
+  expect(buildLocalFileUrl.mock.calls[0][0]).toBe('/db/media/images/thumbs/9.jpg')
+  expect(buildLocalFileUrl.mock.calls[0][1]).not.toBe(true)
 })

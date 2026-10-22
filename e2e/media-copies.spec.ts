@@ -46,6 +46,40 @@ test('manages verified copies and explains why alternate edits cannot be attache
   await expect.poll(() => writes).toContain('automatic')
   await editor.getByRole('textbox', {name: /Path to an existing local copy|Путь к существующей локальной копии/}).fill('/Volumes/Movies/directors-cut.mp4')
   await editor.getByRole('button', {name: /Verify and add copy|Проверить и добавить копию/}).click()
-  await expect(editor.locator('.media-copies').getByRole('alert')).toContainText(/contents differ|Содержимое различается/)
+  await expect(editor.locator('.media-copies__error')).toContainText(/contents differ|Содержимое различается/)
   await expect(editor.getByText('gdrive://backup', {exact: true})).toBeVisible()
+})
+
+test('keeps full SHA-256 comparison optional and persists the library setting', async ({page}) => {
+  await disableFeatureHints(page)
+  let value = '0'
+  const writes: string[] = []
+  await page.route('**/api/Setting', async route => {
+    const response = await route.fetch()
+    const rows = await response.json() as Array<{option: string; value: string}>
+    await route.fulfill({response, json: [...rows.filter(row => row.option !== 'copyVerificationSha256'), {option: 'copyVerificationSha256', value}]})
+  })
+  await page.route('**/api/Setting/copyVerificationSha256', route => {
+    if (route.request().method() === 'PUT') {
+      value = String(route.request().postDataJSON().value)
+      writes.push(value)
+      return route.fulfill({json: [1]})
+    }
+    return route.fulfill({json: {option: 'copyVerificationSha256', value}})
+  })
+  await page.goto('/settings?tab=database&section=find_duplicates')
+  await waitForAppShell(page)
+  await dismissOnboardingIfVisible(page)
+  const setting = page.getByTestId('copy-sha256-setting')
+  const toggle = setting.locator('input[type="checkbox"]')
+  await expect(toggle).not.toBeChecked()
+  await expect(setting).toContainText(/first and last 64|первые и последние 64/)
+  await toggle.press('Space')
+  await expect.poll(() => writes).toEqual(['1'])
+  await page.reload()
+  await waitForAppShell(page)
+  await expect(toggle).toBeChecked()
+  await toggle.press('Space')
+  await expect.poll(() => writes).toEqual(['1', '0'])
+  await expect(toggle).not.toBeChecked()
 })

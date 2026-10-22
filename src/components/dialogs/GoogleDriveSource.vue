@@ -1,8 +1,9 @@
 <template>
   <div class="google-drive-source">
+    <Teleport :to="actionsTarget || 'body'" :disabled="!unified || !actionsTarget">
     <div class="google-drive-source__connection-bar">
       <v-text-field :model-value="t('drive.title')" :label="t('nas.connection')" readonly
-                    class="google-drive-source__connection" prepend-inner-icon="mdi-google-drive"
+                    v-if="!unified" class="google-drive-source__connection" prepend-inner-icon="mdi-google-drive"
                     density="compact" hide-details variant="outlined" rounded="lg">
         <template #append-inner>
           <span class="google-drive-source__status" :class="{'google-drive-source__status--ready': health === 'ready'}"
@@ -13,40 +14,42 @@
         </template>
       </v-text-field>
       <div class="google-drive-source__connection-actions">
-        <v-btn v-if="status && !status.mock" size="small" :variant="status.configured ? 'text' : 'tonal'" color="primary" rounded="lg" icon
-               :aria-label="t('drive.oauth_settings')" :disabled="busy || waiting" @click="openConfiguration">
+        <v-btn v-if="status && !status.mock" size="small" :variant="status.configured ? 'text' : 'tonal'" color="primary" rounded="lg" :class="{'connection-action--primary': !status.configured}" icon
+               :aria-label="t('drive.oauth_settings')" v-tooltip:top="t('drive.oauth_settings')" :disabled="busy || waiting" @click="openConfiguration">
           <v-icon size="18" :icon="status.configured ? 'mdi-key-outline' : 'mdi-plus'" />
         </v-btn>
         <v-btn v-if="status?.authenticated" size="small" variant="text" rounded="lg" icon
                :aria-label="t('sources.check')" v-tooltip:top="t('sources.check')" :loading="checking"
                :disabled="busy || waiting || editing" @click="checkConnection">
-          <v-icon size="18" icon="mdi-connection" />
+          <v-icon size="18" icon="mdi-lan-check" />
         </v-btn>
-        <v-btn v-if="status?.authenticated && !status.mock" size="small" variant="text" rounded="lg" icon
-               :aria-label="t('nas.disconnect')" :disabled="busy || waiting" @click="disconnect">
-          <v-icon size="18" icon="mdi-lan-disconnect" />
-        </v-btn>
-        <v-btn v-else-if="status?.configured && !status.mock" size="small" color="primary" variant="tonal" rounded="lg" icon
-               :aria-label="t('drive.connect')" :loading="waiting" :disabled="busy || waiting" @click="connect">
-          <v-icon size="18" icon="mdi-login" />
-        </v-btn>
-        <v-btn v-if="!status?.authenticated" size="small" variant="text" rounded="lg" icon :disabled="busy || waiting" :aria-label="t('nas.refresh')" @click="refresh">
+        <v-btn size="small" variant="text" rounded="lg" icon :disabled="busy || waiting" :aria-label="t('nas.refresh')" v-tooltip:top="t('nas.refresh')" @click="refresh">
           <v-icon size="18" icon="mdi-refresh" />
+        </v-btn>
+        <v-btn v-if="status?.authenticated && !status.mock" size="small" variant="text" rounded="lg" class="connection-action--disconnect" icon
+               :aria-label="t('nas.disconnect')" v-tooltip:top="t('nas.disconnect')" :disabled="busy || waiting" @click="disconnect">
+          <v-icon size="18" icon="mdi-link-off" />
+        </v-btn>
+        <v-btn v-else-if="status?.configured && !status.mock" size="small" color="primary" variant="tonal" rounded="lg" class="connection-action--primary" icon
+               :aria-label="t('drive.connect')" v-tooltip:top="t('drive.connect')" :loading="waiting" :disabled="busy || waiting" @click="connect">
+          <v-icon size="18" icon="mdi-login" />
         </v-btn>
       </div>
     </div>
-    <SourceHealth v-if="status" :state="health || (status.authenticated ? 'unchecked' : 'disconnected')"
+    </Teleport>
+    <SourceHealth v-if="status && (!unified || (health && !['ready', 'unchecked', 'disconnected'].includes(health)))" :state="health || (status.authenticated ? 'unchecked' : 'disconnected')"
                   :disabled="busy || waiting || editing" @reconnect="status?.configured ? connect() : openConfiguration()" />
     <v-alert v-if="status?.mock" type="info" variant="tonal" density="compact" class="mb-3">{{ t('drive.mock') }}</v-alert>
-    <v-alert v-if="message" :type="error ? 'error' : 'success'" variant="tonal" density="compact" rounded="lg" class="mb-3" role="status">{{ message }}</v-alert>
+    <v-alert v-if="message" :type="error ? 'error' : 'success'" variant="tonal" density="compact" rounded="lg" class="google-drive-source__notice" role="status">{{ message }}</v-alert>
     <div v-if="waiting" class="d-flex align-center ga-2 mb-3 text-body-2">
       <v-progress-circular indeterminate size="18" width="2" />{{ t('drive.waiting') }}
       <v-btn size="small" variant="text" @click="cancelOAuth">{{ t('common.cancel') }}</v-btn>
     </div>
     <div v-if="!connectionsOnly && status?.authenticated">
-      <v-alert v-if="status.capabilities?.move === false && !status.mock" type="info" variant="tonal" class="mb-3">
-        {{ t('originals.drive_authorization') }}
-        <v-btn size="small" variant="text" :loading="waiting" @click="connect">{{ t('drive.connect') }}</v-btn>
+      <v-alert v-if="status.capabilities?.move === false && !status.mock" type="info" variant="tonal" density="compact" rounded="lg" class="google-drive-source__authorization">
+        <span>{{ t('originals.drive_authorization') }}</span>
+        <v-btn size="small" variant="flat" color="primary" rounded="lg" prepend-icon="mdi-google-drive"
+               class="google-drive-source__reconnect" :loading="waiting" :disabled="busy || waiting || editing" @click="connect">{{ t('sources.reconnect') }}</v-btn>
       </v-alert>
       <v-btn variant="tonal" size="small" prepend-icon="mdi-file-cog-outline" class="mb-3" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
       <DialogOriginalOperations v-model="originalsOpen" :media-ids="[]" :scope="{connectionId: 'google-drive', key: driveFileIdFromPath(folder)}" :scope-writable="status.capabilities?.move === true" @changed="browser?.refresh()" />
@@ -85,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import {sourceFailure, type SourceFailure} from '@shared/sourceErrors'
+import {sourceRateLimited, sourceFailure, type SourceFailure} from '@shared/sourceErrors'
 import SourceCatalogControls from './SourceCatalogControls.vue'
 import DialogOriginalOperations from './DialogOriginalOperations.vue'
 import SourceHealth from './SourceHealth.vue'
@@ -97,7 +100,7 @@ import {useAppStore} from '@/stores/app'
 import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {useEventBus} from '@/utils/eventBus'
-import {getApiErrorMessage} from '@/types/vue'
+import {remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 import {DriveConfigurationSchema, driveMediaPath, type DriveStatus, type DriveImportResult} from '@shared/cloudDrive'
 import {driveBrowserRoot, driveFileIdFromPath, driveReadablePath, listDriveDirectory} from '@/services/driveBrowse'
 import {loadDriveBrowserLocation, persistDriveBrowserLocation} from '@/services/driveBrowserPrefs'
@@ -112,7 +115,7 @@ import MediaImportOptions from './MediaImportOptions.vue'
 import {defaultRemoteImportOptions, remotePathExcluder, importExtensionMatcher, type RemoteImportOptions} from '@/services/remoteImportOptions'
 import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
 
-const {connectionsOnly = false, embedded = false, extensions} = defineProps<{connectionsOnly?: boolean; embedded?: boolean; extensions?: string}>()
+const {connectionsOnly = false, embedded = false, extensions} = defineProps<{connectionsOnly?: boolean; embedded?: boolean; extensions?: string; unified?: boolean; actionsTarget?: HTMLElement}>()
 const {t, te} = useI18n()
 const originalsOpen = ref(false)
 const addingProcess = useRemoteMediaAddingProcess(t)
@@ -203,11 +206,10 @@ function visibleEntries(entries: BrowseDirectoryEntry[]) {
   for (const entry of entries) if (entry.isDirectory) directories.add(entry.path)
 }
 const apiError = (err: unknown) => {
+  if (sourceFailure(err) || sourceRateLimited(err)) return remoteSourceErrorMessage(err, t)
   const code = (err as {response?: {data?: {code?: string}}})?.response?.data?.code
-  const failure = sourceFailure(err)
-  if (failure) return t(`sources.help.${failure}`)
   const key = code && code !== 'unknown' ? `drive.oauth_errors.${code}` : ''
-  return key && te(key) ? t(key) : getApiErrorMessage(err, t('drive.error'))
+  return key && te(key) ? t(key) : remoteSourceErrorMessage(err, t)
 }
 function stopPoll() { if (poll) clearInterval(poll); poll = undefined; waiting.value = false; oauthState = undefined }
 function cancelOAuth() {
@@ -392,12 +394,31 @@ watch([() => app.dbPath, () => app.localhost], () => {
 })
 onMounted(() => { void refresh(); window.addEventListener('focus', onFocus) })
 onBeforeUnmount(() => { generation++; controller?.abort(); cancelOAuth(); window.removeEventListener('focus', onFocus) })
-defineExpose({refresh, busy: computed(() => busy.value || waiting.value || editing.value), canSubmit, selectionCount: computed(() => selectedPaths.value.length), submit,
+defineExpose({status, refresh, busy: computed(() => busy.value || waiting.value || editing.value), canSubmit, selectionCount: computed(() => selectedPaths.value.length), submit,
   canStop: importing, stopping: stopRequested, stop: () => { stopRequested.value = true; if (scanning.value) controller?.abort() }})
 </script>
 
 <style scoped>
 .google-drive-source { min-width: 0; }
+.google-drive-source__notice,
+.google-drive-source__authorization {
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  font-size: .6875rem;
+  line-height: 1.5;
+}
+.google-drive-source__notice :deep(.v-alert__prepend),
+.google-drive-source__authorization :deep(.v-alert__prepend) { margin-inline-end: 6px; min-height: 16px; }
+.google-drive-source__notice :deep(.v-alert__prepend .v-icon),
+.google-drive-source__authorization :deep(.v-alert__prepend .v-icon) { font-size: 16px; width: 16px; height: 16px; }
+.google-drive-source__notice :deep(.v-alert__content) { padding-block: 0; }
+.google-drive-source__authorization :deep(.v-alert__content) { padding-block: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.google-drive-source__authorization span { flex: 1 1 240px; min-width: 0; }
+.google-drive-source__authorization .v-btn { min-height: 36px; padding-inline: 14px; flex-shrink: 0; font-weight: 600; font-size: .75rem; letter-spacing: 0; text-transform: none; }
+.google-drive-source :deep(.media-folder-browser .v-alert) { padding: 6px 8px; font-size: .6875rem !important; line-height: 1.5; }
+.google-drive-source :deep(.media-folder-browser .v-alert__content) { padding-block: 0; }
+.google-drive-source :deep(.media-folder-browser .v-alert__prepend) { margin-inline-end: 6px; min-height: 16px; }
+.google-drive-source :deep(.media-folder-browser .v-alert__prepend .v-icon) { font-size: 16px; width: 16px; height: 16px; }
 .google-drive-source__connection-bar,
 .google-drive-source__connection-actions {
   display: flex;
@@ -431,3 +452,5 @@ defineExpose({refresh, busy: computed(() => busy.value || waiting.value || editi
   .google-drive-source-editor__body { padding-inline: 14px !important; }
 }
 </style>
+
+<style scoped lang="scss" src="@/assets/styles/source-connection-actions.scss"></style>

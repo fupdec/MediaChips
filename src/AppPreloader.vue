@@ -127,6 +127,7 @@ import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useAppPlatform} from '@/composable/useAppPlatform'
 import {useAppBootstrap} from '@/composable/useAppBootstrap'
+import {useCloudMetadataSync} from '@/composable/useCloudMetadataSync'
 import {useAppZoom} from '@/composable/useAppZoom'
 import {useThemeColorMeta} from '@/composable/useThemeColorMeta'
 import {isStandalonePlayerRoute} from '@/utils/playerWindow'
@@ -191,6 +192,7 @@ const mainLayoutClasses = computed(() => ({
 const isSettingsPage = computed(() => route.path === '/settings')
 
 const {isAppReady, isShellReady} = useAppBootstrap({isPlayerWindow, appZoom})
+useCloudMetadataSync(computed(() => isAppReady.value && !store.isLocked && !isPlayerWindow.value))
 useThemeColorMeta()
 </script>
 

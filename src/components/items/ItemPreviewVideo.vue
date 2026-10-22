@@ -78,10 +78,10 @@
         <v-icon color="white" size="48">mdi-play</v-icon>
       </div>
 
-      <div v-if="!isCompactHost && !isImageOnlyView" class="duration">{{ duration }}</div>
+      <div v-if="!isCompactHost && !isImageOnlyView && hasDuration" class="duration">{{ duration }}</div>
 
       <div
-        v-if="!isCompactHost && !isImageOnlyView && settingsStore.show_thumb_resolution === '1'"
+        v-if="!isCompactHost && !isImageOnlyView && hasResolution && settingsStore.show_thumb_resolution === '1'"
         class="resolution"
       >
         <div :class="quality.toLowerCase()"
@@ -136,7 +136,7 @@
           >
             {{ bigPreviewTitle }}
           </div>
-          <div class="big-preview-chrome__meta">
+          <div v-if="hasResolution" class="big-preview-chrome__meta">
             <span
               class="big-preview-chrome__quality"
               :class="quality.toLowerCase()"
@@ -282,7 +282,7 @@
 
         <div class="story-header">
           <div
-            v-if="settingsStore.show_thumb_resolution === '1'"
+            v-if="hasResolution && settingsStore.show_thumb_resolution === '1'"
             class="resolution"
           >
             <div :class="quality.toLowerCase()"
@@ -314,7 +314,7 @@
               class="grid-sprite-frame"
               :style="storyFrameStyles[frameIndex]"
             />
-            <div class="duration">{{ getGridFrameDuration(frameIndex) }}</div>
+            <div v-if="hasDuration" class="duration">{{ getGridFrameDuration(frameIndex) }}</div>
           </div>
         </div>
       </div>
@@ -410,6 +410,9 @@ async function syncDarwinFullscreen() {
 const handleEnterFullScreen = () => { isDarwinFullscreen.value = true }
 const handleLeaveFullScreen = () => { isDarwinFullscreen.value = false }
 
+const isRemoteVideo = computed(() => isRemoteMediaPath(props.media.path))
+const canHoverPreview = computed(() => props.isFileExists && !isRemoteVideo.value)
+
 const hasFixedPreviewTime = computed(() => props.previewStartTime != null)
 const isEmbeddedHost = computed(() => props.previewHost === 'embedded')
 const isCompactHost = computed(() => props.previewHost === 'compact')
@@ -476,6 +479,11 @@ const getPreviewEl = (): HTMLElement | null => {
 const mediaWidth = computed(() => Number(props.media.width) || 0)
 const mediaHeight = computed(() => Number(props.media.height) || 0)
 const mediaDuration = computed(() => Number(props.media.duration) || 0)
+const hasDuration = computed(() => Number.isFinite(mediaDuration.value) && mediaDuration.value > 0)
+const hasResolution = computed(() =>
+  Number.isFinite(mediaWidth.value) && mediaWidth.value > 0
+  && Number.isFinite(mediaHeight.value) && mediaHeight.value > 0,
+)
 const isTaskRunning = computed(() =>
   tasksStore.list.find(task => task.key === 'generating_grid_images'),
 )
@@ -509,7 +517,7 @@ const {
 } = useHoverPreviewPlayback({
   mediaId: () => Number(props.media.id),
   mediaDuration: () => mediaDuration.value,
-  isFileExists: () => props.isFileExists && !isRemoteMediaPath(props.media.path),
+  isFileExists: () => canHoverPreview.value,
   previewStartTime: () => props.previewStartTime,
   previewEndTime: () => props.previewEndTime,
   hasFixedPreviewTime: () => hasFixedPreviewTime.value,
@@ -554,7 +562,7 @@ const {
   isFileExists: () => props.isFileExists,
   playbackError: () => playbackError.value,
   hoverPreviewReady: () => hoverPreviewReady.value,
-  isVideoPreviewEnabled: () => settingsStore.videoPreviewHover === 'video' && !isRemoteMediaPath(props.media.path),
+  isVideoPreviewEnabled: () => settingsStore.videoPreviewHover === 'video' && canHoverPreview.value,
   mediaWidth: () => mediaWidth.value,
   mediaHeight: () => mediaHeight.value,
   isContextMenuOpen: () => contextMenuStore.show,
@@ -570,7 +578,7 @@ const {
   stopPlayingPreview,
 } = useItemPreviewHoverSession({
   mediaId: () => Number(props.media.id),
-  isFileExists: () => props.isFileExists,
+  isFileExists: () => canHoverPreview.value,
   isHovered,
   isShrinking,
   playbackError,
@@ -630,7 +638,7 @@ const {
   isFileExists: () => props.isFileExists,
   isEmbeddedHost: () => isEmbeddedHost.value,
   isViewCard: () => isViewCard.value,
-  videoPreviewHover: () => settingsStore.videoPreviewHover,
+  videoPreviewHover: () => isRemoteVideo.value ? 'none' : settingsStore.videoPreviewHover,
   playSoundOnVideoPreview: () => settingsStore.play_sound_on_video_preview,
   bigVideoPreviewSize: () => settingsStore.big_video_preview_size,
   delayVideoPreview: () => settingsStore.delayVideoPreview,
@@ -728,7 +736,7 @@ const {
   clearTimelineFrames,
 } = useItemPreviewTimelineFrames({
   media: () => props.media,
-  isFileExists: () => props.isFileExists,
+  isFileExists: () => canHoverPreview.value,
   isMounted: () => isMounted.value,
   isViewTimeline: () => isViewTimeline.value,
   showTimelinePreview: () => showTimelinePreview.value,
@@ -762,7 +770,7 @@ const clearPreviewResources = () => {
 }
 
 const refreshGridPreviewIfNeeded = async () => {
-  if (settingsStore.videoPreviewStatic !== 'grid' || !props.media.path) return
+  if (isRemoteVideo.value || settingsStore.videoPreviewStatic !== 'grid' || !props.media.path) return
 
   try {
     await typedApi.taskCreateGrid(buildVideoGridTaskParams(props.media.path, `${props.media.id}.jpg`))

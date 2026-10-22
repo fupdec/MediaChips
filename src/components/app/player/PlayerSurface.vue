@@ -119,7 +119,7 @@
               <span>{{ t('drive.open_in_drive') }}</span>
             </v-btn>
             <v-btn
-              v-if="player.is_file_exists && !isNasMediaPath(player.media?.path) && !isDriveMediaPath(player.media?.path)"
+              v-if="player.is_file_exists && !isNasMediaPath(player.media?.path) && !isDriveMediaPath(player.media?.path) && !isCloudMediaPath(player.media?.path)"
               @click.stop="openPath"
               class="mt-4"
               color="primary"
@@ -201,6 +201,7 @@ import {computed, inject} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {isWebVideoPath} from '@shared/webVideo'
+import {isCloudMediaPath} from '@shared/cloudAccounts'
 import {driveFileViewUrl, isDriveMediaPath} from '@shared/cloudDrive'
 import {openExternal} from '@/services/shellService'
 import {isNasMediaPath} from '@shared/remoteMedia'

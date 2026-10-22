@@ -12,7 +12,7 @@
         </template>
       </v-select>
       <div class="nas-sources__connection-actions">
-        <v-btn size="small" variant="tonal" color="primary" rounded="lg" icon
+        <v-btn size="small" variant="tonal" color="primary" rounded="lg" class="connection-action--primary" icon
                :aria-label="t('nas.add_connection')" v-tooltip:top="t('nas.add_connection')" :disabled="busy" @click="newConnection">
           <v-icon size="18" icon="mdi-plus" />
         </v-btn>
@@ -23,11 +23,11 @@
         <v-btn v-if="selected" size="small" variant="text" rounded="lg" icon
                :aria-label="t('sources.check')" v-tooltip:top="t('sources.check')" :loading="checking"
                :disabled="busy || saving || editing || !selected.hasCredentials" @click="checkConnection">
-          <v-icon size="18" icon="mdi-connection" />
+          <v-icon size="18" icon="mdi-lan-check" />
         </v-btn>
-        <v-btn v-if="selected?.hasCredentials" size="small" variant="text" rounded="lg" icon
+        <v-btn v-if="selected?.hasCredentials" size="small" variant="text" rounded="lg" class="connection-action--disconnect" icon
                :aria-label="t('nas.disconnect')" v-tooltip:top="t('nas.disconnect')" :disabled="busy" @click="disconnect">
-          <v-icon size="18" icon="mdi-lan-disconnect" />
+          <v-icon size="18" icon="mdi-link-off" />
         </v-btn>
       </div>
     </div>
@@ -128,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import {sourceFailure, type SourceFailure} from '@shared/sourceErrors'
+import {sourceRateLimited, sourceFailure, type SourceFailure} from '@shared/sourceErrors'
 import SourceCatalogControls from './SourceCatalogControls.vue'
 import DialogOriginalOperations from './DialogOriginalOperations.vue'
 import SourceHealth from './SourceHealth.vue'
@@ -155,7 +155,7 @@ import {useFilePreview} from '@/composable/useFilePreview'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
 import {useEventBus} from '@/utils/eventBus'
-import {getApiErrorMessage} from '@/types/vue'
+import {remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 
 const {t} = useI18n()
 const originalsOpen = ref(false)
@@ -250,11 +250,10 @@ const editorButtons = computed(() => [
 ])
 let generation = 0
 const apiError = (err: unknown) => {
+  if (sourceFailure(err) || sourceRateLimited(err)) return remoteSourceErrorMessage(err, t)
   const code = (err as {response?: {data?: {code?: string}}})?.response?.data?.code
-  const failure = sourceFailure(err)
-  if (failure) return t(`sources.help.${failure}`)
   const key = code ? `nas.errors.${code}` : ''
-  return key && t(key) !== key ? t(key) : getApiErrorMessage(err, t('nas.error'))
+  return key && t(key) !== key ? t(key) : remoteSourceErrorMessage(err, t)
 }
 function stopBatch() { stopRequested.value = true; stopCurrentBatch?.(); if (scanning.value) importController?.abort() }
 function refreshLibrary() {
@@ -603,3 +602,5 @@ defineExpose({refreshConnections: loadConnections, canSubmit, busy: computed(() 
   }
 }
 </style>
+
+<style scoped lang="scss" src="@/assets/styles/source-connection-actions.scss"></style>

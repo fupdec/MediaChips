@@ -20,10 +20,10 @@
       />
 
       <v-card-text class="edit-dialog-card__body">
-        <MediaCatalogSourceInfo v-if="media" :media="media" />
-        <MediaCopies v-if="media" :media-id="media.id" />
-        <v-btn v-if="media" variant="tonal" prepend-icon="mdi-file-cog-outline" class="mb-3" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
-        <DialogOriginalOperations v-if="media" v-model="originalsOpen" :media-ids="[media.id]" />
+        <MediaCopies v-if="media" ref="mediaCopies" :media-id="media.id">
+          <template #source><MediaCatalogSourceInfo :media="media" /></template>
+        </MediaCopies>
+        <DialogOriginalOperations v-if="media" v-model="originalsOpen" :media-ids="[media.id]" @changed="mediaCopies?.refresh()" />
         <EditPinnedMetaValues
           v-if="media"
           :key="media.id"
@@ -83,6 +83,18 @@
               :min-width="500"
               @edited="onImageEdited"
             />
+            <div class="d-flex flex-wrap ga-2 mt-3">
+              <DialogChangeHistory entity-type="media" :entity-id="media.id" :disabled="formDirty" @restored="requestClose">
+                <template #activator="{open}">
+                  <v-btn class="edit-dialog-media-action" color="primary" variant="tonal" rounded="xl" size="small" prepend-icon="mdi-history" :disabled="formDirty" @click="open">
+                    {{ t('change_history.title') }}
+                  </v-btn>
+                </template>
+              </DialogChangeHistory>
+              <v-btn class="edit-dialog-media-action" color="primary" variant="tonal" rounded="xl" size="small" prepend-icon="mdi-file-cog-outline" @click="originalsOpen = true">
+                {{ t('originals.title') }}
+              </v-btn>
+            </div>
           </template>
         </EditPinnedMetaValues>
       </v-card-text>
@@ -133,7 +145,9 @@ import {
 } from '@/utils/mediaType'
 const DialogHeader = defineAsyncComponent(() => import("@/components/elements/DialogHeader.vue"))
 const DialogOriginalOperations = defineAsyncComponent(() => import('@/components/dialogs/DialogOriginalOperations.vue'))
+const DialogChangeHistory = defineAsyncComponent(() => import('@/components/dialogs/DialogChangeHistory.vue'))
 const originalsOpen = ref(false)
+const mediaCopies = ref<InstanceType<typeof MediaCopies>>()
 
 interface DialogHeaderButton {
   icon?: string

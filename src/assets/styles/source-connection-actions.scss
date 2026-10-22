@@ -1,0 +1,30 @@
+.nas-sources__connection-actions,
+.google-drive-source__connection-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(var(--v-theme-primary), .13);
+  border-radius: 12px;
+  background: rgba(var(--v-theme-surface), .75);
+  box-shadow: 0 1px 2px rgba(var(--v-theme-on-surface), .04);
+
+  .v-btn {
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    border-radius: 8px !important;
+    color: rgba(var(--v-theme-on-surface), .65);
+    transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+  }
+  .v-btn :deep(.v-icon) { font-size: 17px; }
+  .v-btn:not(:disabled):hover { color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .07); }
+  .v-btn:focus-visible { outline: 2px solid rgba(var(--v-theme-primary), .65); outline-offset: 1px; }
+  .connection-action--primary { color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .08); }
+  .connection-action--disconnect:not(:disabled):hover { color: rgb(var(--v-theme-error)); background: rgba(var(--v-theme-error), .07); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .v-btn { transition: none; }
+  }
+}

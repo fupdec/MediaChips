@@ -1,5 +1,5 @@
 import {test, expect, type Page} from '@playwright/test'
-import {openSettingsTab} from './helpers'
+import {disableFeatureHints, openSettingsTab} from './helpers'
 import type {NasEntry} from '../shared/nas'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -13,6 +13,7 @@ const file = (path: string, size = 100): NasEntry => ({name: path.split('/').pop
 const folder = (path: string): NasEntry => ({...file(path), isDirectory: true})
 
 async function setup(page: Page, directories: Record<string, NasEntry[]>, delayBatch = false, availableConnections = [connection]) {
+  await disableFeatureHints(page)
   await page.route('**/api/Task/parsePathTags', route => route.fulfill({json: []}))
   const imported = new Set(['old.mp4'])
   const batches: string[][] = []
@@ -161,7 +162,10 @@ test('selecting an SFTP folder imports nested videos once and updates library ba
   await browser.locator('.v-list-item').filter({hasText: 'Кино'}).getByRole('checkbox').check()
   await page.getByRole('button', {name: /^(Add selected|Добавить выбранные)$/}).click()
   await expect.poll(() => batches.flat()).toEqual(['Кино/1.mp4', 'Кино/sub/2.mp4'])
-  await expect(page.locator('.remote-import-progress .v-progress-linear')).toBeHidden()
+  const process = page.locator('.media-adding-process')
+  await expect(process).toContainText(/Adding files is complete!|Добавление файлов завершено!/)
+  await process.locator('.dialog-header__close').click()
+  await expect(process).toBeHidden()
   await expect(browser.locator('.media-folder-browser__selected-count')).toHaveText(/:\s*0$/)
   await browser.locator('.v-list-item').filter({hasText: 'Кино'}).click()
   await expect(browser.locator('.v-list-item').filter({hasText: '1.mp4'}).getByRole('checkbox')).toBeDisabled()
@@ -172,12 +176,17 @@ test('Stop finishes the active SFTP batch and retains unprocessed selections', a
   await page.getByRole('button', {name: /^(Select all|Выбрать все)$/}).click()
   await page.getByRole('button', {name: /^(Add selected|Добавить выбранные)$/}).click()
   await expect.poll(() => batches.length).toBe(1)
-  await page.getByRole('button', {name: /^(Stop|Остановить)$/}).click()
-  await expect(page.locator('.remote-import-progress .v-progress-linear')).toBeHidden()
+  const process = page.locator('.media-adding-process')
+  const stop = process.getByRole('button', {name: /^(Stop|Остановить)$/})
+  await stop.click()
+  await expect(stop).toHaveCount(0)
+  await process.locator('.dialog-header__close').click()
+  await expect(process).toBeHidden()
   expect(batches).toHaveLength(1)
   await expect(browser.locator('.media-folder-browser__selected-count')).toHaveText(/:\s*3$/)
   await page.getByRole('button', {name: /^(Add selected|Добавить выбранные)$/}).click()
   await expect.poll(() => batches.flat().length).toBe(13)
+  await expect(process).toContainText(/Adding files is complete!|Добавление файлов завершено!/)
   await expect(browser.locator('.media-folder-browser__selected-count')).toHaveText(/:\s*0$/)
 })
 

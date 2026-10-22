@@ -62,6 +62,15 @@ describe('loadHomeMediaThumbs', () => {
     taskCreateThumbForVideo.mockResolvedValue({})
   })
 
+  it('does not send a remote video without a poster to local thumbnail generation', async () => {
+    loadMediaThumbUrls.mockResolvedValue({91: '/thumbs/91.jpg'})
+    probeDisplayImageUrl.mockResolvedValue(false)
+    const items = [{id: 91, path: 'https://example.com/watch/123', mediaTypeId: 1}]
+    await loadHomeMediaThumbs(items, mediaTypes as never, '/db/media')
+    expect(taskCreateThumbForVideo).not.toHaveBeenCalled()
+    expect(enqueueQuietMetaBackfill).not.toHaveBeenCalled()
+  })
+
   it('keeps existing thumbs that probe successfully', async () => {
     loadMediaThumbUrls.mockResolvedValue({7: '/thumbs/7.jpg'})
     const items = [{id: 7, mediaTypeId: 2, filesize: 100, thumb: null as string | null}]

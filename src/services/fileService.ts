@@ -1,3 +1,4 @@
+import {parseCloudMediaPath} from '@shared/cloudAccounts'
 import { API_ROUTES } from '@shared/api/routes'
 import { normalizePastedFilePath } from '@/utils/filePathInput'
 import { buildApiUrl, getApiBaseUrl } from '@/services/apiClient'
@@ -163,6 +164,13 @@ export function buildLocalFileUrl(
   cacheBust: boolean | number = false,
   options?: {maxEdge?: number},
 ): string {
+  const cloud = parseCloudMediaPath(imgPath)
+  if (cloud) {
+    const params = new URLSearchParams({key: cloud.resourceKey})
+    const token = getAuthToken()
+    if (token) params.set('token', token)
+    return buildApiUrl(`/api/cloud-accounts/${cloud.connectionId}/stream?${params}`)
+  }
   const driveFileId = parseDriveMediaPath(imgPath)
   if (driveFileId) {
     const token = getAuthToken()

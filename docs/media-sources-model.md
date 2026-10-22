@@ -99,7 +99,7 @@ disconnected-source responses in the browser.
 
 Migration `0037_verified_media_copies` adds `verifiedMediaCopies` and
 `mediaCopyPreferences`. A card owns all chips, values and marks; a copy stores an
-address, a full SHA-256, byte count, provider validator and last verification time.
+address, comparison method, fingerprint, byte count, provider validator and last verification time.
 Local files remain ordinary filesystem paths. NAS and Drive use the existing
 connections and credential stores. Copy rows contain no credentials.
 
@@ -110,19 +110,32 @@ promotes a retained address. Import NAS/Drive copies as cards and select **Merge
 to consolidate them. An already cataloged local path must use the same merge flow
 so its chips are retained.
 
-Merging now reads every selected file and retained copy completely through the
-source adapters, checks the byte count and stat before/after reading, and compares
-full SHA-256 hashes. Sampled content fingerprints, oshash, filenames, size and
-visual similarity never authorize this operation. No cards, chips or locations
-change if a source is unreadable, its version changes, the active library changes,
-or content differs. Identical bytes can have different names and timestamps.
-Different edits and different encodings remain separate cards. The old option to
-delete losing files is rejected: copy consolidation preserves every file.
+Merging and attaching copies compare size and oshash by default. Only the first
+and last 64 KiB of each large file are read, including remote originals. The
+middle is intentionally ignored. Files up to eight bytes use a complete SHA-256
+of those few bytes because oshash is undefined for that size.
+
+**Settings → Database → Find duplicates → Full SHA-256 verification of copies**
+opts a library into reading and hashing complete files. The persisted
+`copyVerificationSha256` preference defaults to `0` (oshash); `1` selects full
+SHA-256. Each operation snapshots the method when it starts. In either mode,
+source versions and library/card identities are checked, and failures leave all
+cards and metadata unchanged. The option to delete losing files is rejected:
+copy consolidation preserves every file.
+
+Migration `0038_copy_verification_method` adds `oshash` and `verificationMethod`
+to retained copies. Existing SHA-256 evidence and copy IDs are preserved. New
+sampled comparisons store `verificationMethod = 'oshash'` and an empty `sha256`;
+sampled values never masquerade as complete hashes. The editor shows which method
+was used. Upgrading sampled copies with the full option enabled compares all bytes.
 
 Playback uses the preference first, then local copies, then other verified copies.
 A source connection/stat attempt has a 30-second deadline before fallback. A changed
-validator requires full hash verification again; a different montage cannot silently
-inherit the original timeline. Stream URLs pin a copy ID and version, so range
+validator triggers a comparison using the configured method. With full verification
+disabled, revalidation also stays bounded to oshash samples. Legacy SHA-only rows
+acquire a sampled baseline while their stored version still matches; if no sampled
+baseline exists after a version change, that copy is skipped rather than causing
+an unrequested full download. Stream URLs pin a copy ID and version, so range
 requests cannot silently switch files. Images use the same source selection.
 The existing offline cache can be used when its source version matches a retained
 verified copy. Availability remains a last recorded observation, and catalog
@@ -132,7 +145,7 @@ Existing locations are not automatically declared identical by migration. Legacy
 cards retain their original playback behavior; unverified alternatives cannot be
 selected as preferred sources until content has been compared. There is no
 background replication or synchronization: adding a copy links an existing file.
-Full verification transfers all bytes from remote storage and may take time.
+Opt-in full verification transfers all bytes from remote storage and may take time.
 Copy playback currently streams the original format directly; the local live-transcode
 workflow is not integrated with this selector. Browser codec support still applies.
 
@@ -141,3 +154,38 @@ repeated merges, local attachment/detachment, preference and fallback, changed
 content, mixed NAS/Drive adapters, cancellation, stale snapshots, and pinned byte
 ranges. The mixed-source tests use adapters rather than real NAS or Drive accounts.
 `media-copies.spec.ts` exercises the editor's preference and mismatch controls.
+
+## Oshash for network duplicate search
+
+Explicit background discovery can now find and attach unowned existing copies
+without importing another card. See [Background discovery of existing copies](./copy-discovery.md)
+for the queue, comparison methods, conflict handling, cancellation and restart behavior.
+
+The existing **Settings → Database → Dedup fingerprints** backfill now includes
+`nas://` and `gdrive://` cards. The regular **Oshash** duplicate filter groups their
+stored `media.oshash` values together with local files. Import and directory
+listing remain metadata-only; run the backfill for newly imported remote cards.
+
+`mediaSources/oshash.ts` computes the same OpenSubtitles hash as local files: file
+size plus the little-endian 64-bit sums of the first and last 64 KiB. The middle
+is not inspected. This reads 128 KiB of file content for large files, plus source
+metadata, regardless of whether the original is megabytes or many gigabytes.
+Small files use the same overlapping, 8-byte-aligned samples as the local code.
+
+NAS uses bounded SFTP reads, FTP/FTPS REST offsets with an early close, or WebDAV
+Range requests. Drive uses HTTP Range requests. Each sample owns a fresh adapter
+session because FTP closes its connection after reaching a range boundary. Source
+size/version are checked before, between and after the samples. A changed library,
+card path, resource, connection or source version prevents the fingerprint write.
+Cancellation aborts an in-flight read, and remote hashing has a 30-second deadline.
+
+A source must return the requested range and exact byte count. A server that
+ignores Range is rejected immediately; the implementation never retries with a
+whole-file download. Failures leave the card pending for a later backfill. Oshash
+is also the default copy-merge comparison; complete SHA-256 is opt-in through the
+library setting described above.
+
+`mediaSources/oshash.test.ts` verifies a synthetic 50 GiB source with exactly two
+64 KiB reads, parity with real local files, overlapping samples, NAS/Drive adapter
+forwarding, FTP session reuse restrictions, ignored/malformed/truncated ranges,
+source changes, cancellation and mixed-source duplicate groups in the database.

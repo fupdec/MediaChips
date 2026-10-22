@@ -1,3 +1,4 @@
+import {isCloudMediaPath} from '@shared/cloudAccounts'
 import {apiClient} from './apiClient'
 import {isDriveMediaPath} from '@shared/cloudDrive'
 import {isNasMediaPath} from '@shared/remoteMedia'
@@ -23,7 +24,7 @@ export async function saveWebVideoCurrentFrame({video, mediaId, markId, expected
   // A marker can be edited without moving the playhead. Never save the wrong frame.
   if (expectedTime != null && Math.abs(video.currentTime - expectedTime) > 0.35) return false
   const image = captureVideoFrame(video)
-  const route = isDriveMediaPath(mediaPath) ? `/api/drive/media/${mediaId}/frame` : isNasMediaPath(mediaPath) ? `/api/nas/media/${mediaId}/frame` : `/api/web-video/${mediaId}/frame`
+  const route = isCloudMediaPath(mediaPath) ? `/api/cloud-accounts/media/${mediaId}/frame` : isDriveMediaPath(mediaPath) ? `/api/drive/media/${mediaId}/frame` : isNasMediaPath(mediaPath) ? `/api/nas/media/${mediaId}/frame` : `/api/web-video/${mediaId}/frame`
   await apiClient.post(route, {image, target: markId == null ? 'poster' : 'mark', markId})
   return true
 }

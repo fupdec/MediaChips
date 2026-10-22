@@ -1,3 +1,4 @@
+import type {CloudMediaMetadataSnapshot} from '@shared/cloudAccounts'
 import type { AxiosRequestConfig } from 'axios'
 import { apiClient } from '../apiClient'
 import {
@@ -45,6 +46,9 @@ export type MediaFolderBrowseRequest = {
 }
 
 export const mediaApi = {
+  getCloudMediaMetadata(ids: number[], config?: AxiosRequestConfig) {
+    return apiClient.post<{items: CloudMediaMetadataSnapshot[]}>('/api/cloud-accounts/metadata/snapshot', {ids}, config)
+  },
   previewMediaRelink(body: {id: number; oldPath: string; newPath: string} | {oldRoot: string; newRoot: string}) {
     return apiClient.post<{candidates: MediaRelinkCandidate[]}>('/api/Media/relink/preview', body)
   },

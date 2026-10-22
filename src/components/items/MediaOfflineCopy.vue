@@ -1,21 +1,21 @@
 <template>
-  <div class="mt-2">
-    <div class="d-flex flex-wrap align-center ga-2">
-      <v-chip v-if="status?.state !== 'absent' && status" size="small" :color="status.state === 'ready' ? 'success' : 'warning'">
+  <div class="media-offline-copy">
+    <div class="d-flex flex-wrap align-center ga-1">
+      <v-chip v-if="status?.state !== 'absent' && status" size="x-small" :color="status.state === 'ready' ? 'success' : 'warning'">
         {{ t('sources.offline.' + status.state) }} · {{ (status.size / 1024 ** 2).toFixed(1) }} MB
       </v-chip>
-      <v-btn size="small" variant="tonal" prepend-icon="mdi-download" :loading="pending" :disabled="pending || !!job" @click="save">
+      <v-btn size="x-small" variant="tonal" prepend-icon="mdi-download" :loading="pending" :disabled="pending || !!job" @click="save">
         {{ t(status?.state === 'ready' ? 'sources.offline.verify' : 'sources.offline.save') }}
       </v-btn>
-      <v-btn v-if="status && status.state !== 'absent'" size="small" variant="text" :disabled="pending || !!job" @click="remove">{{ t('sources.offline.remove') }}</v-btn>
-      <v-btn v-if="job" size="small" variant="text" :disabled="pending" @click="cancel">{{ t('common.cancel') }}</v-btn>
+      <v-btn v-if="status && status.state !== 'absent'" size="x-small" variant="text" :disabled="pending || !!job" @click="remove">{{ t('sources.offline.remove') }}</v-btn>
+      <v-btn v-if="job" size="x-small" variant="text" :disabled="pending" @click="cancel">{{ t('common.cancel') }}</v-btn>
     </div>
     <div v-if="job" class="mt-2 text-caption" role="status">
       <v-progress-linear :model-value="status?.size ? Math.min(100, job.processed / status.size * 100) : 0" :indeterminate="!status?.size" />
       {{ t('sources.offline.downloading', {size: (job.processed / 1024 ** 2).toFixed(1)}) }}
     </div>
-    <div v-if="status?.state === 'ready'" class="text-caption text-medium-emphasis mt-1">{{ t('sources.offline.verified_hint') }}</div>
-    <div v-if="error" class="text-error text-caption mt-1" role="alert">{{ error }}</div>
+    <v-icon v-if="status?.state === 'ready'" size="14" :title="t('sources.offline.verified_hint')" :aria-label="t('sources.offline.verified_hint')" tabindex="0">mdi-information-outline</v-icon>
+    <span v-if="error" class="media-offline-copy__error text-warning" role="alert" :title="error"><v-icon size="14" aria-hidden="true">mdi-alert-circle-outline</v-icon>{{ error }}</span>
     <div v-if="notice" class="text-caption mt-1" role="status">{{ notice }}</div>
   </div>
 </template>
@@ -75,3 +75,9 @@ watch([() => props.mediaId, () => app.dbPath, () => app.localhost], async () => 
 }, {immediate: true})
 onBeforeUnmount(() => { generation++; clearTimeout(timer) })
 </script>
+
+<style scoped>
+.media-offline-copy { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; flex: 1 1 240px; }
+.media-offline-copy__error { display: inline-flex; align-items: center; gap: 4px; font-size: 0.6875rem; line-height: 1.4; }
+.v-btn { min-height: 22px; text-transform: none; letter-spacing: 0; }
+</style>

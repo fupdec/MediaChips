@@ -49,7 +49,7 @@ import {apiClient} from '@/services/apiClient'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
 import {useEventBus} from '@/utils/eventBus'
-import {getApiErrorMessage} from '@/types/vue'
+import {remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 import MediaImportOptions from './MediaImportOptions.vue'
 import {defaultRemoteImportOptions, remotePathExcluder, type RemoteImportOptions} from '@/services/remoteImportOptions'
 import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
@@ -103,12 +103,12 @@ async function importVideo() {
     if (current === generation) {
       busy.value = false
       error.value = true
-      message.value = getApiErrorMessage(err, t('media.adding.web_video_error'))
+      message.value = remoteSourceErrorMessage(err, t)
     }
     return
   }
   const run = addingProcess.begin({source: t('media.adding.source_links'), phase: 'resolving',
-    stop: () => { stopping.value = true }, retry: importVideo, readablePath: () => originalUrl,
+    stop: () => { stopping.value = true }, retry: importVideo, readablePath: () => t('media.adding.web_video_title'),
     snapshot: () => ({scanning: false, stopped: stopping.value, processed, total: 1, found: 1, skipped: 0, inLibrary: 0,
       remaining: url.value ? 1 : 0, errors: failures.value}),
   })
@@ -133,8 +133,8 @@ async function importVideo() {
   } catch (err) {
     if (current !== generation) return
     error.value = true
-    message.value = getApiErrorMessage(err, t('media.adding.web_video_error'))
-    failures.value.push({path: originalUrl, message: message.value})
+    message.value = remoteSourceErrorMessage(err, t)
+    failures.value.push({path: t('media.adding.web_video_title'), message: message.value})
     processed = 1
   } finally {
     if (current === generation) { busy.value = false; controller = undefined; run.finish() }

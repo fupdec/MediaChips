@@ -1,3 +1,4 @@
+import {isRemoteMediaPath} from '@shared/remoteMedia'
 import {
   computed,
   onBeforeUnmount,
@@ -173,6 +174,11 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
   const ensureGridSpriteLoaded = async ({force = false}: {force?: boolean} = {}) => {
     const media = toValue(options.media)
     if (!media?.id) return false
+    if (isRemoteMediaPath(media.path)) {
+      storyUsesThumbFallback.value = true
+      gridSpriteUrl.value = null
+      return false
+    }
 
     const gridUrl = resolveGridSpriteDisplayUrl(toValue(options.mediaPath), media.id)
     if (!gridUrl) {
