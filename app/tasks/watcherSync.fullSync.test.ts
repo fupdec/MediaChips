@@ -60,6 +60,7 @@ describe('WatcherSyncEngine fullSync integration', () => {
     }]
 
     const beforeImport = await engine.fullSync(folders)
+    expect(db.sqlite.prepare('SELECT reasons FROM copyDiscoveryAutoRequests').all()).toEqual([{reasons: JSON.stringify(['folder_update'])}])
     expect(beforeImport).toHaveLength(1)
     expect(beforeImport[0].files[0].newTotal).toBe(3)
     expect(beforeImport[0].files[0].lostTotal).toBe(0)

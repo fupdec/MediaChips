@@ -9,6 +9,8 @@ import type {
 } from '../types/websockets'
 import { errorMessage } from '../types/websockets'
 import type { Request } from 'express'
+import {requestAutomaticCopyDiscovery} from '../../api/services/mediaSources/copyDiscoveryTriggers'
+import {pinSourceDb} from '../../api/services/mediaSources/context'
 import { WatcherSyncEngine } from './watcherSync'
 import { collectExcludedWatchPaths } from './watcherOptions'
 import { watchFolders, type ParcelFolderWatcher } from './parcelFolderWatcher'
@@ -225,6 +227,11 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
 
     const startWatcher = (folders: WatchedFolderEntry[], extensions: WatcherExtensionsMap) => {
       const generation = ++startGeneration
+      const autoTarget = pinSourceDb(db)
+      const notifyCopyChange = (filePath: string) => {
+        try { autoTarget.assertCurrent(); requestAutomaticCopyDiscovery(autoTarget.db, [{key: filePath}], 'folder_update') }
+        catch { /* A stale watcher belongs to the previous library. */ }
+      }
 
       if (watcher) {
         void watcher.close()
@@ -253,7 +260,9 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
           watcher
             .on('add', (filePath: unknown) => {
               queueFileEvent('add', String(filePath))
+              notifyCopyChange(String(filePath))
             })
+            .on('change', (filePath: unknown) => { notifyCopyChange(String(filePath)) })
             .on('unlink', (filePath: unknown) => {
               queueFileEvent('unlink', String(filePath))
             })

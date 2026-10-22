@@ -47,6 +47,8 @@ import { ffprobe, resolveFfprobeDuration } from '../../utils/ffmpeg'
 import { isUsableDuration } from '../../utils/ffprobeMath'
 import { probeVideoMetadata } from '../../services/videoMetadataProbe'
 import { isImageMediaType } from '../../utils/mediaType'
+import {requestAutomaticCopyDiscovery} from '../../services/mediaSources/copyDiscoveryTriggers'
+import {pinSourceDb} from '../../services/mediaSources/context'
 import { mapWithConcurrency } from '../../services/thumbEncoding'
 
 /** Parallel ffprobe / image-meta reads inside one bulk request. */
@@ -367,6 +369,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       const mediaType = req.body.type
       const is_check_duplicates = req.body.is_check_duplicates
 
+      const autoTarget = pinSourceDb(db)
       const result = await addMediaToDb(pathToFile, mediaType, is_check_duplicates)
 
       if (result.isCreated && result.media) {
@@ -381,6 +384,10 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         }
       }
 
+      try {
+        autoTarget.assertCurrent()
+        requestAutomaticCopyDiscovery(autoTarget.db, [{key: ('media' in result ? result.media?.path : undefined) || normalizeMediaPath(pathToFile)}], 'import')
+      } catch { /* Ignore a completed import's event after a library switch. */ }
       sendAddMediaResponse(res, result)
     } catch (error) {
       console.error('addMedia failed:', error)
@@ -405,6 +412,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         throw new HttpError(400, 'Provide files and/or roots')
       }
 
+      const autoTarget = pinSourceDb(db)
       const result = await runMediaBulkLiteImport(db.drizzle, {
         mediaType: mediaType && typeof mediaType === 'object'
           ? mediaType as {id?: unknown; type?: unknown; extensions?: unknown}
@@ -415,6 +423,11 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         expandZips,
       })
 
+      try {
+        autoTarget.assertCurrent()
+        requestAutomaticCopyDiscovery(autoTarget.db, (roots || []).map((key: string) => ({key, excluded})), 'import', {monitor: true})
+        requestAutomaticCopyDiscovery(autoTarget.db, (files || []).map((key: string) => ({key})), 'import')
+      } catch { /* A new active library must not receive an old import's event. */ }
       sendOk(res, result)
     } catch (error) {
       console.error('addMediaBulk failed:', error)

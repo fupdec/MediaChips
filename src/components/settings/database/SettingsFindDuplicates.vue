@@ -8,6 +8,19 @@
       status="idle"
     />
 
+    <SettingsSwitch
+      option="copyVerificationSha256"
+      :title="t('copies.full_verification')"
+      :hint="t('copies.full_verification_hint')"
+      class="mb-4"
+      data-testid="copy-sha256-setting"
+    />
+
+    <SettingsSwitch option="copyDiscoveryOnReconnect" :title="t('copyDiscovery.auto_reconnect')" :hint="t('copyDiscovery.auto_reconnect_hint')" data-testid="copy-auto-reconnect" />
+    <SettingsSwitch option="copyDiscoveryOnImport" :title="t('copyDiscovery.auto_import')" :hint="t('copyDiscovery.auto_import_hint')" data-testid="copy-auto-import" />
+    <SettingsSwitch option="copyDiscoveryOnFolderUpdate" :title="t('copyDiscovery.auto_folders')" :hint="t('copyDiscovery.auto_folders_hint')" data-testid="copy-auto-folders" />
+    <MediaCopyDiscovery />
+
     <v-select
       v-model="mediaTypeId"
       :items="mediaTypeItems"
@@ -55,6 +68,8 @@
 </template>
 
 <script setup lang="ts">
+import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
+import MediaCopyDiscovery from '@/components/items/MediaCopyDiscovery.vue'
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'

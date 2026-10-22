@@ -146,15 +146,24 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
 
   const libraryBySizeBasename = new Map<string, LibraryHit[]>()
   const libraryByOshash = new Map<string, LibraryHit[]>()
+  const libraryBySize = new Map<number, LibraryHit[]>()
 
-  if (typeId != null) {
+  {
     const rows = queryAll<LibraryHit>(db, `
-      SELECT id, path, basename, filesize, oshash, contentHash
-      FROM media
-      WHERE mediaTypeId = :mediaTypeId
+      SELECT m.id, m.path, m.basename, m.filesize, m.oshash, m.contentHash
+      FROM media m
+      WHERE m.deletedAt IS NULL AND (:mediaTypeId IS NULL OR m.mediaTypeId = :mediaTypeId)
+      UNION ALL
+      SELECT m.id, c.path, NULL AS basename, c.size AS filesize, c.oshash, NULL AS contentHash
+      FROM verifiedMediaCopies c JOIN media m ON m.id = c.mediaId
+      WHERE m.deletedAt IS NULL AND (:mediaTypeId IS NULL OR m.mediaTypeId = :mediaTypeId)
     `, {mediaTypeId: typeId})
 
     for (const row of rows) {
+      const size = Number(row.filesize) || 0
+      const bucket = libraryBySize.get(size) || []
+      bucket.push(row)
+      libraryBySize.set(size, bucket)
       addToSizeBasenameIndex(
         libraryBySizeBasename,
         Number(row.filesize) || 0,
@@ -164,13 +173,13 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
 
       const oshash = String(row.oshash || '').trim()
       if (oshash) {
-        if (!libraryByOshash.has(oshash)) libraryByOshash.set(oshash, [])
-        libraryByOshash.get(oshash)!.push(row)
+        if (!libraryByOshash.has(`${size}:${oshash}`)) libraryByOshash.set(`${size}:${oshash}`, [])
+        libraryByOshash.get(`${size}:${oshash}`)!.push(row)
       }
     }
   }
 
-  const candidateSet = selectDuplicateCandidatePaths(files, bySize, libraryBySizeBasename)
+  const candidateSet = selectDuplicateCandidatePaths(files, bySize, libraryBySizeBasename, libraryBySize)
   const candidates = files.filter((file) => candidateSet.has(file.path))
   const inLibrary: InLibraryHit[] = []
 
@@ -211,7 +220,7 @@ async function* iterateScanFolderDuplicates(db: ApiDb, options: ScanFolderOption
           value: fingerprint.value,
         })
 
-        const libraryHits = libraryByOshash.get(fingerprint.value) || []
+        const libraryHits = libraryByOshash.get(`${file.filesize}:${fingerprint.value}`) || []
 
         for (const hit of libraryHits) {
           if (pathsEquivalent(String(hit.path), file.path)) continue

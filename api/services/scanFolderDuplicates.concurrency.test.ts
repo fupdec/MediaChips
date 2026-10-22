@@ -29,6 +29,7 @@ import {
 describe('iterateScanFolderDuplicates concurrency', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    queryAll.mockReturnValue([])
   })
 
   it('caps parallel stat calls', async () => {
@@ -58,6 +59,15 @@ describe('iterateScanFolderDuplicates concurrency', () => {
     expect(maxInFlight).toBeGreaterThan(1)
     expect(SCAN_FOLDER_STAT_CONCURRENCY).toBeGreaterThan(1)
     expect(events.some((event) => event.type === 'complete')).toBe(true)
+  })
+
+  it('finds a single renamed copy without selecting a media type', async () => {
+    stat.mockResolvedValue({size: 123})
+    queryAll.mockReturnValue([{id: 7, path: '/archive/original.mp4', basename: 'original.mp4', filesize: 123, oshash: 'same'}] as never)
+    computeFingerprint.mockResolvedValue({kind: 'oshash', value: 'same'})
+    const events = []
+    for await (const event of iterateScanFolderDuplicates({drizzle: {}} as never, {paths: ['/disk/renamed.mp4']})) events.push(event)
+    expect(events[events.length - 1]).toMatchObject({type: 'complete', inLibrary: [{path: '/disk/renamed.mp4', libraryId: 7, parameter: 'oshash'}]})
   })
 
   it('caps parallel fingerprint calls for size-group candidates', async () => {

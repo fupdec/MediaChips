@@ -1,4 +1,12 @@
-const Settings = [  {
+const Settings = [
+  {"option": "copyDiscoveryOnImport", "value": 1},
+  {"option": "copyDiscoveryOnFolderUpdate", "value": 1},
+  {"option": "copyDiscoveryOnReconnect", "value": 1},
+  {
+    "option": "copyVerificationSha256",
+    "value": 0
+  },
+  {
     "option": "allowLanAccess",
     "value": 1
   },

@@ -1,4 +1,6 @@
 import {callbackReachesApi} from '../services/cloudOAuthCallback'
+import {notifyCopySourceConnected} from '../services/mediaSources/copyDiscoveryTriggers'
+import {pinSourceDb} from '../services/mediaSources/context'
 import {offlinePlayback, sendOfflineFile} from '../services/mediaSources/offline'
 import {createMediaRepository} from '../db/repositories/media'
 import {driveMediaPath} from '../../shared/cloudDrive'
@@ -71,7 +73,10 @@ function createCloudDriveController(db: ApiDb) {
         return callbackPage(res, false, code)
       }
       try {
+        const autoTarget = pinSourceDb(db)
         await service.handleOAuthCallback(code, state)
+        try { autoTarget.assertCurrent(); notifyCopySourceConnected(autoTarget.db, DEFAULT_DRIVE_CONNECTION_ID) }
+        catch { /* Authentication may finish after switching libraries. */ }
         return callbackPage(res, true)
       } catch (err) {
         const code = driveOAuthErrorCode(err)

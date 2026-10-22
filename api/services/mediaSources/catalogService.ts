@@ -15,6 +15,7 @@ import {pinSourceDb, openSource, sourceError} from './context'
 import {collectCatalog, commitCatalog} from './reconcile'
 import {offlineDirectory, offlineLimit, offlineUsage, saveOfflineFile, removeOfflineFile, offlineStatus, sendOfflineFile, pruneOfflineFiles} from './offline'
 import type {SourceReadAdapter} from './adapter'
+import {requestAutomaticCopyDiscovery} from './copyDiscoveryTriggers'
 import {sourceOperationLocks} from './operationLocks'
 
 const errorCodes = new Set(['library_changed', 'auth_required', 'credentials_required', 'connection_not_found', 'source_version_changed',
@@ -97,6 +98,7 @@ export function createSourceCatalogService(db: ApiDb, options: {open?: typeof op
       const files = await collectCatalog(adapter, root.rootKey, signal, n => { job.processed = n; assertCurrent() })
       assertCurrent()
       job.result = commitCatalog(currentDb, id, files, signal)
+      requestAutomaticCopyDiscovery(currentDb, [{connectionId: root.connectionId, key: root.rootKey}], 'folder_update')
     })
   }
   return {

@@ -219,6 +219,10 @@ export type SettingsState = {
   databaseVersion: string
   restorePlaybackTime: string
   locale: string
+  copyDiscoveryOnImport: string
+  copyDiscoveryOnFolderUpdate: string
+  copyDiscoveryOnReconnect: string
+  copyVerificationSha256: string
   transcodeUnsupportedFormats: string
   transcodeMaxHeight: string
   transcodeCacheMaxGb: string
@@ -374,6 +378,10 @@ export const defaultSettingsState = (): SettingsState => ({
   databaseVersion: '',
   restorePlaybackTime: '1',
   locale: 'en',
+  copyDiscoveryOnImport: '1',
+  copyDiscoveryOnFolderUpdate: '1',
+  copyDiscoveryOnReconnect: '1',
+  copyVerificationSha256: '0',
   transcodeUnsupportedFormats: '1',
   transcodeMaxHeight: '1080',
   transcodeCacheMaxGb: '5',

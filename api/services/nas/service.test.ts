@@ -236,7 +236,7 @@ describe('NAS library and HTTP playback', () => {
       })
       expect(response.status).toBe(200)
       expect(await response.json()).toMatchObject({name: 'Renamed NAS', hasPassword: true, hasPrivateKey: false})
-      expect(connect.mock.calls.at(-1)?.[1]).toEqual({password: config.password})
+      expect(connect.mock.calls[connect.mock.calls.length - 1]?.[1]).toEqual({password: config.password})
       expect(fs.readFileSync(encrypted)).toEqual(original)
     }
   })
@@ -261,7 +261,7 @@ describe('NAS library and HTTP playback', () => {
     const original = fs.readFileSync(encrypted)
     expect(connection).toMatchObject({hasPassword: false, hasPrivateKey: true})
     const updated = await service.saveConnection(db, {...keyConfig, name: 'Renamed', password: '', privateKey: '', passphrase: ''}, connection.id)
-    expect(connect.mock.calls.at(-1)?.[1]).toEqual({privateKey: 'private-key', passphrase: 'key-passphrase'})
+    expect(connect.mock.calls[connect.mock.calls.length - 1]?.[1]).toEqual({privateKey: 'private-key', passphrase: 'key-passphrase'})
     expect(fs.readFileSync(encrypted)).toEqual(original)
     expect(updated).not.toHaveProperty('privateKey')
     expect(updated).not.toHaveProperty('passphrase')

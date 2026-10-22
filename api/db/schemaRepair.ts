@@ -39,6 +39,9 @@ function addColumnIfMissing(
 
 const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'offlineCopies', column: 'invalidated', definition: 'integer NOT NULL DEFAULT 0'},
+  {table: 'copyDiscoveryJobs', column: 'triggers', definition: "text NOT NULL DEFAULT '[]'"},
+  {table: 'verifiedMediaCopies', column: 'oshash', definition: 'text'},
+  {table: 'verifiedMediaCopies', column: 'verificationMethod', definition: "text NOT NULL DEFAULT 'sha256'"},
   {table: 'sourceConnections', column: 'provider', definition: "text NOT NULL DEFAULT 'nas'"},
   {table: 'mediaLocations', column: 'availability', definition: "text NOT NULL DEFAULT 'unknown'"},
   {table: 'mediaLocations', column: 'lastVerifiedAt', definition: 'text'},
@@ -176,6 +179,22 @@ export function repairSchemaColumns(sqlite: Database.Database): string[] {
 }
 
 const MISSING_TABLE_DDL: Record<string, string> = {
+  copyDiscoveryAutoRoots: `CREATE TABLE copyDiscoveryAutoRoots (
+    id TEXT PRIMARY KEY NOT NULL, connectionId TEXT, key TEXT NOT NULL, excluded TEXT NOT NULL DEFAULT '[]',
+    origin TEXT NOT NULL, monitor INTEGER NOT NULL DEFAULT 1, available INTEGER, identity TEXT, observedAt INTEGER)`,
+  copyDiscoveryAutoRequests: `CREATE TABLE copyDiscoveryAutoRequests (
+    rootId TEXT PRIMARY KEY NOT NULL REFERENCES copyDiscoveryAutoRoots(id) ON DELETE CASCADE,
+    reasons TEXT NOT NULL, generation INTEGER NOT NULL DEFAULT 1, firstAt INTEGER NOT NULL, dueAt INTEGER NOT NULL,
+    expanded INTEGER NOT NULL DEFAULT 0, jobId TEXT, submittedGeneration INTEGER)`,
+  copyDiscoveryJobs: `CREATE TABLE copyDiscoveryJobs (
+    id TEXT PRIMARY KEY NOT NULL, state TEXT NOT NULL, method TEXT NOT NULL, roots TEXT NOT NULL,
+    mediaId INTEGER, listingComplete INTEGER NOT NULL DEFAULT 0, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, error TEXT, triggers TEXT NOT NULL DEFAULT '[]')`,
+  copyDiscoveryItems: `CREATE TABLE copyDiscoveryItems (
+    id TEXT PRIMARY KEY NOT NULL, jobId TEXT NOT NULL REFERENCES copyDiscoveryJobs(id) ON DELETE CASCADE,
+    path TEXT NOT NULL, name TEXT NOT NULL, size INTEGER NOT NULL, version TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'candidate', candidateIds TEXT NOT NULL DEFAULT '[]', mediaId INTEGER, copyId TEXT, error TEXT)`,
+  copyDiscoveryIgnored: `CREATE TABLE copyDiscoveryIgnored (
+    path TEXT NOT NULL, version TEXT NOT NULL, mediaId INTEGER NOT NULL, PRIMARY KEY(path, version, mediaId))`,
   changeHistory: `CREATE TABLE "changeHistory" (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT, "operationId" TEXT NOT NULL,
     "source" TEXT NOT NULL, "occurredAt" TEXT NOT NULL, "entityType" TEXT NOT NULL,
@@ -221,7 +240,8 @@ const MISSING_TABLE_DDL: Record<string, string> = {
   )`,
   verifiedMediaCopies: `CREATE TABLE "verifiedMediaCopies" (
     "id" text PRIMARY KEY NOT NULL, "mediaId" integer NOT NULL REFERENCES "media"("id") ON DELETE CASCADE,
-    "path" text NOT NULL, "version" text NOT NULL, "sha256" text NOT NULL, "size" integer NOT NULL,
+    "path" text NOT NULL, "version" text NOT NULL, "sha256" text NOT NULL, "oshash" text,
+    "verificationMethod" text NOT NULL DEFAULT 'sha256', "size" integer NOT NULL,
     "contentType" text NOT NULL, "availability" text NOT NULL DEFAULT 'unknown', "verifiedAt" text NOT NULL
   )`,
   mediaCopyPreferences: `CREATE TABLE "mediaCopyPreferences" (
@@ -729,6 +749,21 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
       `CREATE UNIQUE INDEX IF NOT EXISTS "${spec.indexName}" ON "${spec.table}" (${quotedCols})`,
     )
     repaired.push(removed > 0 ? `${spec.indexName} (deduped ${removed})` : spec.indexName)
+  }
+
+  if (hasColumn(sqlite, 'media', 'filesize') && !hasIndex(sqlite, 'media_filesize_copy_discovery_idx')) {
+    sqlite.exec('CREATE INDEX media_filesize_copy_discovery_idx ON media(filesize)')
+    repaired.push('media_filesize_copy_discovery_idx')
+  }
+
+  const discoveryIndexes = [
+    ['copyDiscoveryAutoRequests', 'copy_discovery_auto_due_idx', 'CREATE INDEX copy_discovery_auto_due_idx ON copyDiscoveryAutoRequests(jobId, dueAt)'],
+    ['copyDiscoveryItems', 'copy_discovery_item_path_idx', 'CREATE UNIQUE INDEX copy_discovery_item_path_idx ON copyDiscoveryItems(jobId, path)'],
+    ['copyDiscoveryItems', 'copy_discovery_pending_idx', 'CREATE INDEX copy_discovery_pending_idx ON copyDiscoveryItems(jobId, state)'],
+    ['verifiedMediaCopies', 'verified_media_copies_size_idx', 'CREATE INDEX verified_media_copies_size_idx ON verifiedMediaCopies(size)'],
+  ]
+  for (const [table, name, ddl] of discoveryIndexes) {
+    if (hasTable(sqlite, table) && !hasIndex(sqlite, name)) { sqlite.exec(ddl); repaired.push(name) }
   }
 
   if (hasTable(sqlite, 'verifiedMediaCopies') && !hasIndex(sqlite, 'verified_media_copies_path_idx')) {

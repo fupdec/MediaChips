@@ -7,6 +7,8 @@ import {createHash} from 'crypto'
 import express from 'express'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {createTestDb, closeTestDb, type TestDb} from '../../db/testUtils/createTestDb'
+import {createSettingsRepository} from '../../db/repositories/settings'
+import {COPY_SHA256_SETTING} from '../../../shared/copyVerification'
 import {createMediaRepository} from '../../db/repositories/media'
 import type {ApiDb} from '../../types/db'
 import {mergeMediaItems} from '../mediaMerge'
@@ -38,6 +40,7 @@ describe('verified file copies', () => {
     return createMediaRepository(db.drizzle).create({path: filename, name, mediaTypeId: 1, filesize: bytes.length})
   }
   const signal = () => new AbortController().signal
+  const strict = (enabled: boolean) => createSettingsRepository(db.drizzle).upsertByOption(COPY_SHA256_SETTING, enabled ? '1' : '0')
   const merge = (a: number, b: number) => mergeMediaItems(db, {survivorId: a, sourceIds: [b]})
 
   it('keeps local files and chips under one stable card, including repeated merges', async () => {
@@ -59,6 +62,101 @@ describe('verified file copies', () => {
     expect(repo.bulkCreateLite([{path: c.path, mediaTypeId: 1}])).toEqual([])
     expect(fixture.sqlite.prepare('SELECT mediaId, metaId, tagId FROM tagsInMedia').all()).toEqual([{mediaId: a.id, metaId: 1, tagId: 1}])
     expect(fixture.sqlite.prepare('SELECT COUNT(*) AS n FROM media').get()).toEqual({n: 1})
+  })
+
+  it('defaults to oshash and accepts matching ends even when middle bytes differ', async () => {
+    const original = Buffer.alloc(320000, 7)
+    const alternative = Buffer.from(original)
+    alternative.fill(99, 65536, alternative.length - 65536)
+    const a = local('large-original.mp4'), b = local('large-copy.mp4')
+    fs.writeFileSync(a.path, original); fs.writeFileSync(b.path, alternative)
+    await merge(a.id, b.id)
+    const copies = copyCandidates(db, a.id)
+    expect(copies).toHaveLength(2)
+    expect(copies.every(copy => copy.verificationMethod === 'oshash' && copy.stored?.sha256 === '' && copy.stored?.oshash)).toBe(true)
+    expect(copies[0].stored?.oshash).toBe(copies[1].stored?.oshash)
+    expect(fs.readFileSync(a.path).equals(fs.readFileSync(b.path))).toBe(false)
+  })
+
+  it('persists the SHA-256 setting and requires a complete match only when enabled', async () => {
+    const bytes = Buffer.alloc(320000, 7)
+    const a = local('large-original.mp4'), b = local('large-edit.mp4')
+    fs.writeFileSync(a.path, bytes)
+    bytes.fill(99, 65536, bytes.length - 65536)
+    fs.writeFileSync(b.path, bytes)
+    strict(true)
+    expect(createSettingsRepository(db.drizzle).findByOption(COPY_SHA256_SETTING)?.value).toBe('1')
+    await expect(merge(a.id, b.id)).rejects.toMatchObject({code: 'copy_content_mismatch'})
+    expect(copyCandidates(db, a.id)).toHaveLength(1)
+    strict(false)
+    await merge(a.id, b.id)
+    expect(copyCandidates(db, a.id).every(copy => copy.verificationMethod === 'oshash')).toBe(true)
+  })
+
+  it('records full SHA-256 evidence for identical copies when explicitly enabled', async () => {
+    strict(true)
+    const a = local('a.mp4'), b = local('b.mp4')
+    await merge(a.id, b.id)
+    const expected = createHash('sha256').update(fs.readFileSync(a.path)).digest('hex')
+    expect(copyCandidates(db, a.id).every(copy => copy.verificationMethod === 'sha256' && copy.stored?.sha256 === expected)).toBe(true)
+  })
+
+  it('adds a local copy with oshash by default, and rejects a changed middle in full mode', async () => {
+    const bytes = Buffer.alloc(320000, 7)
+    const a = local('source.mp4')
+    const added = path.join(directory, 'existing-copy.mp4')
+    fs.writeFileSync(a.path, bytes)
+    bytes.fill(99, 65536, bytes.length - 65536)
+    fs.writeFileSync(added, bytes)
+    strict(true)
+    await expect(attachLocalMediaCopy(db, a.id, added, signal())).rejects.toMatchObject({code: 'copy_content_mismatch'})
+    strict(false)
+    expect((await attachLocalMediaCopy(db, a.id, added, signal())).copies.every(copy => copy.verificationMethod === 'oshash')).toBe(true)
+  })
+
+  it('uses only ranges for large remote merges, attachment and changed-version playback by default', async () => {
+    const size = 50 * 1024 ** 3
+    const a = createMediaRepository(db.drizzle).create({path: 'gdrive://large-original', filesize: size, mediaTypeId: 1})
+    let version = 'v1'
+    const reads: Array<string | undefined> = []
+    const open: OpenCopySource = async (_db, key) => ({key, adapter: {provider: key.startsWith('/') ? 'local' : 'gdrive',
+      capabilities: READ_SOURCE_CAPABILITIES, list: async () => ({entries: []}), close() {},
+      stat: async () => ({resourceKey: key, name: 'large.mp4', size, version, isDirectory: false, contentType: 'video/mp4'}),
+      read: async (_key, range) => {
+        reads.push(range)
+        if (!range) throw new Error('Full file download is forbidden')
+        const [, start, end] = /^bytes=(\d+)-(\d+)$/.exec(range)!
+        return {status: 206, headers: {'content-range': `bytes ${start}-${end}/${size}`, 'content-length': String(Number(end) - Number(start) + 1)},
+          body: Buffer.alloc(Number(end) - Number(start) + 1)}
+      },
+    }})
+    const added = await attachLocalMediaCopy(db, a.id, '/virtual/large-copy.mp4', signal(), open)
+    expect(added.copies).toHaveLength(2)
+    expect(reads).toHaveLength(4)
+    expect(reads).not.toContain(undefined)
+    reads.length = 0
+    const verification = await verifyCopiesForMerge(db, [a.id], signal(), open)
+    expect(verification.copies.every(copy => copy.verificationMethod === 'oshash' && copy.sha256 === '')).toBe(true)
+    expect(reads).toHaveLength(4)
+    reads.length = 0
+    version = 'v2'
+    expect((await selectPlayableCopy(db, a.id, signal(), open)).url).toContain('copies/stream')
+    expect(reads).not.toContain(undefined)
+    expect(reads).toContain('bytes=0-65535')
+    expect(reads).toContain(`bytes=${size - 65536}-${size - 1}`)
+  })
+
+  it('never upgrades a growing tiny file to a full large download in fast mode', async () => {
+    const a = createMediaRepository(db.drizzle).create({path: 'gdrive://growing', mediaTypeId: 1, filesize: 4})
+    const read = vi.fn(async () => { throw new Error('Must not read the full file') })
+    let statCalls = 0
+    const open: OpenCopySource = async (_db, key) => ({key, adapter: {provider: 'gdrive', capabilities: READ_SOURCE_CAPABILITIES,
+      close() {}, list: async () => ({entries: []}), read,
+      stat: async () => ({resourceKey: key, name: 'movie.mp4', size: ++statCalls === 1 ? 4 : 50 * 1024 ** 3,
+        version: `v${statCalls}`, isDirectory: false, contentType: 'video/mp4'}),
+    }})
+    await expect(verifyCopiesForMerge(db, [a.id], signal(), open)).rejects.toMatchObject({code: 'source_version_changed'})
+    expect(read).not.toHaveBeenCalled()
   })
 
   it('rejects same-size alternate edits atomically even when sampled fingerprints agree', async () => {
@@ -159,7 +257,7 @@ describe('verified file copies', () => {
     }
     const verification = await verifyCopiesForMerge(db, [a.id, b.id, c.id], signal(), open)
     expect(verification.copies.map(row => row.sha256)).toEqual(Array(3).fill(createHash('sha256').update('data').digest('hex')))
-    expect(closed).toHaveBeenCalledTimes(2)
+    expect(closed).toHaveBeenCalledTimes(4)
     const insert = fixture.sqlite.prepare('INSERT INTO verifiedMediaCopies (id, mediaId, path, version, sha256, size, contentType, availability, verifiedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
     for (const copy of verification.copies) insert.run(copy.id, a.id, copy.path, copy.version, copy.sha256, copy.size, copy.contentType, 'available', copy.verifiedAt)
     const observation = () => fixture.sqlite.prepare(`SELECT ${CATALOG_SOURCE_TOKENS_SQL} AS tokens, ${CATALOG_AVAILABILITY_SQL} AS availability FROM media WHERE id = ?`).get(a.id) as {tokens: string; availability: string}

@@ -1,14 +1,17 @@
 import {sqliteTable, text, integer, uniqueIndex} from 'drizzle-orm/sqlite-core'
 import {media} from './media'
+import type {CopyVerificationMethod} from '../../../shared/copyVerification'
 import type {SourceAvailability} from '../../../shared/mediaSources'
 
-/** Full byte hashes, independent of the catalog's sampled fingerprints and provider validators. */
+/** Comparison fingerprints with an explicit method; existing rows retain their SHA-256 provenance. */
 export const verifiedMediaCopies = sqliteTable('verifiedMediaCopies', {
   id: text('id').primaryKey(),
   mediaId: integer('mediaId').notNull().references(() => media.id, {onDelete: 'cascade'}),
   path: text('path').notNull(),
   version: text('version').notNull(),
   sha256: text('sha256').notNull(),
+  oshash: text('oshash'),
+  verificationMethod: text('verificationMethod').$type<CopyVerificationMethod>().notNull().default('sha256'),
   size: integer('size').notNull(),
   contentType: text('contentType').notNull(),
   availability: text('availability').$type<SourceAvailability>().notNull().default('unknown'),

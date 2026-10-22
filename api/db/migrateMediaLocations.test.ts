@@ -20,7 +20,7 @@ describe('source location migration', () => {
   })
 
   it('upgrades a copy of a pre-provider library, preserving card IDs, paths, chips and marks', () => {
-    fixture = createTestDb('source-upgrade')
+    fixture = createTestDb('source-upgrade', '0032_media_sources')
     const connectionId = randomUUID()
     const credentialRef = randomUUID()
     fixture.sqlite.prepare('INSERT INTO sourceConnections (id, config, credentialRef, createdAt) VALUES (?, ?, ?, ?)')
@@ -44,13 +44,7 @@ describe('source location migration', () => {
     `)
     const tables = ['media', 'meta', 'tags', 'tagsInMedia', 'valuesInMedia', 'marks']
     const snapshot = Object.fromEntries(tables.map(table => [table, fixture.sqlite.prepare(`SELECT * FROM ${table}`).all()]))
-    // Restore the exact shape tracked by migration 0032, then upgrade a copy.
-    fixture.sqlite.exec(`
-      ALTER TABLE sourceConnections DROP COLUMN provider;
-      ALTER TABLE mediaLocations DROP COLUMN availability;
-      ALTER TABLE mediaLocations DROP COLUMN lastVerifiedAt;
-      DELETE FROM __drizzle_migrations WHERE created_at >= 1782868800000;
-    `)
+    // Upgrade a saved copy of the real schema tracked by migration 0032.
     fixture.sqlite.close()
     copy = `${fixture.dbPath}.copy`
     fs.copyFileSync(fixture.dbPath, copy)

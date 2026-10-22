@@ -1,4 +1,5 @@
 import path from 'path'
+import {requestAutomaticCopyDiscovery} from '../mediaSources/copyDiscoveryTriggers'
 import {DEFAULT_DRIVE_CONNECTION_ID} from '../../../shared/mediaSources'
 import {eq, inArray} from 'drizzle-orm'
 import type {ApiDb} from '../../types/db'
@@ -32,6 +33,10 @@ export async function listDriveFolder(db: ApiDb, service: CloudDriveService, fol
   const paths = result.files.filter(file => !file.isFolder).map(file => driveMediaPath(file.id))
   const rows = paths.length ? db.drizzle.select({id: media.id, path: media.path, deletedAt: media.deletedAt}).from(media).where(inArray(media.path, paths)).all() : []
   const imported = new Map(rows.filter(row => !row.deletedAt).map(row => [row.path, row.id]))
+  if (!pageToken) {
+    ensureDriveConnection(db)
+    requestAutomaticCopyDiscovery(db, [{connectionId: DEFAULT_DRIVE_CONNECTION_ID, key: folderId}], 'folder_update')
+  }
   return {...result, files: result.files.map(file => ({...file, mediaId: imported.get(driveMediaPath(file.id)) ?? null}))}
 }
 export async function importDriveFile(db: ApiDb, service: CloudDriveService, fileId: string) {
@@ -62,5 +67,6 @@ export async function importDriveFile(db: ApiDb, service: CloudDriveService, fil
     return {id: row.id, title: row.name || file.name, created}
   })
   invalidateMediaDerivedCaches()
+  requestAutomaticCopyDiscovery(db, [{connectionId: DEFAULT_DRIVE_CONNECTION_ID, key: fileId}], 'import')
   return result
 }

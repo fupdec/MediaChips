@@ -1,3 +1,4 @@
+import {requestAutomaticCopyDiscovery, notifyCopySourceConnected} from '../mediaSources/copyDiscoveryTriggers'
 import {offlinePlayback, sendOfflineFile} from '../mediaSources/offline'
 import {randomUUID, createHash} from 'crypto'
 import path from 'path'
@@ -114,6 +115,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
       if (existing) {
         db.drizzle.update(mediaLocations).set({version, availability: 'available', lastVerifiedAt: new Date().toISOString()})
           .where(eq(mediaLocations.id, existingLocation.id)).run()
+        requestAutomaticCopyDiscovery(db, [{connectionId, key: resourceKey}], 'import')
         return {id: existing.id, title: existing.name || path.posix.basename(resourceKey), created: false}
       }
     }
@@ -130,6 +132,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
       if (item.created && kind !== 'image') createVideoMetadataRepository(tx).create({mediaId: item.row.id, duration: 0})
       return {id: item.row.id, title: item.row.name || path.posix.basename(resourceKey), created: item.created}
     })
+    requestAutomaticCopyDiscovery(db, [{connectionId, key: resourceKey}], 'import')
     return result
   }
 
@@ -167,6 +170,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
             .onConflictDoUpdate({target: sourceConnections.id, set: {config: JSON.stringify(config)}}).run()
         } catch (err) { if (!old) secrets.delete(ref); throw err }
         invalidateConnection(id)
+        notifyCopySourceConnected(db, id)
         return publicConnection(connectionRow(db, id))
       } finally { clearTimeout(timer); transport?.close() }
     },
@@ -186,6 +190,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
         eq(mediaLocations.connectionId, id), inArray(mediaLocations.resourceKey, filePaths),
       )).all() : []
       const imported = new Map(locations.map(location => [JSON.stringify([location.resourceKey, location.version]), location.mediaId]))
+      if (!pageToken) requestAutomaticCopyDiscovery(db, [{connectionId: id, key: normalized}], 'folder_update')
       return {path: normalized, entries: visible.map(entry => ({...entry,
         mediaId: entry.isDirectory ? null : imported.get(JSON.stringify([entry.path, fileVersion(entry)])) ?? null,
       })),

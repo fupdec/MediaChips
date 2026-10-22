@@ -10,7 +10,7 @@ import {
   stabilityThresholdMs,
 } from '../../api/utils/watchPathHints'
 
-export type FolderWatcherEvent = 'add' | 'unlink' | 'ready' | 'error'
+export type FolderWatcherEvent = 'add' | 'change' | 'unlink' | 'ready' | 'error'
 
 type Listener = (...args: unknown[]) => void
 
@@ -36,6 +36,7 @@ export class ParcelFolderWatcher {
   private subscriptions: Array<{unsubscribe: () => Promise<void>}> = []
   private pollTimers: ReturnType<typeof setInterval>[] = []
   private pendingCreates = new Map<string, ReturnType<typeof setTimeout>>()
+  private pendingAdds = new Set<string>()
   private closed = false
   private readyEmitted = false
   private readonly excluded: string[]
@@ -162,18 +163,22 @@ export class ParcelFolderWatcher {
 
       if (event.type === 'create') {
         this.queueCreate(filePath, settleMs)
+      } else if (event.type === 'update') {
+        this.queueCreate(filePath, settleMs, 'change')
       } else if (event.type === 'delete') {
         this.cancelCreate(filePath)
         this.emit('unlink', filePath)
       }
-      // updates ignored — media watcher only cares about add/unlink
     }
   }
 
-  private queueCreate(filePath: string, settleMs: number): void {
+  private queueCreate(filePath: string, settleMs: number, event: 'add' | 'change' = 'add'): void {
+    const settledEvent = event === 'add' || this.pendingAdds.has(filePath) ? 'add' : 'change'
     this.cancelCreate(filePath)
+    if (settledEvent === 'add') this.pendingAdds.add(filePath)
     const timer = setTimeout(() => {
       this.pendingCreates.delete(filePath)
+      this.pendingAdds.delete(filePath)
       if (this.closed) return
       // File may have been deleted during settle.
       try {
@@ -181,12 +186,13 @@ export class ParcelFolderWatcher {
       } catch {
         return
       }
-      this.emit('add', filePath)
+      this.emit(settledEvent, filePath)
     }, settleMs)
     this.pendingCreates.set(filePath, timer)
   }
 
   private cancelCreate(filePath: string): void {
+    this.pendingAdds.delete(filePath)
     const timer = this.pendingCreates.get(filePath)
     if (timer) {
       clearTimeout(timer)
@@ -229,6 +235,7 @@ export class ParcelFolderWatcher {
     this.closed = true
     for (const timer of this.pendingCreates.values()) clearTimeout(timer)
     this.pendingCreates.clear()
+    this.pendingAdds.clear()
     for (const timer of this.pollTimers) clearInterval(timer)
     this.pollTimers = []
 

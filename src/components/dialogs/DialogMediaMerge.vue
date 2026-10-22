@@ -57,7 +57,7 @@
 
         <div v-if="saving" role="status" class="mt-3 text-caption">
           <v-progress-linear indeterminate class="mb-2" />
-          {{ t('copies.checking') }}
+          {{ t(settings.copyVerificationSha256 === '1' ? 'copies.checking_full' : 'copies.checking') }}
         </div>
       </v-card-text>
     </v-card>
@@ -69,6 +69,7 @@ import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {useDialogsStore} from '@/stores/dialogs'
+import {useSettingsStore} from '@/stores/settings'
 import {useItemsStore} from '@/stores/items'
 import {useNotificationsStore} from '@/stores/notifications'
 import {typedApi} from '@/services/typedApi'
@@ -81,6 +82,7 @@ import type {MediaItem} from '@/types/stores'
 const {t} = useI18n()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
+const settings = useSettingsStore()
 const notificationsStore = useNotificationsStore()
 const listSync = useItemsListSync()
 

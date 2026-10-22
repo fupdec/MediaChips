@@ -1,3 +1,4 @@
+import registerCopyDiscovery from '../../api/routes/CopyDiscovery.routes'
 import registerRemoteProcessing from '../../api/routes/RemoteProcessing.routes'
 import {registerCloudMetadataBackfill} from './cloudMetadataBackfill'
 import registerCloudAccounts from '../../api/routes/CloudAccounts.routes'
@@ -70,6 +71,7 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'Setting.routes', register: registerSetting },
     { routeFile: 'Nas.routes', register: registerNas },
     { routeFile: 'SourceCatalog.routes', register: registerSourceCatalog },
+    { routeFile: 'CopyDiscovery.routes', register: registerCopyDiscovery },
     { routeFile: 'OriginalOperations.routes', register: registerOriginalOperations },
   ]
 

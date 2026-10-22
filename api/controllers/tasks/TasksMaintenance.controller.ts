@@ -1,3 +1,4 @@
+import {createRequestAbortSignal} from '../../services/requestAbortSignal'
 import type { TaskControllerShared } from '../../types/tasks'
 import { sendControllerError, sendOk } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
@@ -244,6 +245,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       errorMessage: 'Some error occurred while backfilling oshash values.',
       iterate: (shouldStop) => iterateOshashBackfill(db, {
         shouldStop,
+        signal: createRequestAbortSignal(req, res),
         force: String(req.query.force || '').toLowerCase() === 'true',
       }),
     })
@@ -254,6 +256,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       errorMessage: 'Some error occurred while backfilling fingerprints.',
       iterate: (shouldStop) => iterateFingerprintBackfill(db, {
         shouldStop,
+        signal: createRequestAbortSignal(req, res),
         force: String(req.query.force || '').toLowerCase() === 'true',
       }),
     })

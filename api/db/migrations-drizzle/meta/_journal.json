@@ -267,6 +267,34 @@
       "when": 1782883200000,
       "tag": "0037_verified_media_copies",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1782886800000,
+      "tag": "0038_copy_verification_method",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1782890400000,
+      "tag": "0039_copy_discovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1782894000000,
+      "tag": "0040_copy_discovery_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1782897600000,
+      "tag": "0041_copy_discovery_automation",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,7 @@
+import {parseCloudMediaPath, cloudMediaPath} from '../../../shared/cloudAccounts'
+import type {CopyVerificationMethod} from '../../../shared/copyVerification'
+import {copyVerificationMethod} from './copyVerification'
+import {computeSourceOshash} from './oshash'
 import {createHash, randomUUID} from 'crypto'
 import {Readable} from 'stream'
 import {pipeline} from 'stream/promises'
@@ -23,12 +27,14 @@ type VerifiedCopy = typeof verifiedMediaCopies.$inferSelect
 export type CopyCandidate = MediaCopy & {version: string; stored?: VerifiedCopy}
 export type OpenCopySource = (db: ApiDb, path: string, signal: AbortSignal) => Promise<{adapter: SourceReadAdapter; key: string}>
 export const openCopySource: OpenCopySource = async (db, path, signal) => {
+  const cloud = parseCloudMediaPath(path)
+  if (cloud) return {adapter: await openSource(db, cloud.connectionId, signal), key: cloud.resourceKey}
   const nas = parseNasMediaPath(path)
   const drive = parseDriveMediaPath(path)
   if (nas || drive) return {adapter: await openSource(db, nas?.connectionId || DEFAULT_DRIVE_CONNECTION_ID, signal), key: nas?.relativePath || drive!}
   return {adapter: createLocalOriginalAdapter(), key: localOriginalKey(path)}
 }
-const provider = (path: string): MediaCopy['provider'] => parseNasMediaPath(path) ? 'nas' : parseDriveMediaPath(path) ? 'gdrive' : 'local'
+const provider = (path: string): MediaCopy['provider'] => parseCloudMediaPath(path)?.provider || (parseNasMediaPath(path) ? 'nas' : parseDriveMediaPath(path) ? 'gdrive' : 'local')
 const canonicalPath = (path: string) => {
   const nas = parseNasMediaPath(path)
   return nas ? nasMediaPath(nas.connectionId, nas.relativePath) : path
@@ -39,7 +45,7 @@ export function copyCandidates(db: ApiDb, mediaId: number): CopyCandidate[] {
   if (!card || card.deletedAt) throw sourceError('media_not_found', 404)
   const stored = db.drizzle.select().from(verifiedMediaCopies).where(eq(verifiedMediaCopies.mediaId, mediaId)).all()
   const copies: CopyCandidate[] = stored.map(row => ({id: row.id, path: row.path, provider: provider(row.path),
-    availability: row.availability, verifiedAt: row.verifiedAt, verified: true, version: row.version, stored: row}))
+    availability: row.availability, verifiedAt: row.verifiedAt, verificationMethod: row.verificationMethod, verified: true, version: row.version, stored: row}))
   if (stored.length) return copies
   const add = (copy: CopyCandidate) => {
     if (!copies.some(row => canonicalPath(row.path) === canonicalPath(copy.path))) copies.push(copy)
@@ -47,7 +53,7 @@ export function copyCandidates(db: ApiDb, mediaId: number): CopyCandidate[] {
   const locations = db.drizzle.select({location: mediaLocations, connection: sourceConnections}).from(mediaLocations)
     .innerJoin(sourceConnections, eq(sourceConnections.id, mediaLocations.connectionId)).where(eq(mediaLocations.mediaId, mediaId)).all()
   for (const {location, connection} of locations) add({id: `location:${location.id}`, provider: connection.provider,
-    path: connection.provider === 'nas' ? nasMediaPath(connection.id, location.resourceKey) : driveMediaPath(location.resourceKey),
+    path: connection.provider === 'nas' ? nasMediaPath(connection.id, location.resourceKey) : connection.id !== DEFAULT_DRIVE_CONNECTION_ID ? cloudMediaPath(connection.provider as import('../../../shared/cloudAccounts').CloudProvider, connection.id, location.resourceKey) : driveMediaPath(location.resourceKey),
     availability: location.availability, verifiedAt: location.lastVerifiedAt, verified: false, version: location.version})
   // A retained location replaces its legacy compatibility URI. Local originals remain candidates.
   if (!locations.length || provider(card.path) === 'local') add({id: 'original', path: card.path,
@@ -73,10 +79,12 @@ const matchesVersion = (copy: CopyCandidate, file: SourceObject) => !copy.versio
   ? nasVersionMatches(copy.version, file.version) : copy.version === file.version)
 
 /** Stream every byte; a provider revision, oshash or visual similarity cannot prove identity. */
-export async function hashCopy(adapter: SourceReadAdapter, key: string, signal: AbortSignal, assertCurrent: () => void) {
+export async function hashCopy(adapter: SourceReadAdapter, key: string, signal: AbortSignal, assertCurrent: () => void,
+  options: {maxSize?: number; statAfter?: () => Promise<SourceObject>} = {}) {
   signal.throwIfAborted()
   const before = await adapter.stat(key, signal)
-  validFile(before)
+  validFile(before); assertCurrent(); signal.throwIfAborted()
+  if (options.maxSize !== undefined && before.size > options.maxSize) throw sourceError('source_version_changed')
   const download = await adapter.read(key, undefined, signal)
   if (download.status !== 200) {
     if (!Buffer.isBuffer(download.body)) download.body.destroy()
@@ -94,14 +102,58 @@ export async function hashCopy(adapter: SourceReadAdapter, key: string, signal: 
       hash.update(bytes)
     }
   } finally { body.destroy() }
-  const after = await adapter.stat(key, signal)
+  const after = await (options.statAfter ? options.statAfter() : adapter.stat(key, signal))
   assertCurrent(); signal.throwIfAborted()
   if (size !== before.size || after.size !== before.size || after.version !== before.version) throw sourceError('source_version_changed')
   return {sha256: hash.digest('hex'), file: after}
 }
 
-/** No writes until every selected card and retained copy has passed verification. */
-export async function verifyCopiesForMerge(db: ApiDb, ids: number[], signal: AbortSignal, open = openCopySource) {
+type CopyFingerprint = {
+  file: SourceObject
+  sha256: string
+  oshash: string | null
+  verificationMethod: CopyVerificationMethod
+}
+
+/** The fast mode owns fresh range sessions and never requests a complete large file. */
+export async function fingerprintCopy(db: ApiDb, path: string, method: CopyVerificationMethod, signal: AbortSignal,
+  assertCurrent: () => void, open: OpenCopySource): Promise<CopyFingerprint> {
+  const first = await open(db, path, signal)
+  let transferred = false
+  try {
+    const before = await first.adapter.stat(first.key, signal)
+    validFile(before); assertCurrent(); signal.throwIfAborted()
+    // Oshash is undefined for <= 8 bytes. Reading these tiny files completely is bounded too.
+    if (method === 'sha256' || before.size <= 8) {
+      const checked = await hashCopy(first.adapter, first.key, signal, assertCurrent, {
+        maxSize: method === 'oshash' ? 8 : undefined,
+        async statAfter() {
+          const next = await open(db, path, signal)
+          try {
+            if (next.key !== first.key) throw sourceError('media_changed')
+            return await next.adapter.stat(next.key, signal)
+          } finally { next.adapter.close() }
+        },
+      })
+      return {...checked, oshash: null, verificationMethod: 'sha256'}
+    }
+    const sampled = await computeSourceOshash(async attemptSignal => {
+      if (!transferred) { transferred = true; return first.adapter }
+      const next = await open(db, path, attemptSignal)
+      if (next.key !== first.key) { next.adapter.close(); throw sourceError('media_changed') }
+      return next.adapter
+    }, first.key, {signal, assertCurrent, validate(file) {
+      if (file.version !== before.version || file.size !== before.size) throw sourceError('source_version_changed')
+    }})
+    return {file: sampled.file, sha256: '', oshash: sampled.value, verificationMethod: 'oshash'}
+  } finally { if (!transferred) first.adapter.close() }
+}
+
+const comparisonKey = (checked: CopyFingerprint) => `${checked.verificationMethod}:${checked.file.size}:${checked.oshash || checked.sha256}`
+
+/** No writes until all selected cards and retained copies pass the configured comparison. */
+export async function verifyCopiesForMerge(db: ApiDb, ids: number[], signal: AbortSignal, open = openCopySource,
+  method = copyVerificationMethod(db)) {
   const pinned = pinSourceDb(db)
   db = pinned.db
   const snapshot = () => JSON.stringify(ids.map(id => ({
@@ -112,21 +164,29 @@ export async function verifyCopiesForMerge(db: ApiDb, ids: number[], signal: Abo
   let expected: string | undefined
   for (const id of ids) {
     for (const copy of copyCandidates(db, id)) {
-      const {adapter, key} = await open(db, copy.path, signal)
-      try {
-        const {sha256, file} = await hashCopy(adapter, key, signal, pinned.assertCurrent)
-        if (!matchesVersion(copy, file) && !copy.stored) throw sourceError('source_version_changed')
-        if ((copy.stored && sha256 !== copy.stored.sha256) || (expected && sha256 !== expected)) throw sourceError('copy_content_mismatch')
-        expected = sha256
-        const path = canonicalPath(copy.path)
-        if (!result.some(row => row.path === path)) result.push({id: copy.stored?.id || randomUUID(), path,
-          version: file.version, sha256, size: file.size, contentType: mediaFileContentType(file.name) || file.contentType,
-          availability: 'available', verifiedAt: new Date().toISOString()})
-      } finally { adapter.close() }
+      if (method === 'sha256' && copy.stored?.oshash && !copy.stored.sha256) {
+        const baseline = await fingerprintCopy(db, copy.path, 'oshash', signal, pinned.assertCurrent, open)
+        if (baseline.oshash !== copy.stored.oshash || baseline.file.size !== copy.stored.size) throw sourceError('copy_content_mismatch')
+      }
+      const checked = await fingerprintCopy(db, copy.path, method, signal, pinned.assertCurrent, open)
+      const {file, sha256, oshash, verificationMethod} = checked
+      if (!matchesVersion(copy, file) && !copy.stored) throw sourceError('source_version_changed')
+      const storedMismatch = copy.stored && (copy.stored.size !== file.size
+        || (verificationMethod === 'sha256' && copy.stored.sha256 && copy.stored.sha256 !== sha256)
+        || (verificationMethod === 'oshash' && copy.stored.oshash && copy.stored.oshash !== oshash))
+      if (storedMismatch || (expected && comparisonKey(checked) !== expected)) throw sourceError('copy_content_mismatch')
+      expected = comparisonKey(checked)
+      const path = canonicalPath(copy.path)
+      const retainedSha256 = sha256 || (copy.stored?.version === file.version ? copy.stored.sha256 : '')
+      if (!result.some(row => row.path === path)) result.push({id: copy.stored?.id || randomUUID(), path,
+        version: file.version, sha256: retainedSha256, oshash,
+        verificationMethod: retainedSha256 ? 'sha256' : verificationMethod, size: file.size,
+        contentType: mediaFileContentType(file.name) || file.contentType,
+        availability: 'available', verifiedAt: !sha256 && retainedSha256 && copy.stored ? copy.stored.verifiedAt : new Date().toISOString()})
     }
   }
   if (!result.length) throw sourceError('copy_not_found', 404)
-  return {copies: result, assertUnchanged() {
+  return {copies: result, method, assertUnchanged() {
     pinned.assertCurrent(); signal.throwIfAborted()
     if (snapshot() !== initial) throw sourceError('media_changed')
   }}
@@ -179,14 +239,35 @@ export async function selectPlayableCopy(db: ApiDb, mediaId: number, signal: Abo
       validFile(file); pinned.assertCurrent(); signal.throwIfAborted()
       if (!matchesVersion(copy, file)) {
         if (!copy.stored) throw sourceError('source_version_changed')
-        const checked = await hashCopy(adapter, opened.key, signal, pinned.assertCurrent)
-        if (checked.sha256 !== copy.stored.sha256) throw sourceError('copy_content_mismatch')
-        db.drizzle.update(verifiedMediaCopies).set({version: checked.file.version, verifiedAt: new Date().toISOString()}).where(eq(verifiedMediaCopies.id, copy.id)).run()
+        const method = copyVerificationMethod(db)
+        const useFull = method === 'sha256' && Boolean(copy.stored.sha256)
+        const expectedOshash = copy.stored.oshash || copies.find(row => row.stored?.oshash && row.stored.size === copy.stored!.size)?.stored?.oshash
+        if (!useFull && !expectedOshash && file.size > 8) throw sourceError('copy_not_verified')
+        // The probe session may be closed by FTP. Verification opens its own bounded sessions.
+        adapter.close(); adapter = undefined
+        const checked = await fingerprintCopy(db, copy.path, useFull ? 'sha256' : 'oshash', signal, pinned.assertCurrent, open)
+        if (checked.file.size !== copy.stored.size || (checked.verificationMethod === 'sha256'
+          ? checked.sha256 !== copy.stored.sha256 : checked.oshash !== expectedOshash)) throw sourceError('copy_content_mismatch')
+        const beforeWrite = copyCandidates(db, mediaId).find(row => row.id === copy.id)
+        if (!beforeWrite || beforeWrite.path !== copy.path || beforeWrite.version !== copy.version
+          || beforeWrite.stored?.sha256 !== copy.stored.sha256 || beforeWrite.stored?.oshash !== copy.stored.oshash) throw sourceError('media_changed')
+        db.drizzle.update(verifiedMediaCopies).set({version: checked.file.version, verifiedAt: new Date().toISOString(),
+          sha256: checked.sha256, oshash: checked.oshash, verificationMethod: checked.verificationMethod}).where(eq(verifiedMediaCopies.id, copy.id)).run()
         copy.version = checked.file.version
+        copy.stored = {...copy.stored, version: checked.file.version, sha256: checked.sha256, oshash: checked.oshash, verificationMethod: checked.verificationMethod}
         file = checked.file
+      } else if (copy.stored && !copy.stored.oshash && file.size > 8 && copyVerificationMethod(db) === 'oshash') {
+        // Seed a cheap baseline for legacy SHA-verified rows while their original version still matches.
+        adapter.close(); adapter = undefined
+        const checked = await fingerprintCopy(db, copy.path, 'oshash', signal, pinned.assertCurrent, open)
+        if (checked.file.version !== file.version) throw sourceError('source_version_changed')
+        const beforeWrite = copyCandidates(db, mediaId).find(row => row.id === copy.id)
+        if (!beforeWrite || beforeWrite.path !== copy.path || beforeWrite.version !== copy.version) throw sourceError('media_changed')
+        db.drizzle.update(verifiedMediaCopies).set({oshash: checked.oshash}).where(eq(verifiedMediaCopies.id, copy.id)).run()
+        copy.stored = {...copy.stored, oshash: checked.oshash}
       }
       const current = copyCandidates(db, mediaId).find(row => row.id === copy.id)
-      if (!current || current.path !== copy.path || current.stored?.sha256 !== copy.stored?.sha256) throw sourceError('media_changed')
+      if (!current || current.path !== copy.path || current.version !== copy.version || current.stored?.sha256 !== copy.stored?.sha256 || current.stored?.oshash !== copy.stored?.oshash) throw sourceError('media_changed')
       observe(db, mediaId, copy, 'available')
       return {url: `/api/Media/${mediaId}/copies/stream?copyId=${encodeURIComponent(copy.id)}&version=${encodeURIComponent(file.version)}`,
         kind: 'mp4' as const, title: '', qualities: [], quality: null, adaptive: false}
@@ -199,7 +280,7 @@ export async function selectPlayableCopy(db: ApiDb, mediaId: number, signal: Abo
   try {
     const cached = getOfflineFile(db, mediaId)
     const location = cached.resolved.location
-    const cachedPath = cached.resolved.provider === 'nas' ? nasMediaPath(location.connectionId, location.resourceKey) : driveMediaPath(location.resourceKey)
+    const cachedPath = cached.resolved.provider === 'nas' ? nasMediaPath(location.connectionId, location.resourceKey) : location.connectionId !== DEFAULT_DRIVE_CONNECTION_ID ? cloudMediaPath(cached.resolved.provider as import('../../../shared/cloudAccounts').CloudProvider, location.connectionId, location.resourceKey) : driveMediaPath(location.resourceKey)
     if (cached.ready && copies.some(copy => copy.path === cachedPath && copy.version === location.version)) {
       const offline = offlinePlayback(db, mediaId)
       if (offline) return offline
@@ -264,24 +345,29 @@ export async function attachLocalMediaCopy(db: ApiDb, mediaId: number, path: str
   path = localOriginalKey(path)
   const pinned = pinSourceDb(db)
   db = pinned.db
-  const owner = db.sqlite.prepare('SELECT id FROM media WHERE path = ? AND id != ? UNION SELECT mediaId FROM verifiedMediaCopies WHERE path = ? AND mediaId != ? LIMIT 1').get(path, mediaId, path, mediaId)
-  if (owner) throw sourceError('copy_already_cataloged')
+  const owner = () => db.sqlite.prepare('SELECT id FROM media WHERE path = ? AND id != ? UNION SELECT mediaId FROM verifiedMediaCopies WHERE path = ? AND mediaId != ? LIMIT 1').get(path, mediaId, path, mediaId)
+  if (owner()) throw sourceError('copy_already_cataloged')
   const verification = await verifyCopiesForMerge(db, [mediaId], signal, open)
   if (verification.copies.some(copy => copy.path === path)) return listMediaCopies(db, mediaId)
-  const {adapter, key} = await open(db, path, signal)
-  try {
-    const {sha256, file} = await hashCopy(adapter, key, signal, pinned.assertCurrent)
-    if (sha256 !== verification.copies[0].sha256) throw sourceError('copy_content_mismatch')
-    db.drizzle.transaction(tx => {
-      verification.assertUnchanged()
-      const copies = [...verification.copies, {id: randomUUID(), path, sha256, version: file.version,
-        size: file.size, contentType: mediaFileContentType(file.name) || file.contentType,
-        availability: 'available' as const, verifiedAt: new Date().toISOString()}]
-      for (const copy of copies) tx.insert(verifiedMediaCopies).values({...copy, mediaId}).onConflictDoNothing().run()
-    })
-    invalidateMediaDerivedCaches()
-    return listMediaCopies(db, mediaId)
-  } finally { adapter.close() }
+  const checked = await fingerprintCopy(db, path, verification.method, signal, pinned.assertCurrent, open)
+  const reference = verification.copies[0]
+  if (checked.file.size !== reference.size || (checked.verificationMethod === 'sha256'
+    ? checked.sha256 !== reference.sha256 : checked.oshash !== reference.oshash)) throw sourceError('copy_content_mismatch')
+  db.drizzle.transaction(tx => {
+    verification.assertUnchanged()
+    if (owner()) throw sourceError('copy_already_cataloged')
+    const copies = [...verification.copies, {id: randomUUID(), path, sha256: checked.sha256, oshash: checked.oshash,
+      verificationMethod: checked.verificationMethod, version: checked.file.version, size: checked.file.size,
+      contentType: mediaFileContentType(checked.file.name) || checked.file.contentType,
+      availability: 'available' as const, verifiedAt: new Date().toISOString()}]
+    for (const copy of copies) tx.insert(verifiedMediaCopies).values({...copy, mediaId})
+      .onConflictDoUpdate({target: [verifiedMediaCopies.mediaId, verifiedMediaCopies.path], set: {
+        sha256: copy.sha256, oshash: copy.oshash, verificationMethod: copy.verificationMethod,
+        version: copy.version, size: copy.size, verifiedAt: copy.verifiedAt, availability: copy.availability,
+      }}).run()
+  })
+  invalidateMediaDerivedCaches()
+  return listMediaCopies(db, mediaId)
 }
 
 export function detachMediaCopy(db: ApiDb, mediaId: number, copyId: string) {
@@ -295,10 +381,11 @@ export function detachMediaCopy(db: ApiDb, mediaId: number, copyId: string) {
     if (canonicalPath(card.path) === detached.path) {
       tx.update(media).set({path: copies.find(copy => copy.id !== copyId)!.path}).where(eq(media.id, mediaId)).run()
     }
+    const cloud = parseCloudMediaPath(detached.path)
     const nas = parseNasMediaPath(detached.path)
     const drive = parseDriveMediaPath(detached.path)
-    if (nas || drive) tx.delete(mediaLocations).where(and(eq(mediaLocations.mediaId, mediaId),
-      eq(mediaLocations.connectionId, nas?.connectionId || DEFAULT_DRIVE_CONNECTION_ID), eq(mediaLocations.resourceKey, nas?.relativePath || drive!))).run()
+    if (nas || drive || cloud) tx.delete(mediaLocations).where(and(eq(mediaLocations.mediaId, mediaId),
+      eq(mediaLocations.connectionId, cloud?.connectionId || nas?.connectionId || DEFAULT_DRIVE_CONNECTION_ID), eq(mediaLocations.resourceKey, cloud?.resourceKey || nas?.relativePath || drive!))).run()
     tx.delete(verifiedMediaCopies).where(and(eq(verifiedMediaCopies.mediaId, mediaId), eq(verifiedMediaCopies.id, copyId))).run()
   })
   invalidateMediaDerivedCaches()

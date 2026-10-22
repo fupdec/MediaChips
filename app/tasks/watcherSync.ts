@@ -6,6 +6,8 @@ import type {
   WatcherFolderReport,
 } from '../types/websockets'
 import path from 'path'
+import {requestAutomaticCopyDiscovery} from '../../api/services/mediaSources/copyDiscoveryTriggers'
+import {pinSourceDb} from '../../api/services/mediaSources/context'
 import { promises as fs } from 'fs'
 import { createMediaRepository } from '../../api/db/repositories/media'
 import {
@@ -246,6 +248,7 @@ class WatcherSyncEngine {
   }
 
   async fullSync(folders: WatchedFolderEntry[]): Promise<WatcherFolderReport[]> {
+    const autoTarget = pinSourceDb(this.db)
     this.setFolders(folders)
     const t0 = Date.now()
 
@@ -283,6 +286,10 @@ class WatcherSyncEngine {
       )
     }
 
+    try {
+      autoTarget.assertCurrent()
+      requestAutomaticCopyDiscovery(autoTarget.db, folders.map(folder => ({key: folder.path, excluded: folder.excludedPaths || []})), 'folder_update')
+    } catch { /* A late scan must not schedule work in a different library. */ }
     return this.getReports()
   }
 

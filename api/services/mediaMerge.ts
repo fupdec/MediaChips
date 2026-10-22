@@ -268,7 +268,7 @@ export async function mergeMediaItems(
     const merged = mergeMediaItemsTx(tx, {survivorId, sourceIds})
     for (const copy of verification.copies) tx.insert(verifiedMediaCopies).values({...copy, mediaId: survivorId})
       .onConflictDoUpdate({target: [verifiedMediaCopies.mediaId, verifiedMediaCopies.path], set: {
-        version: copy.version, sha256: copy.sha256, size: copy.size, contentType: copy.contentType,
+        version: copy.version, sha256: copy.sha256, oshash: copy.oshash, verificationMethod: copy.verificationMethod, size: copy.size, contentType: copy.contentType,
         availability: copy.availability, verifiedAt: copy.verifiedAt,
       }}).run()
     // A previous implicit original ID becomes a durable copy ID after verification.
