@@ -54,7 +54,7 @@ describe('video HTTP streaming', () => {
   })
   it('delivers the first bytes before EOF, cancels reading on close and accepts a new range', async () => {
     const body = new PassThrough()
-    const read = vi.spyOn(fs, 'createReadStream').mockReturnValueOnce(body as fs.ReadStream)
+    const read = vi.spyOn(fs, 'createReadStream').mockReturnValueOnce(body as unknown as fs.ReadStream)
     const controller = new AbortController()
     const pending = fetch(base, {signal: controller.signal})
     await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1))

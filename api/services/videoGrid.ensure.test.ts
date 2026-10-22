@@ -3,10 +3,10 @@
  */
 import {afterEach, describe, expect, it, vi} from 'vitest'
 
-const runFfmpeg = vi.fn(async () => ({stdout: '', stderr: ''}))
+const runFfmpeg = vi.fn<typeof import('../utils/ffmpeg').runFfmpeg>(async () => ({stdout: '', stderr: ''}))
 
 vi.mock('../utils/ffmpeg', () => ({
-  runFfmpeg: (...args: unknown[]) => runFfmpeg(...args),
+  runFfmpeg: (...args: Parameters<typeof runFfmpeg>) => runFfmpeg(...args),
   ffprobe: vi.fn(async () => ({
     format: {duration: 90},
     streams: [{codec_type: 'video', width: 1920, height: 1080}],

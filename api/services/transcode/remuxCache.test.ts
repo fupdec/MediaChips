@@ -98,6 +98,7 @@ describe('remuxCache', () => {
   it('does not return an output that the budget cleanup evicted', async () => {
     vi.mocked(runFfmpegBackground).mockImplementationOnce(async args => {
       fs.writeFileSync(args[args.length - 1], Buffer.alloc(2000))
+      return {stdout: '', stderr: ''}
     })
     ensureProgressiveRemux({databasesPath, dbId, filePath: sourcePath, maxCacheGb: 1000 / 1024 ** 3})
     const info = resolveExistingCache(databasesPath, dbId, sourcePath)!
