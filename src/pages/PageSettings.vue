@@ -203,6 +203,14 @@
                 accent
               />
 
+              <SettingsSection id="settings-metadata-transfer">
+                <DialogMetadataTransfer>
+                  <template #activator="{open}">
+                    <v-btn prepend-icon="mdi-file-import-outline" variant="tonal" @click="open">{{ t('metadata_transfer.title') }}</v-btn>
+                  </template>
+                </DialogMetadataTransfer>
+              </SettingsSection>
+
               <SettingsSection id="settings-bulk-paths">
                 <SettingsBulkPathEditing/>
               </SettingsSection>
@@ -365,6 +373,7 @@ import {
 const SettingsWatchedFolders = defineAsyncComponent(() =>
   import("@/components/settings/tools/SettingsWatchedFolders.vue")
 )
+const DialogMetadataTransfer = defineAsyncComponent(() => import('@/components/dialogs/DialogMetadataTransfer.vue'))
 const SettingsBulkPathEditing = defineAsyncComponent(() =>
   import("@/components/settings/files/SettingsBulkPathEditing.vue")
 )

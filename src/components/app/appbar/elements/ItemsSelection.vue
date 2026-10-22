@@ -51,6 +51,11 @@
       :action="openDelete"
     />
 
+    <DialogMetadataTransfer v-if="itemsStore.type === 'media'" :media-ids="itemsStore.selection">
+      <template #activator="{open}">
+        <AppBarButton icon="file-swap-outline" :text="t('metadata_transfer.title')" :action="open" />
+      </template>
+    </DialogMetadataTransfer>
     <AppBarButton v-if="itemsStore.type === 'media'" icon="file-cog-outline" :text="t('originals.title')" :disabled="itemsStore.selection.length === 0" :action="() => { originalsOpen = true }" />
     <DialogOriginalOperations v-if="itemsStore.type === 'media'" v-model="originalsOpen" :media-ids="itemsStore.selection" />
 
@@ -74,6 +79,7 @@ import {setNotification} from '@/services/notificationService'
 import {useEventBus} from '@/utils/eventBus'
 import type {MediaItem, Tag} from '@/types/stores'
 
+const DialogMetadataTransfer = defineAsyncComponent(() => import('@/components/dialogs/DialogMetadataTransfer.vue'))
 const DialogOriginalOperations = defineAsyncComponent(() => import('@/components/dialogs/DialogOriginalOperations.vue'))
 const originalsOpen = ref(false)
 const itemsStore = useItemsStore()

@@ -1,3 +1,4 @@
+import registerMetadataTransfer from '../../api/routes/MetadataTransfer.routes'
 import registerCopyDiscovery from '../../api/routes/CopyDiscovery.routes'
 import registerRemoteProcessing from '../../api/routes/RemoteProcessing.routes'
 import {registerCloudMetadataBackfill} from './cloudMetadataBackfill'
@@ -58,6 +59,7 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'TagsInFolder.routes', register: registerTagsInFolder },
     { routeFile: 'Mark.routes', register: registerMark },
     { routeFile: 'Media.routes', register: registerMedia },
+    { routeFile: 'MetadataTransfer.routes', register: registerMetadataTransfer },
     { routeFile: 'Playlist.routes', register: registerPlaylist },
     { routeFile: 'MediaInPlaylists.routes', register: registerMediaInPlaylists },
     { routeFile: 'MediaType.routes', register: registerMediaType },
