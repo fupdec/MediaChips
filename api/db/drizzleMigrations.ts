@@ -257,6 +257,15 @@ export function runDrizzleMigrations(dbPath: string) {
   const sqlite = new Database(dbPath)
 
   try {
+    // Refuse schemas written by a newer build before applying pragmas or repairs.
+    // Older released binaries have no such guard: rollback still requires a pre-upgrade copy.
+    if (hasTable(sqlite, '__drizzle_migrations')) {
+      const latest = sqlite.prepare('SELECT MAX(created_at) AS stamp FROM __drizzle_migrations').get() as {stamp: number | null}
+      const supported = Math.max(...readJournal().entries.map(entry => entry.when))
+      if (latest.stamp !== null && Number(latest.stamp) > supported) {
+        throw new Error('Library schema is newer than this application. Open it with a newer version or restore a compatible backup.')
+      }
+    }
     applySqlitePragmas(sqlite)
     ensureLegacyDrizzleBaseline(sqlite)
     // Must run before unique index migration so CREATE UNIQUE INDEX succeeds.

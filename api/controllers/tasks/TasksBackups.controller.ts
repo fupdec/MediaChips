@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import type { Express } from 'express'
 import { HttpError, sendAsClientError, sendControllerError, sendOk } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
@@ -5,10 +6,9 @@ import type { BackupEntry } from '@shared/api/responses'
 import type { ApiDb } from '../../types/db'
 import fs from 'fs'
 import path from 'path'
-import { rimraf } from 'rimraf'
 import StreamZip from 'node-stream-zip'
 import fse from 'fs-extra'
-import archiver from 'archiver'
+import {createLibraryBackup, stageLibraryBackup, replaceLibraryFromStage} from '../../services/libraryBackup'
 import { getDatabaseManager } from '../../../app/server/databaseRegistry'
 import createTasksMigrateFromLowDbController from './TasksMigrateFromLowDb.controller'
 import { normalizeUserPath } from '../../utils/normalizeUserPath'
@@ -27,41 +27,13 @@ export default function (app: Express, db: ApiDb) {
   }
   const getBackupsPath = () => path.join(getDbPath(), 'backups')
 
-  const createBackup = function (req: ApiRequest, res: ApiResponse) {
-    const currentdate = new Date(),
-      date = currentdate.getDate(),
-      month = currentdate.getMonth() + 1,
-      hours = currentdate.getHours(),
-      mins = currentdate.getMinutes(),
-      secs = currentdate.getSeconds(),
-      backupName = currentdate.getFullYear() + "." +
-        (month > 9 ? month : '0' + month) + "." +
-        (date > 9 ? date : '0' + date) + " " +
-        (hours > 9 ? hours : '0' + hours) + "-" +
-        (mins > 9 ? mins : '0' + mins) + "-" +
-        (secs > 9 ? secs : '0' + secs),
-      mediaFiles = path.join(getDbPath(), 'media'),
-      metaFiles = path.join(getDbPath(), 'meta'),
-      dbFile = path.join(getDbPath(), 'db.sqlite')
-
-    const archive = archiver('zip')
-    const outputPath = path.join(getBackupsPath(), backupName + '.zip')
-    const output = fs.createWriteStream(outputPath)
-    output.on('close', function () {
+  const createBackup = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const name = new Date().toISOString().replace(/[:]/g, '-') + '-' + crypto.randomUUID()
+      await createLibraryBackup(db.sqlite, getDbPath(), path.join(getBackupsPath(), name + '.zip'))
       sendOk(res)
-    })
-    archive.on('error', function () {
-      res.sendStatus(500)
-    })
-    archive.pipe(output)
-    // include in archive folders and database file
-    archive.directory(mediaFiles, 'media')
-    archive.directory(metaFiles, 'meta')
-    archive.file(dbFile, {
-      name: 'db.sqlite'
-    })
-    archive.finalize()
-  };
+    } catch (error) { sendControllerError(res, error, 'Failed to create backup') }
+  }
 
   const getBackups = function (req: ApiRequest, res: ApiResponse) {
     const backups: BackupEntry[] = []
@@ -96,9 +68,6 @@ export default function (app: Express, db: ApiDb) {
   const restoreBackup = async (req: ApiRequest, res: ApiResponse) => {
     const dbPath = getDbPath()
     const backupPath = path.join(getBackupsPath(), String(req.body.name) + '.zip')
-    const dbFile = path.join(dbPath, 'db.sqlite')
-    const mediaFiles = path.join(dbPath, 'media')
-    const metaFiles = path.join(dbPath, 'meta')
     const zip = new StreamZip.async({
       file: backupPath
     })
@@ -120,9 +89,8 @@ export default function (app: Express, db: ApiDb) {
         }
       })
     }
-    const is_low_db_backup = await checkLowDbBackup()
-
     try {
+      const is_low_db_backup = await checkLowDbBackup()
       if (is_low_db_backup) {
         await zip.close()
         getDatabaseManager().closeConnection()
@@ -133,18 +101,12 @@ export default function (app: Express, db: ApiDb) {
         return
       }
 
-      getDatabaseManager().closeConnection()
-
-      getDatabaseManager().removeSqliteFiles(dbFile)
-
-      const rmrf = (folder: string) => rimraf(folder)
-      await rmrf(mediaFiles)
-      await rmrf(metaFiles)
-
-      await zip.extract(null, dbPath)
       await zip.close()
-
-      await getDatabaseManager().reloadCurrentDatabase()
+      const stage = await stageLibraryBackup(backupPath, dbPath)
+      await replaceLibraryFromStage(dbPath, stage, {
+        close: () => getDatabaseManager().closeConnection(),
+        reload: () => getDatabaseManager().reloadCurrentDatabase(),
+      })
       sendOk(res)
     } catch (e: unknown) {
       console.error('restoreBackup failed:', e)
