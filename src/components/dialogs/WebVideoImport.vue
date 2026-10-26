@@ -120,13 +120,12 @@ async function importVideo() {
     )
     if (current !== generation) return
     run.record(path, data.id, data.created)
-    sync.getItemsFromDb({ids: [], type: 'media'})
     events.emit('library:nav-counts-changed')
     await gate.refreshLibraryCount()
     if (options.parseTags) run.phase('tagging')
     if (options.parseTags) await parseAndAssignImportPathTags([{path, mediaId: data.id}], {shouldStop: () => current !== generation})
     if (current !== generation) return
-    if (options.parseTags) sync.getItemsFromDb({ids: [], type: 'media'})
+    if (options.parseTags) sync.getItemsFromDb({ids: [data.id], type: 'media'})
     message.value = t(data.created ? 'media.adding.web_video_added' : 'media.adding.web_video_duplicate', {title: data.title})
     processed = 1
     url.value = ''

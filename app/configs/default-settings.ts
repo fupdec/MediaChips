@@ -1,4 +1,5 @@
 const Settings = [
+  {"option": "remoteOshashBackground", "value": 1},
   {"option": "copyDiscoveryOnImport", "value": 1},
   {"option": "copyDiscoveryOnFolderUpdate", "value": 1},
   {"option": "copyDiscoveryOnReconnect", "value": 1},

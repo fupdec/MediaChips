@@ -942,6 +942,8 @@ const cn = {
     empty: '此版本暂无更新日志。',
   },
   feature_hints: {
+    network_sources_title: '从网络来源添加媒体',
+    network_sources_body: '现在可以从网络存储、云服务和网页链接添加媒体。点击“添加媒体”并选择来源。',
     got_it: '知道了',
     edit_library_nav_title: '自定义媒体库菜单',
     edit_library_nav_body: '点击铅笔图标可调整媒体库项目顺序，并隐藏不需要的项。',

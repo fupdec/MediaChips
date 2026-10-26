@@ -1,0 +1,266 @@
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/controllers/tasks/TasksMedia.controller.ts
+  42:10  warning  'invalidateMediaDerivedCaches' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/controllers/tasks/taskControllerShared.ts
+  21:56  warning  'VIDEO_MARK_HEIGHT' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  21:75  warning  'VIDEO_MARK_JPEG_QUALITY' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/db/repositories/filterRowsInSavedFilters.ts
+  24:13  warning  'rowById' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/routes/Task.routes.ts
+  62:5  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  72:5  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  82:5  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/browseOperations.ts
+  1:8   warning  'fs' is defined but never used. Allowed unused vars must match /^_/u                     @typescript-eslint/no-unused-vars
+  6:14  warning  'BrowseDirectoryEntry' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  6:36  warning  'BrowseDirectoryResult' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/cloudAccounts/metadataBackfill.test.ts
+  2:32  warning  'describe' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/cloudAccounts/providers.test.ts
+   6:14  warning  'CloudProvider' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  37:45  warning  'url' is defined but never used. Allowed unused args must match /^_/u            @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/enrollmentQuality.ts
+  2:8  warning  'path' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/extFilterSql.test.ts
+  6:11  warning  'value' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/faceScrfdPostprocess.test.ts
+  119:11  warning  'candidates' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/ftsQuery.ts
+  4:3  warning  'splitGlobalSearchTokens' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/imageMedia.ts
+  365:12  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/legacyTimelineCleanup.ts
+  131:5  warning  'pendingCleanupTimers' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/libraryMerge/importLibrary.test.ts
+  8:9  warning  'eq' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/localAiAssistNormalize.ts
+  385:9  warning  'cond' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/lowDbImport.ts
+  29:3  warning  'normalizeLegacyId' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/mediaClipEmbeddings.ts
+  400:7  warning  'skipped' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/mediaFilterSql.ts
+  158:23  warning  'cond' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  158:29  warning  'val' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/mediaSources/copies.test.ts
+  20:14  warning  'SourceReadAdapter' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/mediaSources/copies.ts
+  274:14  warning  'err' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/mediaSources/oshash.test.ts
+  87:60  warning  'end' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/orderedAsyncBatches.test.ts
+  4:31  warning  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/pluginMainRuntime.ts
+  29:3  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/tagFilterSql.ts
+  85:23  warning  'cond' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/transcode/mp4ContainerLayout.ts
+  4:3  warning  'PATHOLOGICAL_SAMPLE_COUNT' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/api/services/zipGallery.ts
+   6:3  warning  'ZIP_VIRTUAL_SEP' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+   7:3  warning  'MAX_ZIP_BYTES' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+   8:3  warning  'MAX_ZIP_IMAGE_ENTRIES' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  16:3  warning  'isVirtualZipPath' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/app/server.ts
+   72:3  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+   78:3  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+   85:3  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+   97:3  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  105:3  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  107:3  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  109:3  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  129:3  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  149:5  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  164:5  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/app/server/registerRoutes.ts
+   84:5  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+   99:7  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  110:7  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  121:7  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  132:7  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  143:7  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+  156:5  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/electron/runMain.ts
+  43:1  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-require-imports')
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/packages/plugin-adult/src/components/DialogSceneScraperConfig.vue
+  198:7  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/packages/plugin-adult/src/components/DialogScraperConfig.vue
+  188:7  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/packages/plugin-adult/src/composables/useAutoSceneScrapeBatch.ts
+  44:9  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/packages/plugin-adult/src/composables/useAutoScrapeBatch.ts
+  17:9  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/packages/plugin-adult/src/utils/sceneTransferApply.ts
+  3:10  warning  'cloneTransferValue' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/packages/plugin-tmdb/src/components/DialogTmdbPersonConfig.vue
+  183:7  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/packages/plugin-tmdb/src/components/DialogTmdbScraperConfig.vue
+  187:7  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/packages/plugin-tmdb/src/composables/useTmdbPersonAutoScrapeBatch.ts
+  24:9  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/shared/itemsGroupBy.ts
+  89:7  warning  'REBUCKET_GROUP_BY' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/shared/schemas/index.ts
+  26:3  warning  'HomeSimilarMediaItemSchema' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  29:3  warning  'MediaSimilaritySchema' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/app/SideBarBrowser.vue
+  502:7  warning  'appStore' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/app/appbar/GlobalSearch.vue
+   365:10  warning  'toggleSearch' is defined but never used. Allowed unused vars must match /^_/u                   @typescript-eslint/no-unused-vars
+  1956:17  warning  Expected 'v-bind:key' directive to use the variables which are defined by the 'v-for' directive  vue/valid-v-for
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/dialogs/DialogBulkEditingItems.vue
+  254:7  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/dialogs/DialogMediaEditing.vue
+  313:7  warning  'thumbUrl' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/dialogs/DialogOrganizeMediaByTag.vue
+  178:7  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/dialogs/DialogTagCategoryMerge.vue
+  167:7  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/dialogs/DialogTagMerge.vue
+  84:7  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/elements/ContextMenuNested.vue
+  214:3  warning  Unexpected mutation of "item" prop  vue/no-mutating-props
+  222:3  warning  Unexpected mutation of "item" prop  vue/no-mutating-props
+  227:3  warning  Unexpected mutation of "item" prop  vue/no-mutating-props
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/items/FilePathEditing.vue
+  349:7  warning  'savePathToDb' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/items/Item.vue
+  403:7  warning  'isSquaresGrid' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/items/ItemPinnedMeta.vue
+  278:9  warning  'getApiErrorMessage' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  354:7  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/items/ItemPreviewVideo.vue
+  823:3  warning  'restartImageGeneration' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/meta/input/MetaInputArray.vue
+  318:7  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/components/settings/appearance/SettingsHeaderGradient.vue
+  270:7  warning  'removeColor' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/composable/ItemContextMenu.ts
+  28:9  warning  'getApiErrorMessage' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/composable/useAppBootstrap.ts
+  11:39  warning  'WatchedFolderEntry' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/composable/useHoverPreviewPlayback.ts
+  404:7  warning  'hoverSeekCoalescer' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/composable/useItemPreviewTimelineFrames.ts
+  24:9  warning  'buildVideoGridTaskParams' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/composable/usePlayerWindowBridge.ts
+  22:9  warning  'eventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/env.d.ts
+  48:25  warning  'TType' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  49:28  warning  'TType' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/layouts/LayoutItems.vue
+  317:13  warning  'v-memo' directive does not work inside 'v-for'                                      vue/valid-v-memo
+  503:31  warning  'onMounted' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  503:59  warning  'nextTick' is defined but never used. Allowed unused vars must match /^_/u           @typescript-eslint/no-unused-vars
+  561:9   warning  'getTagFirstLetter' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  984:7   warning  'ENV' is assigned a value but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/pages/PageHome.vue
+  168:64  warning  'emitEventBus' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/plugins/emby/hostBridge.ts
+  3:3  warning  'embyPlugin' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/plugins/jellyfin/hostBridge.ts
+  3:3  warning  'jellyfinPlugin' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/plugins/plex/hostBridge.ts
+  3:3  warning  'plexPlugin' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/plugins/tmdb/hostBridge.ts
+  3:3  warning  'tmdbPlugin' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/services/formatUtils.ts
+  3:9  warning  'textMatchesGlobalSearchQuery' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/services/freeLibraryCapConfig.ts
+  16:7  warning  'CONFIG_KEYS' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/stores/items.ts
+  259:11  warning  'end' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/utils/aspectRatioParts.ts
+  19:7  warning  'a0' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/utils/colorFromImage.test.ts
+  5:3  warning  'extractColorFromLocalFile' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/utils/mediaTypeI18n.test.ts
+  13:35  warning  'fallback' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/utils/metaI18n.test.ts
+  12:35  warning  'fallback' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/utils/playerSurfaceGestures.test.ts
+  125:9  warning  't' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/utils/reviewModeGridPrefetch.ts
+  254:16  warning  'pumpNeighborQueue' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/src/utils/sceneMarkerTags.ts
+  4:3  warning  'buildExistingMarkSignature' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  5:3  warning  'buildSceneMarkerSignature' is defined but never used. Allowed unused vars must match /^_/u   @typescript-eslint/no-unused-vars
+  7:3  warning  'resolveMarkerTagId' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+
+✖ 112 problems (0 errors, 112 warnings)
+  0 errors and 30 warnings potentially fixable with the `--fix` option.
+

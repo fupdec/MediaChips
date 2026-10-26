@@ -1458,6 +1458,8 @@ const en = {
     empty: 'No changelog available for this version.',
   },
   feature_hints: {
+    network_sources_title: 'Add media from network sources',
+    network_sources_body: 'You can now add media from network storage, cloud services and web links. Click Add media and choose a source.',
     got_it: 'Got it',
     edit_library_nav_title: 'Customize the Library menu',
     edit_library_nav_body: 'Use the pencil to reorder Library items and hide the ones you do not need.',
@@ -3203,6 +3205,8 @@ const en = {
       content_hash_backfill_progress: 'Processed: {processed}/{total} · hashed: {hashed} · missing: {missing} · failed: {failed}',
       content_hash_backfill_complete: 'Done: {hashed} hashed, {missing} missing, {failed} failed',
       fingerprint_backfill: 'Dedup fingerprints',
+      remote_oshash_background: 'Background OSHash for NAS and cloud files',
+      remote_oshash_background_hint: 'Automatically fill OSHash after import and for existing files. Reads only the beginning and end (up to 128 KiB), one file at a time. Failures do not block import; retry using the manual fingerprint backfill below or restart the application.',
       fingerprint_backfill_hint: 'Fills OpenSubtitles oshash fingerprints used for duplicate detection, scene matching, and moved-file recovery. Reads only the first and last 64 KiB plus the file size, including NAS and Google Drive files. Large remote files are not downloaded in full.',
       fingerprint_backfill_status: '{hashed} of {total} files fingerprinted ({pending} pending)',
       fingerprint_backfill_start: 'Start backfill',

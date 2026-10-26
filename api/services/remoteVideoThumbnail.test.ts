@@ -11,7 +11,9 @@ import type {ApiDb} from '../types/db'
 import {resolveWebVideoThumbnail} from './webVideo/service'
 import {ensureVideoPreviewThumb} from './videoPreviewThumb'
 import {ensureRemoteVideoThumbnail} from './remoteVideoThumbnail'
+import {getNasMediaAssets} from './nas/mediaAssets'
 
+vi.mock('./nas/mediaAssets', () => ({getNasMediaAssets: vi.fn()}))
 vi.mock('./webVideo/service', () => ({resolveWebVideoThumbnail: vi.fn()}))
 vi.mock('../utils/ffmpeg', () => ({extractVideoThumbnail: vi.fn(() => {throw new Error('Must not process a remote original')})}))
 
@@ -27,6 +29,28 @@ beforeEach(async () => {
 })
 afterEach(() => { closeTestDb(fixture); fs.rmSync(directory, {recursive: true, force: true}) })
 const output = () => path.join(db.path!, 'media/videos/thumbs', `${id}.jpg`)
+
+it('returns immediately while a NAS cover is still being generated', async () => {
+  createMediaRepository(db.drizzle).updateById(id, {path: 'nas://11111111-1111-4111-8111-111111111111/video.mp4'})
+  let finish!: (changed: boolean) => void
+  const processing = new Promise<boolean>(resolve => { finish = resolve })
+  const ensure = vi.fn(() => processing)
+  vi.mocked(getNasMediaAssets).mockReturnValue({ensure, tick: vi.fn(), dispose: vi.fn()})
+  try {
+    expect(await ensureVideoPreviewThumb(id, db, vi.fn(() => null))).toBeNull()
+    expect(ensure).toHaveBeenCalledWith(id)
+  } finally { finish(false); await processing }
+})
+
+it('serves a cached NAS cover without scheduling remote processing', async () => {
+  createMediaRepository(db.drizzle).updateById(id, {path: 'nas://11111111-1111-4111-8111-111111111111/video.mp4'})
+  const ensure = vi.fn()
+  vi.mocked(getNasMediaAssets).mockReturnValue({ensure, tick: vi.fn(), dispose: vi.fn()})
+  fs.mkdirSync(path.dirname(output()), {recursive: true})
+  fs.writeFileSync(output(), await sharp(bytes).jpeg().toBuffer())
+  expect(await ensureRemoteVideoThumbnail(db, id)).toBe(output())
+  expect(ensure).not.toHaveBeenCalled()
+})
 
 it('downloads a remote cover once, resizes it and serves the local cache on later requests', async () => {
   const resolveLocal = vi.fn(() => null)

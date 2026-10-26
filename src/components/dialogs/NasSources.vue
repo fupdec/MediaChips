@@ -257,7 +257,7 @@ const apiError = (err: unknown) => {
 }
 function stopBatch() { stopRequested.value = true; stopCurrentBatch?.(); if (scanning.value) importController?.abort() }
 function refreshLibrary() {
-  sync.getItemsFromDb({ids: [], type: 'media'}); events.emit('library:nav-counts-changed')
+  events.emit('library:nav-counts-changed')
 }
 
 async function loadConnections() {

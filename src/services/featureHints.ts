@@ -15,6 +15,12 @@ export type FeatureHintDefinition = {
  */
 export const FEATURE_HINTS: FeatureHintDefinition[] = [
   {
+    id: 'network-sources',
+    selector: '[data-feature-hint="network-sources"]',
+    titleKey: 'feature_hints.network_sources_title',
+    bodyKey: 'feature_hints.network_sources_body',
+  },
+  {
     id: 'edit-library-nav',
     selector: '[data-feature-hint="edit-library-nav"]',
     titleKey: 'feature_hints.edit_library_nav_title',

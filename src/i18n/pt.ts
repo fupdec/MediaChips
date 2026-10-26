@@ -942,6 +942,8 @@ const pt = {
     empty: 'Nenhum changelog disponível para esta versão.',
   },
   feature_hints: {
+    network_sources_title: 'Adicionar mídia de fontes de rede',
+    network_sources_body: 'Agora você pode adicionar mídia de armazenamento em rede, serviços de nuvem e links da web. Clique em Adicionar mídia e escolha uma fonte.',
     got_it: 'Entendi',
     edit_library_nav_title: 'Personalize o menu Biblioteca',
     edit_library_nav_body: 'Use o lápis para reordenar os itens da Biblioteca e ocultar os que não precisa.',

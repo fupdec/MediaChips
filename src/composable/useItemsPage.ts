@@ -1,3 +1,5 @@
+import {useVisibleImportRefresh} from './useVisibleImportRefresh'
+import {useAppStore} from '@/stores/app'
 import {ref, computed, nextTick} from 'vue'
 import uniqBy from 'lodash/uniqBy'
 import {cloneFilters} from '@/utils/filterClone'
@@ -435,6 +437,42 @@ export function useItemsPage({
     return true
   }
 
+  let lastListQuery: ItemsPageListQuery | null = null
+  const appStore = useAppStore()
+  useVisibleImportRefresh({
+    root: () => {
+      const container = _container.value
+      return container instanceof HTMLElement ? container : (container as { $el?: HTMLElement } | null)?.$el || null
+    },
+    database: () => appStore.dbPath,
+    query: () => props.items_type === 'media' && !ITEMS.value.listScopeIds && lastListQuery?.sortBy !== 'shuffle' ? lastListQuery : null,
+    items: () => ITEMS.value.itemsOnPage,
+    start: () => is_infinite_scroll.value ? infiniteWindowStart.value : 0,
+    infinite: () => is_infinite_scroll.value,
+    busy: () => loader.value.is_busy || isLoadingMore.value || infiniteLoadPending.value,
+    identity: () => JSON.stringify([appStore.dbPath, props.mediaTypeId, props.tagId, props.tabId, ITEMS.value.filters, ITEMS.value.filtersJoin, ITEMS.value.sortBy, ITEMS.value.sortDir, ITEMS.value.groupBy, ITEMS.value.find_duplicates]),
+    updateTotals: (response) => {
+      if (response.data.totalFiltered != null) {
+        total.value = response.data.totalFiltered
+        itemsStore.updateState({key: 'totalFiltered', value: total.value})
+        const limit = resolvePageLimit(is_infinite_scroll.value ? INFINITE_PAGE_SIZE : ITEMS.value.limit)
+        if (limit) pages.value = Math.max(1, Math.ceil(total.value / limit))
+        infiniteScrollExhausted.value = false
+      }
+      if (response.data.total != null) totalInDb.value = response.data.total
+      if (response.data.totalFilesize != null) {
+        itemsStore.updateState({key: 'totalFilesize', value: response.data.totalFilesize})
+      }
+    },
+    apply: (response, start) => {
+      const currentPage = ITEMS.value.page
+      applyListResponse(response, {absoluteWindowStart: start, requestedPage: currentPage})
+      itemsStore.updateState({key: 'page', value: currentPage})
+      const limit = resolvePageLimit(is_infinite_scroll.value ? INFINITE_PAGE_SIZE : ITEMS.value.limit)
+      if (limit) pages.value = Math.max(1, Math.ceil(total.value / limit))
+    },
+  })
+
   const getItemsFromDb = async (
     ids?: number[],
     options: {
@@ -454,6 +492,7 @@ export function useItemsPage({
       query.mediaTypeId = props.mediaTypeId
     }
 
+    query.filtersJoin = ITEMS.value.filtersJoin
     query.filters = cloneFilters(ITEMS.value.filters)
     query.sortBy = normalizeSortBy(
       ITEMS.value.sortBy || 'id',
@@ -607,6 +646,8 @@ export function useItemsPage({
       }
       return
     }
+
+    lastListQuery = {...query}
 
     // Never abort an in-flight append — scroll bursts used to cancel page N and
     // leave `page` advanced with no rows, so further scrolling appeared stuck.

@@ -1,5 +1,6 @@
 import { spawn } from 'child_process'
 import fs from 'fs'
+import {createFileProbeCache} from './fileProbeCache'
 import {
   runWithFfmpegLimit,
   runWithFfprobeLimit,
@@ -133,7 +134,7 @@ function runProcess(binary: string, args: string[], options: RunProcessOptions =
   })
 }
 
-async function ffprobe(filePath: string) {
+const ffprobe = createFileProbeCache(async (filePath: string) => {
   return runWithFfprobeLimit(async () => {
     const {stdout} = await runProcess(getFfprobePath(), [
       '-v',
@@ -147,7 +148,7 @@ async function ffprobe(filePath: string) {
 
     return normalizeFfprobePayload(JSON.parse(stdout) as FfprobePayload)
   })
-}
+})
 
 /**
  * Chrome/WebM (and some live recordings) often omit format.duration.

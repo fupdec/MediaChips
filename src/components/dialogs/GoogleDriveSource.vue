@@ -318,7 +318,7 @@ async function submit() {
   })
   if (!run) { importing.value = false; return }
   emit('started')
-  const refreshLibrary = () => { sync.getItemsFromDb({ids: [], type: 'media'}); events.emit('library:nav-counts-changed') }
+  const refreshLibrary = () => { events.emit('library:nav-counts-changed') }
   try {
     const original = [...selectedPaths.value]
     const expanded = await expandRemoteSelection({paths: original, directories, isExcluded, acceptFile, onExisting: entry => run.recordExisting(entry.path), shouldStop: () => stopRequested.value || current !== generation,

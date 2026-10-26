@@ -942,6 +942,8 @@ const es = {
     empty: 'No hay registro de cambios para esta versión.',
   },
   feature_hints: {
+    network_sources_title: 'Añadir archivos desde fuentes de red',
+    network_sources_body: 'Ahora puedes añadir archivos desde almacenamiento en red, servicios en la nube y enlaces web. Pulsa Añadir archivos y elige una fuente.',
     got_it: 'Entendido',
     edit_library_nav_title: 'Personaliza el menú Biblioteca',
     edit_library_nav_body: 'Usa el lápiz para reordenar los elementos e ocultar los que no necesites.',

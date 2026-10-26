@@ -27,6 +27,7 @@ test('edits remote library metadata while the original is offline', async ({page
   await dismissOnboardingIfVisible(page)
   await page.locator(`[data-item-id="${medium.id}"] .description`).dblclick()
   const editor = page.locator('.edit-dialog-card')
+  await editor.getByRole('button', {name: /File copies|Копии файла/}).click()
   await expect(editor.locator('.media-catalog-source-info')).toContainText('Studio NAS')
   await expect(editor.locator('.media-catalog-source-info')).toContainText(/Unavailable|Недоступен/)
   await editor.locator('textarea:not([readonly])').last().fill('Edited while offline')

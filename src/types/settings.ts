@@ -219,6 +219,7 @@ export type SettingsState = {
   databaseVersion: string
   restorePlaybackTime: string
   locale: string
+  remoteOshashBackground: string
   copyDiscoveryOnImport: string
   copyDiscoveryOnFolderUpdate: string
   copyDiscoveryOnReconnect: string
@@ -378,6 +379,7 @@ export const defaultSettingsState = (): SettingsState => ({
   databaseVersion: '',
   restorePlaybackTime: '1',
   locale: 'en',
+  remoteOshashBackground: '1',
   copyDiscoveryOnImport: '1',
   copyDiscoveryOnFolderUpdate: '1',
   copyDiscoveryOnReconnect: '1',

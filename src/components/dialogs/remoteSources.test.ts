@@ -373,8 +373,8 @@ describe('remote source import actions', () => {
     expect(source.state.url).toBe(url)
     await source.submit()
     expect(source.state.url).toBe('')
-    // The first refresh exposes the imported record; the last one includes its tags.
-    expect(mocks.sync).toHaveBeenCalledTimes(3)
+    // Only successful tagging requests a targeted card refresh.
+    expect(mocks.sync).toHaveBeenCalledExactlyOnceWith({ids: [71], type: 'media'})
   })
 
   it('enables import and path tags for a video page from another site', async () => {

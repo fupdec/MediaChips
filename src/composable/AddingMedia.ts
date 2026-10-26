@@ -1,3 +1,4 @@
+import {notifyMediaAdded} from './mediaAddedSync'
 import {computed, nextTick} from 'vue'
 import {resetMediaAddingRun, mediaAddingOutcome} from '@/services/mediaAddingRun'
 import {i18n} from '@/i18n/loadLocale'
@@ -484,16 +485,7 @@ export const useMediaAdding = () => {
           })
         }
 
-        if (
-          !ENV.value.media_type_id
-          || targetTypes.some((item) => Number(item.id) === Number(ENV.value.media_type_id))
-        ) {
-          listSync.getItemsFromDb({
-            ids: [],
-            type: 'media',
-          })
-        }
-
+        notifyMediaAdded(task.value.addedMedia.map(entry => entry.mediaId))
         const resolvedWatcherPaths = [
           ...task.value.added,
           ...task.value.duplicates.map((entry) => entry.path),
@@ -854,16 +846,7 @@ export const useMediaAdding = () => {
         })
       }
 
-      if (
-        !ENV.value.media_type_id
-        || targetTypes.some((item) => Number(item.id) === Number(ENV.value.media_type_id))
-      ) {
-        listSync.getItemsFromDb({
-          ids: [],
-          type: 'media',
-        })
-      }
-
+      notifyMediaAdded(task.value.addedMedia.map(entry => entry.mediaId))
       const resolvedWatcherPaths = [
         ...task.value.added,
         ...task.value.duplicates.map((entry) => entry.path),

@@ -30,7 +30,7 @@
 MediaChips is an open-source desktop app for local **videos, images, audio, and text**.  
 You shape the library: define **chips** (custom metadata), keep rich **tags**, filter by anything, and browse with **previews and view modes** that make the collection readable — not just a folder tree.
 
-> **Private. Local. Yours.** Nothing is uploaded to the cloud. Inspect the code, extend it with plugins, or self-host on your LAN / NAS.
+> **Private. Local. Yours.** Your library stays on your computer. Connect remote sources and transfer originals when you choose. Inspect the code, extend it with plugins, or self-host on your LAN / NAS.
 
 ---
 
@@ -43,6 +43,16 @@ You shape the library: define **chips** (custom metadata), keep rich **tags**, f
 - **View modes** — browser layout (sidebar + grid + inspector), media / tags / folders, cards you can tune
 - **Stays usable at scale** — the same workflow on small libraries and on hundreds of thousands of files
 - **Windows · macOS · Linux · Docker / NAS**
+
+### Remote media
+
+Browse and import originals from Google Drive, SFTP, FTP and WebDAV, keep
+metadata available offline, and manage verified copies on one media card.
+Additional Google Drive, OneDrive and Dropbox accounts require your own OAuth
+application credentials; publisher-managed sign-in is not included. See the
+[cloud setup and acceptance guide](docs/cloud-oauth-release.md).
+Web-video extraction supports compatible public sources; see the
+[support limits](docs/web-video-release.md) before relying on a particular site.
 
 ---
 

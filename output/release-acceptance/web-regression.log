@@ -1,0 +1,15 @@
+
+> mediachips@1.12.0 test
+> node scripts/ensure-sqlite-tests.mjs && vitest run api/services/webVideo
+
+better-sqlite3 is unavailable for the current Node runtime; rebuilding native binding...
+rebuilt dependencies successfully
+
+ RUN  v4.1.9 /Users/vit/Desktop/work/mediachips-legacy/mediaChips
+
+
+ Test Files  5 passed (5)
+      Tests  80 passed (80)
+   Start at  09:21:03
+   Duration  3.40s (transform 1.86s, setup 0ms, import 9.70s, tests 1.10s, environment 1ms)
+

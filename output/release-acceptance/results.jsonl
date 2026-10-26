@@ -1,0 +1,121 @@
+{"time":"2026-10-20T16:50:53.362Z","step":"port","port":12321,"status":200}
+{"time":"2026-10-20T16:50:53.367Z","step":"port","port":12331,"status":200}
+{"time":"2026-10-20T16:50:53.370Z","step":"port","port":18523,"status":200,"enabled":{"nas":true,"cloud":true},"connections":{"nas":11,"cloud":0},"active":{"nas":2,"cloud":0}}
+{"time":"2026-10-20T16:50:53.373Z","step":"drive-status","status":200,"configured":true,"authenticated":true,"mock":false}
+{"time":"2026-10-20T16:50:57.860Z","step":"nas-baseline-prepare","status":200}
+{"time":"2026-10-20T16:51:02.338Z","step":"nas-baseline-range","status":206,"bytes":65536,"range":"bytes 0-65535/202313654","sha":"b3269128a07f622ef14cf79b29dedea32a5a0be45af60cea668fc5db45edc65d"}
+{"time":"2026-10-20T16:51:06.641Z","step":"nas-cut","relay":{"enabled":{"nas":false,"cloud":true},"connections":{"nas":14,"cloud":0},"active":{"nas":4,"cloud":0}}}
+{"time":"2026-10-20T16:51:06.643Z","step":"nas-active-transfer-cut","status":206,"received":65536,"interrupted":true}
+{"time":"2026-10-20T16:51:06.653Z","step":"nas-while-offline","status":502,"code":"network_error"}
+{"time":"2026-10-20T16:51:12.696Z","step":"nas-restored-old-session","status":206,"bytes":65536,"range":"bytes 1048576-1114111/202313654","sha":"80b6d492ea8b910b244bae502504ce23e4e8584d7bd94ad8c13c29b935721834"}
+{"time":"2026-10-20T16:51:15.545Z","step":"nas-restored-new-session","status":200}
+{"time":"2026-10-20T16:51:18.303Z","step":"nas-disconnect","status":200}
+{"time":"2026-10-20T16:51:18.304Z","step":"nas-old-session-after-disconnect","status":410,"bytes":85,"range":null,"sha":"8ff940d5e5ea0401c12fdc63d3c4411fc6cb72ece3318652ba5b8b99ac232d83"}
+{"time":"2026-10-20T16:51:18.308Z","step":"nas-after-disconnect","status":409,"code":"credentials_required"}
+{"time":"2026-10-20T16:51:22.256Z","step":"nas-reconnect","status":200}
+{"time":"2026-10-20T16:51:25.102Z","step":"nas-after-reconnect","status":200}
+{"time":"2026-10-20T16:51:28.745Z","step":"nas-range-after-reconnect","status":206,"bytes":65536,"range":"bytes 0-65535/202313654","sha":"b3269128a07f622ef14cf79b29dedea32a5a0be45af60cea668fc5db45edc65d"}
+{"time":"2026-10-20T16:51:28.749Z","step":"nas-old-session-after-reconnect","status":410,"bytes":85,"range":null,"sha":"8ff940d5e5ea0401c12fdc63d3c4411fc6cb72ece3318652ba5b8b99ac232d83"}
+{"time":"2026-10-20T16:51:37.129Z","step":"web-diagnose","extract":true,"type":"video","formats":[{"protocol":"https","origin":"https://www.w3.org","path":"/2010/05/sintel/trailer.mp4"},{"protocol":"https","origin":"https://media.w3.org","path":"/2010/05/sintel/trailer.mp4"}]}
+{"time":"2026-10-20T16:52:38.042Z","step":"drive-before-logout","status":200}
+{"time":"2026-10-20T16:52:38.047Z","step":"drive-logout","status":200}
+{"time":"2026-10-20T16:52:38.051Z","step":"drive-old-session-after-logout","status":410,"bytes":46,"range":null,"sha":"56b83c426fb64ad59f0cc20eed5a81cba597537d9de03cba81d12a2c57d51561"}
+{"time":"2026-10-20T16:52:38.053Z","step":"drive-after-logout","status":409,"code":"auth_required"}
+{"time":"2026-10-20T16:53:45.056Z","step":"packaged-fault-drive-import","status":200}
+{"time":"2026-10-20T16:53:45.454Z","step":"packaged-fault-drive-prepare","status":200}
+{"time":"2026-10-20T16:53:46.955Z","step":"packaged-fault-drive-range","status":206,"bytes":65536,"range":"bytes 1048576-1114111/158711288","sha":"5519c67de623e86e8dcd743b30aa07662fbca87ad06dce9f294206c841561277"}
+{"time":"2026-10-20T16:53:48.529Z","step":"drive-cut-relay","enabled":{"nas":true,"cloud":false},"connections":{"nas":21,"cloud":3},"active":{"nas":4,"cloud":6}}
+{"time":"2026-10-20T16:53:48.542Z","step":"drive-active-transfer-cut","status":206,"received":875202,"interrupted":true}
+{"time":"2026-10-20T16:53:48.550Z","step":"drive-while-offline","status":502,"code":"network_error"}
+{"time":"2026-10-20T16:53:49.958Z","step":"drive-restored-old-session","status":206,"bytes":65536,"range":"bytes 1048576-1114111/158711288","sha":"5519c67de623e86e8dcd743b30aa07662fbca87ad06dce9f294206c841561277"}
+{"time":"2026-10-20T16:53:50.281Z","step":"drive-restored-new-session","status":200}
+{"time":"2026-10-20T16:57:54.238Z","step":"off","relay":{"enabled":{"nas":false,"cloud":true},"connections":{"nas":28,"cloud":5},"active":{"nas":9,"cloud":0}}}
+{"time":"2026-10-20T16:58:03.534Z","step":"on","relay":{"enabled":{"nas":true,"cloud":true},"connections":{"nas":28,"cloud":5},"active":{"nas":0,"cloud":0}}}
+{"time":"2026-10-20T17:00:19.890Z","step":"port","port":12321,"status":200}
+{"time":"2026-10-20T17:00:19.892Z","step":"port","port":12331,"status":200}
+{"time":"2026-10-20T17:00:19.893Z","step":"port","port":18523,"status":200,"enabled":{"nas":true,"cloud":true},"connections":{"nas":33,"cloud":5},"active":{"nas":2,"cloud":0}}
+{"time":"2026-10-20T17:00:19.895Z","step":"drive-status","status":200,"configured":true,"authenticated":false,"mock":false}
+{"time":"2026-10-20T17:00:19.898Z","step":"drive-prepare","status":409,"code":"auth_required","message":"Reconnect Google Drive in Settings → Sources."}
+{"time":"2026-10-20T17:00:19.900Z","step":"drive-old-session","status":410,"bytes":46,"range":null,"sha":"56b83c426fb64ad59f0cc20eed5a81cba597537d9de03cba81d12a2c57d51561"}
+{"time":"2026-10-20T21:59:14.940Z","step":"port","port":12321,"status":200}
+{"time":"2026-10-20T21:59:14.949Z","step":"port","port":12331,"status":200}
+{"time":"2026-10-20T21:59:14.951Z","step":"port","port":18523,"error":"fetch failed"}
+{"time":"2026-10-20T21:59:14.955Z","step":"drive-status","status":200,"configured":true,"authenticated":false,"mock":false}
+{"time":"2026-10-20T22:00:16.947Z","step":"web-prepare","status":200}
+{"time":"2026-10-20T22:00:17.816Z","step":"web-range","status":206,"bytes":65536,"range":"bytes 0-65535/4372373","sha":"f33aee9066ea738a2fd89dd0ead5684b83c151258eb77ae9e63baa4a2e62c10f"}
+{"time":"2026-10-20T22:00:18.489Z","step":"web-range","status":206,"bytes":65536,"range":"bytes 1048576-1114111/4372373","sha":"eea847992e4223a73b5a7cfb0c12411202029d5fd56fbf911d2efaa40c856bcc"}
+{"time":"2026-10-20T22:00:18.965Z","step":"web-range","status":206,"bytes":65536,"range":"bytes 0-65535/4372373","sha":"f33aee9066ea738a2fd89dd0ead5684b83c151258eb77ae9e63baa4a2e62c10f"}
+{"time":"2026-10-20T22:00:22.829Z","step":"nas-baseline-prepare","status":200}
+{"time":"2026-10-20T22:00:26.661Z","step":"nas-baseline-range","status":206,"bytes":65536,"range":"bytes 0-65535/202313654","sha":"b3269128a07f622ef14cf79b29dedea32a5a0be45af60cea668fc5db45edc65d"}
+{"time":"2026-10-20T22:00:30.184Z","step":"nas-cut","relay":{"enabled":{"nas":false,"cloud":true},"connections":{"nas":3,"cloud":0},"active":{"nas":2,"cloud":0}}}
+{"time":"2026-10-20T22:00:30.185Z","step":"nas-active-transfer-cut","status":206,"received":64820,"interrupted":true}
+{"time":"2026-10-20T22:00:30.194Z","step":"nas-while-offline","status":502,"code":"network_error"}
+{"time":"2026-10-20T22:00:33.888Z","step":"nas-restored-old-session","status":206,"bytes":65536,"range":"bytes 1048576-1114111/202313654","sha":"80b6d492ea8b910b244bae502504ce23e4e8584d7bd94ad8c13c29b935721834"}
+{"time":"2026-10-20T22:00:36.591Z","step":"nas-restored-new-session","status":200}
+{"time":"2026-10-20T22:00:39.107Z","step":"nas-disconnect","status":200}
+{"time":"2026-10-20T22:00:39.111Z","step":"nas-old-session-after-disconnect","status":410,"bytes":85,"range":null,"sha":"8ff940d5e5ea0401c12fdc63d3c4411fc6cb72ece3318652ba5b8b99ac232d83"}
+{"time":"2026-10-20T22:00:39.116Z","step":"nas-after-disconnect","status":409,"code":"credentials_required"}
+{"time":"2026-10-20T22:00:42.612Z","step":"nas-reconnect","status":200}
+{"time":"2026-10-20T22:00:44.860Z","step":"nas-after-reconnect","status":200}
+{"time":"2026-10-20T22:00:48.154Z","step":"nas-range-after-reconnect","status":206,"bytes":65536,"range":"bytes 0-65535/202313654","sha":"b3269128a07f622ef14cf79b29dedea32a5a0be45af60cea668fc5db45edc65d"}
+{"time":"2026-10-20T22:00:48.156Z","step":"nas-old-session-after-reconnect","status":410,"bytes":85,"range":null,"sha":"8ff940d5e5ea0401c12fdc63d3c4411fc6cb72ece3318652ba5b8b99ac232d83"}
+{"time":"2026-10-20T22:02:20.957Z","step":"oauth-callback-forwarded","status":200}
+{"time":"2026-10-20T22:02:34.441Z","step":"port","port":12321,"error":"fetch failed"}
+{"time":"2026-10-20T22:02:34.444Z","step":"port","port":12331,"status":200}
+{"time":"2026-10-20T22:02:34.446Z","step":"port","port":18523,"status":200,"enabled":{"nas":true,"cloud":true},"connections":{"nas":9,"cloud":0},"active":{"nas":0,"cloud":0}}
+{"time":"2026-10-20T22:02:34.450Z","step":"drive-status","status":200,"configured":true,"authenticated":true,"mock":false}
+{"time":"2026-10-20T22:02:35.077Z","step":"drive-prepare","status":200}
+{"time":"2026-10-20T22:02:36.531Z","step":"drive-range","status":206,"bytes":65536,"range":"bytes 0-65535/158711288","sha":"81d99f9a016b9b9e710da107e42daebb85ce9bd4ce8a6c584c533e722cbd5566"}
+{"time":"2026-10-20T22:02:37.673Z","step":"drive-range","status":206,"bytes":65536,"range":"bytes 1048576-1114111/158711288","sha":"5519c67de623e86e8dcd743b30aa07662fbca87ad06dce9f294206c841561277"}
+{"time":"2026-10-20T22:02:38.750Z","step":"drive-range","status":206,"bytes":65536,"range":"bytes 0-65535/158711288","sha":"81d99f9a016b9b9e710da107e42daebb85ce9bd4ce8a6c584c533e722cbd5566"}
+{"time":"2026-10-20T22:02:38.754Z","step":"drive-old-session","status":410,"bytes":46,"range":null,"sha":"56b83c426fb64ad59f0cc20eed5a81cba597537d9de03cba81d12a2c57d51561"}
+{"time":"2026-10-20T22:04:28.965Z","step":"web-import","status":422,"message":"Unable to extract this video. The site may be unsupported, unavailable, restricted, or require an updated yt-dlp adapter."}
+{"time":"2026-10-20T22:04:37.908Z","step":"web-prepare","status":200}
+{"time":"2026-10-20T22:04:38.674Z","step":"web-range","status":206,"bytes":65536,"range":"bytes 0-65535/4372373","sha":"f33aee9066ea738a2fd89dd0ead5684b83c151258eb77ae9e63baa4a2e62c10f"}
+{"time":"2026-10-20T22:04:39.093Z","step":"web-range","status":206,"bytes":65536,"range":"bytes 1048576-1114111/4372373","sha":"eea847992e4223a73b5a7cfb0c12411202029d5fd56fbf911d2efaa40c856bcc"}
+{"time":"2026-10-20T22:04:39.628Z","step":"web-range","status":206,"bytes":65536,"range":"bytes 0-65535/4372373","sha":"f33aee9066ea738a2fd89dd0ead5684b83c151258eb77ae9e63baa4a2e62c10f"}
+{"time":"2026-10-20T22:06:43.619Z","step":"native-web-play-and-seek","durationSeconds":52,"seekSeconds":38,"observed":"Playback time advanced; seek changed time; paused with Play control visible"}
+{"time":"2026-10-20T22:07:39.219Z","step":"fault-web-import","status":422,"message":"Unable to extract this video. The site may be unsupported, unavailable, restricted, or require an updated yt-dlp adapter."}
+{"time":"2026-10-20T22:07:39.943Z","step":"packaged-fault-drive-import","status":200}
+{"time":"2026-10-20T22:07:40.242Z","step":"packaged-fault-drive-prepare","status":200}
+{"time":"2026-10-20T22:07:41.723Z","step":"packaged-fault-drive-range","status":206,"bytes":65536,"range":"bytes 1048576-1114111/158711288","sha":"5519c67de623e86e8dcd743b30aa07662fbca87ad06dce9f294206c841561277"}
+{"time":"2026-10-20T22:07:43.070Z","step":"drive-cut-relay","enabled":{"nas":true,"cloud":false},"connections":{"nas":9,"cloud":3},"active":{"nas":0,"cloud":6}}
+{"time":"2026-10-20T22:07:43.083Z","step":"drive-active-transfer-cut","status":206,"received":1014211,"interrupted":true}
+{"time":"2026-10-20T22:07:43.089Z","step":"drive-while-offline","status":502,"code":"network_error"}
+{"time":"2026-10-20T22:07:44.674Z","step":"drive-restored-old-session","status":206,"bytes":65536,"range":"bytes 1048576-1114111/158711288","sha":"5519c67de623e86e8dcd743b30aa07662fbca87ad06dce9f294206c841561277"}
+{"time":"2026-10-20T22:07:44.989Z","step":"drive-restored-new-session","status":200}
+{"time":"2026-10-20T22:08:54.776Z","step":"native-drive-after-real-login-play-and-seek","durationSeconds":963,"seekSeconds":57,"observed":"Playback advanced; right-arrow seek changed position; paused with Play control visible"}
+{"time":"2026-10-21T04:47:28.757Z","step":"web-outage-verdict","status":"not_verified","preparationStatus":422,"retry":"not_executed_approval_review_quota","userDisposition":"record_remaining_blocker"}
+{"time":"2026-10-21T06:06:08.011Z","step":"cleanup","testApplicationClosed":true,"isolatedFaultBackendClosed":true,"testRelayListenersClosed":true,"developmentViteRestored":true}
+{"time":"2026-10-21T06:11:04.915Z","step":"fault-web-import","status":422,"message":"Unable to extract this video. The site may be unsupported, unavailable, restricted, or require an updated yt-dlp adapter."}
+{"time":"2026-10-21T06:11:27.838Z","step":"fault-web-import","status":200}
+{"time":"2026-10-21T06:11:27.845Z","step":"fault-web-prepare","status":200}
+{"time":"2026-10-21T06:11:28.085Z","step":"fault-web-baseline","status":206,"bytes":65536,"range":"bytes 0-65535/4372373","sha":"f33aee9066ea738a2fd89dd0ead5684b83c151258eb77ae9e63baa4a2e62c10f"}
+{"time":"2026-10-21T06:11:28.172Z","step":"web-cut-relay","enabled":false,"connections":3,"active":3}
+{"time":"2026-10-21T06:11:28.176Z","step":"web-active-transfer-cut","status":206,"received":70031,"interrupted":true}
+{"time":"2026-10-21T06:11:28.184Z","step":"web-while-offline","status":502,"bytes":53,"range":null,"sha":"542203c2a76b022bf13e9b09fa667ac0a2264a4bb67eefbc332f1fc861a0cf2a"}
+{"time":"2026-10-21T06:11:28.275Z","step":"web-restored-old-session","status":206,"bytes":65536,"range":"bytes 0-65535/4372373","sha":"f33aee9066ea738a2fd89dd0ead5684b83c151258eb77ae9e63baa4a2e62c10f"}
+{"time":"2026-10-21T06:11:28.366Z","step":"web-restored-seek","status":206,"bytes":65536,"range":"bytes 1048576-1114111/4372373","sha":"eea847992e4223a73b5a7cfb0c12411202029d5fd56fbf911d2efaa40c856bcc"}
+{"time":"2026-10-21T06:11:36.061Z","step":"web-refresh-source","status":200}
+{"time":"2026-10-21T06:11:36.212Z","step":"web-refreshed-source-range","status":206,"bytes":65536,"range":"bytes 0-65535/4372373","sha":"f33aee9066ea738a2fd89dd0ead5684b83c151258eb77ae9e63baa4a2e62c10f"}
+{"time":"2026-10-21T06:18:36.871Z","run":"2026-10-21T06:18:27.774Z","step":"fault-web-import","status":422,"message":"The site blocked video extraction. Open the original page to check its access requirements."}
+{"time":"2026-10-21T06:18:36.875Z","run":"2026-10-21T06:18:27.774Z","error":"AssertionError","message":"Expected values to be strictly equal:\n\n422 !== 200\n"}
+{"time":"2026-10-21T06:19:10.723Z","run":"2026-10-21T06:19:10.705Z","error":"TypeError","message":"fetch failed"}
+{"time":"2026-10-21T06:19:17.741Z","run":"2026-10-21T06:19:17.529Z","step":"fault-web-import","status":200}
+{"time":"2026-10-21T06:19:17.863Z","run":"2026-10-21T06:19:17.529Z","step":"fault-web-fresh-prepare","attempt":1,"status":200}
+{"time":"2026-10-21T06:19:17.991Z","run":"2026-10-21T06:19:17.529Z","step":"fault-web-fresh-prepare","attempt":2,"status":200}
+{"time":"2026-10-21T06:19:18.111Z","run":"2026-10-21T06:19:17.529Z","step":"fault-web-fresh-prepare","attempt":3,"status":200}
+{"time":"2026-10-21T06:19:18.233Z","run":"2026-10-21T06:19:17.529Z","step":"fault-web-fresh-prepare","attempt":4,"status":200}
+{"time":"2026-10-21T06:19:18.364Z","run":"2026-10-21T06:19:17.529Z","step":"fault-web-fresh-prepare","attempt":5,"status":200}
+{"time":"2026-10-21T06:19:19.583Z","run":"2026-10-21T06:19:17.529Z","step":"fault-web-baseline","status":206,"bytes":65536,"range":"bytes 0-65535/4372373","sha":"f33aee9066ea738a2fd89dd0ead5684b83c151258eb77ae9e63baa4a2e62c10f"}
+{"time":"2026-10-21T06:19:20.141Z","run":"2026-10-21T06:19:17.529Z","step":"web-cut-relay","enabled":false,"connections":8,"active":9,"bytesPerSecond":65536}
+{"time":"2026-10-21T06:19:20.143Z","run":"2026-10-21T06:19:17.529Z","step":"web-active-transfer-cut","status":206,"received":22621,"interrupted":true}
+{"time":"2026-10-21T06:19:20.147Z","run":"2026-10-21T06:19:17.529Z","step":"web-while-offline","status":502,"bytes":53,"range":null,"sha":"542203c2a76b022bf13e9b09fa667ac0a2264a4bb67eefbc332f1fc861a0cf2a"}
+{"time":"2026-10-21T06:19:21.306Z","run":"2026-10-21T06:19:17.529Z","step":"web-restored-old-session","status":206,"bytes":65536,"range":"bytes 0-65535/4372373","sha":"f33aee9066ea738a2fd89dd0ead5684b83c151258eb77ae9e63baa4a2e62c10f"}
+{"time":"2026-10-21T06:19:22.479Z","run":"2026-10-21T06:19:17.529Z","step":"web-restored-seek","status":206,"bytes":65536,"range":"bytes 1048576-1114111/4372373","sha":"eea847992e4223a73b5a7cfb0c12411202029d5fd56fbf911d2efaa40c856bcc"}
+{"time":"2026-10-21T06:19:22.607Z","run":"2026-10-21T06:19:17.529Z","step":"web-refresh-source","status":200}
+{"time":"2026-10-21T06:19:23.768Z","run":"2026-10-21T06:19:17.529Z","step":"web-refreshed-source-range","status":206,"bytes":65536,"range":"bytes 0-65535/4372373","sha":"f33aee9066ea738a2fd89dd0ead5684b83c151258eb77ae9e63baa4a2e62c10f"}
+{"time":"2026-10-21T06:19:23.768Z","run":"2026-10-21T06:19:17.529Z","step":"web-fault-complete","passed":true,"mediaId":1}
+{"time":"2026-10-21T06:20:11.356Z","step":"web-ui-cut","enabled":false,"connections":17,"active":9,"bytesPerSecond":65536}
+{"time":"2026-10-21T06:20:29.755Z","step":"web-ui-restore","enabled":true,"connections":17,"active":0,"bytesPerSecond":65536}
+{"time":"2026-10-21T06:21:53.574Z","step":"web-ui-complete","passed":true,"surface":"installed-asar UI in browser","outagePosition":12.683427,"resumedBeyond":17.285488,"afterSeek":35.499037,"finalPosition":41.282125,"duration":52.208333,"finalReadyState":4,"finalPaused":true,"nativeBaseline":{"installed":"v3","seekPosition":17,"duration":52}}

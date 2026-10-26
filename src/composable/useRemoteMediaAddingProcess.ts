@@ -1,3 +1,4 @@
+import {notifyMediaAdded} from './mediaAddedSync'
 import {onBeforeUnmount, reactive, watch} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useTasksStore, type RemoteMediaAddingProcess} from '@/stores/tasks'
@@ -87,6 +88,7 @@ export function useRemoteMediaAddingProcess(t: Translate) {
       const readable = options.readablePath(path)
       if (!created) recordExisting(path)
       else if (!seen.has(mediaId)) {
+        notifyMediaAdded([mediaId])
         seen.add(mediaId)
         task.addedTotal++
         task.added.push(readable)
@@ -104,6 +106,7 @@ export function useRemoteMediaAddingProcess(t: Translate) {
       if (tasks.mediaAdding.duplicates.length > MEDIA_BULK_LITE_ADDED_CAP) tasks.mediaAdding.duplicates.shift()
     }
     function finish() {
+      if (ownsRun()) notifyMediaAdded([...seen])
       unwatch?.()
       if (!ownsRun()) return
       const snapshot = options.snapshot()

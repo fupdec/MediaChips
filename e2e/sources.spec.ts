@@ -25,7 +25,8 @@ for (const provider of ['drive', 'nas']) {
     if (provider === 'nas') await page.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
     const source = page.locator(provider === 'drive' ? '#settings-google-drive' : '#settings-nas')
     const health = source.locator('.source-health')
-    const check = source.locator('[class$="__connection-actions"]').getByRole('button', {name: /^(Check connection|Проверить подключение)$/})
+    const actions = provider === 'drive' ? page.locator('.sources-panel__account-actions') : source.locator('[class$="__connection-actions"]')
+    const check = actions.getByRole('button', {name: /^(Check connection|Проверить подключение)$/})
     await expect(health).toHaveCount(0)
     failure = 'network_error'
     await check.click()
@@ -43,7 +44,9 @@ for (const provider of ['drive', 'nas']) {
     failure = 'unknown'
     await check.click()
     await expect(health).toContainText(/Check failed|Не удалось проверить/)
-    await expect(source.locator('.v-alert')).toContainText('Remote failure')
+    const notice = source.locator(provider === 'drive' ? '.google-drive-source__notice' : '.nas-sources__notice')
+    await expect(notice).toContainText(/The source request failed|Запрос к источнику не выполнен/)
+    await expect(notice).not.toContainText('Remote failure')
     await expect(health.getByRole('button', {name: /^(Reconnect|Подключить заново)$/})).toHaveCount(0)
     failure = ''
     await check.click()

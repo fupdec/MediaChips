@@ -1,6 +1,5 @@
-import axios from 'axios'
 import path from 'path-browserify'
-import { resolveDirectBackendUrl } from '@/utils/apiBaseUrl'
+import { getLocalBackendUrl, resolveDirectBackendUrl } from '@/utils/apiBaseUrl'
 import { useAppStore } from '@/stores/app'
 import { typedApi } from '@/services/typedApi'
 import type { ServerConfig } from '@/services/typedApi/system'
@@ -32,20 +31,15 @@ export async function refreshServerConfig() {
 }
 
 export async function initConfig() {
-  let config: ServerConfig | null = null
-
-  try {
-    const local = await axios.get<ServerConfig>('/config.json')
-    config = local.data
-  } catch (error) {
-    console.error(error)
+  // Bootstrap from this server, never a config copied from the build machine.
+  let baseURL = window.location.origin
+  if (window.electronAPI) {
+    const {port} = await window.electronAPI.invoke('get-config')
+    if (typeof port === 'number' && Number.isInteger(port) && port > 0 && port <= 65535) {
+      baseURL = getLocalBackendUrl(port)
+    }
   }
-
-  if (!config) {
-    const remote = await typedApi.getTaskConfig({baseURL: window.location.origin})
-    config = remote.data
-  }
-
+  const {data: config} = await typedApi.getServerConfig({baseURL})
   applyConfigToStore(config)
 
   return config

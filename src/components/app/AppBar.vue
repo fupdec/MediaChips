@@ -30,7 +30,7 @@
         style="height: 40px;"
       >
 
-        <AppBarButton v-if="showAddMediaButton" :action="() => appShell.showAddMediaDialog()" :text="t('media.adding.add_media')" icon="plus"/>
+        <AppBarButton v-if="showAddMediaButton" feature-hint="network-sources" :action="() => appShell.showAddMediaDialog()" :text="t('media.adding.add_media')" icon="plus"/>
         <TagsAdd v-if="itemsStore.type == 'tag'"/>
         <TagsAdd v-else :button="false"/>
 
@@ -155,7 +155,7 @@
         class="d-flex align-center"
         style="height: 40px;"
       >
-        <AppBarButton v-if="showAddMediaButton" :action="() => appShell.showAddMediaDialog()" :text="t('media.adding.add_media')" icon="plus"/>
+        <AppBarButton v-if="showAddMediaButton" feature-hint="network-sources" :action="() => appShell.showAddMediaDialog()" :text="t('media.adding.add_media')" icon="plus"/>
 
         <AppBarButton
           v-if="itemsStore.type === 'playlist'"
@@ -178,7 +178,7 @@
         class="d-flex align-center"
         style="height: 40px;"
       >
-        <AppBarButton :action="() => appShell.showAddMediaDialog()" :text="t('media.adding.add_media')" icon="plus"/>
+        <AppBarButton feature-hint="network-sources" :action="() => appShell.showAddMediaDialog()" :text="t('media.adding.add_media')" icon="plus"/>
       </div>
 
       <v-spacer/>

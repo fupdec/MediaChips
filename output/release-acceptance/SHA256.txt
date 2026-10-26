@@ -1,0 +1,1 @@
+1427f35f3175e0e8bf005d32f0c300c6ea2596ac79fbcf1532557df0c3393f37  release/MediaChips.v1.12.0.Mac.arm64.dmg

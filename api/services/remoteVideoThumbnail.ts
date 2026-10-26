@@ -12,6 +12,7 @@ import {getCloudDriveService} from './cloudDrive'
 import {getCloudAccounts} from './cloudAccounts/accounts'
 import {pinSourceDb} from './mediaSources/context'
 import {createConcurrencyQueue} from './concurrencyQueue'
+import {runLibraryBackgroundTask} from './libraryMaintenance'
 
 const queue = createConcurrencyQueue(3, {maxPending: 32})
 const libraries = new WeakMap<object, {pending: Map<string, Promise<string | null>>; failed: Map<string, number>}>()
@@ -25,10 +26,15 @@ export async function ensureRemoteVideoThumbnail(db: ApiDb, mediaId: number): Pr
   if (isNasMediaPath(source)) {
     const {getNasMediaAssets} = await import('./nas/mediaAssets')
     const {nasThumbnailPath, nasThumbnailVersion} = await import('./nas/mediaAssetsState')
-    try { await getNasMediaAssets(db).ensure(mediaId) } catch { /* Offline NAS is retried by the background worker. */ }
     pinned.assertCurrent()
     const file = nasThumbnailPath(pinned.db.path!, 'video', mediaId)
-    return nasThumbnailVersion(file) ? file : null
+    if (nasThumbnailVersion(file)) return file
+    // A slow NAS probe must not hold image HTTP connections open. The metadata
+    // snapshot poll refreshes the card once the background worker has a cover.
+    void runLibraryBackgroundTask(() => getNasMediaAssets(db).ensure(mediaId)).catch(() => {
+      /* Offline NAS is retried by the background worker. */
+    })
+    return null
   }
   const drive = parseDriveMediaPath(source), cloud = parseCloudMediaPath(source)
   if (!isWebVideoPath(source) && !drive && !cloud) return Promise.resolve(null)

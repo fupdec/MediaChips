@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-10-24
+
+### Added
+
+- **Remote sources** — browse and import Google Drive, SFTP, FTP and WebDAV files through shared source controls; keep library metadata editable while originals are offline.
+- **Cloud accounts** — connect additional Google Drive, OneDrive and Dropbox accounts using your own OAuth app credentials; queue bounded background processing jobs.
+- **File copies** — discover and verify alternate originals, retain multiple copies on one card, and restore missing file links.
+- **Original management** — preview conflicts and run recoverable transfers across local, NAS and Google Drive storage.
+- **Metadata history** — review changes, restore individual fields or operations, and preview conflicts before importing metadata from another library.
+
+### Changed
+
+- **Import refresh** — update visible media after local and remote imports while preserving scroll position; refresh tagged web videos by ID.
+- **Media probing** — reuse recent ffprobe results for unchanged files across import, metadata, thumbnails, and grids.
+- **Large libraries** — improve virtual scrolling, list queries, sidebar counts and prioritization of visible preview work.
+- **Remote playback** — refresh stream sessions, preserve the playhead, and show actionable source errors and download speed while buffering.
+
+### Fixed
+
+- **NAS thumbnails** — return cached covers immediately and generate missing covers in the background without holding image requests open.
+- **Bulk import updates** — return all inserted media IDs even when the detailed import result is capped.
+- **Library safety** — preserve legacy libraries and backups, migrate storage safely, and block concurrent writes during restoration.
+- **E2E isolation** — run against a new temporary profile, refuse to reuse a running application server, and align source tests with the shared controls and safe error messages.
+- **Packaged configuration** — exclude build-machine configuration and backups from static assets; initialize the interface from the running API, including custom Electron backend ports.
+
 ## [1.12.0] - 2026-09-02
 
 ### Added

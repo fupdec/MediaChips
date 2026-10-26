@@ -1458,6 +1458,8 @@ const ru = {
     empty: 'Для этой версии нет описания изменений.',
   },
   feature_hints: {
+    network_sources_title: 'Добавление из сетевых источников',
+    network_sources_body: 'Теперь можно добавлять медиа из сетевых хранилищ, облачных сервисов и по ссылкам. Нажмите «Добавить медиа» и выберите источник.',
     got_it: 'Понятно',
     edit_library_nav_title: 'Настройте меню Библиотека',
     edit_library_nav_body: 'Нажмите карандаш, чтобы менять порядок пунктов и скрывать ненужные.',
@@ -3203,6 +3205,8 @@ const ru = {
       content_hash_backfill_progress: 'Обработано: {processed}/{total} · хэш: {hashed} · нет файла: {missing} · ошибки: {failed}',
       content_hash_backfill_complete: 'Готово: {hashed} хэшировано, {missing} без файла, {failed} ошибок',
       fingerprint_backfill: 'Fingerprint для дедупа',
+      remote_oshash_background: 'Фоновый OSHash для NAS и облаков',
+      remote_oshash_background_hint: 'Автоматически заполнять OSHash после импорта и для ранее добавленных файлов. Читаются только начало и конец файла (до 128 КиБ), по одному файлу за раз. Ошибки не мешают импорту; повторить попытку можно ручным заполнением fingerprint ниже или после перезапуска приложения.',
       fingerprint_backfill_hint: 'Заполняет oshash (OpenSubtitles) для поиска дубликатов, сопоставления сцен и поиска перемещённых файлов. Читаются только первые и последние 64 КиБ и размер файла, в том числе для NAS и Google Drive. Большие сетевые файлы целиком не скачиваются.',
       fingerprint_backfill_status: '{hashed} из {total} файлов с fingerprint ({pending} ожидают)',
       fingerprint_backfill_start: 'Запустить прогон',

@@ -942,6 +942,8 @@ const de = {
     empty: 'Für diese Version ist kein Änderungsprotokoll verfügbar.',
   },
   feature_hints: {
+    network_sources_title: 'Medien aus Netzwerkquellen hinzufügen',
+    network_sources_body: 'Füge jetzt Medien aus Netzwerkspeichern, Cloud-Diensten und Weblinks hinzu. Klicke auf „Medien hinzufügen“ und wähle eine Quelle.',
     got_it: 'Verstanden',
     edit_library_nav_title: 'Bibliotheksmenü anpassen',
     edit_library_nav_body: 'Mit dem Stift können Sie Bibliothekseinträge neu anordnen und ausblenden.',

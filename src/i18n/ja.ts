@@ -942,6 +942,8 @@ const ja = {
     empty: 'このバージョンでは利用可能な変更ログがありません。',
   },
   feature_hints: {
+    network_sources_title: 'ネットワークソースからメディアを追加',
+    network_sources_body: 'ネットワークストレージ、クラウドサービス、ウェブリンクからメディアを追加できるようになりました。「メディアを追加」をクリックしてソースを選択してください。',
     got_it: 'わかった',
     edit_library_nav_title: 'ライブラリメニューをカスタマイズ',
     edit_library_nav_body: '鉛筆アイコンでライブラリ項目の並べ替えや非表示ができます。',

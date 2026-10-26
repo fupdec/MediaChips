@@ -259,6 +259,12 @@
                 accent
               />
 
+              <SettingsSwitch
+                option="remoteOshashBackground"
+                :title="t('settings_labels.database.remote_oshash_background')"
+                :hint="t('settings_labels.database.remote_oshash_background_hint')"
+                data-testid="remote-oshash-background"
+              />
               <SettingsBackfillTask :config="FINGERPRINT_BACKFILL"/>
 
               <SettingsBackfillTask :config="VISUAL_HASH_BACKFILL"/>
@@ -419,6 +425,7 @@ const SettingsDatabases = defineAsyncComponent(() =>
 const SettingsLibraryHealthGuide = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsLibraryHealthGuide.vue")
 )
+const SettingsSwitch = defineAsyncComponent(() => import("@/components/ui/SettingsSwitch.vue"))
 const SettingsBackfillTask = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsBackfillTask.vue")
 )

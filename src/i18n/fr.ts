@@ -942,6 +942,8 @@ const fr = {
     empty: 'Aucun journal des modifications disponible pour cette version.',
   },
   feature_hints: {
+    network_sources_title: 'Ajouter des médias depuis des sources réseau',
+    network_sources_body: 'Vous pouvez désormais ajouter des médias depuis un stockage réseau, des services cloud et des liens web. Cliquez sur Ajouter des médias et choisissez une source.',
     got_it: 'Compris',
     edit_library_nav_title: 'Personnaliser le menu Bibliothèque',
     edit_library_nav_body: 'Utilisez le crayon pour réordonner les éléments et masquer ceux dont vous n’avez pas besoin.',

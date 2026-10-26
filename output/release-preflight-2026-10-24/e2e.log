@@ -1,0 +1,527 @@
+
+> mediachips@1.13.0 test:e2e
+> playwright test
+
+[WebServer] (node:11257) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 3248 |    padding: 2px 0;
+[WebServer] 3249 |  }
+[WebServer] 3250 |  .tag-quick-filters__chips :deep(.v-chip) {
+[WebServer]      |                                  ^
+[WebServer] 3251 |    margin: 0 !important;
+[WebServer] 3252 |  }
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 8723 |    padding-bottom: 0;
+[WebServer] 8724 |  }
+[WebServer] 8725 |  .filter__switch :deep(.v-selection-control) {
+[WebServer]      |                        ^
+[WebServer] 8726 |    min-height: auto;
+[WebServer] 8727 |  }
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 300 |    height: 28px;
+[WebServer] 301 |  }
+[WebServer] 302 |  .editing--inspector .fav-btn :deep(.v-selection-control),
+[WebServer]     |                                     ^
+[WebServer] 303 |  .editing--inspector .fav-btn :deep(.v-checkbox-btn) {
+[WebServer] 304 |    min-height: 32px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 301 |  }
+[WebServer] 302 |  .editing--inspector .fav-btn :deep(.v-selection-control),
+[WebServer] 303 |  .editing--inspector .fav-btn :deep(.v-checkbox-btn) {
+[WebServer]     |                                     ^
+[WebServer] 304 |    min-height: 32px !important;
+[WebServer] 305 |    height: 32px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 305 |    height: 32px !important;
+[WebServer] 306 |  }
+[WebServer] 307 |  .editing--inspector .fav-btn :deep(.v-icon) {
+[WebServer]     |                                     ^
+[WebServer] 308 |    font-size: 28px !important;
+[WebServer] 309 |  }
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 308 |    font-size: 28px !important;
+[WebServer] 309 |  }
+[WebServer] 310 |  .editing--inspector :deep(.v-input),
+[WebServer]     |                            ^
+[WebServer] 311 |  .editing--inspector :deep(.v-field) {
+[WebServer] 312 |    --v-input-control-height: var(--inspector-control-h) !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 309 |  }
+[WebServer] 310 |  .editing--inspector :deep(.v-input),
+[WebServer] 311 |  .editing--inspector :deep(.v-field) {
+[WebServer]     |                            ^
+[WebServer] 312 |    --v-input-control-height: var(--inspector-control-h) !important;
+[WebServer] 313 |    font-size: 0.68rem !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 313 |    font-size: 0.68rem !important;
+[WebServer] 314 |  }
+[WebServer] 315 |  .editing--inspector :deep(.v-field) {
+[WebServer]     |                            ^
+[WebServer] 316 |    --v-field-padding-start: 6px;
+[WebServer] 317 |    --v-field-padding-end: 4px;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 319 |    border-radius: 6px !important;
+[WebServer] 320 |  }
+[WebServer] 321 |  .editing--inspector :deep(.v-field__outline) {
+[WebServer]     |                            ^
+[WebServer] 322 |    --v-field-border-width: 1px;
+[WebServer] 323 |    --v-field-border-opacity: 0.22;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 323 |    --v-field-border-opacity: 0.22;
+[WebServer] 324 |  }
+[WebServer] 325 |  .editing--inspector :deep(.v-field__field) {
+[WebServer]     |                            ^
+[WebServer] 326 |    height: auto;
+[WebServer] 327 |    min-height: var(--inspector-control-h);
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 327 |    min-height: var(--inspector-control-h);
+[WebServer] 328 |  }
+[WebServer] 329 |  .editing--inspector :deep(.v-field__input) {
+[WebServer]     |                            ^
+[WebServer] 330 |    min-height: var(--inspector-control-h) !important;
+[WebServer] 331 |    max-height: none;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 339 |    column-gap: 2px;
+[WebServer] 340 |  }
+[WebServer] 341 |  .editing--inspector :deep(.v-field__input input),
+[WebServer]     |                            ^
+[WebServer] 342 |  .editing--inspector :deep(.v-field__input textarea) {
+[WebServer] 343 |    font-size: 0.68rem !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 340 |  }
+[WebServer] 341 |  .editing--inspector :deep(.v-field__input input),
+[WebServer] 342 |  .editing--inspector :deep(.v-field__input textarea) {
+[WebServer]     |                            ^
+[WebServer] 343 |    font-size: 0.68rem !important;
+[WebServer] 344 |    line-height: 1.15 !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 344 |    line-height: 1.15 !important;
+[WebServer] 345 |  }
+[WebServer] 346 |  .editing--inspector :deep(.v-autocomplete .v-field__input),
+[WebServer]     |                            ^
+[WebServer] 347 |  .editing--inspector :deep(.v-combobox .v-field__input),
+[WebServer] 348 |  .editing--inspector :deep(.v-select .v-field__input) {
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 345 |  }
+[WebServer] 346 |  .editing--inspector :deep(.v-autocomplete .v-field__input),
+[WebServer] 347 |  .editing--inspector :deep(.v-combobox .v-field__input),
+[WebServer]     |                            ^
+[WebServer] 348 |  .editing--inspector :deep(.v-select .v-field__input) {
+[WebServer] 349 |    min-height: var(--inspector-control-h) !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 346 |  .editing--inspector :deep(.v-autocomplete .v-field__input),
+[WebServer] 347 |  .editing--inspector :deep(.v-combobox .v-field__input),
+[WebServer] 348 |  .editing--inspector :deep(.v-select .v-field__input) {
+[WebServer]     |                            ^
+[WebServer] 349 |    min-height: var(--inspector-control-h) !important;
+[WebServer] 350 |    padding-top: 1px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 351 |    padding-bottom: 1px !important;
+[WebServer] 352 |  }
+[WebServer] 353 |  .editing--inspector :deep(.v-textarea .v-field__input) {
+[WebServer]     |                            ^
+[WebServer] 354 |    min-height: var(--inspector-control-h) !important;
+[WebServer] 355 |    padding-block: 4px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 356 |    align-items: flex-start;
+[WebServer] 357 |  }
+[WebServer] 358 |  .editing--inspector :deep(.v-field__append-inner),
+[WebServer]     |                            ^
+[WebServer] 359 |  .editing--inspector :deep(.v-field__prepend-inner),
+[WebServer] 360 |  .editing--inspector :deep(.v-field__clearable) {
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 357 |  }
+[WebServer] 358 |  .editing--inspector :deep(.v-field__append-inner),
+[WebServer] 359 |  .editing--inspector :deep(.v-field__prepend-inner),
+[WebServer]     |                            ^
+[WebServer] 360 |  .editing--inspector :deep(.v-field__clearable) {
+[WebServer] 361 |    padding-top: 0 !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 358 |  .editing--inspector :deep(.v-field__append-inner),
+[WebServer] 359 |  .editing--inspector :deep(.v-field__prepend-inner),
+[WebServer] 360 |  .editing--inspector :deep(.v-field__clearable) {
+[WebServer]     |                            ^
+[WebServer] 361 |    padding-top: 0 !important;
+[WebServer] 362 |    align-self: center;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 362 |    align-self: center;
+[WebServer] 363 |  }
+[WebServer] 364 |  .editing--inspector :deep(.v-field__clearable .v-icon),
+[WebServer]     |                            ^
+[WebServer] 365 |  .editing--inspector :deep(.v-field__append-inner .v-icon),
+[WebServer] 366 |  .editing--inspector :deep(.v-field__prepend-inner .v-icon) {
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 363 |  }
+[WebServer] 364 |  .editing--inspector :deep(.v-field__clearable .v-icon),
+[WebServer] 365 |  .editing--inspector :deep(.v-field__append-inner .v-icon),
+[WebServer]     |                            ^
+[WebServer] 366 |  .editing--inspector :deep(.v-field__prepend-inner .v-icon) {
+[WebServer] 367 |    font-size: 14px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 364 |  .editing--inspector :deep(.v-field__clearable .v-icon),
+[WebServer] 365 |  .editing--inspector :deep(.v-field__append-inner .v-icon),
+[WebServer] 366 |  .editing--inspector :deep(.v-field__prepend-inner .v-icon) {
+[WebServer]     |                            ^
+[WebServer] 367 |    font-size: 14px !important;
+[WebServer] 368 |    width: 14px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 369 |    height: 14px !important;
+[WebServer] 370 |  }
+[WebServer] 371 |  .editing--inspector :deep(.v-number-input .v-btn) {
+[WebServer]     |                            ^
+[WebServer] 372 |    width: 22px !important;
+[WebServer] 373 |    height: 22px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 375 |    min-height: 22px !important;
+[WebServer] 376 |  }
+[WebServer] 377 |  .editing--inspector :deep(.v-number-input .v-btn .v-icon) {
+[WebServer]     |                            ^
+[WebServer] 378 |    font-size: 14px !important;
+[WebServer] 379 |  }
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 378 |    font-size: 14px !important;
+[WebServer] 379 |  }
+[WebServer] 380 |  .editing--inspector :deep(.v-chip) {
+[WebServer]     |                            ^
+[WebServer] 381 |    --v-chip-height: 18px;
+[WebServer] 382 |    height: 18px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 385 |    padding-inline: 4px !important;
+[WebServer] 386 |  }
+[WebServer] 387 |  .editing--inspector :deep(.v-chip.editing-tag-chip),
+[WebServer]     |                            ^
+[WebServer] 388 |  .editing--inspector :deep(.v-chip.country-field-chip) {
+[WebServer] 389 |    --v-chip-height: 10px;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 386 |  }
+[WebServer] 387 |  .editing--inspector :deep(.v-chip.editing-tag-chip),
+[WebServer] 388 |  .editing--inspector :deep(.v-chip.country-field-chip) {
+[WebServer]     |                            ^
+[WebServer] 389 |    --v-chip-height: 10px;
+[WebServer] 390 |    height: 10px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 392 |    padding-inline: 2px !important;
+[WebServer] 393 |  }
+[WebServer] 394 |  .editing--inspector :deep(.v-chip.editing-tag-chip .v-icon),
+[WebServer]     |                            ^
+[WebServer] 395 |  .editing--inspector :deep(.v-chip.country-field-chip .v-icon) {
+[WebServer] 396 |    font-size: 7px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 393 |  }
+[WebServer] 394 |  .editing--inspector :deep(.v-chip.editing-tag-chip .v-icon),
+[WebServer] 395 |  .editing--inspector :deep(.v-chip.country-field-chip .v-icon) {
+[WebServer]     |                            ^
+[WebServer] 396 |    font-size: 7px !important;
+[WebServer] 397 |    width: 7px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 398 |    height: 7px !important;
+[WebServer] 399 |  }
+[WebServer] 400 |  .editing--inspector :deep(.v-chip .v-icon) {
+[WebServer]     |                            ^
+[WebServer] 401 |    font-size: 11px !important;
+[WebServer] 402 |    width: 11px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 403 |    height: 11px !important;
+[WebServer] 404 |  }
+[WebServer] 405 |  .editing--inspector :deep(.v-chip__close) {
+[WebServer]     |                            ^
+[WebServer] 406 |    margin-inline: 0 0 !important;
+[WebServer] 407 |    font-size: 12px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 407 |    font-size: 12px !important;
+[WebServer] 408 |  }
+[WebServer] 409 |  .editing--inspector :deep(.v-checkbox .v-label),
+[WebServer]     |                            ^
+[WebServer] 410 |  .editing--inspector :deep(.v-selection-control .v-label) {
+[WebServer] 411 |    font-size: 0.68rem !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 408 |  }
+[WebServer] 409 |  .editing--inspector :deep(.v-checkbox .v-label),
+[WebServer] 410 |  .editing--inspector :deep(.v-selection-control .v-label) {
+[WebServer]     |                            ^
+[WebServer] 411 |    font-size: 0.68rem !important;
+[WebServer] 412 |  }
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 411 |    font-size: 0.68rem !important;
+[WebServer] 412 |  }
+[WebServer] 413 |  .editing--inspector :deep(.v-input--density-compact) {
+[WebServer]     |                            ^
+[WebServer] 414 |    --v-input-padding-top: 0;
+[WebServer] 415 |  }
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 414 |    --v-input-padding-top: 0;
+[WebServer] 415 |  }
+[WebServer] 416 |  .editing--inspector :deep(.v-messages),
+[WebServer]     |                            ^
+[WebServer] 417 |  .editing--inspector :deep(.v-input__details) {
+[WebServer] 418 |    display: none !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 415 |  }
+[WebServer] 416 |  .editing--inspector :deep(.v-messages),
+[WebServer] 417 |  .editing--inspector :deep(.v-input__details) {
+[WebServer]     |                            ^
+[WebServer] 418 |    display: none !important;
+[WebServer] 419 |    min-height: 0 !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 421 |    margin: 0 !important;
+[WebServer] 422 |  }
+[WebServer] 423 |  .editing--inspector :deep(.editing-field-restore) {
+[WebServer]     |                            ^
+[WebServer] 424 |    transform: scale(0.85);
+[WebServer] 425 |    transform-origin: center;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 519 |    transform-origin: left center;
+[WebServer] 520 |  }
+[WebServer] 521 |  .filters-edit-switch :deep(.v-selection-control) {
+[WebServer]     |                             ^
+[WebServer] 522 |    min-height: 28px;
+[WebServer] 523 |  }
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 522 |    min-height: 28px;
+[WebServer] 523 |  }
+[WebServer] 524 |  .filters-edit-switch :deep(.v-switch__thumb) {
+[WebServer]     |                             ^
+[WebServer] 525 |    display: flex;
+[WebServer] 526 |    align-items: center;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 531 |    height: 28px;
+[WebServer] 532 |  }
+[WebServer] 533 |  .filters-join-toggle :deep(.v-btn) {
+[WebServer]     |                             ^
+[WebServer] 534 |    min-width: 0;
+[WebServer] 535 |    padding-inline: 8px;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 588 |    margin: 0 !important;
+[WebServer] 589 |  }
+[WebServer] 590 |  .filters-panel--top .filters-panel__add :deep(.v-input__control) {
+[WebServer]     |                                                ^
+[WebServer] 591 |    min-width: 0;
+[WebServer] 592 |  }
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 591 |    min-width: 0;
+[WebServer] 592 |  }
+[WebServer] 593 |  .filters-panel--top .filters-panel__add :deep(.v-field) {
+[WebServer]     |                                                ^
+[WebServer] 594 |    --v-input-control-height: 28px;
+[WebServer] 595 |    border-radius: 999px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 596 |    font-size: 0.75rem;
+[WebServer] 597 |  }
+[WebServer] 598 |  .filters-panel--top .filters-panel__add :deep(.v-field__input) {
+[WebServer]     |                                                ^
+[WebServer] 599 |    min-height: 28px !important;
+[WebServer] 600 |    max-height: 28px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 608 |    align-items: center;
+[WebServer] 609 |  }
+[WebServer] 610 |  .filters-panel--top .filters-panel__add :deep(.v-autocomplete__selection) {
+[WebServer]     |                                                ^
+[WebServer] 611 |    max-width: 100%;
+[WebServer] 612 |    overflow: hidden;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 617 |    margin-inline-end: 0;
+[WebServer] 618 |  }
+[WebServer] 619 |  .filters-panel--top .filters-panel__add :deep(.v-autocomplete__selection .v-icon),
+[WebServer]     |                                                ^
+[WebServer] 620 |  .filters-panel--top .filters-panel__add :deep(.v-autocomplete__selection .mr-1) {
+[WebServer] 621 |    font-size: 14px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 618 |  }
+[WebServer] 619 |  .filters-panel--top .filters-panel__add :deep(.v-autocomplete__selection .v-icon),
+[WebServer] 620 |  .filters-panel--top .filters-panel__add :deep(.v-autocomplete__selection .mr-1) {
+[WebServer]     |                                                ^
+[WebServer] 621 |    font-size: 14px !important;
+[WebServer] 622 |    width: 14px;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 624 |    margin-inline-end: 4px !important;
+[WebServer] 625 |  }
+[WebServer] 626 |  .filters-panel--top .filters-panel__add :deep(.v-autocomplete__selection .text-body-2) {
+[WebServer]     |                                                ^
+[WebServer] 627 |    font-size: 0.75rem !important;
+[WebServer] 628 |    line-height: 1.2 !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 628 |    line-height: 1.2 !important;
+[WebServer] 629 |  }
+[WebServer] 630 |  .filters-panel--top .filters-panel__add :deep(.v-field__input input) {
+[WebServer]     |                                                ^
+[WebServer] 631 |    min-width: 0 !important;
+[WebServer] 632 |    font-size: 0.75rem !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 632 |    font-size: 0.75rem !important;
+[WebServer] 633 |  }
+[WebServer] 634 |  .filters-panel--top .filters-panel__add :deep(.v-field__append-inner .v-icon) {
+[WebServer]     |                                                ^
+[WebServer] 635 |    font-size: 16px !important;
+[WebServer] 636 |  }
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 635 |    font-size: 16px !important;
+[WebServer] 636 |  }
+[WebServer] 637 |  .filters-panel--top .filters-panel__add :deep(.v-input__append) {
+[WebServer]     |                                                ^
+[WebServer] 638 |    margin-inline-start: 4px !important;
+[WebServer] 639 |    padding: 0 !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 640 |    align-self: center;
+[WebServer] 641 |  }
+[WebServer] 642 |  .filters-panel--top .filters-panel__add :deep(.v-input__append .v-btn) {
+[WebServer]     |                                                ^
+[WebServer] 643 |    width: 28px !important;
+[WebServer] 644 |    height: 28px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 647 |    padding: 0 !important;
+[WebServer] 648 |  }
+[WebServer] 649 |  .filters-panel--top .filters-panel__add :deep(.v-input__append .v-btn .v-icon) {
+[WebServer]     |                                                ^
+[WebServer] 650 |    margin: 0 !important;
+[WebServer] 651 |    font-size: 16px !important;
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 651 |    font-size: 16px !important;
+[WebServer] 652 |  }
+[WebServer] 653 |  .filters-panel--top .filters-panel__add :deep(.v-label) {
+[WebServer]     |                                                ^
+[WebServer] 654 |    font-size: 0.6875rem;
+[WebServer] 655 |  }
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 1700 |    width: 100%;
+[WebServer] 1701 |  }
+[WebServer] 1702 |  .items-page-grid:not(.items-virtual-grid) :deep(.item) {
+[WebServer]      |                                                  ^
+[WebServer] 1703 |    content-visibility: auto;
+[WebServer] 1704 |    /* Prefer a tall estimate: undersized intrinsic size makes cards jump when painted. */
+[WebServer] [lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+[WebServer] 1705 |    contain-intrinsic-size: auto 360px;
+[WebServer] 1706 |  }
+[WebServer] 1707 |  .items-page-grid:not(.items-virtual-grid) :deep(.item-view-5) {
+[WebServer]      |                                                  ^
+[WebServer] 1708 |    /* List rows are much shorter than cards — match their real height. */
+[WebServer] 1709 |    contain-intrinsic-size: auto 90px;
+[WebServer] [INEFFECTIVE_DYNAMIC_IMPORT] src/services/typedApi.ts is dynamically imported by src/services/freeLibraryCapConfig.ts, src/utils/fileExistenceBatcher.ts but also statically imported by packages/plugin-adult/src/components/DialogSceneScraperConfig.vue?vue&type=script&setup=true&lang.ts, packages/plugin-adult/src/components/DialogScraperConfig.vue?vue&type=script&setup=true&lang.ts, packages/plugin-adult/src/components/SettingsDataScraper.vue?vue&type=script&setup=true&lang.ts, packages/plugin-adult/src/components/scraper/ScraperDataTransfer.vue?vue&type=script&setup=true&lang.ts, packages/plugin-adult/src/composables/useAutoSceneScrapeBatch.ts, ..., dynamic import will not move module into another chunk.
+[WebServer] 
+[WebServer] [INEFFECTIVE_DYNAMIC_IMPORT] src/stores/notifications.ts is dynamically imported by src/services/desktopChrome.ts but also statically imported by packages/plugin-adult/src/components/DialogCamGirlFinder.vue?vue&type=script&setup=true&lang.ts, packages/plugin-adult/src/components/DialogScraperConfig.vue?vue&type=script&setup=true&lang.ts, packages/plugin-adult/src/composables/useAutoSceneScrapeBatch.ts, packages/plugin-adult/src/composables/useAutoScrapeBatch.ts, packages/plugin-tmdb/src/composables/useTmdbPersonAutoScrapeBatch.ts, ..., dynamic import will not move module into another chunk.
+[WebServer] 
+[WebServer] (node:11334) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:11367) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:11412) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 71 tests using 5 workers
+
+(node:11413) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11416) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11415) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11414) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11417) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 e2e/api.spec.ts:4:7 › API › ping responds (22ms)
+  ✓   6 e2e/api.spec.ts:13:7 › API › config responds for a fresh server (7ms)
+  ✓   7 e2e/api.spec.ts:23:7 › API › auth status reports no password on fresh server (10ms)
+  ✓   8 e2e/api.spec.ts:32:7 › API › login succeeds without password when protection is disabled (16ms)
+  ✓   9 e2e/api.spec.ts:44:7 › API › home health responds (21ms)
+  ✓  10 e2e/api.spec.ts:52:7 › API › backups list is empty on fresh server (6ms)
+  ✓  11 e2e/api.spec.ts:60:7 › API › legacy LowDB migration check returns 400 when no legacy data (5ms)
+  ✓  12 e2e/api.spec.ts:65:7 › API › media types list responds (8ms)
+  ✓  13 e2e/api.spec.ts:74:7 › API › legacy mediaType casing still resolves via normalizeApiPath (11ms)
+  ✓   1 e2e/change-history.spec.ts:4:5 › reviews a bulk operation, handles conflict and restores a single field (3.1s)
+  ✓  15 e2e/change-history.spec.ts:50:5 › opens history from the global toolbar and shows the empty state (1.4s)
+  ✓   4 e2e/copy-discovery-auto.spec.ts:8:5 › persists automatic trigger switches and identifies why a job started (4.6s)
+  ✓   2 e2e/copy-discovery.spec.ts:5:5 › starts a persistent background scan, restores its results and undoes a link (4.9s)
+  ✓   3 e2e/cloud-accounts.spec.ts:4:7 › gdrive: selects an account, imports a file and starts bounded background processing (5.9s)
+  ✓  18 e2e/copy-discovery.spec.ts:47:5 › offers named cards for an ambiguous result and queues the selected card (2.0s)
+  ✓  14 e2e/drive-connections.spec.ts:9:5 › Google Drive remembers its folder and breadcrumb names across sessions and recovers if the folder disappears (7.7s)
+  ✓  17 e2e/copy-discovery-auto.spec.ts:40:5 › a real bulk import schedules discovery and attaches a copy in a previously selected folder (3.6s)
+  ✓  16 e2e/file-preview.spec.ts:10:7 › local: plays new and indexed files without library reads or writes (4.4s)
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987655.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987655.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987655.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987655.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987655.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987655.jpg
+  ✓  19 e2e/cloud-accounts.spec.ts:4:7 › onedrive: selects an account, imports a file and starts bounded background processing (4.2s)
+  ✓  21 e2e/drive-connections.spec.ts:59:5 › Google Drive adds remote selections with the shared action and keeps other source drafts (3.1s)
+  ✓  20 e2e/media-adding.spec.ts:39:5 › one add action follows the source and preserves local paths and link drafts (4.0s)
+  ✓  22 e2e/media-copies.spec.ts:4:5 › manages verified copies and explains why alternate edits cannot be attached (2.8s)
+  ✓  25 e2e/drive-connections.spec.ts:101:5 › Sources settings contain Google authorization, SFTP credentials and the shared import browser (2.2s)
+  ✓  23 e2e/file-preview.spec.ts:10:7 › drive: plays new and indexed files without library reads or writes (4.5s)
+  ✓  26 e2e/media-adding.spec.ts:88:5 › links use the common process window with progress and results (3.6s)
+  ✓  24 e2e/cloud-accounts.spec.ts:4:7 › dropbox: selects an account, imports a file and starts bounded background processing (4.9s)
+  ✓  27 e2e/media-copies.spec.ts:53:5 › keeps full SHA-256 comparison optional and persists the library setting (4.5s)
+  ✓  28 e2e/drive-connections.spec.ts:129:5 › Google connection settings open in a dialog, discard cancelled edits and preserve the saved secret (4.7s)
+  ✓  31 e2e/metadata-transfer.spec.ts:12:5 › reviews conflicts, requires decisions and refreshes a stale import preview (2.9s)
+  ✓  29 e2e/file-preview.spec.ts:10:7 › nas: plays new and indexed files without library reads or writes (5.0s)
+  ✓  30 e2e/media-adding.spec.ts:110:5 › SFTP uses the same process window and stop action as local files (3.9s)
+  ✓  32 e2e/nas-browser.spec.ts:46:5 › editing NAS credentials shows saved status, preserves an untouched password and reveals a replacement (4.4s)
+  ✓  34 e2e/metadata-transfer.spec.ts:53:5 › blocks incompatible field types before import (2.7s)
+  ✓  33 e2e/drive-connections.spec.ts:191:5 › Google sign-in runs in a separate window and refreshes the open adding dialog (3.6s)
+  ✓  35 e2e/file-preview.spec.ts:137:5 › NAS: starts before the download completes, seeks and cancels reading on close (3.3s)
+  ✓  36 e2e/media-adding.spec.ts:135:5 › shared add starts local import with only the selected media type (3.4s)
+  ✓  38 e2e/navigation.spec.ts:5:7 › Navigation › opens playlists page (1.3s)
+  ✓  42 e2e/navigation.spec.ts:12:7 › Navigation › opens media library route (797ms)
+  ✓  43 e2e/navigation.spec.ts:22:7 › Navigation › switches settings to database tab (1.4s)
+  ✓  41 e2e/media-adding.spec.ts:160:5 › shares media types and a single options panel across local, Drive, NAS and links (3.2s)
+  ✓  40 e2e/original-operations.spec.ts:5:5 › shows conflicts and recovery, streams uploads, and restores job history after closing the dialog (3.6s)
+  ✓  44 e2e/navigation.spec.ts:28:7 › Navigation › switches settings to about tab (1.0s)
+  ✓  37 e2e/nas-browser.spec.ts:90:5 › remembers the last NAS connection and each connection folder after reopening (5.6s)
+  ✓  39 e2e/drive-connections.spec.ts:213:5 › a config refresh during Google sign-in does not cancel authorization (4.7s)
+  ✓  46 e2e/navigation.spec.ts:34:7 › Navigation › home page shows main shell without login dialog on fresh server (1.2s)
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987654.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987654.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987654.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987654.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987654.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987654.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987654.jpg
+  ✓  45 e2e/media-adding.spec.ts:204:5 › hiding a network process keeps it running; Stop finishes the batch and Retry imports only the rest (3.1s)
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987654.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987654.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987654.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987654.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987654.jpg
+  ✓  48 e2e/nas-browser.spec.ts:127:5 › SFTP uses the local browser navigation, sorting, filters and persistent selection (3.0s)
+  ✓  50 e2e/remote-metadata.spec.ts:4:5 › edits remote library metadata while the original is offline (2.1s)
+  ✓  47 e2e/remote-batch-import.spec.ts:8:7 › drive: recursive selection, readable exclusions and tags, failed-file retry and repeat import (3.4s)
+  ✓  49 e2e/drive-connections.spec.ts:248:5 › a Google token-exchange rejection is shown as a client error, not cancellation (3.5s)
+  ✓  51 e2e/scale-smoke.spec.ts:14:7 › A5 scale smoke: import + scroll + watcher › bulk import, paginated list, watched-folder assess/create, UI scroll (1.5s)
+  ✓  56 e2e/smoke.spec.ts:3:5 › loads the home page shell (430ms)
+  ✓  52 e2e/nas-browser.spec.ts:159:5 › selecting an SFTP folder imports nested videos once and updates library badges (1.8s)
+  ✓  55 e2e/drive-connections.spec.ts:265:5 › bad OAuth credentials are reported before Google consent is opened (1.0s)
+  ✓  53 e2e/remote-metadata.spec.ts:41:5 › offers catalog source and availability filters with readable labels while disconnected (2.0s)
+  ✓  57 e2e/smoke.spec.ts:11:5 › opens the settings route (1.1s)
+  ✓  61 e2e/smoke.spec.ts:18:5 › settings API responds for a fresh server (35ms)
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+  ✓  54 e2e/remote-batch-import.spec.ts:8:7 › nas: recursive selection, readable exclusions and tags, failed-file retry and repeat import (3.6s)
+  -  63 e2e/webdav-https.spec.ts:10:7 › Nextcloud: HTTPS connection, folder browser, import, metadata editor and player seek
+  -  64 e2e/webdav-https.spec.ts:10:7 › Apache mod_dav: HTTPS connection, folder browser, import, metadata editor and player seek
+  ✓  62 e2e/sources.spec.ts:19:7 › drive: network, permission and expired sign-in have distinct recovery guidance (1.5s)
+  ✓  58 e2e/nas-browser.spec.ts:174:5 › Stop finishes the active SFTP batch and retains unprocessed selections (2.9s)
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+  ✓  65 e2e/sources.spec.ts:19:7 › nas: network, permission and expired sign-in have distinct recovery guidance (1.3s)
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+[WebServer] File not found: /var/folders/3j/2yp20g_96kqbql6jy6mb9h600000gn/T/mediachips-e2e-fJfvLI/app_storage/1a1689d2bcb/media/videos/thumbs/987659.jpg
+  ✓  60 e2e/source-transfer.spec.ts:6:5 › transfers to another source with a safe default and explicit source removal mode (4.0s)
+  ✓  67 e2e/sources.spec.ts:60:5 › Drive favorites preserve readable paths, imported-file badges and sorting after reopening (1.9s)
+  ✓  59 e2e/source-catalog.spec.ts:5:5 › manually reconciles, cancels safely, persists a schedule and edits the offline limit (5.8s)
+  ✓  66 e2e/nas-browser.spec.ts:193:5 › bottom selection bar selects visible entries, edits paths across folders and clears everything (3.2s)
+  ✓  69 e2e/nas-browser.spec.ts:254:5 › the shared SFTP browser fits a phone screen and cannot navigate above its root (1.1s)
+  ✓  68 e2e/sources.spec.ts:83:5 › NAS credentials can be replaced, disconnected and restored without recreating the source (2.0s)
+  ✓  70 e2e/nas-browser.spec.ts:268:5 › plays new and imported remote files without importing or writing library data (2.2s)
+  ✓  71 e2e/sources.spec.ts:117:5 › remembers import and connection tabs across reopening, reloads and settings (6.7s)
+
+  2 skipped
+  69 passed (53.8s)

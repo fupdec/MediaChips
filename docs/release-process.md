@@ -1,5 +1,35 @@
 # Release publication
 
+## Local preparation
+
+Before choosing a new version, check `git status --short` and existing version
+tags. Include all intended source files, including untracked modules, and keep
+release notes in `CHANGELOG.md` under `Unreleased` until the version is chosen.
+Do not reuse an existing release tag or treat old files in `release/` as builds
+of the current working tree.
+
+Run `npm test`, `npm run build`, `npx eslint .`, and the TypeScript checks listed
+in `.github/workflows/ci.yml`. Then run `npm run test:e2e` with port 12321 free,
+or use `MEDIA_CHIPS_E2E_PORT=12329 npm run test:e2e` alongside a running app.
+E2E creates and removes its own temporary profile and refuses to reuse an
+existing server. Run unit tests and E2E sequentially: E2E preparation
+rebuilds `better-sqlite3`, which can temporarily remove the native binding while
+unit tests are using it. HTTP/SFTP tests need permission to listen on loopback
+ports; `listen EPERM` is an environment failure, not a passing acceptance test.
+
+Production builds copy only UI assets from `public/icons`, `public/images`, and
+`public/loading.html`. Host-local `public/config.json`, backups and credentials
+must not appear in `dist` or the packaged asar. The UI bootstraps through
+`/api/config`; Electron supplies its actual backend port through IPC.
+
+For cloud and remote-source acceptance, follow `cloud-oauth-release.md`,
+`release-blockers-remote-sources.md`, and `web-video-release.md`. For a signed
+macOS distribution, configure `build/mac-signing.env.example` and verify signing
+and notarization on the newly built artifact. The default ad-hoc build does not
+confirm those requirements.
+
+## CI and publication
+
 `release.yml` calls `ci.yml` locally with `workflow_call`. Type checks, lint,
 unit tests with coverage, E2E and Linux packaging must succeed before the
 Windows/macOS/Linux installer matrix starts. Publication needs both jobs.

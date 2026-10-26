@@ -7,6 +7,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 import fs from 'node:fs'
 import { stripMdiLegacyFontUrls } from './scripts/strip-mdi-legacy-fonts.mjs'
+import { staticPublicAssets } from './scripts/public-assets.mjs'
 
 function normalizePlugins(...items: Array<Plugin | Plugin[]>): Plugin[] {
   return items.flat()
@@ -70,6 +71,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     vuetify({ autoImport: true }),
     invalidUrlMiddleware(),
     stripMdiLegacyFonts(),
+    staticPublicAssets(path.resolve('public')),
     VitePWA({
       // Manual register in src/services/registerPwa.ts — skip Electron hosts.
       injectRegister: false,
@@ -227,6 +229,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     },
   },
   build: {
+    copyPublicDir: false,
     outDir: 'dist',
     assetsDir: 'assets',
     // Production builds skip sourcemaps unless ANALYZE=1 (bundle visualizer needs them).

@@ -141,6 +141,8 @@ describe('runMediaBulkLiteImport', () => {
     expect(result.inserted).toBe(12)
     expect(result.added.length).toBeLessThanOrEqual(MEDIA_BULK_LITE_ADDED_CAP)
     expect(result.added.length).toBe(12)
+    expect(result.addedIds).toEqual(result.added.map(entry => entry.mediaId))
+    expect(new Set(result.addedIds).size).toBe(result.inserted)
   })
 
   it('records missing files as errors', async () => {
