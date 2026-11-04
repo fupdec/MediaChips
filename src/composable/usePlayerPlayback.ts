@@ -1,3 +1,9 @@
+import path from 'path-browserify'
+import {useAppStore} from '@/stores/app'
+import {useItemsStore} from '@/stores/items'
+import {buildLocalFileUrl, createThumb} from '@/services/fileService'
+import {saveWebVideoCurrentFrame} from '@/services/webVideoFrames'
+import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import {useI18n} from 'vue-i18n'
 import {remoteMediaError, remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 import {nextTick, watch, onBeforeUnmount} from 'vue'
@@ -63,6 +69,43 @@ export function usePlayerPlayback({
   }
   const liveSession = createPlayerLiveSession(state)
   let segmentAdvancePending = false
+  const appStore = useAppStore()
+  const itemsStore = useItemsStore()
+  let openingGeneration = 0
+  let openingThumbChecked = false
+  watch(() => [playerStore.media?.id, playerStore.active] as const, () => {
+    openingGeneration += 1
+    openingThumbChecked = false
+  }, {flush: 'sync'})
+
+  const ensureOpeningThumb = async () => {
+    const media = playerStore.media
+    const video = playerStore.player
+    if (openingThumbChecked || !playerStore.active || !playerStore.isLibraryMedia
+      || playerStore.isAudioMode || !media?.path || !appStore.mediaPath || !video
+      || video.readyState < 2 || video.seeking || !video.videoWidth || !video.videoHeight) return
+    openingThumbChecked = true
+    const generation = openingGeneration
+    const isCurrent = () => generation === openingGeneration && playerStore.player === video
+    const thumbPath = path.join(appStore.mediaPath, 'videos/thumbs', `${media.id}.jpg`)
+    try {
+      // Only a confirmed missing file permits automatic poster creation.
+      const response = await fetch(buildLocalFileUrl(thumbPath, false, true), {method: 'HEAD'})
+      if (response.status !== 404 || !isCurrent() || video.seeking) return
+      if (isRemoteMediaPath(media.path)) {
+        if (!await saveWebVideoCurrentFrame({video, mediaId: media.id, mediaPath: media.path})) return
+      } else {
+        await createThumb(video.currentTime, media.path, thumbPath, 320, false)
+      }
+      invalidateVideoThumbCaches(media.id)
+      itemsStore.refreshThumb(media.id, {regenerate: false})
+      if (isPlayerWindow.value && window.electronAPI?.send) {
+        window.electronAPI.send('updateVideoFrames', media.id)
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) console.debug('Unable to create opening video thumb', media.id, error)
+    }
+  }
 
   const finishCurrentClipSegment = () => {
     const current = playerStore.playlist[playerStore.nowPlaying]
@@ -264,6 +307,7 @@ export function usePlayerPlayback({
       playerStore.isStreamWaiting = true
     })
     playerStore.player.addEventListener('playing', () => {
+      void ensureOpeningThumb()
       liveSession.clearDirectSeekStallWatch()
       if (playerStore.isWebVideo) {
         onWebFrameReady()
