@@ -14,6 +14,9 @@ const en = {
 },
 
   copyDiscovery: {
+    clear_history: 'Clear check history',
+    summary: 'Recent checks: {count}',
+    history: 'Check history ({count})',
     auto_reconnect: 'Find copies when a known source returns',
     auto_reconnect_hint: 'Every 5 seconds, check the availability of selected local search roots and watched folders on the server. Scan those roots when they return; unrelated disks are not scanned.',
     auto_import: 'Find copies after import',

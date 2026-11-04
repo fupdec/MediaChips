@@ -16,6 +16,7 @@ export default function registerCopyDiscovery(app: Express, db: ApiDb, service =
   }
   const id = (value: unknown) => z.string().uuid().parse(value)
   router.get('/jobs', handle((_req, res) => res.json(service.jobs())))
+  router.delete('/jobs/history', handle((_req, res) => res.json(service.clearHistory())))
   router.post('/jobs', express.json(), handle((req, res) => res.status(202).json(service.create(CopyDiscoveryInputSchema.parse(req.body)))))
   router.get('/jobs/:id', handle((req, res) => res.json(service.job(id(req.params.id)))))
   router.post('/jobs/:id/cancel', handle((req, res) => res.json(service.cancel(id(req.params.id)))))

@@ -19,7 +19,7 @@
     <SettingsSwitch option="copyDiscoveryOnReconnect" :title="t('copyDiscovery.auto_reconnect')" :hint="t('copyDiscovery.auto_reconnect_hint')" data-testid="copy-auto-reconnect" />
     <SettingsSwitch option="copyDiscoveryOnImport" :title="t('copyDiscovery.auto_import')" :hint="t('copyDiscovery.auto_import_hint')" data-testid="copy-auto-import" />
     <SettingsSwitch option="copyDiscoveryOnFolderUpdate" :title="t('copyDiscovery.auto_folders')" :hint="t('copyDiscovery.auto_folders_hint')" data-testid="copy-auto-folders" />
-    <MediaCopyDiscovery />
+    <MediaCopyDiscovery :show-results="false" collapse-history />
 
     <v-select
       v-model="mediaTypeId"

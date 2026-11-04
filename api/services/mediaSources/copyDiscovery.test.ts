@@ -55,6 +55,26 @@ describe('background copy discovery', () => {
     expect(fixture.sqlite.prepare('SELECT COUNT(*) AS n FROM media').get()).toEqual({n: 1})
   })
 
+  it('clears all terminal history and its items while preserving queued work and linked copies', async () => {
+    const original = card('original.mp4'), copy = file('copy.mp4')
+    const service = worker()
+    const completed = await scan(service, copy)
+    const copies = copyCandidates(db, original.id)
+    const cancelled = service.create({roots: [{key: copy}]})
+    service.cancel(cancelled.id)
+    const failed = service.create({roots: [{key: copy}]})
+    fixture.sqlite.prepare("UPDATE copyDiscoveryJobs SET state = 'failed' WHERE id = ?").run(failed.id)
+    const queued = service.create({roots: [{key: copy}]})
+    // History cleanup must cover records older than the 20 displayed jobs too.
+    for (let i = 0; i < 21; i++) service.cancel(service.create({roots: [{key: copy}]}).id)
+    expect(service.clearHistory().map(job => job.id)).toEqual([queued.id])
+    expect(fixture.sqlite.prepare('SELECT COUNT(*) AS n FROM copyDiscoveryJobs').get()).toEqual({n: 1})
+    expect(fixture.sqlite.prepare('SELECT COUNT(*) AS n FROM copyDiscoveryItems WHERE jobId = ?').get(completed.id)).toEqual({n: 0})
+    expect(copyCandidates(db, original.id)).toEqual(copies)
+    expect(fs.existsSync(copy)).toBe(true)
+    expect(service.clearHistory().map(job => job.id)).toEqual([queued.id])
+  })
+
   it('uses an online retained copy when the primary file and another retained copy are offline', async () => {
     const original = card('original.mp4'), available = file('available.mp4'), offline = file('offline.mp4')
     await attachLocalMediaCopy(db, original.id, available, new AbortController().signal)
@@ -371,6 +391,10 @@ describe('background copy discovery', () => {
       const undo = await fetch(`${base}/${job.id}/items/${result.items[0].id}/undo`, {method: 'POST'})
       expect(undo.status).toBe(200)
       expect((await undo.json()).counts.dismissed).toBe(1)
+      const cleared = await fetch(`${base}/history`, {method: 'DELETE'})
+      expect(cleared.status).toBe(200)
+      expect(await cleared.json()).toEqual([])
+      expect((await fetch(base + '/' + job.id)).status).toBe(404)
     } finally { app.emit('copy-discovery:dispose'); await new Promise<void>(resolve => server.close(() => resolve())) }
   })
 })

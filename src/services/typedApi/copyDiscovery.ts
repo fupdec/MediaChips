@@ -3,6 +3,7 @@ import type {CopyDiscoveryInput, CopyDiscoveryJob} from '@shared/copyDiscovery'
 const base = '/api/copy-discovery/jobs'
 export const copyDiscoveryApi = {
   list: () => apiClient.get<CopyDiscoveryJob[]>(base),
+  clearHistory: () => apiClient.delete<CopyDiscoveryJob[]>(`${base}/history`),
   create: (input: CopyDiscoveryInput) => apiClient.post<CopyDiscoveryJob>(base, input),
   job: (id: string) => apiClient.get<CopyDiscoveryJob>(`${base}/${id}`),
   cancel: (id: string) => apiClient.post<CopyDiscoveryJob>(`${base}/${id}/cancel`),

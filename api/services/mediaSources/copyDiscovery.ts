@@ -266,6 +266,12 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
       return view(current, id)
     },
     jobs() { const current = pinSourceDb(db).db; return (current.sqlite.prepare('SELECT id FROM copyDiscoveryJobs ORDER BY rowid DESC LIMIT 20').all() as {id: string}[]).map(row => view(current, row.id)) },
+    clearHistory() {
+      const current = pinSourceDb(db).db
+      const running = runningDb?.sqlite === current.sqlite ? runningId || '' : ''
+      current.sqlite.prepare("DELETE FROM copyDiscoveryJobs WHERE state IN ('completed','cancelled','failed') AND id != ?").run(running)
+      return service.jobs()
+    },
     job(id: string) { return view(pinSourceDb(db).db, id) },
     cancel(id: string) {
       const current = pinSourceDb(db).db
