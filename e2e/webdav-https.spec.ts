@@ -59,6 +59,7 @@ for (const [implementation, port, root] of [
     const card = page.locator(`[data-item-id="${imported.id}"]`)
     await card.locator('.description').dblclick()
     const editor = page.locator('.edit-dialog-card')
+    await editor.getByRole('button', {name: /^(File copies|Копии файла)$/}).click()
     await expect(editor.locator('.media-catalog-source-info')).toContainText(`Acceptance ${implementation}`)
     const bookmark = `${implementation}: metadata saved over WebDAV HTTPS`
     await editor.locator('textarea:not([readonly])').last().fill(bookmark)

@@ -36,7 +36,8 @@ afterEach(() => { service.dispose(); sourceOperationLocks.clear(); closeTestDb(f
 const target = (name: string) => ({key: path.join(directory, name)})
 const card = () => createMediaRepository(db.drizzle).findById(id)!
 async function finish(job: OriginalJob) {
-  await vi.waitFor(async () => { await service.tick(); expect(['completed', 'failed'].includes(service.job(job.id).state)).toBe(true) })
+  // A tick can hash and flush several MiB; allow for contention in the full suite.
+  await vi.waitFor(async () => { await service.tick(); expect(['completed', 'failed'].includes(service.job(job.id).state)).toBe(true) }, {timeout: 5000})
   return service.job(job.id)
 }
 const run = (items: OriginalOperation[]) => finish(service.create({items}))

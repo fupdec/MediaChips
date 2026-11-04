@@ -3,6 +3,7 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import express from 'express'
+import sharp from 'sharp'
 import type {Server} from 'http'
 import {beforeEach, afterEach, describe, it, expect, vi} from 'vitest'
 import {createTestDb, closeTestDb, type TestDb} from '../../db/testUtils/createTestDb'
@@ -12,6 +13,10 @@ import {mediaLocations, sourceConnections} from '../../db/schema/mediaSources'
 import type {ApiDb} from '../../types/db'
 import {createNasCredentialStore} from './credentials'
 import {createNasService} from './service'
+import {createNasVideoThumbnail} from './videoThumbnail'
+import {openSource} from '../mediaSources/context'
+import {getOfflineFile, saveOfflineFile} from '../mediaSources/offline'
+import {createOriginalOperationsService} from '../originals/service'
 import registerNas from '../../routes/Nas.routes'
 import registerMedia from '../../routes/Media.routes'
 
@@ -29,7 +34,8 @@ describe.skipIf(process.env.WEBDAV_ACCEPTANCE !== '1')('WebDAV interoperability 
     directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-webdav-library-'))
     db = {...fixture, path: directory, config: {id: 'webdav-acceptance'}}
     for (const type of ['video', 'audio', 'image']) createMediaTypesRepository(fixture.drizzle).create({name: type, type})
-    const service = createNasService({credentials: createNasCredentialStore(directory)})
+    vi.stubEnv('MEDIA_CHIPS_DATA_DIR', directory)
+    const service = createNasService({credentials: createNasCredentialStore()})
     const app = express(); app.use(express.json()); registerNas(app, db, service); registerMedia(app, db)
     server = await new Promise(resolve => { const s = app.listen(0, '127.0.0.1', () => resolve(s)) })
     base = `http://127.0.0.1:${(server.address() as {port: number}).port}`
@@ -37,6 +43,7 @@ describe.skipIf(process.env.WEBDAV_ACCEPTANCE !== '1')('WebDAV interoperability 
   afterEach(async () => {
     server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve()))
     closeTestDb(fixture); fs.rmSync(directory, {recursive: true, force: true})
+    vi.unstubAllEnvs()
   })
   it.each([
     ['Nextcloud 32 (SabreDAV)', 18443, '/remote.php/dav/files/reader/'],
@@ -68,12 +75,26 @@ describe.skipIf(process.env.WEBDAV_ACCEPTANCE !== '1')('WebDAV interoperability 
     const batch = await post('/api/nas/import-batch', {connectionId: connection.id, paths: [relative]})
     const item = (await batch.json()).results[0]
     expect(item).toMatchObject({ok: true, created: true})
+    const source = createMediaRepository(fixture.drizzle).findById(item.id)!.path!
+    await expect(createNasVideoThumbnail(db, item.id, source, 0.8)).resolves.toBe('success')
+    const poster = path.join(directory, 'media/videos/thumbs', `${item.id}.jpg`)
+    const posterBytes = fs.readFileSync(poster)
+    expect(await sharp(posterBytes).metadata()).toMatchObject({format: 'jpeg', width: 320, height: 180})
+    expect(fs.readdirSync(path.dirname(poster))).toEqual([`${item.id}.jpg`])
     const duplicate = await (await post('/api/nas/import', {connectionId: connection.id, path: relative})).json()
     expect(duplicate).toMatchObject({id: item.id, created: false})
     expect((await (await fetch(listUrl)).json()).entries[0].mediaId).toBe(item.id)
     const saved = await post(`/api/Media/${item.id}`, {name: `${name} edited`, bookmark: 'WebDAV acceptance metadata', rating: 4, favorite: true}, 'PUT')
     expect(saved.status, await saved.clone().text()).toBe(200)
     expect(createMediaRepository(fixture.drizzle).findById(item.id)).toMatchObject({name: `${name} edited`, bookmark: 'WebDAV acceptance metadata', rating: 4, favorite: true})
+    const operations = createOriginalOperationsService(db, {directory: path.join(directory, 'transfer-spool')})
+    try {
+      const destination = path.join(directory, 'downloaded-original.mp4')
+      const job = operations.create({items: [{kind: 'transfer', mediaId: item.id, target: {key: destination}, conflict: 'fail'}]})
+      await vi.waitFor(() => expect(operations.job(job.id).state).toBe('completed'), {timeout: 15_000})
+      expect(fs.readFileSync(destination)).toEqual(original)
+      expect(createMediaRepository(fixture.drizzle).findById(item.id)).toMatchObject({path: source, bookmark: 'WebDAV acceptance metadata'})
+    } finally { operations.dispose() }
     const plan = await (await fetch(`${base}/api/nas/media/${item.id}/playable`)).json()
     const full = await fetch(base + plan.url)
     expect(full.status).toBe(200)
@@ -88,12 +109,23 @@ describe.skipIf(process.env.WEBDAV_ACCEPTANCE !== '1')('WebDAV interoperability 
     const download = await fetch(base + plan.url + '&download=1')
     expect(download.headers.get('content-disposition')).toContain('attachment;')
     expect(Buffer.from(await download.arrayBuffer())).toEqual(original)
+    const signal = AbortSignal.timeout(30_000)
+    const adapter = await openSource(db, connection.id, signal)
+    try {
+      await saveOfflineFile({db, mediaId: item.id, adapter, signal, assertCurrent() {}, progress() {}})
+    } finally { adapter.close() }
+    const offline = getOfflineFile(db, item.id)
+    expect(offline.ready).toBe(true)
+    expect(fs.readFileSync(offline.filename!)).toEqual(original)
     const row = fixture.drizzle.select().from(sourceConnections).get()!
     expect(row.config).not.toContain(config.password)
     const edit = await post(`/api/nas/connections/${connection.id}`, {...config, name: `${name} renamed`, password: ''}, 'PUT')
     expect(edit.status).toBe(200)
     expect((await edit.json()).hasPassword).toBe(true)
     await post(`/api/nas/connections/${connection.id}/disconnect`, {})
+    await expect(createNasVideoThumbnail(db, item.id, source, 0.2)).rejects.toThrow()
+    expect(fs.readFileSync(poster)).toEqual(posterBytes)
+    expect(getOfflineFile(db, item.id).ready).toBe(true)
     expect((await fetch(base + plan.url)).status).toBe(410)
     expect(createMediaRepository(fixture.drizzle).findById(item.id)?.bookmark).toBe('WebDAV acceptance metadata')
     expect((await post(`/api/nas/connections/${connection.id}`, config, 'PUT')).status).toBe(200)
