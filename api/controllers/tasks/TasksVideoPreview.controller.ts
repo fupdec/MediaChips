@@ -1,3 +1,5 @@
+import {isNasMediaPath} from '../../../shared/remoteMedia'
+import {createNasVideoThumbnail} from '../../services/nas/videoThumbnail'
 import {runLibraryOperation} from '../../services/libraryMaintenance'
 import type { TaskControllerShared } from '../../types/tasks'
 import { HttpError, sendAsClientError, sendBadRequest, sendControllerError, sendNotFound, sendOk, sendCreated } from '../../types/errors'
@@ -28,20 +30,25 @@ export default function createTasksVideoPreviewController(shared: TaskController
   const mediaRepo = createMediaRepository(db.drizzle)
 
   const createThumbForVideo = async function (req: ApiRequest, res: ApiResponse) {
-    const seekRatio = req.body.seekRatio != null ? Number(req.body.seekRatio) : 0.5
-    const resolvedInputPath = resolveActiveDbFilePath(req.body.path, dbPath)
-    if (!resolvedInputPath) {
-      sendBadRequest(res, 'The video does not exist.')
-      return
+    try {
+      const seekRatio = req.body.seekRatio != null ? Number(req.body.seekRatio) : 0.5
+      if (isNasMediaPath(req.body.path)) {
+        try {
+          sendOk(res, await createNasVideoThumbnail(db, Number(req.body.id), req.body.path, seekRatio))
+        } catch (error) {
+          sendControllerError(res, error, 'Failed to create NAS video thumbnail')
+        }
+        return
+      }
+      const resolvedInputPath = resolveActiveDbFilePath(req.body.path, dbPath)
+      if (!resolvedInputPath) {
+        sendBadRequest(res, 'The video does not exist.')
+        return
+      }
+      sendOk(res, await createThumbMiddle(resolvedInputPath, req.body.id, seekRatio))
+    } catch (e) {
+      sendAsClientError(res, e, 'Failed to create video thumbnail')
     }
-
-    createThumbMiddle(resolvedInputPath, req.body.id, seekRatio)
-      .then((result: string) => {
-        sendOk(res, result)
-      })
-      .catch((e: unknown) => {
-        sendAsClientError(res, e, 'Failed to create video thumbnail')
-      })
   }
 
   const createThumb = async function (req: ApiRequest, res: ApiResponse) {

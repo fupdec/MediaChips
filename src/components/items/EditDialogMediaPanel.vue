@@ -174,6 +174,7 @@
 </template>
 
 <script setup lang="ts">
+import {getApiErrorMessage} from '@/types/vue'
 import {computed, defineAsyncComponent, ref} from 'vue'
 import type {PropType} from 'vue'
 import {useI18n} from 'vue-i18n'
@@ -293,7 +294,7 @@ async function createVideoThumb(mode: 'random' | 'default') {
     console.error(e)
     setNotification({
       title: t('player.video_thumb_not_updated'),
-      text: String(e),
+      text: getApiErrorMessage(e),
       filePath: media.path,
       icon: 'image',
       type: 'error',

@@ -461,6 +461,7 @@
 </template>
 
 <script setup lang="ts">
+import {getApiErrorMessage} from '@/types/vue'
 import {computed, defineAsyncComponent, onUnmounted, ref, watch} from 'vue'
 import path from 'path-browserify'
 import dayjs from 'dayjs'
@@ -664,7 +665,7 @@ async function createVideoThumb(mode: 'random' | 'default') {
     console.error(e)
     setNotification({
       title: t('player.video_thumb_not_updated'),
-      text: String(e),
+      text: getApiErrorMessage(e),
       icon: 'image',
       type: 'error',
     })

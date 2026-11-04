@@ -31,9 +31,11 @@ export async function probeNasMedia(url: string, signal: AbortSignal) {
     return {metadata, coverIndex: cover?.index}
   }, {signal, priority: -10})
 }
-export async function createNasThumbnail(url: string, output: string, kind: string, duration: number | undefined, coverIndex: number | undefined, signal: AbortSignal) {
+export async function createNasThumbnail(url: string, output: string, kind: string, duration: number | undefined, coverIndex: number | undefined, signal: AbortSignal, seekRatio?: number) {
   return runWithFfmpegLimit(async () => {
-    const seek = kind === 'video' && duration ? Math.min(duration / 2, 30) : 0
+    const seek = kind === 'video' && duration
+      ? seekRatio == null ? Math.min(duration / 2, 30) : duration * Math.min(Math.max(seekRatio, 0), 0.999)
+      : 0
     await exec(getFfmpegPath(), ['-nostdin', '-hide_banner', '-loglevel', 'error', '-max_alloc', '67108864', '-threads', '1', ...inputOptions,
       ...(seek ? ['-ss', String(seek)] : []), '-i', url,
       '-map', kind === 'audio' ? `0:${coverIndex}` : '0:v:0', '-an', '-threads', '1',
