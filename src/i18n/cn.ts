@@ -1535,6 +1535,7 @@ const cn = {
     },
   },
   actions: {
+    download: '下载',
     open_in_new_tab: '在新标签页中打开',
     open_system_player: '在系统播放器中播放',
     play_next_video: '播放下一个视频',

@@ -1535,6 +1535,7 @@ const ja = {
     },
   },
   actions: {
+    download: 'ダウンロード',
     open_in_new_tab: '新しいタブで開く',
     open_system_player: 'システムプレーヤーで再生する',
     play_next_video: '次のビデオを再生する',

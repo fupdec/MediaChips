@@ -2058,6 +2058,7 @@ const ru = {
     },
   },
   actions: {
+    download: 'Скачать',
     open_in_new_tab: 'Открыть в новой вкладке',
     open_system_player: 'Открыть в системном плеере',
     play_next_video: 'Воспроизвести следующее видео',

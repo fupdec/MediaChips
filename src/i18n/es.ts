@@ -1535,6 +1535,7 @@ const es = {
     },
   },
   actions: {
+    download: 'Descargar',
     open_in_new_tab: 'Abrir en una nueva pestaña',
     open_system_player: 'Reproducir en el reproductor del sistema',
     play_next_video: 'Reproducir el siguiente video',

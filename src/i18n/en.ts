@@ -2058,6 +2058,7 @@ const en = {
     },
   },
   actions: {
+    download: 'Download',
     open_in_new_tab: 'Open in new tab',
     open_system_player: 'Play in the system player',
     play_next_video: 'Play next video',
