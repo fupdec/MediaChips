@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import {ref, computed, nextTick, onMounted, onBeforeUnmount, watch, triggerRef} from 'vue'
+import Documentation from '@/assets/Documentation'
+import {localizeDocumentation} from '@/assets/DocumentationTranslations'
+import {buildDocumentationSearchItems} from '@/utils/documentationSearch'
+import {useSettingsSearch} from '@/composable/useSettingsSearch'
+import {highlightSettingsMatch, settingsMatchContext, searchSettings, type SettingsSearchItem} from '@/utils/settingsNavigation'
 import {useRouter} from 'vue-router'
 import {useHotkey} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
-import {registerAppShellHandler} from '@/composable/appShell'
+import {registerAppShellHandler, useAppShell} from '@/composable/appShell'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import GlobalSearchCommands from '@/components/app/appbar/GlobalSearchCommands.vue'
 import {useAppStore} from '@/stores/app'
@@ -88,7 +93,9 @@ interface SearchGroup {
 }
 
 type FlatResultRow =
-  | { kind: 'section'; section: 'tags' | 'filtered'; title: string; id: string }
+  | { kind: 'documentation'; item: SettingsSearchItem; id: string }
+  | { kind: 'setting'; item: SettingsSearchItem; id: string }
+  | { kind: 'section'; section: 'tags' | 'filtered' | 'settings' | 'documentation'; title: string; id: string }
   | { kind: 'header'; group: SearchGroup; id: string }
   | { kind: 'item'; group: SearchGroup; item: GlobalSearchMedia | GlobalSearchTag; id: string }
   | { kind: 'show-more'; group: SearchGroup; hiddenCount: number; id: string }
@@ -130,6 +137,16 @@ const aiError = ref('')
 
 const isCommandsMode = computed(() => paletteMode.value === 'commands')
 const isSearchMode = computed(() => paletteMode.value === 'search')
+
+const NAVIGATION_RESULT_LIMIT = 20
+const {items: settingsSearchItems} = useSettingsSearch()
+const settingsMatches = computed(() => isSearchMode.value && !pinnedTags.value.length
+  ? searchSettings(settingsSearchItems.value, query.value).slice(0, NAVIGATION_RESULT_LIMIT) : [])
+
+const documentationSearchItems = computed(() => buildDocumentationSearchItems(localizeDocumentation(Documentation, locale.value)))
+const documentationMatches = computed(() => isSearchMode.value && !pinnedTags.value.length
+  ? searchSettings(documentationSearchItems.value, query.value).slice(0, NAVIGATION_RESULT_LIMIT) : [])
+const appShell = useAppShell()
 
 const inputPlaceholder = computed(() => {
   if (isCommandsMode.value) return t('commandPalette.placeholder')
@@ -181,7 +198,7 @@ watch(query, (value) => {
 })
 
 const totalResults = computed(() =>
-  results.value.reduce((sum, group) => sum + group.data.length, 0),
+  results.value.reduce((sum, group) => sum + group.data.length, 0) + settingsMatches.value.length + documentationMatches.value.length,
 )
 
 const flatResults = computed((): FlatResultRow[] => {
@@ -243,6 +260,14 @@ const flatResults = computed((): FlatResultRow[] => {
   }
 
   for (const group of groupsToRender) appendGroup(group)
+  if (settingsMatches.value.length) {
+    flat.push({kind: 'section', section: 'settings', title: t('common.settings'), id: 'section-settings'})
+    for (const item of settingsMatches.value) flat.push({kind: 'setting', item, id: `setting-${item.tab}-${item.section}`})
+  }
+  if (documentationMatches.value.length) {
+    flat.push({kind: 'section', section: 'documentation', title: t('documentation.title'), id: 'section-documentation'})
+    for (const item of documentationMatches.value) flat.push({kind: 'documentation', item, id: `doc-${item.section}`})
+  }
   return flat
 })
 
@@ -253,7 +278,7 @@ const resultsScrollHeight = computed(() => {
 
 const navigableIndices = computed(() =>
   flatResults.value.reduce<number[]>((indices, row, index) => {
-    if (row.kind === 'item' || row.kind === 'show-more') indices.push(index)
+    if (row.kind === 'item' || row.kind === 'setting' || row.kind === 'documentation' || row.kind === 'show-more') indices.push(index)
     return indices
   }, []),
 )
@@ -297,6 +322,8 @@ const canRunSemanticOnEnter = computed(() =>
   !loading.value
   && Boolean(query.value.trim())
   && !results.value.length
+  && !settingsMatches.value.length
+  && !documentationMatches.value.length
   && !pinnedTags.value.length
   && !semanticHealth.value?.searched,
 )
@@ -1187,10 +1214,28 @@ function openTag(tag: Tag) {
   })
 }
 
+function openSetting(item: SettingsSearchItem) {
+  closeThenNavigate(() => { void router.push({path: '/settings', query: {tab: item.tab, section: item.section}}) })
+}
+
+function openDocumentation(item: SettingsSearchItem) {
+  closeThenNavigate(() => appShell.showDocumentation(item.section))
+}
+
+function openNavigationResult(row: Extract<FlatResultRow, {kind: 'setting' | 'documentation'}>) {
+  if (row.kind === 'documentation') openDocumentation(row.item)
+  else openSetting(row.item)
+}
+
+function settingContext(item: SettingsSearchItem) {
+  return settingsMatchContext(item, query.value)
+}
+
 function openFirstResult() {
-  const row = flatResults.value.find(entry => entry.kind === 'item')
+  const row = flatResults.value.find(entry => entry.kind === 'item' || entry.kind === 'setting' || entry.kind === 'documentation')
   if (!row) return
 
+  if (row.kind === 'setting' || row.kind === 'documentation') { openNavigationResult(row); return }
   if (row.group.is_media) openMedia(row.item as GlobalSearchMedia, row.group.mediaTypeId)
   else openTag(row.item as Tag)
 }
@@ -1207,6 +1252,7 @@ function openSelectedResult() {
     return
   }
 
+  if (row.kind === 'setting' || row.kind === 'documentation') { openNavigationResult(row); return }
   if (row.group.is_media) openMedia(row.item as GlobalSearchMedia, row.group.mediaTypeId)
   else openTag(row.item as Tag)
 }
@@ -1315,6 +1361,8 @@ function onSearchKeydown(e: KeyboardEvent) {
       !loading.value
       && query.value.trim()
       && !results.value.length
+      && !settingsMatches.value.length
+      && !documentationMatches.value.length
       && !pinnedTags.value.length
     ) {
       void searchSemantic()
@@ -1697,7 +1745,7 @@ function getNameHighlighted(text: string) {
         />
 
         <div
-          v-if="!loading && (!hasActiveSearch || !results.length)"
+          v-if="!loading && (!hasActiveSearch || !flatResults.length)"
           class="global-search__status text-center text-medium-emphasis py-6 px-4"
         >
           <v-icon
@@ -1892,10 +1940,25 @@ function getNameHighlighted(text: string) {
                   size="16"
                   class="global-search__category-icon"
                 >
-                  {{ row.section === 'tags' ? 'mdi-tag-multiple-outline' : 'mdi-filter-outline' }}
+                  {{ row.section === 'documentation' ? 'mdi-book-open-page-variant-outline' : row.section === 'settings' ? 'mdi-cog-outline' : row.section === 'tags' ? 'mdi-tag-multiple-outline' : 'mdi-filter-outline' }}
                 </v-icon>
                 <span class="global-search__category-title">{{ row.title }}</span>
               </div>
+            </div>
+
+            <div v-else-if="row.kind === 'setting' || row.kind === 'documentation'"
+              class="global-search__item d-flex align-center px-3 text-caption"
+              :class="[row.kind === 'documentation' ? 'global-search__documentation' : 'global-search__setting', {'global-search__item--active': index === selectedIndex}]"
+              :title="settingContext(row.item)" role="button" tabindex="0"
+              @mouseenter="onItemMouseenter(row, index)" @click="openNavigationResult(row)"
+              @keydown.enter.prevent="openNavigationResult(row)">
+              <v-icon size="16" class="mr-2" color="primary">{{ row.kind === 'documentation' ? 'mdi-book-open-page-variant-outline' : 'mdi-cog-outline' }}</v-icon>
+              <span class="global-search__setting-copy">
+                <template v-for="(part, i) in highlightSettingsMatch(row.item.title, query)" :key="`t-${i}`"><mark v-if="part.matched">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template>
+                <span class="text-medium-emphasis"> · <template v-for="(part, i) in highlightSettingsMatch(row.item.category, query)" :key="`c-${i}`"><mark v-if="part.matched">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
+                <span v-if="settingContext(row.item)" class="text-medium-emphasis"> · <template v-for="(part, i) in highlightSettingsMatch(settingContext(row.item), query)" :key="`h-${i}`"><mark v-if="part.matched">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
+              </span>
+              <v-icon size="14" class="ml-2">mdi-arrow-top-right</v-icon>
             </div>
 
             <div
@@ -2387,4 +2450,9 @@ function getNameHighlighted(text: string) {
   bottom: 0;
   background: rgb(var(--v-theme-surface));
 }
+</style>
+
+<style scoped>
+.global-search__setting-copy { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.global-search__setting mark, .global-search__documentation mark { color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .16); border-radius: 3px; font-weight: 600; }
 </style>

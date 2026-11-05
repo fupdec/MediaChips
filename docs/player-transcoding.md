@@ -1,6 +1,6 @@
 # Original playback and transcoding
 
-The built-in player tries the original file first. The server's codec list is advisory: it does not reject HEVC, MKV, MOV or another container before the playback browser has a chance to open it. Native support depends on the browser, OS and installed decoders. Disabling **Settings → General → Video Player → Transcode unsupported formats** keeps this original playback attempt and disables automatic conversion.
+The built-in player tries the original file first. The server's codec list is advisory: it does not reject HEVC, MKV, MOV or another container before the playback browser has a chance to open it. Native support depends on the browser, OS and installed decoders. Disabling **Settings → Viewing → Video Player → Transcode unsupported formats** keeps this original playback attempt and disables automatic conversion.
 
 With transcoding enabled, the player falls back to FFmpeg after a decoding/unsupported-source error. A file flagged as potentially incompatible also has a 12-second startup/seek watchdog; it only falls back if playback has made no progress. Ordinary buffering in a compatible file does not start transcoding. Network errors alone do not start it either.
 

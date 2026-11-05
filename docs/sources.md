@@ -1,6 +1,6 @@
 # Sources
 
-Settings → Sources and Add media → Sources use the same provider panel and folder
+Settings → Sources & import and Add media → Sources use the same provider panel and folder
 browser for Google Drive and NAS (SFTP, FTP and FTPS). The existing
 `/settings?tab=connections` link remains valid. Each provider keeps its import
 selection when switching tabs. The active import tab and provider tab are remembered

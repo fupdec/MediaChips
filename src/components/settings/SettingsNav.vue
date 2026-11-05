@@ -14,10 +14,14 @@
         :key="item.value"
         :id="item.docId"
         :value="item.value"
-        :prepend-icon="item.icon"
         :slim="compact"
         class="settings-nav__item"
       >
+        <template #prepend>
+          <span class="settings-nav__icon" aria-hidden="true">
+            <v-icon :icon="item.icon" size="20"/>
+          </span>
+        </template>
         <v-list-item-title>{{ t(item.labelKey) }}</v-list-item-title>
         <v-list-item-subtitle v-if="!compact" class="settings-nav__subtitle">
           {{ t(item.descKey) }}
@@ -75,7 +79,7 @@ const selected = computed({
   margin-bottom: 6px;
   border-radius: 10px;
   min-height: 64px;
-  align-items: center;
+  align-items: start;
   padding-block: 10px;
 }
 
@@ -89,10 +93,33 @@ const selected = computed({
 .settings-nav__item.v-list-item--three-line :deep(.v-list-item__prepend) {
   margin-top: 0 !important;
   padding-top: 0 !important;
-  align-self: center !important;
+  align-self: start !important;
+}
+
+.settings-nav__item :deep(.v-list-item__spacer) {
+  width: 12px;
+}
+
+.settings-nav__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-primary), .12);
+  color: rgb(var(--v-theme-primary));
+}
+
+.settings-nav__item.v-list-item--active .settings-nav__icon {
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
 }
 
 .settings-nav__item :deep(.v-list-item-title) {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
   font-weight: 600;
   letter-spacing: 0.01em;
   line-height: 1.3;

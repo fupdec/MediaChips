@@ -146,6 +146,11 @@
               @update:model-value="(value) => onToggle(entry.manifest.id, Boolean(value))"
             />
             <v-btn
+              v-if="pluginSettingsLink(entry.manifest.id)"
+              :to="pluginSettingsLink(entry.manifest.id)"
+              prepend-icon="mdi-cog-outline" size="small" variant="text"
+            >{{ t('settingsLayout.open_settings') }}</v-btn>
+            <v-btn
               v-if="entry.source === 'user'"
               size="small"
               rounded="xl"
@@ -182,6 +187,7 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {settingsPanelTab} from '@/utils/settingsNavigation'
 import {usePluginsStore} from '@/stores/plugins'
 import {showElectronOpenDialog} from '@/services/electronBridge'
 import {openExternal} from '@/services/shellService'
@@ -198,6 +204,11 @@ const installing = ref(false)
 const installedEntries = computed(() =>
   pluginsStore.catalog.filter((entry) => entry.state !== 'planned'),
 )
+
+function pluginSettingsLink(pluginId: string) {
+  const panel = pluginsStore.settingsPanels.find(panel => panel.pluginId === pluginId)
+  return panel ? {path: '/settings', query: {tab: settingsPanelTab(panel), ...(panel.sectionId ? {section: panel.sectionId} : {})}} : undefined
+}
 
 function openPluginsSite() {
   void openExternal(PLUGINS_SITE_URL)

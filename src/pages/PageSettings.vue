@@ -2,6 +2,7 @@
   <div class="settings-page">
     <div class="settings-page-layout">
       <aside class="settings-page-layout__sidebar">
+        <SettingsSearch :items="searchItems" @select="openSearchResult"/>
         <SettingsNav
           v-model="tab"
           :items="navItems"
@@ -18,191 +19,90 @@
 
           <div v-if="tab === 'general'">
             <SettingsList>
-              <SettingsGroupLabel
-                :title="t('settings.groups.app')"
-                icon="application-cog-outline"
-                accent
-              />
-
-              <SettingsSection id="settings-general">
-                <SettingsGeneral/>
-              </SettingsSection>
-
               <SettingsSection id="settings-locale">
                 <SettingsLocale/>
               </SettingsSection>
-
+              <SettingsSection id="settings-behavior">
+                <SettingsGeneral/>
+              </SettingsSection>
+              <SettingsGroupLabel :title="t('settingsLayout.security')" icon="shield-lock-outline" accent/>
+              <SettingsSection id="settings-network"><div id="settings-general"><SettingsNetwork/></div></SettingsSection>
               <SettingsSection id="settings-login">
                 <SettingsLogin/>
               </SettingsSection>
-
-              <SettingsGroupLabel
-                :title="t('settings.groups.playback')"
-                icon="play-circle-outline"
-                accent
-              />
-
-              <SettingsSection id="settings-video-player">
-                <SettingsVideoPlayer/>
-              </SettingsSection>
-
-              <SettingsSection id="settings-video-preview">
-                <SettingsVideoPreview/>
-              </SettingsSection>
-
-              <template v-if="LOCAL_AI_UI_ENABLED">
-                <SettingsGroupLabel
-                  :title="t('settings.groups.local_ai')"
-                  icon="brain"
-                  accent
-                />
-                <SettingsLocalAi/>
-              </template>
-            </SettingsList>
-          </div>
-
-          <div v-else-if="tab === 'appearance'">
-            <SettingsList>
-              <SettingsGroupLabel
-                :title="t('settings.groups.theme')"
-                icon="theme-light-dark"
-                accent
-              />
-
-              <SettingsSection id="settings-appearance-theme" padded>
-                <SettingsAppearanceDarkMode/>
-                <SettingsAppearanceZoom/>
-              </SettingsSection>
-
-              <SettingsSection id="settings-appearance-colors" padded>
-                <SettingsAppearanceThemeColors/>
-              </SettingsSection>
-
-              <SettingsGroupLabel
-                :title="t('settings.groups.display')"
-                icon="view-grid-outline"
-                accent
-              />
-
-              <SettingsSection id="settings-appearance-cards" padded>
-                <SettingsAppearanceCards/>
-              </SettingsSection>
-
-              <SettingsSection id="settings-appearance-page" padded>
-                <SettingsAppearancePage/>
-              </SettingsSection>
-
-              <SettingsGroupLabel
-                :title="t('settings.groups.viewers')"
-                icon="image-outline"
-                accent
-              />
-
-              <SettingsSection id="settings-appearance-image-viewer">
-                <SettingsAppearanceImageViewer/>
-              </SettingsSection>
-
-              <SettingsGroupLabel
-                :title="t('settings.groups.content_safety')"
-                icon="eye-off-outline"
-                accent
-              />
-
               <SettingsSection id="settings-appearance-sfw">
                 <SettingsSfwMode/>
               </SettingsSection>
             </SettingsList>
           </div>
 
-          <div v-else-if="tab === 'library'">
+          <div v-else-if="tab === 'appearance'">
             <SettingsList>
-              <SettingsGroupLabel
-                :title="t('settings.groups.catalog')"
-                icon="bookshelf"
-                accent
-              />
-
-              <SettingsSection id="settings-tag-categories">
-                <SettingsTagCategories/>
+              <SettingsGroupLabel :title="t('settings.groups.theme')" icon="theme-light-dark" accent/>
+              <SettingsSection id="settings-appearance-theme" padded>
+                <SettingsAppearanceDarkMode/>
+                <SettingsAppearanceZoom/>
               </SettingsSection>
-
-              <SettingsSection id="settings-meta">
-                <SettingsMeta/>
+              <SettingsSection id="settings-appearance-colors" padded>
+                <SettingsAppearanceThemeColors/>
               </SettingsSection>
-
-              <SettingsSection id="settings-media-types">
-                <SettingsMediaTypes/>
+              <SettingsSection id="settings-appearance-navigation"><SettingsAppearanceNavigation/></SettingsSection>
+              <SettingsGroupLabel :title="t('settings.groups.display')" icon="view-grid-outline" accent/>
+              <SettingsSection id="settings-appearance-cards" padded>
+                <SettingsAppearanceCards/>
               </SettingsSection>
-
-              <SettingsSection id="settings-chip-recipes">
-                <SettingsChipRecipes/>
+              <SettingsSection id="settings-filtering"><SettingsFilterBehavior/></SettingsSection>
+              <SettingsSection id="settings-appearance-page" padded>
+                <SettingsAppearancePage/>
               </SettingsSection>
-
-              <v-switch
-                id="settings-library-advanced"
-                v-model="libraryAdvanced"
-                color="primary"
-                class="mt-0 mb-2 settings-library-advanced-switch"
-                inset
-                hide-details
-              >
-                <template #label>
-                  <div class="d-flex flex-column ml-4">
-                    <div class="text-body-1 text-high-emphasis">
-                      {{ t('settings.groups.advanced') }}
-                    </div>
-                  </div>
-                </template>
-              </v-switch>
-
-              <template v-if="libraryAdvanced">
-                <SettingsMetaAssignment/>
-
-                <SettingsSection id="settings-quick-tags-section">
-                  <SettingsQuickTags/>
-                </SettingsSection>
-
-                <SettingsSection id="settings-parse-library-tags">
-                  <SettingsParseLibraryTags/>
-                </SettingsSection>
-              </template>
+              <SettingsSection id="settings-image-grid"><SettingsImageGrid/></SettingsSection>
             </SettingsList>
           </div>
 
-          <div v-else-if="isPluginOwnedTab(tab)">
+          <div v-else-if="tab === 'viewing'">
             <SettingsList>
-              <SettingsSection
-                v-for="panel in panelsForActiveTab"
-                :key="`${panel.pluginId}:${panel.componentKey}`"
-                :id="panel.sectionId"
-              >
-                <component :is="resolvePanelComponent(panel.componentKey)"/>
+              <SettingsSection id="settings-video-player">
+                <SettingsVideoPlayer/>
+              </SettingsSection>
+              <SettingsSection id="settings-video-preview">
+                <SettingsVideoPreview/>
+              </SettingsSection>
+              <SettingsSection id="settings-appearance-image-viewer">
+                <SettingsAppearanceImageViewer/>
+              </SettingsSection>
+            </SettingsList>
+          </div>
+
+          <div v-else-if="tab === 'library'">
+            <SettingsList>
+              <SettingsSection id="settings-tag-categories">
+                <SettingsTagCategories/>
+              </SettingsSection>
+              <SettingsSection id="settings-meta">
+                <SettingsMeta/>
+              </SettingsSection>
+              <SettingsMetaAssignment/>
+              <SettingsSection id="settings-media-types">
+                <SettingsMediaTypes/>
+              </SettingsSection>
+              <SettingsSection id="settings-chip-recipes">
+                <SettingsChipRecipes/>
+              </SettingsSection>
+              <SettingsSection id="settings-quick-tags-section">
+                <SettingsQuickTags/>
+              </SettingsSection>
+              <SettingsSection id="settings-folder-tags">
+                <SettingsFolderTags/>
               </SettingsSection>
             </SettingsList>
           </div>
 
           <div v-else-if="tab === 'connections'">
-            <SourcesPanel />
-          </div>
-
-          <div v-else-if="tab === 'files'">
             <SettingsList>
-              <SettingsGroupLabel
-                :title="t('settings.groups.files_watch')"
-                icon="folder-eye-outline"
-                accent
-              />
-
               <SettingsSection id="settings-watched-folders">
                 <SettingsWatchedFolders/>
               </SettingsSection>
-
-              <SettingsGroupLabel
-                :title="t('settings.groups.files_paths')"
-                icon="folder-move-outline"
-                accent
-              />
-
+              <SettingsSection id="settings-sources"><SourcesPanel/></SettingsSection>
               <SettingsSection id="settings-metadata-transfer">
                 <DialogMetadataTransfer>
                   <template #activator="{open}">
@@ -210,37 +110,12 @@
                   </template>
                 </DialogMetadataTransfer>
               </SettingsSection>
-
-              <SettingsSection id="settings-bulk-paths">
-                <SettingsBulkPathEditing/>
-              </SettingsSection>
-
-              <SettingsSection id="settings-folder-tags">
-                <SettingsFolderTags/>
-              </SettingsSection>
+              <SettingsPluginPanels :panels="panelsForActiveTab"/>
             </SettingsList>
           </div>
 
-          <div v-else-if="tab === 'database'">
+          <div v-else-if="tab === 'maintenance'">
             <SettingsList>
-              <SettingsSection id="settings-databases">
-                <SettingsDatabases/>
-              </SettingsSection>
-
-              <SettingsSection id="settings-open-data-folder">
-                <SettingsOpenDataFolder/>
-              </SettingsSection>
-
-              <SettingsSection id="settings-change-history">
-                <DialogChangeHistory/>
-              </SettingsSection>
-
-              <SettingsGroupLabel
-                :title="t('settings.groups.maintenance')"
-                icon="wrench-outline"
-                large
-              />
-
               <SettingsLibraryHealthGuide/>
 
               <SettingsGroupLabel
@@ -293,17 +168,54 @@
 
               <SettingsTagImageAiUpscale/>
 
+              <SettingsGroupLabel :title="t('settingsLayout.recovery')" icon="folder-search-outline" accent/>
+              <SettingsSection id="settings-bulk-paths">
+                <SettingsBulkPathEditing/>
+              </SettingsSection>
               <SettingsFindMissingMedia/>
 
-              <SettingsGroupLabel
-                :title="t('settings.groups.maintenance_cleanup')"
-                icon="broom"
-                accent
-                error
-              />
 
+              <SettingsSection id="settings-parse-library-tags">
+                <SettingsParseLibraryTags/>
+              </SettingsSection>
+              <SettingsLocalAi v-if="LOCAL_AI_UI_ENABLED"/>
+              <SettingsPluginPanels :panels="panelsForActiveTab"/>
+              <SettingsGroupLabel :title="t('settings.groups.maintenance_cleanup')" icon="broom" accent/>
               <SettingsClearGeneratedImages/>
+              <SettingsSection id="settings-transcode-cache-link" padded>
+                <v-btn variant="tonal" prepend-icon="mdi-cached" :to="{path: '/settings', query: {tab: 'viewing', section: 'video_player'}}">{{ t('settingsLayout.transcode_cache') }}</v-btn>
+              </SettingsSection>
+            </SettingsList>
+          </div>
 
+          <div v-else-if="tab === 'database'">
+            <SettingsList>
+              <SettingsSection id="settings-databases">
+                <SettingsDatabases/>
+              </SettingsSection>
+              <SettingsSection id="settings-backups"><SettingsBackups/></SettingsSection>
+              <SettingsSection id="settings-open-data-folder">
+                <SettingsOpenDataFolder/>
+              </SettingsSection>
+              <SettingsSection id="settings-change-history" class="settings-history" padded>
+                <div class="settings-history__main">
+                  <div class="settings-history__icon" aria-hidden="true">
+                    <v-icon icon="mdi-history" size="26"/>
+                  </div>
+                  <div class="settings-history__copy">
+                    <h3>{{ t('change_history.title') }}</h3>
+                    <p>{{ t('change_history.workspace_hint') }}</p>
+                  </div>
+                  <div class="settings-history__action">
+                    <DialogChangeHistory/>
+                  </div>
+                </div>
+                <div class="settings-history__note">
+                  <v-icon icon="mdi-shield-check-outline" size="16" aria-hidden="true"/>
+                  <span>{{ t('change_history.protection_hint') }}</span>
+                </div>
+              </SettingsSection>
+              <SettingsGroupLabel :title="t('settings.groups.library_reset')" icon="alert-outline" accent/>
               <SettingsLibraryReset/>
             </SettingsList>
           </div>
@@ -313,14 +225,7 @@
               <SettingsSection id="settings-plugins">
                 <SettingsPlugins/>
               </SettingsSection>
-
-              <SettingsSection
-                v-for="panel in panelsForActiveTab"
-                :key="`${panel.pluginId}:${panel.componentKey}`"
-                :id="panel.sectionId"
-              >
-                <component :is="resolvePanelComponent(panel.componentKey)"/>
-              </SettingsSection>
+              <SettingsPluginPanels :panels="panelsForActiveTab"/>
             </SettingsList>
           </div>
 
@@ -329,11 +234,14 @@
               <SettingsSection id="settings-registration">
                 <SettingsRegistration/>
               </SettingsSection>
-
               <SettingsSection id="settings-about">
                 <About/>
               </SettingsSection>
             </SettingsList>
+          </div>
+
+          <div v-else-if="isPluginOwnedTab(tab)">
+            <SettingsList><SettingsPluginPanels :panels="panelsForActiveTab"/></SettingsList>
           </div>
         </v-container>
       </div>
@@ -342,8 +250,18 @@
 </template>
 
 <script setup lang="ts">
+import {useSettingsSearch} from '@/composable/useSettingsSearch'
+import SettingsSearch from '@/components/settings/SettingsSearch.vue'
+import SettingsPluginPanels from '@/components/settings/SettingsPluginPanels.vue'
+import SettingsNetwork from '@/components/settings/general/SettingsNetwork.vue'
+import SettingsAppearanceNavigation from '@/components/settings/appearance/SettingsAppearanceNavigation.vue'
+import SettingsFilterBehavior from '@/components/settings/appearance/SettingsFilterBehavior.vue'
+import SettingsImageGrid from '@/components/settings/appearance/SettingsImageGrid.vue'
+import SettingsBackups from '@/components/settings/database/SettingsBackups.vue'
+import {CORE_SETTINGS_TABS, resolveSettingsLocation, settingsPanelTab} from '@/utils/settingsNavigation'
+import type {SettingsSearchItem} from '@/utils/settingsNavigation'
 import DialogChangeHistory from '@/components/dialogs/DialogChangeHistory.vue'
-import {computed, ref, onMounted, watch, nextTick, defineAsyncComponent, type Component} from "vue"
+import {computed, ref, onMounted, onBeforeUnmount, watch, nextTick, defineAsyncComponent} from "vue"
 import {useRoute, useRouter} from "vue-router"
 import {useI18n} from "vue-i18n"
 import SettingsList from "@/components/ui/SettingsList.vue"
@@ -366,7 +284,6 @@ import SettingsAppearanceImageViewer
 import SettingsSfwMode
   from "@/components/settings/appearance/SettingsSfwMode.vue"
 import {usePluginsStore} from "@/stores/plugins"
-import {resolvePluginComponentLoader} from "@/services/pluginHost"
 import {LOCAL_AI_UI_ENABLED} from "@shared/features"
 import {
   FINGERPRINT_BACKFILL,
@@ -473,81 +390,9 @@ const About = defineAsyncComponent(() =>
   import("@/components/app/About.vue")
 )
 
-const TAB_ALIASES: Record<string, string> = {
-  tools: "general",
-  meta: "library",
-  media: "library",
-  assignment: "library",
-  video: "general",
-  // Legacy: scraper lived under Library before the adult plugin tab.
-  data_scraper: "adult",
-}
-
-const CORE_NAV_ITEMS: SettingsNavItem[] = [
-  {
-    value: "general",
-    icon: "mdi-application-cog-outline",
-    labelKey: "settings.tabs.general",
-    descKey: "settings.tabs_desc.general",
-    docId: "settings-doc-tab-general",
-  },
-  {
-    value: "appearance",
-    icon: "mdi-brush-variant",
-    labelKey: "settings.tabs.appearance",
-    descKey: "settings.tabs_desc.appearance",
-    docId: "settings-doc-tab-appearance",
-  },
-  {
-    value: "library",
-    icon: "mdi-bookshelf",
-    labelKey: "settings.tabs.library",
-    descKey: "settings.tabs_desc.library",
-    docId: "settings-doc-tab-library",
-  },
-  {
-    value: "files",
-    icon: "mdi-folder-cog-outline",
-    labelKey: "settings.tabs.files",
-    descKey: "settings.tabs_desc.files",
-    docId: "settings-doc-tab-files",
-  },
-  {
-    value: "connections",
-    icon: "mdi-connection",
-    labelKey: "settings.tabs.connections",
-    descKey: "settings.tabs_desc.connections",
-    docId: "settings-doc-tab-connections",
-  },
-  {
-    value: "database",
-    icon: "mdi-database-outline",
-    labelKey: "settings.tabs.database",
-    descKey: "settings.tabs_desc.database",
-    docId: "settings-doc-tab-database",
-  },
-  {
-    value: "plugins",
-    icon: "mdi-puzzle-outline",
-    labelKey: "settings.tabs.plugins",
-    descKey: "settings.tabs_desc.plugins",
-    docId: "settings-doc-tab-plugins",
-  },
-  {
-    value: "about",
-    icon: "mdi-information-variant",
-    labelKey: "settings.tabs.about",
-    descKey: "settings.tabs_desc.about",
-    docId: "settings-doc-tab-about",
-  },
-]
-
-const pluginComponentCache = new Map<string, Component>()
-
 const tab = ref("general")
 const contentRef = ref<HTMLElement | null>(null)
 const applyingRoute = ref(false)
-const libraryAdvanced = ref(false)
 const route = useRoute()
 const router = useRouter()
 const {t} = useI18n()
@@ -564,37 +409,20 @@ const pluginNavItems = computed((): SettingsNavItem[] => {
   }))
 })
 
-const navItems = computed((): SettingsNavItem[] => {
-  const items = [...CORE_NAV_ITEMS]
-  const insertAt = items.findIndex((item) => item.value === 'plugins')
-  const pluginItems = pluginNavItems.value
-  if (insertAt >= 0) {
-    items.splice(insertAt, 0, ...pluginItems)
-  } else {
-    items.push(...pluginItems)
-  }
-  return items
-})
+const navItems = computed((): SettingsNavItem[] => [...CORE_SETTINGS_TABS, ...pluginNavItems.value])
 
-const panelsForActiveTab = computed(() => {
-  void pluginsStore.revision
-  return pluginsStore.settingsPanels.filter((panel) => panel.tab === tab.value)
-})
+const panelsForActiveTab = computed(() => pluginsStore.settingsPanels.filter(panel => settingsPanelTab(panel) === tab.value))
 
-function isPluginOwnedTab(tabValue: string): boolean {
-  return pluginNavItems.value.some((item) => item.value === tabValue)
+function isPluginOwnedTab(value: string): boolean {
+  return pluginNavItems.value.some(item => item.value === value)
 }
 
-function resolvePanelComponent(componentKey: string): Component | null {
-  const cached = pluginComponentCache.get(componentKey)
-  if (cached) return cached
+const {items: searchItems} = useSettingsSearch()
 
-  const loader = resolvePluginComponentLoader(componentKey)
-  if (!loader) return null
-
-  const asyncComponent = defineAsyncComponent(loader)
-  pluginComponentCache.set(componentKey, asyncComponent)
-  return asyncComponent
+function openSearchResult(item: SettingsSearchItem) {
+  const query = {tab: item.tab, section: item.section}
+  if (route.query.tab === item.tab && route.query.section === item.section) applyRouteSettings()
+  else void router.push({path: '/settings', query})
 }
 
 const activeNavItem = computed(() => {
@@ -608,68 +436,8 @@ const activeNavItem = computed(() => {
 
 watch(
   () => pluginsStore.revision,
-  () => {
-    if (!navItems.value.some((item) => item.value === tab.value)) {
-      tab.value = 'general'
-    }
-  },
+  applyRouteSettings,
 )
-
-const SETTINGS_SECTION_IDS: Record<string, string> = {
-  general_app: "settings-general",
-  locale: "settings-locale",
-  login: "settings-login",
-  video_player: "settings-video-player",
-  video_preview: "video_preview",
-  appearance_theme: "settings-appearance-theme",
-  appearance_colors: "settings-appearance-colors",
-  appearance_cards: "settings-appearance-cards",
-  appearance_page: "settings-appearance-page",
-  appearance_image_viewer: "settings-appearance-image-viewer",
-  appearance_sfw: "settings-appearance-sfw",
-  meta: "settings-meta",
-  tag_categories: "settings-tag-categories",
-  chip_recipes: "settings-chip-recipes",
-  media_types: "settings-media-types",
-  field_pinning: "settings-meta-assignment",
-  quick_tags: "settings-quick-tags",
-  parse_library_tags: "settings-parse-library-tags",
-  google_drive: "settings-google-drive",
-  nas: "settings-nas",
-  bulk_paths: "settings-bulk-paths",
-  folder_tags: "settings-folder-tags",
-  watched_folders: "settings-watched-folders",
-  open_data_folder: "settings-open-data-folder",
-  databases: "settings-databases",
-  library_reset: "settings-library-reset",
-  library_health_guide: "settings-library-health-guide",
-  generate_video_images: "settings-generate-video-images",
-  generate_auto_chapters: "settings-generate-auto-chapters",
-  generate_image_thumbs: "settings-generate-image-thumbs",
-  tag_image_ai_upscale: "settings-tag-image-ai-upscale",
-  local_ai: "settings-local-ai",
-  detect_faces: "settings-detect-faces",
-  video_codec_backfill: "settings-video-codec-backfill",
-  media_created_backfill: "settings-media-created-backfill",
-  oshash_backfill: "settings-fingerprint-backfill",
-  fingerprint_backfill: "settings-fingerprint-backfill",
-  visual_hash_backfill: "settings-visual-hash-backfill",
-  clip_embedding_backfill: "settings-clip-embedding-backfill",
-  content_hash_backfill: "settings-fingerprint-backfill",
-  find_missing: "settings-find-missing-media",
-  find_duplicates: "settings-find-duplicates",
-  clear_generated: "settings-clear-generated-images",
-  backups: "database_backups",
-  database_add: "database_add",
-  plugins_list: "settings-plugins",
-  adult_scraper: "settings-adult-scraper",
-  registration: "settings-registration",
-  about: "settings-about",
-}
-
-function resolveTab(routeTab: string) {
-  return TAB_ALIASES[routeTab] || routeTab
-}
 
 function getScrollContainer(): HTMLElement | null {
   if (!contentRef.value) return null
@@ -682,160 +450,50 @@ function getScrollContainer(): HTMLElement | null {
   return contentRef.value.closest('.main-scroll') as HTMLElement | null
 }
 
-function scrollToSettingsSection(sectionId: string, attempts = 24) {
-  const scrollContainer = getScrollContainer()
-  const element = document.getElementById(sectionId)
-  if (scrollContainer && element) {
-    const top = element.getBoundingClientRect().top
-      - scrollContainer.getBoundingClientRect().top
-      + scrollContainer.scrollTop
-
-    scrollContainer.scrollTo({
-      top: Math.max(0, top - 8),
-      behavior: "smooth",
-    })
-    return
-  }
-
-  if (attempts <= 0) return
-
-  requestAnimationFrame(() => {
-    scrollToSettingsSection(sectionId, attempts - 1)
-  })
-}
-
+let scrollRequest = 0
 function scheduleScrollToSection(sectionId: string) {
-  // Advanced library sections mount behind v-if; wait for layout after expand.
-  nextTick(() => {
-    nextTick(() => {
-      scrollToSettingsSection(sectionId)
-    })
-  })
+  const request = ++scrollRequest
+  let attempts = 0
+  let previousTop: number | undefined
+  let stable = 0
+  const scroll = () => {
+    if (request !== scrollRequest) return
+    const container = getScrollContainer()
+    const element = document.getElementById(sectionId)
+    if (container && element && element.getClientRects().length) {
+      const top = element.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop
+      stable = previousTop !== undefined && Math.abs(top - previousTop) < 1 ? stable + 1 : 0
+      previousTop = top
+      container.scrollTo({top: Math.max(0, top - 8), behavior: 'instant'})
+      if (stable >= 4) {
+        if (!element.matches('button, a[href], input, select, textarea, [tabindex]')) {
+          element.setAttribute('tabindex', '-1')
+        }
+        element.focus({preventScroll: true})
+        return
+      }
+    }
+    if (++attempts < 100) window.setTimeout(scroll, 50)
+  }
+  nextTick(scroll)
 }
-
-const GENERAL_SECTIONS = new Set([
-  "general_app",
-  "locale",
-  "login",
-  "video_player",
-  "video_preview",
-  ...(LOCAL_AI_UI_ENABLED ? ["local_ai"] as const : []),
-])
-
-const APPEARANCE_SECTIONS = new Set([
-  "appearance_theme",
-  "appearance_colors",
-  "appearance_cards",
-  "appearance_page",
-  "appearance_image_viewer",
-  "appearance_sfw",
-])
-
-const LIBRARY_SECTIONS = new Set([
-  "meta",
-  "tag_categories",
-  "chip_recipes",
-  "media_types",
-  "field_pinning",
-  "quick_tags",
-  "parse_library_tags",
-])
-
-const LIBRARY_ADVANCED_SECTIONS = new Set([
-  "field_pinning",
-  "quick_tags",
-  "parse_library_tags",
-])
-
-const FILES_SECTIONS = new Set([
-  "bulk_paths",
-  "folder_tags",
-  "watched_folders",
-])
-
-const DATABASE_SECTIONS = new Set([
-  "open_data_folder",
-  "databases",
-  "database_add",
-  "library_reset",
-  "library_health_guide",
-  "generate_video_images",
-  "generate_auto_chapters",
-  "generate_image_thumbs",
-  "detect_faces",
-  "video_codec_backfill",
-  "media_created_backfill",
-  "oshash_backfill",
-  "fingerprint_backfill",
-  "visual_hash_backfill",
-  "clip_embedding_backfill",
-  "content_hash_backfill",
-  "find_missing",
-  "find_duplicates",
-  "clear_generated",
-  "backups",
-  "tag_image_ai_upscale",
-])
-
-const PLUGINS_SECTIONS = new Set([
-  "plugins_list",
-  "adult_scraper",
-])
-
-const ABOUT_SECTIONS = new Set([
-  "registration",
-  "about",
-])
 
 function applyRouteSettings() {
   applyingRoute.value = true
-
-  const section = String(route.query.section || "")
-
-  if (GENERAL_SECTIONS.has(section)) {
-    tab.value = "general"
-  } else if (APPEARANCE_SECTIONS.has(section)) {
-    tab.value = "appearance"
-  } else if (LIBRARY_SECTIONS.has(section)) {
-    tab.value = "library"
-    if (LIBRARY_ADVANCED_SECTIONS.has(section)) {
-      libraryAdvanced.value = true
-    }
-  } else if (["google_drive", "nas"].includes(section)) {
-    tab.value = "connections"
-  } else if (FILES_SECTIONS.has(section)) {
-    tab.value = "files"
-  } else if (DATABASE_SECTIONS.has(section)) {
-    tab.value = "database"
-  } else if (PLUGINS_SECTIONS.has(section)) {
-    tab.value = "plugins"
-  } else if (ABOUT_SECTIONS.has(section)) {
-    tab.value = "about"
-  } else if (route.query.tab) {
-    tab.value = resolveTab(String(route.query.tab))
-  }
-
-  // Deep-links into field pinning may use view/mediaTypeId/metaId without section
-  if (
-    resolveTab(String(route.query.tab || tab.value)) === "library"
-    && (route.query.view === "media" || route.query.view === "tags"
-      || route.query.mediaTypeId || route.query.metaId)
-  ) {
-    libraryAdvanced.value = true
-  }
-
-  const sectionId = SETTINGS_SECTION_IDS[section]
-
+  ++scrollRequest
+  const location = resolveSettingsLocation(
+    String(route.query.tab || 'general'), String(route.query.section || ''),
+    pluginsStore.settingsPanels,
+  )
+  tab.value = navItems.value.some(item => item.value === location.tab) ? location.tab : 'general'
   nextTick(() => {
-    if (sectionId) {
-      scheduleScrollToSection(sectionId)
-    }
+    if (location.elementId) scheduleScrollToSection(location.elementId)
     applyingRoute.value = false
   })
 }
 
 function syncTabToRoute(nextTab: string) {
-  const currentTab = resolveTab(String(route.query.tab || "general"))
+  const currentTab = resolveSettingsLocation(String(route.query.tab || "general"), String(route.query.section || ""), pluginsStore.settingsPanels).tab
 
   // Same tab: keep current query (including section deep-links).
   if (currentTab === nextTab) return
@@ -844,9 +502,11 @@ function syncTabToRoute(nextTab: string) {
 }
 
 onMounted(applyRouteSettings)
+onBeforeUnmount(() => { ++scrollRequest })
 
 watch(tab, (nextTab) => {
   if (!applyingRoute.value) {
+    ++scrollRequest
     const scrollContainer = getScrollContainer()
     if (scrollContainer) {
       scrollContainer.scrollTop = 0
@@ -860,9 +520,85 @@ watch(() => route.fullPath, applyRouteSettings)
 </script>
 
 <style scoped>
-.settings-library-advanced-switch :deep(.v-label) {
-  opacity: 1;
+.settings-history {
+  border: 1px solid rgba(var(--v-theme-primary), .12);
+  background: linear-gradient(120deg, rgba(var(--v-theme-primary), .045), rgba(var(--v-theme-surface), .6)) !important;
+  padding: 20px !important;
 }
+
+.settings-history__main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.settings-history__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 48px;
+  height: 48px;
+  border-radius: 14px;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), .09);
+}
+
+.settings-history__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-history__copy h3 {
+  margin: 0 0 6px;
+  font-size: .9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.settings-history__copy p {
+  margin: 0;
+  color: rgba(var(--v-theme-on-surface), .65);
+  font-size: .8125rem;
+  line-height: 1.6;
+}
+
+.settings-history__action {
+  flex-shrink: 0;
+}
+
+.settings-history__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), .08);
+  color: rgba(var(--v-theme-on-surface), .55);
+  font-size: .75rem;
+  line-height: 1.5;
+}
+
+.settings-history__note .v-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+@media (max-width: 1200px) {
+  .settings-history__main { flex-wrap: wrap; }
+  .settings-history__copy { flex-basis: calc(100% - 64px); }
+  .settings-history__action { margin-left: 64px; max-width: 100%; }
+}
+
+@media (max-width: 600px) {
+  .settings-history { padding: 16px !important; }
+  .settings-history__action { margin-left: 0; width: 100%; }
+  .settings-history__action :deep(.history-trigger) {
+    width: 100%;
+    height: auto;
+    padding-block: 10px;
+  }
+  .settings-history__action :deep(.v-btn__content) { white-space: normal; }
+}
+
 
 .settings-page {
   display: flex;

@@ -1,502 +1,946 @@
-export const docs = [
+// Documentation IDs are stable; section destinations follow the settings navigation.
+export interface DocumentationEntry {
+  [key: string]: unknown
+  id: string
+  name: string
+  icon: string
+  selector?: string[]
+  navigate?: string
+  children?: DocumentationEntry[]
+}
+
+export const docs: DocumentationEntry[] = [
   {
-    id: 'app',
-    name: 'Application',
-    icon: 'mdi-application-outline',
-    children: [
-      { id: 'app.first_launch', name: 'First launch', icon: 'mdi-flag' },
-      { id: 'app.core_concepts', name: 'Core concepts', icon: 'mdi-lightbulb-outline' },
-    ],
+    "id": "app",
+    "name": "Application",
+    "icon": "mdi-application-outline",
+    "children": [
+      {
+        "id": "app.first_launch",
+        "name": "First launch",
+        "icon": "mdi-flag"
+      },
+      {
+        "id": "app.core_concepts",
+        "name": "Core concepts",
+        "icon": "mdi-lightbulb-outline"
+      }
+    ]
   },
   {
-    id: 'ui',
-    name: 'User interface',
-    icon: 'mdi-view-quilt',
-    children: [
+    "id": "ui",
+    "name": "User interface",
+    "icon": "mdi-view-quilt",
+    "children": [
       {
-        id: 'ui.menu',
-        name: 'Menu',
-        icon: 'mdi-menu',
-        selector: ['.v-navigation-drawer .v-list', '.bottom-menu'],
+        "id": "ui.menu",
+        "name": "Menu",
+        "icon": "mdi-menu",
+        "selector": [
+          ".v-navigation-drawer .v-list",
+          ".bottom-menu"
+        ]
       },
       {
-        id: 'ui.useToolbarStore',
-        name: 'Toolbar',
-        icon: 'mdi-view-compact',
-        selector: ['.v-app-bar'],
+        "id": "ui.useToolbarStore",
+        "name": "Toolbar",
+        "icon": "mdi-view-compact",
+        "selector": [
+          ".v-app-bar"
+        ]
       },
       {
-        id: 'ui.control_deck',
-        name: 'Items control deck',
-        icon: 'mdi-view-agenda-outline',
-        selector: ['#items-control-deck'],
+        "id": "ui.control_deck",
+        "name": "Items control deck",
+        "icon": "mdi-view-agenda-outline",
+        "selector": [
+          "#items-control-deck"
+        ]
       },
       {
-        id: 'ui.browser_layout',
-        name: 'Browser layout',
-        icon: 'mdi-view-dashboard-outline',
-        selector: ['.inspector-panel', '.has-browser-layout'],
+        "id": "ui.browser_layout",
+        "name": "Browser layout",
+        "icon": "mdi-view-dashboard-outline",
+        "selector": [
+          ".inspector-panel",
+          ".has-browser-layout"
+        ]
       },
       {
-        id: 'ui.edit_dialogs',
-        name: 'Edit dialogs',
-        icon: 'mdi-pencil-box-outline',
-        selector: ['.edit-dialog-card'],
+        "id": "ui.edit_dialogs",
+        "name": "Edit dialogs",
+        "icon": "mdi-pencil-box-outline",
+        "selector": [
+          ".edit-dialog-card"
+        ]
       },
-      { id: 'ui.tabs', name: 'Tabs', icon: 'mdi-tab' },
       {
-        id: 'ui.filters',
-        name: 'Filters',
-        icon: 'mdi-filter-outline',
-        children: [
+        "id": "ui.tabs",
+        "name": "Tabs",
+        "icon": "mdi-tab"
+      },
+      {
+        "id": "ui.filters",
+        "name": "Filters",
+        "icon": "mdi-filter-outline",
+        "children": [
           {
-            id: 'ui.filters.local_ai',
-            name: 'AI help for filters',
-            icon: 'mdi-robot-outline',
+            "id": "ui.filters.local_ai",
+            "name": "AI help for filters",
+            "icon": "mdi-robot-outline"
+          }
+        ]
+      },
+      {
+        "id": "ui.selection",
+        "name": "Selection mode",
+        "icon": "mdi-checkbox-marked-outline"
+      }
+    ]
+  },
+  {
+    "id": "media",
+    "name": "Media library",
+    "icon": "mdi-file-outline",
+    "selector": [
+      "[href*=\"/media\"]"
+    ],
+    "children": [
+      {
+        "id": "media.adding",
+        "name": "Adding media",
+        "icon": "mdi-file-plus-outline",
+        "children": [
+          {
+            "id": "media.adding.neighbor_tags",
+            "name": "Tags from similar media",
+            "icon": "mdi-tag-multiple-outline"
           },
+          {
+            "id": "media.adding.blind_faces",
+            "name": "Unknown face tags",
+            "icon": "mdi-account-question-outline"
+          },
+          {
+            "id": "media.adding.chapters",
+            "name": "Auto chapters",
+            "icon": "mdi-bookmark-outline"
+          },
+          {
+            "id": "media.adding.organize",
+            "name": "Organize into tag folders",
+            "icon": "mdi-folder-move-outline"
+          },
+          {
+            "id": "media.adding.visual_search",
+            "name": "Visual search index",
+            "icon": "mdi-image-search-outline"
+          }
+        ]
+      },
+      {
+        "id": "media.parser",
+        "name": "Path tag parser",
+        "icon": "mdi-text-box-search"
+      },
+      {
+        "id": "media.face_recognition",
+        "name": "Face recognition",
+        "icon": "mdi-face-recognition",
+        "selector": [
+          "#settings-doc-tab-maintenance",
+          "#settings-detect-faces"
         ],
+        "navigate": "/settings?tab=maintenance&section=detect_faces"
       },
-      { id: 'ui.selection', name: 'Selection mode', icon: 'mdi-checkbox-marked-outline' },
-    ],
+      {
+        "id": "media.view",
+        "name": "View and sorting",
+        "icon": "mdi-view-grid-outline"
+      },
+      {
+        "id": "media.file_paths",
+        "name": "File paths",
+        "icon": "mdi-file-tree-outline"
+      }
+    ]
   },
   {
-    id: 'media',
-    name: 'Media library',
-    icon: 'mdi-file-outline',
-    selector: ['[href*="/media"]'],
-    children: [
+    "id": "tags",
+    "name": "Tags",
+    "icon": "mdi-tag-multiple",
+    "selector": [
+      ".item-tag",
+      ".item .v-chip"
+    ],
+    "children": [
       {
-        id: 'media.adding',
-        name: 'Adding media',
-        icon: 'mdi-file-plus-outline',
-        children: [
-          { id: 'media.adding.neighbor_tags', name: 'Tags from similar media', icon: 'mdi-tag-multiple-outline' },
-          { id: 'media.adding.blind_faces', name: 'Unknown face tags', icon: 'mdi-account-question-outline' },
-          { id: 'media.adding.chapters', name: 'Auto chapters', icon: 'mdi-bookmark-outline' },
-          { id: 'media.adding.organize', name: 'Organize into tag folders', icon: 'mdi-folder-move-outline' },
-          { id: 'media.adding.visual_search', name: 'Visual search index', icon: 'mdi-image-search-outline' },
+        "id": "tags.categories",
+        "name": "Tag categories",
+        "icon": "mdi-shape-outline"
+      },
+      {
+        "id": "tags.tag_page",
+        "name": "Tag page",
+        "icon": "mdi-tag-outline"
+      },
+      {
+        "id": "tags.session_focus",
+        "name": "Session focus",
+        "icon": "mdi-bullseye-arrow",
+        "selector": [
+          ".session-focus-bar"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "meta",
+    "name": "Custom metadata",
+    "icon": "mdi-shape",
+    "selector": [
+      "#settings-doc-tab-library",
+      "#settings-meta"
+    ],
+    "navigate": "/settings?tab=library&section=meta",
+    "children": [
+      {
+        "id": "meta.assign",
+        "name": "Pin metadata fields",
+        "icon": "mdi-pin",
+        "selector": [
+          "#settings-doc-tab-library",
+          "#settings-meta-assignment"
         ],
-      },
-      { id: 'media.parser', name: 'Path tag parser', icon: 'mdi-text-box-search' },
+        "navigate": "/settings?tab=library&section=field_pinning"
+      }
+    ]
+  },
+  {
+    "id": "meta_types",
+    "name": "Field types",
+    "icon": "mdi-shape-plus",
+    "children": [
       {
-        id: 'media.face_recognition',
-        name: 'Face recognition',
-        icon: 'mdi-face-recognition',
-        selector: ['#settings-doc-tab-database', '#settings-detect-faces'],
-        navigate: '/settings?tab=database&section=detect_faces',
+        "id": "meta_types.tags",
+        "name": "Tag category",
+        "icon": "mdi-tag-multiple"
       },
-      { id: 'media.view', name: 'View and sorting', icon: 'mdi-view-grid-outline' },
-      { id: 'media.file_paths', name: 'File paths', icon: 'mdi-file-tree-outline' },
-    ],
-  },
-  {
-    id: 'tags',
-    name: 'Tags',
-    icon: 'mdi-tag-multiple',
-    selector: ['.item-tag', '.item .v-chip'],
-    children: [
-      { id: 'tags.categories', name: 'Tag categories', icon: 'mdi-shape-outline' },
-      { id: 'tags.tag_page', name: 'Tag page', icon: 'mdi-tag-outline' },
       {
-        id: 'tags.session_focus',
-        name: 'Session focus',
-        icon: 'mdi-bullseye-arrow',
-        selector: ['.session-focus-bar'],
+        "id": "meta_types.string",
+        "name": "Text",
+        "icon": "mdi-text"
       },
-    ],
-  },
-  {
-    id: 'meta',
-    name: 'Custom metadata',
-    icon: 'mdi-shape',
-    selector: ['#settings-doc-tab-library', '#settings-meta'],
-    navigate: '/settings?tab=library&section=meta',
-    children: [
       {
-        id: 'meta.assign',
-        name: 'Pin metadata fields',
-        icon: 'mdi-pin',
-        selector: ['#settings-doc-tab-library', '#settings-meta-assignment'],
-        navigate: '/settings?tab=library&section=field_pinning',
+        "id": "meta_types.number",
+        "name": "Number",
+        "icon": "mdi-numeric"
       },
-    ],
-  },
-  {
-    id: 'meta_types',
-    name: 'Field types',
-    icon: 'mdi-shape-plus',
-    children: [
-      { id: 'meta_types.tags', name: 'Tag category', icon: 'mdi-tag-multiple' },
-      { id: 'meta_types.string', name: 'Text', icon: 'mdi-text' },
-      { id: 'meta_types.number', name: 'Number', icon: 'mdi-numeric' },
-      { id: 'meta_types.boolean', name: 'Checkbox', icon: 'mdi-checkbox-marked-outline' },
-      { id: 'meta_types.rating', name: 'Rating', icon: 'mdi-star' },
-      { id: 'meta_types.date', name: 'Date', icon: 'mdi-calendar' },
-    ],
-  },
-  {
-    id: 'playlists',
-    name: 'Playlists',
-    icon: 'mdi-format-list-bulleted',
-    selector: ['[href="/playlists"]'],
-    children: [
-      { id: 'playlists.smart', name: 'Smart playlists', icon: 'mdi-filter-variant' },
-      { id: 'playlists.manual', name: 'Manual playlists', icon: 'mdi-playlist-play' },
-    ],
-  },
-  {
-    id: 'markers',
-    name: 'Markers',
-    icon: 'mdi-tooltip-outline',
-    selector: ['[href="/markers"]'],
-  },
-  {
-    id: 'player',
-    name: 'Video Player',
-    icon: 'mdi-play-circle',
-    children: [
       {
-        id: 'player.formats',
-        name: 'Supported formats',
-        icon: 'mdi-file-video',
-        selector: ['#settings-doc-tab-general', '#settings-video-player'],
-        navigate: '/settings?tab=general&section=video_player',
+        "id": "meta_types.boolean",
+        "name": "Checkbox",
+        "icon": "mdi-checkbox-marked-outline"
       },
-      { id: 'player.hotkeys', name: 'Player hotkeys', icon: 'mdi-keyboard' },
-      { id: 'player.marks_playlists', name: 'Marks and playlists', icon: 'mdi-playlist-play' },
-    ],
+      {
+        "id": "meta_types.rating",
+        "name": "Rating",
+        "icon": "mdi-star"
+      },
+      {
+        "id": "meta_types.date",
+        "name": "Date",
+        "icon": "mdi-calendar"
+      }
+    ]
   },
   {
-    id: 'sets',
-    name: 'Settings',
-    icon: 'mdi-cog',
-    selector: ['[href="/settings"]'],
-    navigate: '/settings',
-    children: [
+    "id": "playlists",
+    "name": "Playlists",
+    "icon": "mdi-format-list-bulleted",
+    "selector": [
+      "[href=\"/playlists\"]"
+    ],
+    "children": [
       {
-        id: 'settings.general',
-        name: 'General',
-        icon: 'mdi-application-cog-outline',
-        selector: ['#settings-doc-tab-general'],
-        navigate: '/settings?tab=general',
-        children: [
-          {
-            id: 'settings.general.app',
-            name: 'App & network',
-            icon: 'mdi-lan',
-            selector: ['#settings-doc-tab-general', '#settings-general'],
-            navigate: '/settings?tab=general&section=general_app',
-          },
-          {
-            id: 'settings.general.lan_phone',
-            name: 'LAN phone access',
-            icon: 'mdi-cellphone-link',
-            selector: ['#settings-doc-tab-general', '#settings-general'],
-            navigate: '/settings?tab=general&section=general_app',
-          },
-          {
-            id: 'settings.general.pwa_install',
-            name: 'Install as app (PWA)',
-            icon: 'mdi-cellphone-arrow-down',
-            selector: ['#settings-doc-tab-general', '#settings-general'],
-            navigate: '/settings?tab=general&section=general_app',
-          },
-          {
-            id: 'settings.general.locale',
-            name: 'Language',
-            icon: 'mdi-translate',
-            selector: ['#settings-doc-tab-general', '#settings-locale'],
-            navigate: '/settings?tab=general&section=locale',
-          },
-          {
-            id: 'settings.general.login',
-            name: 'Password lock',
-            icon: 'mdi-lock-outline',
-            selector: ['#settings-doc-tab-general', '#settings-login'],
-            navigate: '/settings?tab=general&section=login',
-          },
-          {
-            id: 'settings.general.player',
-            name: 'Player',
-            icon: 'mdi-play-circle',
-            selector: ['#settings-doc-tab-general', '#settings-video-player'],
-            navigate: '/settings?tab=general&section=video_player',
-          },
-          {
-            id: 'sets.tools.video_preview',
-            name: 'Video preview',
-            icon: 'mdi-image-area',
-            selector: ['#settings-doc-tab-general', '#video_preview'],
-            navigate: '/settings?tab=general&section=video_preview',
-          },
-          {
-            id: 'settings.general.local_ai',
-            name: 'Local AI',
-            icon: 'mdi-robot-outline',
-            selector: ['#settings-doc-tab-general', '#settings-local-ai'],
-            navigate: '/settings?tab=general&section=local_ai',
-          },
+        "id": "playlists.smart",
+        "name": "Smart playlists",
+        "icon": "mdi-filter-variant"
+      },
+      {
+        "id": "playlists.manual",
+        "name": "Manual playlists",
+        "icon": "mdi-playlist-play"
+      }
+    ]
+  },
+  {
+    "id": "markers",
+    "name": "Markers",
+    "icon": "mdi-tooltip-outline",
+    "selector": [
+      "[href=\"/markers\"]"
+    ]
+  },
+  {
+    "id": "player",
+    "name": "Video Player",
+    "icon": "mdi-play-circle",
+    "children": [
+      {
+        "id": "player.formats",
+        "name": "Supported formats",
+        "icon": "mdi-file-video",
+        "selector": [
+          "#settings-doc-tab-viewing",
+          "#settings-video-player"
         ],
+        "navigate": "/settings?tab=viewing&section=video_player"
       },
       {
-        id: 'settings.appearance',
-        name: 'Appearance',
-        icon: 'mdi-brush-variant',
-        selector: ['#settings-doc-tab-appearance'],
-        navigate: '/settings?tab=appearance',
-        children: [
-          {
-            id: 'settings.appearance.theme',
-            name: 'Theme & zoom',
-            icon: 'mdi-theme-light-dark',
-            selector: ['#settings-doc-tab-appearance', '#settings-appearance-theme'],
-            navigate: '/settings?tab=appearance&section=appearance_theme',
-          },
-          {
-            id: 'settings.appearance.colors',
-            name: 'Theme colors',
-            icon: 'mdi-palette-outline',
-            selector: ['#settings-doc-tab-appearance', '#settings-appearance-colors'],
-            navigate: '/settings?tab=appearance&section=appearance_colors',
-          },
-          {
-            id: 'settings.appearance.cards',
-            name: 'Cards',
-            icon: 'mdi-card-outline',
-            selector: ['#settings-doc-tab-appearance', '#settings-appearance-cards'],
-            navigate: '/settings?tab=appearance&section=appearance_cards',
-          },
-          {
-            id: 'settings.appearance.page',
-            name: 'Page layout',
-            icon: 'mdi-page-layout-header',
-            selector: ['#settings-doc-tab-appearance', '#settings-appearance-page'],
-            navigate: '/settings?tab=appearance&section=appearance_page',
-          },
-          {
-            id: 'settings.appearance.editing_overview',
-            name: 'Editing dialog overview',
-            icon: 'mdi-card-text-outline',
-            selector: ['#settings-doc-tab-appearance', '#settings-appearance-page', '#settings-editing-overview'],
-            navigate: '/settings?tab=appearance&section=appearance_page',
-          },
-          {
-            id: 'settings.appearance.sfw',
-            name: 'SFW mode',
-            icon: 'mdi-eye-off-outline',
-            selector: ['#settings-doc-tab-appearance', '#settings-appearance-sfw'],
-            navigate: '/settings?tab=appearance&section=appearance_sfw',
-          },
+        "id": "player.hotkeys",
+        "name": "Player hotkeys",
+        "icon": "mdi-keyboard"
+      },
+      {
+        "id": "player.marks_playlists",
+        "name": "Marks and playlists",
+        "icon": "mdi-playlist-play"
+      }
+    ]
+  },
+  {
+    "id": "sets",
+    "name": "Settings",
+    "icon": "mdi-cog",
+    "selector": [
+      "[href=\"/settings\"]"
+    ],
+    "navigate": "/settings",
+    "children": [
+      {
+        "id": "settings.general",
+        "name": "general",
+        "icon": "mdi-application-cog-outline",
+        "selector": [
+          "#settings-doc-tab-general"
         ],
-      },
-      {
-        id: 'settings.library',
-        name: 'Library',
-        icon: 'mdi-bookshelf',
-        selector: ['#settings-doc-tab-library'],
-        navigate: '/settings?tab=library',
-        children: [
+        "navigate": "/settings?tab=general",
+        "children": [
           {
-            id: 'meta',
-            name: 'Custom metadata',
-            icon: 'mdi-shape-outline',
-            selector: ['#settings-doc-tab-library', '#settings-meta'],
-            navigate: '/settings?tab=library&section=meta',
-          },
-          {
-            id: 'media.types',
-            name: 'Media types',
-            icon: 'mdi-file-multiple-outline',
-            selector: ['#settings-doc-tab-library', '#settings-media-types'],
-            navigate: '/settings?tab=library&section=media_types',
-          },
-          {
-            id: 'meta.assign',
-            name: 'Field pinning',
-            icon: 'mdi-pin-outline',
-            selector: ['#settings-doc-tab-library', '#settings-meta-assignment'],
-            navigate: '/settings?tab=library&section=field_pinning',
-          },
-          {
-            id: 'sets.tools.quick_tags',
-            name: 'Quick tags',
-            icon: 'mdi-tag-plus-outline',
-            selector: ['#settings-doc-tab-library', '#settings-quick-tags'],
-            navigate: '/settings?tab=library&section=quick_tags',
-          },
-          {
-            id: 'settings.library.parse_tags',
-            name: 'Parse library tags',
-            icon: 'mdi-tag-search-outline',
-            selector: ['#settings-doc-tab-library', '#settings-parse-library-tags'],
-            navigate: '/settings?tab=library&section=parse_library_tags',
-          },
-        ],
-      },
-      {
-        id: 'settings.files',
-        name: 'Files',
-        icon: 'mdi-folder-cog-outline',
-        selector: ['#settings-doc-tab-files'],
-        navigate: '/settings?tab=files',
-        children: [
-          {
-            id: 'sets.tools.bulk_paths',
-            name: 'Bulk path editing',
-            icon: 'mdi-find-replace',
-            selector: ['#settings-doc-tab-files', '#settings-bulk-paths'],
-            navigate: '/settings?tab=files&section=bulk_paths',
-          },
-          {
-            id: 'settings.files.folder_tags',
-            name: 'Folder tags',
-            icon: 'mdi-folder-tag-outline',
-            selector: ['#settings-doc-tab-files', '#settings-folder-tags'],
-            navigate: '/settings?tab=files&section=folder_tags',
-          },
-          {
-            id: 'sets.tools.watched_folders',
-            name: 'Watched folders',
-            icon: 'mdi-folder-eye-outline',
-            selector: ['#settings-doc-tab-files', '#settings-watched-folders'],
-            navigate: '/settings?tab=files&section=watched_folders',
-          },
-        ],
-      },
-      {
-        id: 'database',
-        name: 'Database',
-        icon: 'mdi-database-outline',
-        selector: ['#settings-doc-tab-database'],
-        navigate: '/settings?tab=database',
-        children: [
-          {
-            id: 'database.open_folder',
-            name: 'Data folder',
-            icon: 'mdi-folder-open-outline',
-            selector: ['#settings-doc-tab-database', '#settings-open-data-folder'],
-            navigate: '/settings?tab=database&section=open_data_folder',
-          },
-          {
-            id: 'database.add',
-            name: 'Adding a database',
-            icon: 'mdi-plus',
-            selector: ['#settings-doc-tab-database', '#database_add'],
-            navigate: '/settings?tab=database&section=database_add',
-          },
-          {
-            id: 'database.backups',
-            name: 'Manage backups',
-            icon: 'mdi-database',
-            selector: ['#settings-doc-tab-database', '#database_backups'],
-            navigate: '/settings?tab=database&section=backups',
-            children: [
-              {
-                id: 'database.backups.create',
-                name: 'Creating backups',
-                icon: 'mdi-database-plus',
-                selector: ['#settings-doc-tab-database', '#database_backups'],
-                navigate: '/settings?tab=database&section=backups',
-              },
-              {
-                id: 'database.backups.restore',
-                name: 'Restoring backups',
-                icon: 'mdi-database-refresh',
-                selector: ['#settings-doc-tab-database', '#database_backups'],
-                navigate: '/settings?tab=database&section=backups',
-              },
+            "id": "settings.general.app",
+            "name": "App & network",
+            "icon": "mdi-lan",
+            "selector": [
+              "#settings-doc-tab-general",
+              "#settings-network"
             ],
+            "navigate": "/settings?tab=general&section=network"
           },
           {
-            id: 'database.fingerprint',
-            name: 'Dedup fingerprints',
-            icon: 'mdi-fingerprint',
-            selector: ['#settings-doc-tab-database', '#settings-fingerprint-backfill'],
-            navigate: '/settings?tab=database&section=fingerprint_backfill',
+            "id": "settings.general.lan_phone",
+            "name": "LAN phone access",
+            "icon": "mdi-cellphone-link",
+            "selector": [
+              "#settings-doc-tab-general",
+              "#settings-network"
+            ],
+            "navigate": "/settings?tab=general&section=network"
           },
           {
-            id: 'database.video_codec',
-            name: 'Video codec backfill',
-            icon: 'mdi-codec',
-            selector: ['#settings-doc-tab-database', '#settings-video-codec-backfill'],
-            navigate: '/settings?tab=database&section=video_codec_backfill',
+            "id": "settings.general.pwa_install",
+            "name": "Install as app (PWA)",
+            "icon": "mdi-cellphone-arrow-down",
+            "selector": [
+              "#settings-doc-tab-general",
+              "#settings-network"
+            ],
+            "navigate": "/settings?tab=general&section=network"
           },
           {
-            id: 'settings.files.find_missing',
-            name: 'Find missing files',
-            icon: 'mdi-file-search-outline',
-            selector: ['#settings-doc-tab-database', '#settings-find-missing-media'],
-            navigate: '/settings?tab=database&section=find_missing',
+            "id": "settings.general.locale",
+            "name": "Language",
+            "icon": "mdi-translate",
+            "selector": [
+              "#settings-doc-tab-general",
+              "#settings-locale"
+            ],
+            "navigate": "/settings?tab=general&section=locale"
           },
           {
-            id: 'settings.files.generated_previews',
-            name: 'Generated previews',
-            icon: 'mdi-image-auto-adjust',
-            selector: ['#settings-doc-tab-database', '#settings-generate-video-images'],
-            navigate: '/settings?tab=database&section=generate_video_images',
+            "id": "settings.general.login",
+            "name": "Password lock",
+            "icon": "mdi-lock-outline",
+            "selector": [
+              "#settings-doc-tab-general",
+              "#settings-login"
+            ],
+            "navigate": "/settings?tab=general&section=login"
           },
           {
-            id: 'settings.files.image_thumbs',
-            name: 'Image thumbnails',
-            icon: 'mdi-image-outline',
-            selector: ['#settings-doc-tab-database', '#settings-generate-image-thumbs'],
-            navigate: '/settings?tab=database&section=generate_image_thumbs',
+            "id": "settings.appearance.sfw",
+            "name": "SFW mode",
+            "icon": "mdi-eye-off-outline",
+            "selector": [
+              "#settings-doc-tab-general",
+              "#settings-appearance-sfw"
+            ],
+            "navigate": "/settings?tab=general&section=appearance_sfw"
           },
           {
-            id: 'settings.files.detect_faces',
-            name: 'Face detection',
-            icon: 'mdi-face-recognition',
-            selector: ['#settings-doc-tab-database', '#settings-detect-faces'],
-            navigate: '/settings?tab=database&section=detect_faces',
+            "id": "settings.search",
+            "name": "Search settings",
+            "icon": "mdi-magnify",
+            "selector": [
+              "#settings-doc-tab-general",
+              "#settings-search"
+            ],
+            "navigate": "/settings?tab=general&section="
           },
           {
-            id: 'settings.files.clear_generated',
-            name: 'Clear generated images',
-            icon: 'mdi-trash-can-outline',
-            selector: ['#settings-doc-tab-database', '#settings-clear-generated-images'],
-            navigate: '/settings?tab=database&section=clear_generated',
-          },
-          {
-            id: 'settings.database.library_reset',
-            name: 'Library reset',
-            icon: 'mdi-database-remove-outline',
-            selector: ['#settings-doc-tab-database', '#settings-library-reset'],
-            navigate: '/settings?tab=database&section=library_reset',
-          },
-        ],
+            "id": "settings.security",
+            "name": "Access and security",
+            "icon": "mdi-shield-lock-outline",
+            "selector": [
+              "#settings-doc-tab-general",
+              "#settings-network"
+            ],
+            "navigate": "/settings?tab=general&section=network"
+          }
+        ]
       },
       {
-        id: 'settings.plugins',
-        name: 'Plugins',
-        icon: 'mdi-puzzle-outline',
-        selector: ['#settings-doc-tab-plugins'],
-        navigate: '/settings?tab=plugins',
-        children: [
-          {
-            id: 'settings.plugins.list',
-            name: 'Installed plugins',
-            icon: 'mdi-puzzle',
-            selector: ['#settings-doc-tab-plugins', '#settings-plugins'],
-            navigate: '/settings?tab=plugins&section=plugins_list',
-          },
-          {
-            id: 'data_scraper',
-            name: 'Data scraper',
-            icon: 'mdi-search-web',
-            selector: ['#settings-doc-tab-plugins', '#settings-adult-scraper'],
-            navigate: '/settings?tab=plugins&section=adult_scraper',
-          },
+        "id": "settings.appearance",
+        "name": "appearance",
+        "icon": "mdi-brush-variant",
+        "selector": [
+          "#settings-doc-tab-appearance"
         ],
+        "navigate": "/settings?tab=appearance",
+        "children": [
+          {
+            "id": "settings.appearance.theme",
+            "name": "Theme & zoom",
+            "icon": "mdi-theme-light-dark",
+            "selector": [
+              "#settings-doc-tab-appearance",
+              "#settings-appearance-theme"
+            ],
+            "navigate": "/settings?tab=appearance&section=appearance_theme"
+          },
+          {
+            "id": "settings.appearance.colors",
+            "name": "Theme colors",
+            "icon": "mdi-palette-outline",
+            "selector": [
+              "#settings-doc-tab-appearance",
+              "#settings-appearance-colors"
+            ],
+            "navigate": "/settings?tab=appearance&section=appearance_colors"
+          },
+          {
+            "id": "settings.appearance.cards",
+            "name": "Cards",
+            "icon": "mdi-card-outline",
+            "selector": [
+              "#settings-doc-tab-appearance",
+              "#settings-appearance-cards"
+            ],
+            "navigate": "/settings?tab=appearance&section=appearance_cards"
+          },
+          {
+            "id": "settings.appearance.page",
+            "name": "Page layout",
+            "icon": "mdi-page-layout-header",
+            "selector": [
+              "#settings-doc-tab-appearance",
+              "#settings-appearance-page"
+            ],
+            "navigate": "/settings?tab=appearance&section=appearance_page"
+          },
+          {
+            "id": "settings.appearance.editing_overview",
+            "name": "Editing dialog overview",
+            "icon": "mdi-card-text-outline",
+            "selector": [
+              "#settings-doc-tab-appearance",
+              "#settings-appearance-page",
+              "#settings-editing-overview"
+            ],
+            "navigate": "/settings?tab=appearance&section=appearance_page"
+          },
+          {
+            "id": "settings.navigation",
+            "name": "Navigation",
+            "icon": "mdi-cog-outline",
+            "selector": [
+              "#settings-doc-tab-appearance",
+              "#settings-appearance-navigation"
+            ],
+            "navigate": "/settings?tab=appearance&section=appearance_navigation"
+          }
+        ]
       },
       {
-        id: 'settings.about',
-        name: 'About and registration',
-        icon: 'mdi-information-outline',
-        selector: ['#settings-doc-tab-about', '#settings-registration'],
-        navigate: '/settings?tab=about&section=registration',
+        "id": "settings.viewing",
+        "name": "viewing",
+        "icon": "mdi-play-circle-outline",
+        "selector": [
+          "#settings-doc-tab-viewing"
+        ],
+        "navigate": "/settings?tab=viewing",
+        "children": [
+          {
+            "id": "settings.general.player",
+            "name": "Player",
+            "icon": "mdi-play-circle",
+            "selector": [
+              "#settings-doc-tab-viewing",
+              "#settings-video-player"
+            ],
+            "navigate": "/settings?tab=viewing&section=video_player"
+          },
+          {
+            "id": "sets.tools.video_preview",
+            "name": "Video preview",
+            "icon": "mdi-image-area",
+            "selector": [
+              "#settings-doc-tab-viewing",
+              "#video_preview"
+            ],
+            "navigate": "/settings?tab=viewing&section=video_preview"
+          },
+          {
+            "id": "settings.slideshow",
+            "name": "Image slideshow",
+            "icon": "mdi-image-outline",
+            "selector": [
+              "#settings-doc-tab-viewing",
+              "#settings-appearance-image-viewer"
+            ],
+            "navigate": "/settings?tab=viewing&section=appearance_image_viewer"
+          },
+          {
+            "id": "settings.conversion",
+            "name": "Permanent conversion",
+            "icon": "mdi-video-switch-outline",
+            "selector": [
+              "#settings-doc-tab-viewing",
+              "#settings-video-player"
+            ],
+            "navigate": "/settings?tab=viewing&section=video_player"
+          }
+        ]
       },
-    ],
-  },
+      {
+        "id": "settings.library",
+        "name": "library",
+        "icon": "mdi-bookshelf",
+        "selector": [
+          "#settings-doc-tab-library"
+        ],
+        "navigate": "/settings?tab=library",
+        "children": [
+          {
+            "id": "media.types",
+            "name": "Media types",
+            "icon": "mdi-file-multiple-outline",
+            "selector": [
+              "#settings-doc-tab-library",
+              "#settings-media-types"
+            ],
+            "navigate": "/settings?tab=library&section=media_types"
+          },
+          {
+            "id": "sets.tools.quick_tags",
+            "name": "Quick tags",
+            "icon": "mdi-tag-plus-outline",
+            "selector": [
+              "#settings-doc-tab-library",
+              "#settings-quick-tags"
+            ],
+            "navigate": "/settings?tab=library&section=quick_tags"
+          },
+          {
+            "id": "settings.files.folder_tags",
+            "name": "Folder tags",
+            "icon": "mdi-folder-tag-outline",
+            "selector": [
+              "#settings-doc-tab-library",
+              "#settings-folder-tags"
+            ],
+            "navigate": "/settings?tab=library&section=folder_tags"
+          },
+          {
+            "id": "settings.tag_categories",
+            "name": "Tag categories",
+            "icon": "mdi-cog-outline",
+            "selector": [
+              "#settings-doc-tab-library",
+              "#settings-tag-categories"
+            ],
+            "navigate": "/settings?tab=library&section=tag_categories"
+          },
+          {
+            "id": "settings.chip_recipes",
+            "name": "Chip recipes",
+            "icon": "mdi-cog-outline",
+            "selector": [
+              "#settings-doc-tab-library",
+              "#settings-chip-recipes"
+            ],
+            "navigate": "/settings?tab=library&section=chip_recipes"
+          }
+        ]
+      },
+      {
+        "id": "settings.files",
+        "name": "connections",
+        "icon": "mdi-connection",
+        "selector": [
+          "#settings-doc-tab-connections"
+        ],
+        "navigate": "/settings?tab=connections",
+        "children": [
+          {
+            "id": "sets.tools.watched_folders",
+            "name": "Watched folders",
+            "icon": "mdi-folder-eye-outline",
+            "selector": [
+              "#settings-doc-tab-connections",
+              "#settings-watched-folders"
+            ],
+            "navigate": "/settings?tab=connections&section=watched_folders"
+          },
+          {
+            "id": "settings.sources.accounts",
+            "name": "Cloud and NAS",
+            "icon": "mdi-cloud-outline",
+            "selector": [
+              "#settings-doc-tab-connections",
+              "#settings-sources"
+            ],
+            "navigate": "/settings?tab=connections&section=sources"
+          },
+          {
+            "id": "settings.metadata_transfer",
+            "name": "Metadata transfer",
+            "icon": "mdi-cog-outline",
+            "selector": [
+              "#settings-doc-tab-connections",
+              "#settings-metadata-transfer"
+            ],
+            "navigate": "/settings?tab=connections&section=metadata_transfer"
+          }
+        ]
+      },
+      {
+        "id": "settings.maintenance",
+        "name": "maintenance",
+        "icon": "mdi-wrench-outline",
+        "selector": [
+          "#settings-doc-tab-maintenance"
+        ],
+        "navigate": "/settings?tab=maintenance",
+        "children": [
+          {
+            "id": "database.fingerprint",
+            "name": "Dedup fingerprints",
+            "icon": "mdi-fingerprint",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-fingerprint-backfill"
+            ],
+            "navigate": "/settings?tab=maintenance&section=fingerprint_backfill"
+          },
+          {
+            "id": "database.video_codec",
+            "name": "Video codec backfill",
+            "icon": "mdi-codec",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-video-codec-backfill"
+            ],
+            "navigate": "/settings?tab=maintenance&section=video_codec_backfill"
+          },
+          {
+            "id": "settings.files.find_missing",
+            "name": "Find missing files",
+            "icon": "mdi-file-search-outline",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-find-missing-media"
+            ],
+            "navigate": "/settings?tab=maintenance&section=find_missing"
+          },
+          {
+            "id": "settings.files.generated_previews",
+            "name": "Generated previews",
+            "icon": "mdi-image-auto-adjust",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-generate-video-images"
+            ],
+            "navigate": "/settings?tab=maintenance&section=generate_video_images"
+          },
+          {
+            "id": "settings.files.image_thumbs",
+            "name": "Image thumbnails",
+            "icon": "mdi-image-outline",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-generate-image-thumbs"
+            ],
+            "navigate": "/settings?tab=maintenance&section=generate_image_thumbs"
+          },
+          {
+            "id": "settings.files.detect_faces",
+            "name": "Face detection",
+            "icon": "mdi-face-recognition",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-detect-faces"
+            ],
+            "navigate": "/settings?tab=maintenance&section=detect_faces"
+          },
+          {
+            "id": "settings.files.clear_generated",
+            "name": "Clear generated images",
+            "icon": "mdi-trash-can-outline",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-clear-generated-images"
+            ],
+            "navigate": "/settings?tab=maintenance&section=clear_generated"
+          },
+          {
+            "id": "settings.library.parse_tags",
+            "name": "Parse library tags",
+            "icon": "mdi-tag-search-outline",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-parse-library-tags"
+            ],
+            "navigate": "/settings?tab=maintenance&section=parse_library_tags"
+          },
+          {
+            "id": "settings.general.local_ai",
+            "name": "Local AI",
+            "icon": "mdi-robot-outline",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-local-ai"
+            ],
+            "navigate": "/settings?tab=maintenance&section=local_ai"
+          },
+          {
+            "id": "data_scraper",
+            "name": "Data scraper",
+            "icon": "mdi-search-web",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-adult-scraper"
+            ],
+            "navigate": "/settings?tab=maintenance&section=adult_scraper"
+          },
+          {
+            "id": "settings.duplicates",
+            "name": "Find duplicates",
+            "icon": "mdi-content-duplicate",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-find-duplicates"
+            ],
+            "navigate": "/settings?tab=maintenance&section=find_duplicates"
+          },
+          {
+            "id": "settings.visual_hash",
+            "name": "Similar file index",
+            "icon": "mdi-cog-outline",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-visual-hash-backfill"
+            ],
+            "navigate": "/settings?tab=maintenance&section=visual_hash_backfill"
+          },
+          {
+            "id": "settings.semantic_index",
+            "name": "Semantic search index",
+            "icon": "mdi-cog-outline",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-clip-embedding-backfill"
+            ],
+            "navigate": "/settings?tab=maintenance&section=clip_embedding_backfill"
+          },
+          {
+            "id": "settings.auto_chapters",
+            "name": "Automatic chapters",
+            "icon": "mdi-cog-outline",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-generate-auto-chapters"
+            ],
+            "navigate": "/settings?tab=maintenance&section=generate_auto_chapters"
+          },
+          {
+            "id": "settings.media_created",
+            "name": "Media creation dates",
+            "icon": "mdi-cog-outline",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-media-created-backfill"
+            ],
+            "navigate": "/settings?tab=maintenance&section=media_created_backfill"
+          },
+          {
+            "id": "settings.tag_upscale",
+            "name": "Upscale tag images",
+            "icon": "mdi-cog-outline",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-tag-image-ai-upscale"
+            ],
+            "navigate": "/settings?tab=maintenance&section=tag_image_ai_upscale"
+          },
+          {
+            "id": "sets.tools.bulk_paths",
+            "name": "Bulk path editing",
+            "icon": "mdi-cog-outline",
+            "selector": [
+              "#settings-doc-tab-maintenance",
+              "#settings-bulk-paths"
+            ],
+            "navigate": "/settings?tab=maintenance&section=bulk_paths"
+          }
+        ]
+      },
+      {
+        "id": "database",
+        "name": "database",
+        "icon": "mdi-database-outline",
+        "selector": [
+          "#settings-doc-tab-database"
+        ],
+        "navigate": "/settings?tab=database",
+        "children": [
+          {
+            "id": "database.open_folder",
+            "name": "Data folder",
+            "icon": "mdi-folder-open-outline",
+            "selector": [
+              "#settings-doc-tab-database",
+              "#settings-open-data-folder"
+            ],
+            "navigate": "/settings?tab=database&section=open_data_folder"
+          },
+          {
+            "id": "database.add",
+            "name": "Adding a database",
+            "icon": "mdi-plus",
+            "selector": [
+              "#settings-doc-tab-database",
+              "#database_add"
+            ],
+            "navigate": "/settings?tab=database&section=database_add"
+          },
+          {
+            "id": "database.backups",
+            "name": "Manage backups",
+            "icon": "mdi-database",
+            "selector": [
+              "#settings-doc-tab-database",
+              "#database_backups"
+            ],
+            "navigate": "/settings?tab=database&section=backups",
+            "children": [
+              {
+                "id": "database.backups.create",
+                "name": "Creating backups",
+                "icon": "mdi-database-plus",
+                "selector": [
+                  "#settings-doc-tab-database",
+                  "#database_backups"
+                ],
+                "navigate": "/settings?tab=database&section=backups"
+              },
+              {
+                "id": "database.backups.restore",
+                "name": "Restoring backups",
+                "icon": "mdi-database-refresh",
+                "selector": [
+                  "#settings-doc-tab-database",
+                  "#database_backups"
+                ],
+                "navigate": "/settings?tab=database&section=backups"
+              }
+            ]
+          },
+          {
+            "id": "settings.database.library_reset",
+            "name": "Library reset",
+            "icon": "mdi-database-remove-outline",
+            "selector": [
+              "#settings-doc-tab-database",
+              "#settings-library-reset"
+            ],
+            "navigate": "/settings?tab=database&section=library_reset"
+          },
+          {
+            "id": "settings.history",
+            "name": "Change history",
+            "icon": "mdi-history",
+            "selector": [
+              "#settings-doc-tab-database",
+              "#settings-change-history"
+            ],
+            "navigate": "/settings?tab=database&section=change_history"
+          }
+        ]
+      },
+      {
+        "id": "settings.plugins",
+        "name": "plugins",
+        "icon": "mdi-puzzle-outline",
+        "selector": [
+          "#settings-doc-tab-plugins"
+        ],
+        "navigate": "/settings?tab=plugins",
+        "children": [
+          {
+            "id": "settings.plugins.list",
+            "name": "Installed plugins",
+            "icon": "mdi-puzzle",
+            "selector": [
+              "#settings-doc-tab-plugins",
+              "#settings-plugins"
+            ],
+            "navigate": "/settings?tab=plugins&section=plugins_list"
+          }
+        ]
+      },
+      {
+        "id": "settings.about",
+        "name": "about",
+        "icon": "mdi-information-variant",
+        "selector": [
+          "#settings-doc-tab-about"
+        ],
+        "navigate": "/settings?tab=about",
+        "children": [
+          {
+            "id": "settings.license",
+            "name": "License",
+            "icon": "mdi-key-outline",
+            "selector": [
+              "#settings-doc-tab-about",
+              "#settings-registration"
+            ],
+            "navigate": "/settings?tab=about&section=registration"
+          }
+        ]
+      }
+    ]
+  }
 ]
 
 export default docs

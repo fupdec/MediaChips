@@ -4,7 +4,8 @@
       <v-tab value="cloud" :disabled="busy" prepend-icon="mdi-cloud-outline">{{ tr('Облако', 'Cloud') }}</v-tab>
       <v-tab value="nas" :disabled="busy" prepend-icon="mdi-server-network-outline">{{ t('nas.title') }}</v-tab>
     </v-tabs>
-    <div v-show="provider === 'cloud'" class="sources-panel__cloud-picker">
+    <div :id="embedded ? undefined : 'settings-google-drive'" v-show="provider === 'cloud'">
+    <div class="sources-panel__cloud-picker">
       <v-select :model-value="selectedAccount" :items="cloudAccounts" :placeholder="tr('Новый аккаунт', 'New account')" :aria-label="tr('Облачный аккаунт', 'Cloud account')" :disabled="busy" variant="outlined" rounded="lg" density="compact" hide-details @update:model-value="selectAccount">
         <template #selection="{item}">
           <v-icon :icon="item.raw.icon" size="20" class="mr-2" />
@@ -28,7 +29,8 @@
         </template>
       </div>
     </div>
-    <div :id="embedded ? undefined : 'settings-google-drive'" v-show="provider === 'cloud' && driveSelected"><GoogleDriveSource ref="drive" :actions-target="accountActions" unified @started="emit('started')" embedded :extensions="extensions" v-model:import-options="importOptions" /></div>
+    <div v-show="driveSelected"><GoogleDriveSource ref="drive" :actions-target="accountActions" unified @started="emit('started')" embedded :extensions="extensions" v-model:import-options="importOptions" /></div>
+    </div>
     <div :id="embedded ? undefined : 'settings-nas'" v-if="visitedNas" v-show="provider === 'nas'"><NasSources ref="nas" @started="emit('started')" embedded :extensions="extensions" v-model:import-options="importOptions" /></div>
     <CloudAccountsSource v-show="provider === 'cloud' && !driveSelected" unified ref="cloud" :extensions="extensions" :import-options="importOptions" @started="emit('started')" />
     <MediaImportOptions v-if="!embedded" v-model="importOptions" :disabled="busy" />
@@ -40,6 +42,7 @@
 </template>
 <script setup lang="ts">
 import {computed, nextTick, ref, watch} from 'vue'
+import {useRoute} from 'vue-router'
 import {useRememberedTab} from '@/composable/useRememberedTab'
 import {useI18n} from 'vue-i18n'
 import CloudAccountsSource from './CloudAccountsSource.vue'
@@ -57,12 +60,26 @@ const {tab: provider, restore: restoreProviderTab} = useRememberedTab('mediachip
 if (provider.value === 'drive') provider.value = 'cloud'
 watch(provider, value => { if (value === 'drive') { driveSelected.value = true; provider.value = 'cloud' } }, {flush: 'sync'})
 const cloud = ref<InstanceType<typeof CloudAccountsSource>>()
+const route = useRoute()
+watch(() => route.query.section, section => {
+  if (section === 'nas' || section === 'settings-nas') provider.value = 'nas'
+  if (section === 'google_drive' || section === 'settings-google-drive') {
+    driveSelected.value = true
+    provider.value = 'cloud'
+  }
+}, {immediate: false})
 const visitedNas = ref(provider.value === 'nas')
 watch(provider, value => { if (value === 'nas') visitedNas.value = true })
 const drive = ref<InstanceType<typeof GoogleDriveSource>>()
 const nas = ref<InstanceType<typeof NasSources>>()
 const accountActions = ref<HTMLElement>()
 const driveSelected = ref(true)
+if (route.query.section === 'nas' || route.query.section === 'settings-nas') {
+  provider.value = 'nas'
+  visitedNas.value = true
+} else if (route.query.section === 'google_drive' || route.query.section === 'settings-google-drive') {
+  provider.value = 'cloud'
+}
 const selectedAccount = computed(() => driveSelected.value ? 'drive' : cloud.value?.accountId)
 const serviceStyle = (service: string) => service === 'dropbox' ? {icon: 'mdi-dropbox', color: '#0061ff', title: 'Dropbox'}
   : service === 'onedrive' ? {icon: 'mdi-microsoft-onedrive', color: '#0078d4', title: 'OneDrive'}

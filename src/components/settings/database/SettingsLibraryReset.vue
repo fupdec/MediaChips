@@ -105,6 +105,16 @@
                   {{ formatCount(tagCount(category.id)) }}
                 </div>
               </div>
+              <div
+                v-if="tagShare(category.id) != null"
+                class="library-reset__bar"
+                aria-hidden="true"
+              >
+                <div
+                  class="library-reset__bar-fill"
+                  :style="{width: `${tagShare(category.id)}%`}"
+                />
+              </div>
             </div>
             <v-btn
               color="error"
@@ -258,6 +268,12 @@ function mediaShare(id: number | string | undefined): number | null {
   const size = mediaCount(id)
   if (countsLoading.value || total <= 0) return null
   return Math.max(0, Math.min(100, (size / total) * 100))
+}
+
+function tagShare(id: number | string | undefined): number | null {
+  const total = counts.value.tagsTotal
+  if (countsLoading.value || total <= 0) return null
+  return Math.max(0, Math.min(100, (tagCount(id) / total) * 100))
 }
 
 function formatCount(value: number) {

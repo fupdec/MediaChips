@@ -1,6 +1,6 @@
 # Change history and undo
 
-Open **History** in the top toolbar or **Settings → Database → Change history and undo**. Card and tag editors also open history filtered to that item; save or discard any pending edits first.
+Open **Settings → Data & backups → Change history and undo**. An optional top-bar shortcut can be enabled under **Appearance → Navigation → Show change history in the top bar**; it is hidden by default and uses the same theme-dependent icon color as adjacent buttons. Card and tag editors also open history filtered to that item; save or discard any pending edits first.
 
 Each operation shows its time, server source, affected items and fields. Expand it to compare previous and new values. **Undo operation** restores every remaining field in that operation, including fields on other cards when opening history from one card. **Restore field** restores only the selected item's field. Restoration is itself recorded and can be undone.
 

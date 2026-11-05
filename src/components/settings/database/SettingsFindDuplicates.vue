@@ -1,73 +1,80 @@
 <template>
-  <SettingsHealthTask id="settings-find-duplicates" status="idle">
-  <div class="pb-1">
+  <SettingsHealthTask id="settings-find-duplicates" status="idle" class="duplicates-section">
     <SettingsHealthSectionHeader
       :title="t('settings_labels.database.find_duplicates')"
       icon="content-duplicate"
-      :hint="t('settings_labels.database.find_duplicates_hint')"
+      :hint="t('duplicateSimilarity.sectionHint')"
       status="idle"
     />
 
-    <SettingsSwitch
-      option="copyVerificationSha256"
-      :title="t('copies.full_verification')"
-      :hint="t('copies.full_verification_hint')"
-      class="mb-4"
-      data-testid="copy-sha256-setting"
-    />
+    <section class="duplicates-panel duplicates-search">
+      <div class="duplicates-panel__heading">
+        <span class="duplicates-panel__icon"><v-icon size="20">mdi-magnify</v-icon></span>
+        <div>
+          <h3>{{ t('duplicateSimilarity.searchTitle') }}</h3>
+          <p>{{ t('duplicateSimilarity.searchHint') }}</p>
+        </div>
+      </div>
+      <div class="duplicates-search__controls">
+        <v-select v-model="mediaTypeId" :items="mediaTypeItems" item-title="title" item-value="value"
+          :label="t('settings_labels.database.find_duplicates_media_type')"
+          variant="outlined" density="compact" rounded="lg" hide-details />
+        <v-select v-model="duplicatesBy" :items="modeItems" item-title="title" item-value="value"
+          :label="t('settings_labels.database.find_duplicates_mode')"
+          variant="outlined" density="compact" rounded="lg" hide-details />
+        <v-btn color="primary" rounded="lg" variant="flat" height="40" append-icon="mdi-arrow-right" :disabled="!mediaTypeId || !duplicatesBy" @click="openReview">
+          {{ t('settings_labels.database.find_duplicates_open') }}
+        </v-btn>
+      </div>
+    </section>
 
-    <SettingsSwitch option="copyDiscoveryOnReconnect" :title="t('copyDiscovery.auto_reconnect')" :hint="t('copyDiscovery.auto_reconnect_hint')" data-testid="copy-auto-reconnect" />
-    <SettingsSwitch option="copyDiscoveryOnImport" :title="t('copyDiscovery.auto_import')" :hint="t('copyDiscovery.auto_import_hint')" data-testid="copy-auto-import" />
-    <SettingsSwitch option="copyDiscoveryOnFolderUpdate" :title="t('copyDiscovery.auto_folders')" :hint="t('copyDiscovery.auto_folders_hint')" data-testid="copy-auto-folders" />
-    <MediaCopyDiscovery :show-results="false" collapse-history />
+    <SettingsDuplicateSimilarity ref="similaritySettings" />
 
-    <v-select
-      v-model="mediaTypeId"
-      :items="mediaTypeItems"
-      item-title="title"
-      item-value="value"
-      :label="t('settings_labels.database.find_duplicates_media_type')"
-      variant="outlined"
-      density="compact"
-      rounded="lg"
-      hide-details
-      class="mb-3"
-      style="max-width: 360px;"
-    />
+    <section class="duplicates-panel">
+      <div class="duplicates-panel__heading">
+        <span class="duplicates-panel__icon"><v-icon size="20">mdi-shield-check-outline</v-icon></span>
+        <div>
+          <h3>{{ t('duplicateSimilarity.verificationTitle') }}</h3>
+          <p>{{ t('duplicateSimilarity.verificationHint') }}</p>
+        </div>
+      </div>
+      <SettingsSwitch option="copyVerificationSha256" :title="t('copies.full_verification')"
+        :hint="t('duplicateSimilarity.shaHint')" data-testid="copy-sha256-setting" class="duplicates-setting" />
+    </section>
 
-    <v-select
-      v-model="duplicatesBy"
-      :items="modeItems"
-      item-title="title"
-      item-value="value"
-      :label="t('settings_labels.database.find_duplicates_mode')"
-      variant="outlined"
-      density="compact"
-      rounded="lg"
-      hide-details
-      class="mb-4"
-      style="max-width: 360px;"
-    />
+    <section class="duplicates-panel">
+      <div class="duplicates-panel__heading">
+        <span class="duplicates-panel__icon"><v-icon size="20">mdi-sync</v-icon></span>
+        <div>
+          <h3>{{ t('duplicateSimilarity.discoveryTitle') }}</h3>
+          <p>{{ t('duplicateSimilarity.discoveryHint') }}</p>
+        </div>
+      </div>
+      <div class="duplicates-automation">
+        <SettingsSwitch option="copyDiscoveryOnImport" :title="t('duplicateSimilarity.onImport')"
+          :hint="t('duplicateSimilarity.onImportHint')" data-testid="copy-auto-import" class="duplicates-setting" />
+        <SettingsSwitch option="copyDiscoveryOnFolderUpdate" :title="t('duplicateSimilarity.onFolder')"
+          :hint="t('duplicateSimilarity.onFolderHint')" data-testid="copy-auto-folders" class="duplicates-setting" />
+        <SettingsSwitch option="copyDiscoveryOnReconnect" :title="t('duplicateSimilarity.onReconnect')"
+          :hint="t('duplicateSimilarity.onReconnectHint')" data-testid="copy-auto-reconnect" class="duplicates-setting" />
+      </div>
+    </section>
 
-    <v-btn
-      color="primary"
-      rounded
-      variant="flat"
-      class="pr-4"
-      :disabled="!mediaTypeId || !duplicatesBy"
-      @click="openReview"
-    >
-      <v-icon
-        icon="mdi-view-grid-outline"
-        start
-      />
-      {{ t('settings_labels.database.find_duplicates_open') }}
-    </v-btn>
-  </div>
+    <section class="duplicates-panel duplicates-folders">
+      <div class="duplicates-panel__heading">
+        <span class="duplicates-panel__icon"><v-icon size="20">mdi-folder-search-outline</v-icon></span>
+        <div>
+          <h3>{{ t('duplicateSimilarity.foldersTitle') }}</h3>
+          <p>{{ t('duplicateSimilarity.foldersHint') }}</p>
+        </div>
+      </div>
+      <MediaCopyDiscovery :show-heading="false" :show-results="false" collapse-history />
+    </section>
   </SettingsHealthTask>
 </template>
 
 <script setup lang="ts">
+import SettingsDuplicateSimilarity from './SettingsDuplicateSimilarity.vue'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
 import MediaCopyDiscovery from '@/components/items/MediaCopyDiscovery.vue'
 import {computed, ref, watch} from 'vue'
@@ -87,7 +94,8 @@ const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
 
 const mediaTypeId = ref<number | null>(getDefaultMediaTypeId(appStore.mediaTypes))
-const duplicatesBy = ref('filesize')
+const duplicatesBy = ref('similarity')
+const similaritySettings = ref<InstanceType<typeof SettingsDuplicateSimilarity> | null>(null)
 
 const mediaTypeItems = computed(() =>
   (appStore.mediaTypes || []).map((item) => ({
@@ -101,10 +109,10 @@ const selectedMediaType = computed(() =>
 )
 
 const modeItems = computed(() =>
-  getDuplicateMenuModes(selectedMediaType.value).map((mode) => ({
+  [{value: 'similarity', title: t('duplicateSimilarity.title')}, ...getDuplicateMenuModes(selectedMediaType.value).map((mode) => ({
     value: mode.value,
     title: t(mode.labelKey),
-  })),
+  }))],
 )
 
 watch(
@@ -121,7 +129,8 @@ watch(
   {immediate: true},
 )
 
-function openReview() {
+async function openReview() {
+  if (!await similaritySettings.value?.save()) return
   if (!mediaTypeId.value || !duplicatesBy.value) return
   dialogsStore.openDuplicateReview({
     mediaTypeId: Number(mediaTypeId.value),
@@ -129,3 +138,30 @@ function openReview() {
   })
 }
 </script>
+
+<style scoped>
+.duplicates-section { background: transparent; border: 0; border-radius: 0; }
+.duplicates-section :deep(.health-task__rail) { display: none; }
+.duplicates-section :deep(.health-task__body) { padding: 0; }
+.duplicates-section :deep(.health-section-header) { margin: 4px 0 22px; }
+.duplicates-panel { padding: 20px; margin-bottom: 16px; border: 1px solid rgba(var(--v-theme-on-surface), .09); border-radius: 18px; background: rgb(var(--v-theme-surface)); }
+.duplicates-panel:last-child { margin-bottom: 0; }
+.duplicates-panel__heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+.duplicates-panel__icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .08); }
+.duplicates-panel__heading h3 { font-size: .9375rem; font-weight: 600; line-height: 1.5; }
+.duplicates-panel__heading p { margin: 3px 0 0; font-size: .8125rem; line-height: 1.5; color: rgba(var(--v-theme-on-surface), .6); }
+.duplicates-search__controls { display: grid; grid-template-columns: 1fr 1.15fr; gap: 12px; align-items: center; }
+.duplicates-search__controls > .v-btn { grid-column: 1 / -1; justify-self: end; }
+.duplicates-setting :deep(.v-selection-control) { align-items: flex-start; }
+.duplicates-setting :deep(.v-label) { margin-left: 8px !important; }
+.duplicates-setting :deep(.v-input__details) { display: none; }
+.duplicates-automation > :not(:last-child) { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), .06); }
+.duplicates-folders :deep(.copy-discovery) { margin: 0; }
+.duplicates-folders :deep(.v-textarea textarea) { font-family: monospace; font-size: .8125rem; line-height: 1.6; }
+.duplicates-folders :deep(.copy-discovery__job) { border-color: rgba(var(--v-theme-on-surface), .07); }
+@media (max-width: 600px) {
+  .duplicates-panel { padding: 16px; }
+  .duplicates-search__controls { grid-template-columns: minmax(0, 1fr); }
+  .duplicates-search__controls > .v-btn { justify-self: stretch; }
+}
+</style>

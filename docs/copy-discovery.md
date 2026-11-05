@@ -1,6 +1,6 @@
 # Background discovery of existing copies
 
-Open **Settings → Database & maintenance → Find duplicates → Find and link file
+Open **Settings → Processing & maintenance → Find duplicates → Find and link file
 copies**, or expand **File copies** in a media card. Enter one server folder or
 file path per line and start the background search. A card-level search targets
 that card. The settings search considers every active card, across media types.

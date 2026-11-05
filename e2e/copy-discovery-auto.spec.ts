@@ -34,6 +34,7 @@ test('persists automatic trigger switches and identifies why a job started', asy
   await page.reload(); await waitForAppShell(page)
   await expect(page.getByTestId('copy-auto-import').locator('input[type="checkbox"]')).not.toBeChecked()
   await expect(page.getByTestId('copy-auto-reconnect').locator('input[type="checkbox"]')).toBeChecked()
+  await page.getByTestId('copy-discovery').locator('.copy-discovery__group > summary').click()
   await expect(page.getByTestId('copy-discovery').getByText(/^(After import|После импорта)$/)).toBeVisible()
 })
 

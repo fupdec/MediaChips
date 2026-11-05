@@ -628,7 +628,8 @@ header {
 
     .item-hover-card__content {
       min-height: 0;
-      overflow: auto;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
   }
 }

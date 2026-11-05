@@ -30,9 +30,6 @@
         <span>{{ formatTotalSize }}</span>
       </div>
 
-      <div class="databases__toolbar-actions">
-        <SettingsBackups/>
-      </div>
     </div>
 
     <div class="databases__list">
@@ -240,7 +237,6 @@ import {useDialogsStore} from '@/stores/dialogs'
 import type { DatabaseEntry } from '@/types/settings'
 import type {VFormInstance} from '@/types/vue'
 
-import SettingsBackups from '@/components/settings/database/SettingsBackups.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'

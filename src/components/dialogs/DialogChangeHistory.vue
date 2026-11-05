@@ -1,10 +1,10 @@
 <template>
   <slot name="activator" :open="open">
-    <v-btn prepend-icon="mdi-history" variant="tonal" :disabled="disabled" @click="open">{{ t('change_history.title') }}</v-btn>
+    <v-btn class="history-trigger" prepend-icon="mdi-history" append-icon="mdi-chevron-right" variant="tonal" color="primary" rounded="lg" :disabled="disabled" @click="open">{{ t('change_history.title') }}</v-btn>
   </slot>
   <v-dialog v-model="visible" :aria-label="t('change_history.title')" class="change-history-dialog" max-width="1040" :persistent="busy" scrollable>
-    <v-card class="operation-dialog" rounded="xl">
-      <DialogHeader :header="t('change_history.title')" icon="history" compact :closable="!busy" @close="visible = false" />
+    <v-card class="operation-dialog history-dialog" rounded="lg">
+      <DialogHeader :header="t('change_history.title')" icon="history" :closable="!busy" @close="visible = false" />
       <v-card-text class="operation-body">
         <div class="operation-hero">
           <div class="operation-hero__text">
@@ -182,3 +182,84 @@ async function restore(fieldId?: number) {
 </script>
 
 <style scoped lang="scss" src="@/assets/styles/operation-dialog.scss"></style>
+
+<style scoped lang="scss">
+.history-trigger {
+  min-height: 40px;
+  padding-inline: 14px;
+  border: 1px solid rgba(var(--v-theme-primary), .14);
+  font-size: .8125rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  :deep(.v-btn__prepend) { margin-inline-end: 10px; }
+  :deep(.v-btn__append) { margin-inline-start: 16px; opacity: .6; }
+}
+.history-dialog {
+  --operation-border: rgba(var(--v-theme-on-surface), .1);
+  --operation-muted: rgba(var(--v-theme-on-surface), .6);
+  background: rgb(var(--v-theme-surface));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .24);
+
+  :deep(.dialog-header) {
+    background: transparent;
+    box-shadow: none;
+    border-bottom: 1px solid var(--operation-border);
+  }
+  :deep(.dialog-header .content) { min-height: 52px; padding: 8px 20px; }
+  :deep(.dialog-header .headline__title) { font-size: 1rem; font-weight: 600; }
+  :deep(.dialog-header__close) { width: 32px; height: 32px; }
+  .operation-body { padding: 20px !important; }
+  .operation-hero { padding: 0 0 16px; margin-bottom: 16px; border: 0; border-bottom: 1px solid var(--operation-border); border-radius: 0; background: transparent; }
+  .operation-hero p { font-size: .8125rem; }
+  .v-btn { min-height: 32px; font-size: .75rem; }
+  .history-layout { grid-template-columns: 248px minmax(0, 1fr); gap: 24px; }
+  .operation-section-heading { margin-bottom: 12px; }
+  .operation-section-heading h3 { font-size: .8125rem; font-weight: 600; }
+  .history-timeline { max-height: min(480px, 55vh); padding-right: 4px; scrollbar-width: thin; }
+  .history-operation {
+    padding: 12px !important;
+    margin-bottom: 6px;
+    border-color: transparent;
+    border-radius: 8px !important;
+    &__top { font-size: .6875rem; gap: 6px; }
+    &__title { font-size: .8125rem; margin: 6px 0 3px; }
+    &__summary { font-size: .75rem; }
+    &.v-list-item--active { border-color: rgba(var(--v-theme-primary), .22); }
+  }
+  .history-detail { padding-left: 24px; }
+  .history-detail__header { margin-bottom: 16px; }
+  .operation-eyebrow { font-size: .6875rem; margin-bottom: 4px; }
+  .history-detail h2 { display: block; font-size: 1.125rem; font-weight: 600; margin: 0 0 4px; }
+  .history-detail__date { font-size: .75rem; }
+  .history-detail__summary { gap: 8px; margin-bottom: 18px; }
+  .history-stat { border: 0; border-radius: 6px; padding: 6px 8px; background: rgba(var(--v-theme-on-surface), .045); }
+  .history-stat strong { font-weight: 600; }
+  .history-undo { align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+  .history-undo__hint { font-size: .75rem; line-height: 1.6; }
+  .history-field { margin-bottom: 12px; border-radius: 10px; background: rgb(var(--v-theme-surface)); }
+  .history-field__header { padding: 12px; gap: 10px; }
+  .history-field__entity-icon { align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: rgba(var(--v-theme-on-surface), .045); }
+  .history-field h3 { display: block; margin: 0 0 3px; font-size: .8125rem; font-weight: 600; }
+  .history-field__name > span { font-size: .6875rem; }
+  .history-values { padding: 0 12px 12px; gap: 10px; grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr); }
+  .history-value-panel { padding: 10px 12px; border-radius: 8px; }
+  .history-value-label { font-size: .6875rem; margin-bottom: 8px; }
+  .history-value { font-size: .8125rem; line-height: 1.6; }
+  .operation-footer { padding: 12px 20px; background: transparent; font-size: .6875rem; }
+  .history-empty { min-height: 260px; }
+}
+@media (max-width: 700px) {
+  .history-dialog {
+    .operation-body { padding: 14px !important; }
+    :deep(.dialog-header .content) { padding-inline: 14px; }
+    .history-layout { grid-template-columns: 1fr; gap: 16px; }
+    .history-timeline { max-height: 180px; }
+    .history-detail { padding: 16px 0 0; }
+    .history-field__header > .v-btn { margin-left: auto; }
+    .history-values { grid-template-columns: minmax(0, 1fr); }
+    .history-values__arrow { justify-self: center; transform: rotate(90deg); }
+    .operation-footer { padding: 12px 14px; }
+  }
+}
+</style>

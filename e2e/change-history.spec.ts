@@ -49,6 +49,11 @@ test('reviews a bulk operation, handles conflict and restores a single field', a
 
 test('opens history from the global toolbar and shows the empty state', async ({page}) => {
   await disableFeatureHints(page)
+  await page.route('**/api/Setting', async route => {
+    const response = await route.fetch()
+    const rows = await response.json() as Array<{option: string; value: string}>
+    await route.fulfill({response, json: [...rows.filter(row => row.option !== 'showHistoryInAppBar'), {option: 'showHistoryInAppBar', value: '1'}]})
+  })
   await page.route('**/api/change-history**', route => route.fulfill({json: {items: [], hasMore: false}}))
   await page.goto('/settings?tab=general')
   await waitForAppShell(page)

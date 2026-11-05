@@ -280,3 +280,5 @@ Community builds use **ad-hoc signing**. First launch: right-click → **Open**.
 MediaChips is licensed under the [GNU General Public License v3.0](./LICENSE).
 
 Copyright © 2020–2026 [MediaChips contributors](https://github.com/fupdec/mediaChips/graphs/contributors)
+
+See [Settings navigation](docs/settings.md) for sections, search and compatible section links.

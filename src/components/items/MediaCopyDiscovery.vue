@@ -1,7 +1,7 @@
 <template>
   <section class="copy-discovery" data-testid="copy-discovery">
-    <h3 class="text-subtitle-2 mb-2">{{ t('copyDiscovery.title') }}</h3>
-    <p class="text-caption mb-3">{{ t('copyDiscovery.hint') }}</p>
+    <h3 v-if="showHeading" class="text-subtitle-2 mb-2">{{ t('copyDiscovery.title') }}</h3>
+    <p v-if="showHeading" class="text-caption mb-3">{{ t('copyDiscovery.hint') }}</p>
     <v-textarea v-model="rootsText" :label="t('copyDiscovery.folders')" :hint="t('copyDiscovery.folders_hint')"
       persistent-hint rows="2" variant="outlined" density="compact" :disabled="pending" />
     <v-btn class="my-3" variant="tonal" color="primary" :disabled="!rootsText.trim() || pending" :loading="pending" @click="start">
@@ -57,7 +57,8 @@ import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {copyDiscoveryApi as api} from '@/services/typedApi/copyDiscovery'
 import type {CopyDiscoveryJob, CopyDiscoveryInput} from '@shared/copyDiscovery'
-const props = withDefaults(defineProps<{mediaId?: number; showResults?: boolean; collapseHistory?: boolean}>(), {
+const props = withDefaults(defineProps<{mediaId?: number; showHeading?: boolean; showResults?: boolean; collapseHistory?: boolean}>(), {
+  showHeading: true,
   showResults: true,
   collapseHistory: false,
 })

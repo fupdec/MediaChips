@@ -201,9 +201,11 @@
           <GlobalSearch/>
         </div>
         <MediaTrash/>
-        <DialogChangeHistory>
+        <DialogChangeHistory v-if="settingsStore.showHistoryInAppBar === '1'">
           <template #activator="{open}">
-            <v-btn icon="mdi-history" :title="t('change_history.title')" :aria-label="t('change_history.title')" @click="open" />
+            <v-btn class="history-toolbar-trigger" icon :title="t('change_history.title')" :aria-label="t('change_history.title')" @click="open">
+              <v-icon>mdi-history</v-icon>
+            </v-btn>
           </template>
         </DialogChangeHistory>
         <Documentation/>
@@ -232,6 +234,7 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useRegistrationStore} from '@/stores/registration'
 import {useAppShell} from '@/composable/appShell'
+import {useSettingsStore} from '@/stores/settings'
 import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
 import {FREE_LIBRARY_CAP} from '@/utils/freeLibraryCap'
 import {useI18n} from 'vue-i18n'
@@ -265,6 +268,7 @@ const Notifications = defineAsyncComponent(() => import('@/components/app/appbar
 const DialogTabEditing = defineAsyncComponent(() => import('@/components/dialogs/DialogTabEditing.vue'))
 
 /* Stores */
+const settingsStore = useSettingsStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const app = useAppStore()

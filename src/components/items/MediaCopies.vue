@@ -42,8 +42,8 @@
                       {{ t('sources.catalog.states.' + copy.availability) }}
                     </span>
                     <span class="media-copies__verification">
-                      <v-icon size="14" :color="copy.verified ? 'success' : undefined" aria-hidden="true">{{ copy.verified ? 'mdi-check-decagram-outline' : 'mdi-shield-outline' }}</v-icon>
-                      {{ t(copy.verified ? copy.verificationMethod ? 'copies.verified_' + copy.verificationMethod : 'copies.verified' : 'copies.unverified') }}
+                      <v-icon size="14" :color="copy.relationship === 'version' ? 'info' : copy.verified ? 'success' : undefined" aria-hidden="true">{{ copy.relationship === 'version' ? 'mdi-file-compare' : copy.verified ? 'mdi-check-decagram-outline' : 'mdi-shield-outline' }}</v-icon>
+                      {{ t(copy.relationship === 'version' ? 'duplicateSimilarity.version' : copy.verified ? copy.verificationMethod ? 'copies.verified_' + copy.verificationMethod : 'copies.verified' : 'copies.unverified') }}
                     </span>
                   </div>
                 </div>

@@ -153,6 +153,8 @@ export type SettingsState = {
   library_nav_config: string
   /** '1' shows Trash in the app bar and sidebar / bottom navigation. */
   showTrashInNavigation: string
+  /** Show the optional change-history button in the app bar. */
+  showHistoryInAppBar: string
   numberOfPagesLimit: string
   gapSize: string
   /** Slideshow step interval in seconds for the image viewer. */
@@ -223,6 +225,7 @@ export type SettingsState = {
   copyDiscoveryOnImport: string
   copyDiscoveryOnFolderUpdate: string
   copyDiscoveryOnReconnect: string
+  duplicateSimilarityPolicy: string
   copyVerificationSha256: string
   transcodeUnsupportedFormats: string
   transcodeMaxHeight: string
@@ -325,6 +328,7 @@ export const defaultSettingsState = (): SettingsState => ({
   showMarkersInNavigation: '1',
   library_nav_config: '',
   showTrashInNavigation: '1',
+  showHistoryInAppBar: '0',
   numberOfPagesLimit: '7',
   gapSize: '2',
   imageSlideshowInterval: '4',
@@ -383,6 +387,7 @@ export const defaultSettingsState = (): SettingsState => ({
   copyDiscoveryOnImport: '1',
   copyDiscoveryOnFolderUpdate: '1',
   copyDiscoveryOnReconnect: '1',
+  duplicateSimilarityPolicy: '',
   copyVerificationSha256: '0',
   transcodeUnsupportedFormats: '1',
   transcodeMaxHeight: '1080',

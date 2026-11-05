@@ -91,6 +91,12 @@ onMounted(loadCacheStats)
       :disabled="SETTINGS.isPlayVideoInSystemPlayer === '1'"
     />
 
+      <settings-switch
+        option="count_number_of_views"
+        :title="t('settings_labels.general.count_views')"
+        :hint="t('settings_labels.general.count_views_hint')"
+      />
+
     <settings-switch
       option="transcodeUnsupportedFormats"
       :title="$t('settings_labels.video_player.transcode_unsupported')"
@@ -101,12 +107,12 @@ onMounted(loadCacheStats)
     <v-select
       :model-value="SETTINGS.conversionQuality"
       :items="[
-        {title: 'Economy — smaller file', value: 'economy'},
-        {title: 'Balanced — recommended', value: 'balanced'},
-        {title: 'High quality — larger file', value: 'quality'},
+        {title: t('conversionSettings.economy'), value: 'economy'},
+        {title: t('conversionSettings.balanced'), value: 'balanced'},
+        {title: t('conversionSettings.high'), value: 'quality'},
       ]"
-      label="Conversion quality"
-      hint="Controls the size and visual quality of permanent conversions."
+      :label="t('conversionSettings.quality')"
+      :hint="t('conversionSettings.quality_hint')"
       persistent-hint
       density="comfortable"
       class="mt-4"
@@ -116,14 +122,14 @@ onMounted(loadCacheStats)
     <v-select
       :model-value="SETTINGS.conversionResolution"
       :items="[
-        {title: 'Original', value: 'original'},
-        {title: '4K maximum', value: '2160'},
-        {title: '1080p maximum', value: '1080'},
-        {title: '720p maximum', value: '720'},
-        {title: '480p maximum', value: '480'},
+        {title: t('conversionSettings.original'), value: 'original'},
+        {title: t('conversionSettings.max_4k'), value: '2160'},
+        {title: t('conversionSettings.max_1080'), value: '1080'},
+        {title: t('conversionSettings.max_720'), value: '720'},
+        {title: t('conversionSettings.max_480'), value: '480'},
       ]"
-      label="Maximum conversion resolution"
-      hint="A smaller source is never enlarged."
+      :label="t('conversionSettings.resolution')"
+      :hint="t('conversionSettings.resolution_hint')"
       persistent-hint
       density="comfortable"
       @update:model-value="(value) => setOption(String(value), 'conversionResolution')"

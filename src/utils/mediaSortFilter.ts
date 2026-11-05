@@ -461,6 +461,7 @@ export function getDuplicatesModeLabelKey(
 ) {
   const key = getDuplicatesGroupKey(mediaType, override)
   const within = Boolean(options.withinFilter)
+  if (key === 'similarity') return 'duplicateSimilarity.title'
   if (key === 'visualHash' || key === 'visual' || key === 'visualHashNear') {
     return within
       ? 'filters.show_only_duplicates_by_visual_within_filter'
