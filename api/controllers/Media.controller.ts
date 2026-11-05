@@ -274,6 +274,9 @@ export default function (db: ApiDb) {
         survivorId: Number(body.survivorId),
         sourceIds: Array.isArray(body.sourceIds) ? body.sourceIds : [],
         withFile: Boolean(body.with_file),
+        similarity: body.similarity === true,
+        confirmFileDeletion: body.confirmFileDeletion === true,
+        deleteSourceIds: body.deleteSourceIds,
         signal: createRequestAbortSignal(req, res),
       })
       sendOk(res, result)

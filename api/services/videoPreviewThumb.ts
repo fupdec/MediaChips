@@ -1,3 +1,4 @@
+import {upsertThumbnailVisualHash} from './visualHashBackfill'
 import {isRemoteMediaPath} from '../../shared/remoteMedia'
 import type { ApiDb } from '../types/db'
 import fs from 'fs'
@@ -164,7 +165,9 @@ async function generateVideoPreviewThumb(
     throw error
   }
 
-  return isUsableVideoThumbFile(outputPath) ? outputPath : null
+  if (!isUsableVideoThumbFile(outputPath)) return null
+  await upsertThumbnailVisualHash(db, mediaId).catch(() => { /* Backfill can retry hashing. */ })
+  return outputPath
 }
 
 export async function ensureVideoPreviewThumb(

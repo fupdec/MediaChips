@@ -312,6 +312,7 @@ export interface MergeTagsResult {
 }
 
 export interface MergeMediaResult {
+  fileWarnings?: string[]
   survivor: {
     id: number
     path?: string | null
@@ -332,8 +333,20 @@ export interface MergeMediaResult {
 
 export interface MediaDuplicateGroupsResult {
   groups: Array<{
+    originalId?: number
+    similarityItems?: import('../duplicateSimilarity').SimilarityItem[]
+    similarity?: import('../duplicateSimilarity').SimilarityEvidence[]
     key: string
     itemIds: number[]
+    confidence?: 'confident' | 'possible'
+    matches?: Array<{
+      ids: [number, number]
+      confidence: 'confident' | 'possible'
+      reason: 'grid' | 'tiles' | 'thumbnails' | 'thumbnailFrame'
+      matchingTiles?: number
+      thumbnailId?: number
+      frameIndex?: number
+    }>
   }>
 }
 

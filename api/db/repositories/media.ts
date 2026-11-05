@@ -73,7 +73,7 @@ const isActiveMedia = or(isNull(media.deletedAt), eq(media.deletedAt, ''))
 
 const MEDIA_MUTABLE_COLUMNS = new Set([
   'path', 'basename', 'name', 'ext', 'filesize', 'contentHash', 'oshash', 'visualHash',
-  'visualHashTiles', 'rating', 'favorite', 'bookmark', 'views', 'oldId', 'viewedAt',
+  'visualHashTiles', 'visualHashThumbnail', 'rating', 'favorite', 'bookmark', 'views', 'oldId', 'viewedAt',
   'mediaCreatedAt', 'deletedAt', 'trashOriginalPath', 'trashPurgeFile', 'mediaTypeId',
 ])
 

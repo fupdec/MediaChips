@@ -1,3 +1,4 @@
+import {upsertThumbnailVisualHash} from './visualHashBackfill'
 import {isNasMediaPath} from '../../shared/remoteMedia'
 import fs from 'fs/promises'
 import {constants} from 'fs'
@@ -79,6 +80,7 @@ export async function ensureRemoteVideoThumbnail(db: ApiDb, mediaId: number): Pr
       // Preserve a custom poster saved while the remote image was loading.
       try { await fs.copyFile(temporary, destination, constants.COPYFILE_EXCL) }
       catch (err) { if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err }
+      await upsertThumbnailVisualHash(pinned.db, mediaId).catch(() => {})
       return destination
     } finally { await fs.rm(temporary, {force: true}) }
   }).catch(() => null).then(result => {

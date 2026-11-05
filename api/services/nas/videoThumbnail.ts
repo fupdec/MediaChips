@@ -1,3 +1,4 @@
+import {upsertThumbnailVisualHash} from '../visualHashBackfill'
 import fs from 'fs/promises'
 import path from 'path'
 import {randomUUID} from 'crypto'
@@ -59,6 +60,7 @@ export async function createNasVideoThumbnail(db: ApiDb, id: number, source: str
     if (after.version !== file.version || after.size !== file.size) throw sourceError('source_changed')
     assertCurrent(); signal.throwIfAborted()
     await fs.rename(temporary, destination)
+    await upsertThumbnailVisualHash(current, id).catch(() => {})
     return 'success'
   } finally { input.close(); await fs.rm(temporary, {force: true}) }
 }

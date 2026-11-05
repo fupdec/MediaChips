@@ -1,3 +1,4 @@
+import {upsertThumbnailVisualHash} from '../visualHashBackfill'
 import {runLibraryBackgroundTask} from '../libraryMaintenance'
 import fs from 'fs/promises'
 import path from 'path'
@@ -103,6 +104,7 @@ export function createNasMediaAssetsService(db: ApiDb, options: {
           catch (err) { if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err }
           if (!nasThumbnailVersion(destination)) throw sourceError('invalid_thumbnail')
           thumbnail = 'ready'
+          if (kind === 'video') await upsertThumbnailVisualHash(current, id).catch(() => {})
         } catch (err) {
           assertCurrent(); signal.throwIfAborted()
           if ((err as {code?: string})?.code === 'source_changed') throw err

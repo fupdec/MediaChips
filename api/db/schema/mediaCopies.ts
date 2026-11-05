@@ -8,6 +8,7 @@ export const verifiedMediaCopies = sqliteTable('verifiedMediaCopies', {
   id: text('id').primaryKey(),
   mediaId: integer('mediaId').notNull().references(() => media.id, {onDelete: 'cascade'}),
   path: text('path').notNull(),
+  relationship: text('relationship').$type<'copy' | 'version'>().notNull().default('copy'),
   version: text('version').notNull(),
   sha256: text('sha256').notNull(),
   oshash: text('oshash'),

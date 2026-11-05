@@ -194,8 +194,8 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
             || (stored.oshash && reference.oshash && stored.oshash !== reference.oshash)
             || (stored.sha256 && stored.version !== reference.file.version && reference.verificationMethod !== 'sha256'))) throw sourceError('source_version_changed')
           if (reference.verificationMethod === 'sha256') {
-            const baselines = current.sqlite.prepare("SELECT DISTINCT sha256 FROM verifiedMediaCopies WHERE mediaId = ? AND sha256 != ''").all(id) as {sha256: string}[]
-            if (baselines.some(row => row.sha256 !== reference.sha256)) throw sourceError('copy_content_mismatch')
+            const baselines = current.sqlite.prepare("SELECT DISTINCT sha256 FROM verifiedMediaCopies WHERE mediaId = ? AND sha256 != '' AND relationship = 'copy'").all(id) as {sha256: string}[]
+            if (stored?.relationship !== 'version' && baselines.some(row => row.sha256 !== reference.sha256)) throw sourceError('copy_content_mismatch')
             // Upgrading a sampled row must also agree with its previous sampled evidence.
             if (stored?.oshash && !stored.sha256) {
               const sampled = await fingerprintCopy(current, resource.path, 'oshash', signal, assertCurrent, open)
@@ -203,8 +203,7 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
             }
           }
           read = true
-          if (key(reference) === key(checked)) matches.push({id, path: resource.path, checked: reference})
-          break
+          if (key(reference) === key(checked)) { matches.push({id, path: resource.path, checked: reference}); break }
         } catch (err) { assertCurrent(); if (signal.aborted) throw err }
       }
       if (!read) uncertain.push(id)
@@ -227,10 +226,11 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
       assertCurrent()
       if (owner() || initial !== snapshot()) throw sourceError('media_changed')
       const copyId = randomUUID()
+      const relationship = current.drizzle.select().from(verifiedMediaCopies).where(and(eq(verifiedMediaCopies.mediaId, reference.id), eq(verifiedMediaCopies.path, reference.path))).get()?.relationship || 'copy'
       for (const [value, evidence, id] of [[reference.path, reference.checked, randomUUID()], [item.path, checked, copyId]] as const) {
         const previous = tx.select().from(verifiedMediaCopies).where(and(eq(verifiedMediaCopies.mediaId, reference.id), eq(verifiedMediaCopies.path, value))).get()
         const sha256 = evidence.sha256 || (previous?.version === evidence.file.version ? previous.sha256 : '')
-        const values = {mediaId: reference.id, path: value, version: evidence.file.version,
+        const values = {mediaId: reference.id, relationship, path: value, version: evidence.file.version,
           size: evidence.file.size, sha256, oshash: evidence.oshash || (previous?.version === evidence.file.version ? previous.oshash : null),
           verificationMethod: sha256 ? 'sha256' as const : evidence.verificationMethod,
           contentType: mediaFileContentType(evidence.file.name) || evidence.file.contentType,

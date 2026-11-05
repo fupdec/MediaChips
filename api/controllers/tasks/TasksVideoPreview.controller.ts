@@ -17,12 +17,12 @@ import {
   VIDEO_MARK_HEIGHT,
   VIDEO_MARK_JPEG_QUALITY,
 } from '../../../shared/videoPreview'
-import { upsertVisualHashForMedia } from '../../services/visualHashBackfill'
+import { upsertVisualHashForMedia, upsertThumbnailVisualHash } from '../../services/visualHashBackfill'
 import { upsertClipEmbeddingForMedia } from '../../services/mediaClipEmbeddings'
 import { formatMarkTimestamp } from '../../../shared/markTimestamp'
 import { ensureVideoGrid } from '../../services/videoGrid'
 import { resolveMediaIdFromGridRequest } from '../../services/videoGridRequest'
-import { isUsableVideoThumbFile } from '../../services/videoPreviewThumb'
+import { isUsableVideoThumbFile, parseVideoThumbMediaId } from '../../services/videoPreviewThumb'
 
 export default function createTasksVideoPreviewController(shared: TaskControllerShared) {
   const {db, dbPath, createThumbMiddle, createThumbCustom, getImageMedia} = shared
@@ -45,7 +45,8 @@ export default function createTasksVideoPreviewController(shared: TaskController
         sendBadRequest(res, 'The video does not exist.')
         return
       }
-      sendOk(res, await createThumbMiddle(resolvedInputPath, req.body.id, seekRatio))
+      const result = await createThumbMiddle(resolvedInputPath, req.body.id, seekRatio)
+      sendOk(res, result)
     } catch (e) {
       sendAsClientError(res, e, 'Failed to create video thumbnail')
     }
@@ -80,6 +81,8 @@ export default function createTasksVideoPreviewController(shared: TaskController
         outputPath,
         req.body.width,
       )
+      const thumbnailId = parseVideoThumbMediaId(outputPath)
+      if (thumbnailId) await upsertThumbnailVisualHash(db, thumbnailId).catch(() => {})
       sendOk(res, outputPath)
     } catch (e) {
       sendAsClientError(res, e, 'Failed to create thumbnail')
@@ -188,6 +191,8 @@ export default function createTasksVideoPreviewController(shared: TaskController
         outputPath,
         sizes,
       })
+      const thumbnailId = parseVideoThumbMediaId(outputPath)
+      if (thumbnailId) await upsertThumbnailVisualHash(db, thumbnailId).catch(() => {})
       sendCreated(res, {outputPath: result})
     } catch (e) {
       console.log(e)

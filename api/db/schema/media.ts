@@ -13,6 +13,8 @@ export const media = sqliteTable('media', {
   visualHash: text('visualHash'),
   /** Colon-separated per-tile aHashes from the grid (row-major). */
   visualHashTiles: text('visualHashTiles'),
+  /** Perceptual aHash of the standalone video thumbnail. */
+  visualHashThumbnail: text('visualHashThumbnail'),
   rating: integer('rating').default(0),
   favorite: integer('favorite', {mode: 'boolean'}).default(false),
   bookmark: text('bookmark'),

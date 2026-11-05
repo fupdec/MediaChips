@@ -295,6 +295,20 @@
       "when": 1782897600000,
       "tag": "0041_copy_discovery_automation",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1782901200000,
+      "tag": "0042_visual_thumbnail",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1782904800000,
+      "tag": "0043_copy_relationship",
+      "breakpoints": true
     }
   ]
 }

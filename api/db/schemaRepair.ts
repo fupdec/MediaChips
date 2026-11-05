@@ -41,6 +41,7 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'offlineCopies', column: 'invalidated', definition: 'integer NOT NULL DEFAULT 0'},
   {table: 'copyDiscoveryJobs', column: 'triggers', definition: "text NOT NULL DEFAULT '[]'"},
   {table: 'verifiedMediaCopies', column: 'oshash', definition: 'text'},
+  {table: 'verifiedMediaCopies', column: 'relationship', definition: "text NOT NULL DEFAULT 'copy'"},
   {table: 'verifiedMediaCopies', column: 'verificationMethod', definition: "text NOT NULL DEFAULT 'sha256'"},
   {table: 'sourceConnections', column: 'provider', definition: "text NOT NULL DEFAULT 'nas'"},
   {table: 'mediaLocations', column: 'availability', definition: "text NOT NULL DEFAULT 'unknown'"},
@@ -90,6 +91,7 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'media', column: 'oshash', definition: 'text'},
   {table: 'media', column: 'visualHash', definition: 'text'},
   {table: 'media', column: 'visualHashTiles', definition: 'text'},
+  {table: 'media', column: 'visualHashThumbnail', definition: 'text'},
   {table: 'media', column: 'rating', definition: 'integer DEFAULT 0'},
   {table: 'media', column: 'favorite', definition: 'integer DEFAULT 0'},
   {table: 'media', column: 'bookmark', definition: 'text'},
@@ -241,7 +243,7 @@ const MISSING_TABLE_DDL: Record<string, string> = {
   verifiedMediaCopies: `CREATE TABLE "verifiedMediaCopies" (
     "id" text PRIMARY KEY NOT NULL, "mediaId" integer NOT NULL REFERENCES "media"("id") ON DELETE CASCADE,
     "path" text NOT NULL, "version" text NOT NULL, "sha256" text NOT NULL, "oshash" text,
-    "verificationMethod" text NOT NULL DEFAULT 'sha256', "size" integer NOT NULL,
+    "verificationMethod" text NOT NULL DEFAULT 'sha256', "relationship" text NOT NULL DEFAULT 'copy', "size" integer NOT NULL,
     "contentType" text NOT NULL, "availability" text NOT NULL DEFAULT 'unknown', "verifiedAt" text NOT NULL
   )`,
   mediaCopyPreferences: `CREATE TABLE "mediaCopyPreferences" (

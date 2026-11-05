@@ -60,6 +60,9 @@ export interface MergeMediaPayload {
   survivorId: number
   sourceIds: number[]
   with_file?: boolean
+  similarity?: boolean
+  confirmFileDeletion?: boolean
+  deleteSourceIds?: number[]
 }
 
 export interface MediaDuplicateGroupsPayload {

@@ -1,3 +1,6 @@
+import {listSimilarityGroups} from './duplicateSimilarity'
+import type {SimilarityEvidence} from '../../shared/duplicateSimilarity'
+import type {VisualMatchEvidence} from './visualHashSimilarity'
 import type {ApiDb} from '../types/db'
 import {chunkArray} from '../db/utils/chunk'
 import {queryAll} from '../db/utils/rawQuery'
@@ -7,6 +10,11 @@ import {findVisualNearDuplicateClusters} from './visualHashBackfill'
 export type MediaDuplicateGroup = {
   key: string
   itemIds: number[]
+  confidence?: 'confident' | 'possible'
+  matches?: VisualMatchEvidence[]
+  originalId?: number
+  similarityItems?: import('../../shared/duplicateSimilarity').SimilarityItem[]
+  similarity?: SimilarityEvidence[]
 }
 
 export type ListMediaDuplicateGroupsInput = {
@@ -160,6 +168,8 @@ function listVisualDuplicateGroups(
     .slice(0, MAX_GROUPS)
     .map((cluster, index) => ({
       key: String(cluster.hash || `visual-${index}`),
+      confidence: cluster.confidence,
+      matches: cluster.matches,
       itemIds: cluster.ids.filter((id) => Number.isFinite(id) && id > 0),
     }))
     .filter((group) => group.itemIds.length >= 2)
@@ -171,6 +181,7 @@ export function listMediaDuplicateGroups(
 ): {groups: MediaDuplicateGroup[]} {
   const duplicatesBy = String(input.duplicatesBy || 'filesize')
   const mediaIds = normalizeMediaIds(input.mediaIds)
+  if (duplicatesBy === 'similarity') return {groups: listSimilarityGroups(db, input.mediaTypeId, mediaIds)}
   const groups = isVisualDuplicatesMode(duplicatesBy)
     ? listVisualDuplicateGroups(db, input.mediaTypeId, mediaIds)
     : listExactDuplicateGroups(db, duplicatesBy, input.mediaTypeId, mediaIds)

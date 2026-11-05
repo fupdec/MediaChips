@@ -5,6 +5,8 @@ export type VisualHashHex = string
 export interface VisualFingerprint {
   /** aHash of the full 3×3 grid image. */
   hash: VisualHashHex
+  /** aHash of the standalone thumbnail. */
+  thumbnail?: VisualHashHex | null
   /** Per-tile aHashes in row-major order (9 entries for a standard grid). */
   tiles: VisualHashHex[]
 }
@@ -21,12 +23,15 @@ export interface VisualSimilarityOptions {
 export interface VisualHashRow {
   id: number
   visualHash: string
+  visualHashThumbnail?: string | null
   visualHashTiles?: string | null
 }
 
 export interface VisualDuplicateCluster {
   ids: number[]
   hash: string
+  matches?: VisualMatchEvidence[]
+  confidence?: 'confident' | 'possible'
 }
 
 export const DEFAULT_VISUAL_SIMILARITY: Required<VisualSimilarityOptions> = {
@@ -145,10 +150,136 @@ export function areVisuallySimilar(
   return countMatchingTiles(a.tiles, b.tiles, opts.maxTileDistance) >= opts.minTileMatches
 }
 
+export interface VisualMatchEvidence {
+  ids: [number, number]
+  confidence: 'confident' | 'possible'
+  reason: 'grid' | 'tiles' | 'thumbnails' | 'thumbnailFrame'
+  matchingTiles?: number
+  /** Media whose thumbnail matched, and the 1-based frame of the other media. */
+  thumbnailId?: number
+  frameIndex?: number
+}
+
+export function compareVisualFingerprints(
+  a: VisualFingerprint,
+  b: VisualFingerprint,
+  options: VisualSimilarityOptions = {},
+): Omit<VisualMatchEvidence, 'ids' | 'thumbnailId'> & {thumbnailSide?: 'a' | 'b'} | null {
+  const opts = {...DEFAULT_VISUAL_SIMILARITY, ...options}
+  const valid = (hash: string | null | undefined): hash is string =>
+    typeof hash === 'string' && /^[0-9a-f]{16}$/i.test(hash)
+  const close = (x: string | null | undefined, y: string | null | undefined, distance: number) =>
+    valid(x) && valid(y) && hammingDistanceHex(x, y) <= distance
+  if (close(a.hash, b.hash, opts.maxGridDistance)) {
+    return {confidence: 'confident', reason: 'grid'}
+  }
+  const matchingTiles = a.tiles.reduce((count, tile, index) => count + (close(tile, b.tiles[index], opts.maxTileDistance) ? 1 : 0), 0)
+  if (matchingTiles >= opts.minTileMatches) {
+    return {confidence: 'confident', reason: 'tiles', matchingTiles}
+  }
+  if (close(a.thumbnail, b.thumbnail, opts.maxTileDistance)) {
+    return {confidence: 'possible', reason: 'thumbnails'}
+  }
+  for (const [thumbnail, tiles, thumbnailSide] of [
+    [a.thumbnail, b.tiles, 'a'], [b.thumbnail, a.tiles, 'b'],
+  ] as const) {
+    const frameIndex = tiles.findIndex(tile => close(thumbnail, tile, opts.maxTileDistance))
+    if (frameIndex >= 0) return {confidence: 'possible', reason: 'thumbnailFrame', thumbnailSide, frameIndex: frameIndex + 1}
+  }
+  return null
+}
+
+/** Strong groups stay separate from weak pairs: a shared cover cannot bridge groups. */
+export function clusterVisualMatches(
+  rows: VisualHashRow[],
+  options: VisualSimilarityOptions = {},
+): VisualDuplicateCluster[] {
+  const strong = clusterVisualNearDuplicates(rows, options)
+  const membership = new Map<number, VisualDuplicateCluster>()
+  for (const group of strong) {
+    group.confidence = 'confident'
+    group.matches = []
+    for (const id of group.ids) membership.set(id, group)
+  }
+  const possible: VisualDuplicateCluster[] = []
+  // Separate BK trees keep thumbnail/frame lookup independent of grid distance.
+  // Weak edges never enter union-find, so a shared cover cannot bridge groups.
+  const samples: ClusterItem[] = []
+  const sampleIndex = new Map<string, number>()
+  const allOwners = new Map<number, Set<number>>()
+  const thumbnailOwners = new Map<number, Set<number>>()
+  let allRoot: BKNode | null = null
+  let thumbnailRoot: BKNode | null = null
+  const fingerprints = rows.map(fingerprintFromRow)
+  const radius = {...DEFAULT_VISUAL_SIMILARITY, ...options}.maxTileDistance
+  const valid = (hash: string | null | undefined): hash is string =>
+    typeof hash === 'string' && /^[0-9a-f]{16}$/i.test(hash)
+  for (let i = 0; i < rows.length; i++) {
+    const fp = fingerprints[i]
+    const candidates = new Set<number>()
+    const pending: Array<{index: number, thumbnail: boolean}> = []
+    const hashes = new Map<string, boolean>()
+    for (const hash of fp.tiles) if (valid(hash)) hashes.set(hash.toLowerCase(), false)
+    if (valid(fp.thumbnail)) hashes.set(fp.thumbnail.toLowerCase(), true)
+    for (const [hash, thumbnail] of hashes) {
+      let index = sampleIndex.get(hash)
+      if (index == null) {
+        index = samples.length
+        samples.push({id: index, fp: {hash, tiles: []}, hashInt: hexToHashBigInt(hash)})
+        sampleIndex.set(hash, index)
+      }
+      const hits: number[] = []
+      bkQuery(thumbnail ? allRoot : thumbnailRoot, index, radius, samples, hits)
+      const owners = thumbnail ? allOwners : thumbnailOwners
+      for (const hit of hits) for (const owner of owners.get(hit) ?? []) candidates.add(owner)
+      pending.push({index, thumbnail})
+    }
+    const group = membership.get(rows[i].id)
+    for (const j of candidates) {
+      const result = compareVisualFingerprints(fp, fingerprints[j], options)
+      if (!result || result.confidence === 'confident') continue
+      const {thumbnailSide, ...match} = result
+      const evidence: VisualMatchEvidence = {
+        ...match, ids: [rows[i].id, rows[j].id],
+        ...(thumbnailSide ? {thumbnailId: thumbnailSide === 'a' ? rows[i].id : rows[j].id} : {}),
+      }
+      if (!group || membership.get(rows[j].id) !== group) {
+        possible.push({ids: evidence.ids, hash: `possible-${rows[i].id}-${rows[j].id}`, confidence: 'possible', matches: [evidence]})
+      }
+    }
+    for (const entry of pending) {
+      if (!allOwners.has(entry.index)) {
+        allRoot = bkInsert(allRoot, entry.index, samples)
+        allOwners.set(entry.index, new Set())
+      }
+      allOwners.get(entry.index)!.add(i)
+      if (entry.thumbnail) {
+        if (!thumbnailOwners.has(entry.index)) {
+          thumbnailRoot = bkInsert(thumbnailRoot, entry.index, samples)
+          thumbnailOwners.set(entry.index, new Set())
+        }
+        thumbnailOwners.get(entry.index)!.add(i)
+      }
+    }
+  }
+  const byId = new Map(rows.map((row, index) => [row.id, fingerprints[index]]))
+  for (const group of strong) {
+    for (let i = 0; i < group.ids.length; i++) for (let j = 0; j < i; j++) {
+      const a = group.ids[i], b = group.ids[j]
+      const match = compareVisualFingerprints(byId.get(a)!, byId.get(b)!, options)
+      if (match?.confidence === 'confident') group.matches!.push({
+        ids: [a, b], confidence: match.confidence, reason: match.reason, matchingTiles: match.matchingTiles,
+      })
+    }
+  }
+  return [...strong, ...possible]
+}
+
 function fingerprintFromRow(row: VisualHashRow): VisualFingerprint {
   return {
     hash: String(row.visualHash || '').trim().toLowerCase(),
     tiles: decodeVisualHashTiles(row.visualHashTiles),
+    thumbnail: row.visualHashThumbnail,
   }
 }
 

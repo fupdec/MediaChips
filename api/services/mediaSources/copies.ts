@@ -45,7 +45,7 @@ export function copyCandidates(db: ApiDb, mediaId: number): CopyCandidate[] {
   if (!card || card.deletedAt) throw sourceError('media_not_found', 404)
   const stored = db.drizzle.select().from(verifiedMediaCopies).where(eq(verifiedMediaCopies.mediaId, mediaId)).all()
   const copies: CopyCandidate[] = stored.map(row => ({id: row.id, path: row.path, provider: provider(row.path),
-    availability: row.availability, verifiedAt: row.verifiedAt, verificationMethod: row.verificationMethod, verified: true, version: row.version, stored: row}))
+    relationship: row.relationship, availability: row.availability, verifiedAt: row.verifiedAt, verificationMethod: row.verificationMethod, verified: true, version: row.version, stored: row}))
   if (stored.length) return copies
   const add = (copy: CopyCandidate) => {
     if (!copies.some(row => canonicalPath(row.path) === canonicalPath(copy.path))) copies.push(copy)
@@ -153,7 +153,7 @@ const comparisonKey = (checked: CopyFingerprint) => `${checked.verificationMetho
 
 /** No writes until all selected cards and retained copies pass the configured comparison. */
 export async function verifyCopiesForMerge(db: ApiDb, ids: number[], signal: AbortSignal, open = openCopySource,
-  method = copyVerificationMethod(db)) {
+  method = copyVerificationMethod(db), allowDifferentContent = false) {
   const pinned = pinSourceDb(db)
   db = pinned.db
   const snapshot = () => JSON.stringify(ids.map(id => ({
@@ -174,12 +174,12 @@ export async function verifyCopiesForMerge(db: ApiDb, ids: number[], signal: Abo
       const storedMismatch = copy.stored && (copy.stored.size !== file.size
         || (verificationMethod === 'sha256' && copy.stored.sha256 && copy.stored.sha256 !== sha256)
         || (verificationMethod === 'oshash' && copy.stored.oshash && copy.stored.oshash !== oshash))
-      if (storedMismatch || (expected && comparisonKey(checked) !== expected)) throw sourceError('copy_content_mismatch')
-      expected = comparisonKey(checked)
+      if (storedMismatch || (!allowDifferentContent && copy.stored?.relationship !== 'version' && expected && comparisonKey(checked) !== expected)) throw sourceError('copy_content_mismatch')
+      if (copy.stored?.relationship !== 'version') expected = comparisonKey(checked)
       const path = canonicalPath(copy.path)
       const retainedSha256 = sha256 || (copy.stored?.version === file.version ? copy.stored.sha256 : '')
       if (!result.some(row => row.path === path)) result.push({id: copy.stored?.id || randomUUID(), path,
-        version: file.version, sha256: retainedSha256, oshash,
+        version: file.version, sha256: retainedSha256, oshash, relationship: copy.stored?.relationship || 'copy',
         verificationMethod: retainedSha256 ? 'sha256' : verificationMethod, size: file.size,
         contentType: mediaFileContentType(file.name) || file.contentType,
         availability: 'available', verifiedAt: !sha256 && retainedSha256 && copy.stored ? copy.stored.verifiedAt : new Date().toISOString()})
@@ -350,13 +350,13 @@ export async function attachLocalMediaCopy(db: ApiDb, mediaId: number, path: str
   const verification = await verifyCopiesForMerge(db, [mediaId], signal, open)
   if (verification.copies.some(copy => copy.path === path)) return listMediaCopies(db, mediaId)
   const checked = await fingerprintCopy(db, path, verification.method, signal, pinned.assertCurrent, open)
-  const reference = verification.copies[0]
-  if (checked.file.size !== reference.size || (checked.verificationMethod === 'sha256'
-    ? checked.sha256 !== reference.sha256 : checked.oshash !== reference.oshash)) throw sourceError('copy_content_mismatch')
+  const reference = verification.copies.find(copy => checked.file.size === copy.size && (checked.verificationMethod === 'sha256'
+    ? checked.sha256 === copy.sha256 : checked.oshash === copy.oshash))
+  if (!reference) throw sourceError('copy_content_mismatch')
   db.drizzle.transaction(tx => {
     verification.assertUnchanged()
     if (owner()) throw sourceError('copy_already_cataloged')
-    const copies = [...verification.copies, {id: randomUUID(), path, sha256: checked.sha256, oshash: checked.oshash,
+    const copies = [...verification.copies, {id: randomUUID(), path, relationship: reference.relationship, sha256: checked.sha256, oshash: checked.oshash,
       verificationMethod: checked.verificationMethod, version: checked.file.version, size: checked.file.size,
       contentType: mediaFileContentType(checked.file.name) || checked.file.contentType,
       availability: 'available' as const, verifiedAt: new Date().toISOString()}]

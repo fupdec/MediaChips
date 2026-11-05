@@ -396,12 +396,14 @@ async function* iterateVideoImagesGeneration(
 
     if (result.status === 'created') {
       created += 1
-      if (imageType === 'grid') {
+      if (imageType === 'grid' || imageType === 'preview') {
         try {
           await upsertVisualHashForMedia(db, Number(item.id))
         } catch {
           // Grid is usable; hash can be filled via Settings → visual hash backfill.
         }
+      }
+      if (imageType === 'grid') {
         try {
           await upsertClipEmbeddingForMedia(db, Number(item.id))
         } catch {
