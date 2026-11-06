@@ -602,6 +602,13 @@ export const docs: DocumentationEntry[] = [
         "navigate": "/settings?tab=connections",
         "children": [
           {
+            "id": "settings.files.metadata_transfer",
+            "name": "Export and transfer metadata",
+            "icon": "mdi-file-export-outline",
+            "selector": ["#settings-doc-tab-connections", "#settings-metadata-transfer"],
+            "navigate": "/settings?tab=connections&section=metadata_transfer"
+          },
+          {
             "id": "sets.tools.watched_folders",
             "name": "Watched folders",
             "icon": "mdi-folder-eye-outline",
