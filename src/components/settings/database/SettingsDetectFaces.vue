@@ -7,12 +7,8 @@
       :hint="t('settings_labels.database.face_workflow_intro')"
       :status="taskStatus"
       :status-label="statusChipLabel"
-    >
-      <template #actions>
-        <v-spacer/>
-        <ButtonDocumentation id="media.face_recognition"/>
-      </template>
-    </SettingsHealthSectionHeader>
+      documentation-id="media.face_recognition"
+    />
 
     <v-alert
       v-if="statusError"
@@ -504,7 +500,6 @@ import {applyFaceDetectStatusEvent} from '@/utils/faceDetectStreamUi'
 import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
 import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
-import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import {setNotification} from '@/services/notificationService'
 import {
   ensureModelsDownloaded,

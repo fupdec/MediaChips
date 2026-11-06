@@ -4,7 +4,7 @@
       v-model:selected="selected"
       color="primary"
       density="comfortable"
-      :lines="compact ? 'one' : 'two'"
+      lines="one"
       nav
       class="settings-nav__list"
       :class="{'settings-nav__list--compact': compact}"
@@ -23,9 +23,16 @@
           </span>
         </template>
         <v-list-item-title>{{ t(item.labelKey) }}</v-list-item-title>
-        <v-list-item-subtitle v-if="!compact" class="settings-nav__subtitle">
+        <v-list-item-subtitle v-if="!compact" v-show="false" class="settings-nav__subtitle">
           {{ t(item.descKey) }}
         </v-list-item-subtitle>
+        <v-tooltip
+          activator="parent"
+          location="end"
+          :open-delay="400"
+          max-width="320"
+          :text="t(item.descKey)"
+        />
       </v-list-item>
     </v-list>
   </nav>
@@ -78,9 +85,9 @@ const selected = computed({
 .settings-nav__item {
   margin-bottom: 6px;
   border-radius: 10px;
-  min-height: 64px;
-  align-items: start;
-  padding-block: 10px;
+  min-height: 48px;
+  align-items: center;
+  padding-block: 8px;
 }
 
 .settings-nav__item :deep(.v-list-item__overlay),
@@ -93,7 +100,7 @@ const selected = computed({
 .settings-nav__item.v-list-item--three-line :deep(.v-list-item__prepend) {
   margin-top: 0 !important;
   padding-top: 0 !important;
-  align-self: start !important;
+  align-self: center !important;
 }
 
 .settings-nav__item :deep(.v-list-item__spacer) {
@@ -117,13 +124,13 @@ const selected = computed({
 }
 
 .settings-nav__item :deep(.v-list-item-title) {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 600;
   letter-spacing: 0.01em;
   line-height: 1.3;
-  margin-bottom: 2px;
+  margin-bottom: 0;
   color: rgba(var(--v-theme-on-surface), 0.92);
 }
 

@@ -3,16 +3,17 @@
     v-for="item in mediaTypes"
     :id="item.domId"
     :key="item.id"
+    class="maintenance-task--compact"
     :status="taskStatusOf(item.id)"
     compact
   >
     <div>
       <SettingsHealthSectionHeader
+        documentation-id="settings.files.generated_previews"
         :title="t(item.titleKey)"
         :icon="item.icon"
-        :hint="t(item.hintKey)"
         :status="taskStatusOf(item.id)"
-        :status-label="statusChipLabelOf(item.id)"
+        :show-status="false"
         compact
       />
 
@@ -34,6 +35,7 @@
         :active="activeId === item.id"
         :striped="activeId === item.id"
       />
+      <p class="maintenance-task__hint">{{ t(item.hintKey) }}</p>
 
       <div
         v-if="activeId === item.id && currentPath"
@@ -63,6 +65,7 @@
           :loading="statusLoading && !statusLoaded"
           color="primary"
           rounded
+          size="small"
           variant="flat"
           class="pr-4"
           @click="startGeneration(item.id, false)"
@@ -76,6 +79,7 @@
           :disabled="!canStart(item.id, true)"
           color="secondary"
           rounded
+          size="small"
           variant="outlined"
           class="pr-4"
           @click="startGeneration(item.id, true)"
@@ -88,6 +92,7 @@
           v-else
           color="error"
           rounded
+          size="small"
           variant="flat"
           class="pr-4"
           @click="stopGeneration"
@@ -264,17 +269,6 @@ function taskStatusOf(id: MediaTypeId): 'idle' | 'pending' | 'done' {
   return pendingOf(id) > 0 ? 'pending' : 'done'
 }
 
-function statusChipLabelOf(id: MediaTypeId): string | undefined {
-  const state = taskStatusOf(id)
-  if (state === 'pending') {
-    return t('settings_labels.database.health_guide_pending', {count: pendingOf(id)})
-  }
-  if (state === 'done') {
-    return t('settings_labels.database.health_guide_done')
-  }
-  return undefined
-}
-
 function canStart(id: MediaTypeId, force: boolean): boolean {
   if (!statusLoaded.value || statusLoading.value || activeId.value) return false
   const item = statusOf(id)
@@ -282,7 +276,8 @@ function canStart(id: MediaTypeId, force: boolean): boolean {
 }
 
 function statusLabelOf(item: MediaTypeConfig): string {
-  if (statusLoaded.value) return t(item.statusKey, {...statusOf(item.id)})
+  if (activeId.value === item.id) return t('settings_labels.database.health_task_count', {done: counters.value.processed, total: counters.value.total})
+  if (statusLoaded.value) return t('settings_labels.database.health_task_count', {done: statusOf(item.id).generated, total: statusOf(item.id).total})
   if (statusLoading.value) return t('common.loading')
   return t('settings_labels.database.status_not_loaded')
 }

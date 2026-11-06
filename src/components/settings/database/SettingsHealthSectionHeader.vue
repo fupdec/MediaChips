@@ -22,7 +22,7 @@
       <div class="health-section-header__title-row">
         <span class="health-section-header__title">{{ title }}</span>
         <v-chip
-          v-if="statusChip"
+          v-if="showStatus && statusChip"
           size="x-small"
           :color="statusChip.color"
           variant="tonal"
@@ -31,6 +31,7 @@
           {{ statusChip.label }}
         </v-chip>
         <slot name="actions"/>
+        <ButtonDocumentation v-if="documentationId" :id="documentationId" dense/>
       </div>
       <p v-if="hint" class="health-section-header__hint">{{ hint }}</p>
     </div>
@@ -39,17 +40,21 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
+import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import {useI18n} from 'vue-i18n'
 
 const props = withDefaults(defineProps<{
   title: string
   icon: string
+  showStatus?: boolean
+  documentationId?: string
   hint?: string
   step?: number | null
   status?: 'done' | 'pending' | 'optional' | 'error' | 'idle' | null
   statusLabel?: string
   compact?: boolean
 }>(), {
+  showStatus: true,
   hint: undefined,
   step: null,
   status: null,
@@ -195,7 +200,7 @@ const statusChip = computed(() => {
 }
 
 .health-section-header__hint {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: rgba(var(--v-theme-on-surface), 0.62);
   font-size: 0.8125rem;
   line-height: 1.45;

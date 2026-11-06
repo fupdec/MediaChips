@@ -46,7 +46,7 @@
 }
 
 .settings-page--styled-sections .settings-category-divider > .v-icon,
-.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header__icon {
+.settings-page--styled-sections .health-section-header__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -62,23 +62,23 @@
 }
 
 .settings-page--styled-sections .settings-category-divider > span,
-.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header__title {
+.settings-page--styled-sections .health-section-header__title {
   font-size: .875rem !important;
   font-weight: 700 !important;
   line-height: 1.4;
 }
 
-.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header {
+.settings-page--styled-sections .health-section-header {
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
 }
 
-.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header__icon > .v-icon {
+.settings-page--styled-sections .health-section-header__icon > .v-icon {
   font-size: 20px !important;
 }
 
-.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header__hint {
+.settings-page--styled-sections .health-section-header__hint {
   color: rgba(var(--v-theme-on-surface), .65);
   font-size: .8125rem;
   line-height: 1.6;
@@ -155,17 +155,17 @@
 
 /* Keep semantic status colors in the shared card and icon treatment. */
 .settings-page--styled-sections:not(.settings-page--maintenance) .health-task--done,
-.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header--done {
+.settings-page--styled-sections .health-section-header--done {
   --settings-accent: var(--v-theme-success);
 }
 
 .settings-page--styled-sections:not(.settings-page--maintenance) .health-task--pending,
-.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header--pending {
+.settings-page--styled-sections .health-section-header--pending {
   --settings-accent: var(--v-theme-warning);
 }
 
 .settings-page--styled-sections:not(.settings-page--maintenance) .health-task--error,
-.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header--error {
+.settings-page--styled-sections .health-section-header--error {
   --settings-accent: var(--v-theme-error);
 }
 
@@ -386,4 +386,78 @@
   white-space: normal;
   overflow-wrap: anywhere;
   opacity: 1;
+}
+
+/* Internal section headings share one hierarchy; group dividers stay larger. */
+.settings-page--styled-sections .settings-category-divider,
+.settings-page--styled-sections .health-section-header {
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settings-page--styled-sections .settings-category-divider > .v-icon,
+.settings-page--styled-sections .health-section-header__icon {
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  height: 36px !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: rgba(var(--v-theme-primary), .09) !important;
+  color: rgb(var(--v-theme-primary)) !important;
+  box-shadow: none !important;
+  margin: 0;
+}
+
+.settings-page--styled-sections .health-section-header__icon > .v-icon,
+.settings-page--styled-sections .settings-category-divider > .v-icon {
+  font-size: 20px !important;
+}
+
+.settings-page--styled-sections .settings-category-divider > span,
+.settings-page--styled-sections .health-section-header__title,
+.settings-page--styled-sections .settings-section h3,
+.settings-page--styled-sections .duplicates-panel__heading h3 {
+  font-size: .9375rem !important;
+  font-weight: 700 !important;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
+.settings-page--styled-sections .health-section-header__hint {
+  font-size: .8125rem;
+  line-height: 1.5;
+  color: rgba(var(--v-theme-on-surface), .65);
+}
+
+.settings-page--maintenance .maintenance-task--compact .health-task__body {
+  padding: 14px 16px;
+}
+
+.settings-page--maintenance .maintenance-task--compact .health-section-header {
+  margin-bottom: 8px;
+}
+
+.settings-page--maintenance .maintenance-task--compact .health-progress {
+  margin-bottom: 0;
+}
+
+.settings-page--maintenance .maintenance-task--compact .health-progress__row {
+  margin-bottom: 5px;
+}
+
+.settings-page--maintenance .maintenance-task--compact .health-progress__label {
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-page--maintenance .maintenance-task--compact .health-progress__track {
+  height: 5px;
+}
+
+.settings-page--maintenance .maintenance-task__hint {
+  margin: 8px 0 12px;
+  font-size: .75rem;
+  line-height: 1.5;
+  color: rgba(var(--v-theme-on-surface), .6);
 }

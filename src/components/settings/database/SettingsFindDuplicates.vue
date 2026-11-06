@@ -23,9 +23,12 @@
         <v-select v-model="duplicatesBy" :items="modeItems" item-title="title" item-value="value"
           :label="t('settings_labels.database.find_duplicates_mode')"
           variant="outlined" density="compact" rounded="lg" hide-details />
+        <div class="duplicates-search__actions">
         <v-btn color="primary" rounded="lg" variant="flat" height="40" append-icon="mdi-arrow-right" :disabled="!mediaTypeId || !duplicatesBy" @click="openReview">
           {{ t('settings_labels.database.find_duplicates_open') }}
         </v-btn>
+        <ButtonDocumentation id="settings.duplicates" dense/>
+        </div>
       </div>
     </section>
 
@@ -81,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import SettingsDuplicateSimilarity from './SettingsDuplicateSimilarity.vue'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
 import MediaCopyDiscovery from '@/components/items/MediaCopyDiscovery.vue'
@@ -158,7 +162,7 @@ async function openReview() {
 .duplicates-panel__heading h3 { font-size: .9375rem; font-weight: 600; line-height: 1.5; }
 .duplicates-panel__heading p { margin: 3px 0 0; font-size: .8125rem; line-height: 1.5; color: rgba(var(--v-theme-on-surface), .6); }
 .duplicates-search__controls { display: grid; grid-template-columns: 1fr 1.15fr; gap: 12px; align-items: center; }
-.duplicates-search__controls > .v-btn { grid-column: 1 / -1; justify-self: end; }
+.duplicates-search__actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .duplicates-advanced .duplicates-panel__heading { align-items: center; }
 .duplicates-setting :deep(.v-selection-control) { align-items: flex-start; }
 .duplicates-setting :deep(.v-label) { margin-left: 8px !important; }
@@ -170,6 +174,6 @@ async function openReview() {
 @media (max-width: 600px) {
   .duplicates-panel { padding: 16px; }
   .duplicates-search__controls { grid-template-columns: minmax(0, 1fr); }
-  .duplicates-search__controls > .v-btn { justify-self: stretch; }
+  .duplicates-search__actions > .v-btn:not(.button-documentation--dense) { flex: 1; }
 }
 </style>

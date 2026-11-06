@@ -179,6 +179,7 @@
               <SettingsFindDuplicates/>
 
               <SettingsFindMissingMedia/>
+
             </SettingsList>
           </div>
 

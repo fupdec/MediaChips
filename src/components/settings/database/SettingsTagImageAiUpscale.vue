@@ -6,6 +6,7 @@
   >
     <div class="pb-1">
       <SettingsHealthSectionHeader
+      documentation-id="settings.tag_upscale"
         :title="t('settings_labels.database.tag_image_ai_upscale')"
         icon="image-auto-adjust"
         :hint="t('settings_labels.database.tag_image_ai_upscale_hint', {size: status.downloadSizeMb || 50})"

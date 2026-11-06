@@ -2,6 +2,7 @@
   <SettingsHealthTask id="settings-find-missing-media" status="optional">
   <div class="pb-1">
     <SettingsHealthSectionHeader
+      documentation-id="settings.files.find_missing"
       :title="t('settings_labels.database.find_missing_media')"
       icon="file-search-outline"
       :hint="t('settings_labels.database.find_missing_media_hint')"

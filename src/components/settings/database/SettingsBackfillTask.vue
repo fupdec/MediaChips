@@ -1,21 +1,22 @@
 <template>
-  <SettingsHealthTask :id="config.elementId" :status="taskStatus" compact>
+  <SettingsHealthTask :id="config.elementId" :status="taskStatus" compact class="maintenance-task--compact">
     <div>
       <SettingsHealthSectionHeader
         :title="t(titleKey)"
         :icon="config.icon"
-        :hint="t(hintKey)"
+        :documentation-id="documentationId"
         :status="taskStatus"
-        :status-label="statusChipLabel"
+        :show-status="false"
         compact
       />
 
       <SettingsHealthProgress
-        :label="statusText"
+        :label="compactStatusText"
         :percent="statusPercent"
         :active="active"
         :striped="active"
       />
+      <p class="maintenance-task__hint">{{ t(hintKey) }}</p>
       <div v-if="active && currentPath" class="text-caption text-medium-emphasis mb-3 selectable">
         {{ currentPath }}
       </div>
@@ -51,6 +52,7 @@
           :loading="statusLoading"
           color="primary"
           rounded
+          size="small"
           variant="flat"
           class="pr-4"
           @click="startBackfill(false)"
@@ -64,6 +66,7 @@
           :disabled="!canRecalculate || statusLoading"
           color="secondary"
           rounded
+          size="small"
           variant="outlined"
           class="pr-4"
           @click="startBackfill(true)"
@@ -76,6 +79,7 @@
           v-else
           color="error"
           rounded
+          size="small"
           variant="flat"
           class="pr-4"
           @click="stopBackfill"
@@ -126,6 +130,7 @@ const {
   progress,
   currentPath,
   lastSummary,
+  counters,
   progressText,
   summaryText,
   missingHint,
@@ -137,6 +142,8 @@ const {
   status,
   statusLoaded,
 } = useSettingsBackfillStream(props.config)
+
+const documentationId = computed(() => ({fingerprint: 'database.fingerprint', oshash: 'database.fingerprint', contentHash: 'database.fingerprint', videoCodec: 'database.video_codec', visualHash: 'settings.visual_hash', clipEmbedding: 'settings.semantic_index', mediaCreated: 'settings.media_created'}[props.config.kind]))
 
 const titleKey = computed(() => `settings_labels.database.${config.i18nKey}`)
 const hintKey = computed(() => `settings_labels.database.${config.i18nKey}_hint`)
@@ -151,14 +158,12 @@ const taskStatus = computed(() => {
   return 'done' as const
 })
 
-const statusChipLabel = computed(() => {
-  if (taskStatus.value === 'pending') {
-    return t('settings_labels.database.health_guide_pending', {count: pending.value})
-  }
-  if (taskStatus.value === 'done') {
-    return t('settings_labels.database.health_guide_done')
-  }
-  return undefined
+const compactStatusText = computed(() => {
+  if (!statusLoaded.value && !active.value) return statusText.value
+  return t('settings_labels.database.health_task_count', {
+    done: active.value ? counters.value.processed : status.value.done,
+    total: active.value ? counters.value.total : status.value.total,
+  })
 })
 
 const statusPercent = computed(() => {

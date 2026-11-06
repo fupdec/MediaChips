@@ -1,3 +1,5 @@
+import {maintenanceHelp} from './maintenanceHelp'
+
 const playerHotkeys = {
   en: `
     <h2>Player hotkeys</h2>
@@ -1554,6 +1556,13 @@ for (const [locale, article] of Object.entries(metadataTransferDocumentation)) {
   Object.assign((documentationTranslations as Record<string, Record<string, unknown>>)[locale], {
     'settings.files.metadata_transfer': article,
   })
+}
+
+for (const [locale, articles] of Object.entries(maintenanceHelp)) {
+  const catalog = (documentationTranslations as Record<string, Record<string, Record<string, unknown>>>)[locale]
+  for (const [id, content] of Object.entries(articles)) {
+    catalog[id] = {...catalog[id], content: `${catalog[id]?.content || ''}${content}`}
+  }
 }
 
 const fallbackLocale = 'en'

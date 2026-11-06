@@ -1,6 +1,9 @@
 <template>
   <div id="settings-library-health-guide" class="health-guide">
-    <div class="health-guide__hero">
+    <div
+      class="health-guide__hero"
+      :style="{'--health-score-color': `var(--v-theme-${scoreColor})`}"
+    >
       <div class="health-guide__hero-glow" aria-hidden="true"/>
 
       <div class="health-guide__hero-top">
@@ -575,7 +578,7 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(var(--v-theme-primary), 0.16);
   background:
     radial-gradient(ellipse at top right, rgba(var(--v-theme-primary), 0.16), transparent 55%),
-    radial-gradient(ellipse at bottom left, rgba(var(--v-theme-success), 0.08), transparent 50%),
+    radial-gradient(ellipse at top left, rgba(var(--health-score-color), 0.08), transparent 50%),
     rgba(var(--v-theme-on-surface), 0.025);
 }
 
@@ -586,7 +589,7 @@ onBeforeUnmount(() => {
   width: 280px;
   height: 280px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--v-theme-primary), 0.18), transparent 70%);
+  background: radial-gradient(circle, rgba(var(--health-score-color), 0.18), transparent 70%);
   filter: blur(8px);
 }
 
