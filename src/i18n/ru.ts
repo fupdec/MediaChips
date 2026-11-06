@@ -456,7 +456,7 @@ const ru = {
       states: {available: 'Доступен', unavailable: 'Недоступен', unknown: 'Неизвестно'},
     },
     credentials_saved: 'Учётные данные сохранены',
-    "title": "Источники",
+    "title": "Удалённые источники",
     "provider": "Тип источника",
     "check": "Проверить подключение",
     "reconnect": "Подключить заново",
