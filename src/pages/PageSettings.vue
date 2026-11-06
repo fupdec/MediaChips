@@ -1,5 +1,5 @@
 <template>
-  <div class="settings-page">
+  <div class="settings-page settings-page--styled-sections" :class="{'settings-page--maintenance': tab === 'maintenance'}">
     <div class="settings-page-layout">
       <aside class="settings-page-layout__sidebar">
         <SettingsSearch :items="searchItems" @select="openSearchResult"/>
@@ -25,6 +25,7 @@
               <SettingsSection id="settings-behavior">
                 <SettingsGeneral/>
               </SettingsSection>
+              <SettingsSection id="settings-filtering"><SettingsFilterBehavior/></SettingsSection>
               <SettingsGroupLabel :title="t('settingsLayout.security')" icon="shield-lock-outline" accent/>
               <SettingsSection id="settings-network"><div id="settings-general"><SettingsNetwork/></div></SettingsSection>
               <SettingsSection id="settings-login">
@@ -38,20 +39,20 @@
 
           <div v-else-if="tab === 'appearance'">
             <SettingsList>
-              <SettingsGroupLabel :title="t('settings.groups.theme')" icon="theme-light-dark" accent/>
               <SettingsSection id="settings-appearance-theme" padded>
-                <SettingsAppearanceDarkMode/>
-                <SettingsAppearanceZoom/>
+                <SettingsAppearanceDarkMode>
+                  <SettingsAppearanceZoom/>
+                </SettingsAppearanceDarkMode>
               </SettingsSection>
               <SettingsSection id="settings-appearance-colors" padded>
                 <SettingsAppearanceThemeColors/>
               </SettingsSection>
               <SettingsSection id="settings-appearance-navigation"><SettingsAppearanceNavigation/></SettingsSection>
-              <SettingsGroupLabel :title="t('settings.groups.display')" icon="view-grid-outline" accent/>
+              <SettingsGroupLabel :title="t('settings_labels.appearance.cards')" icon="view-grid-outline" accent/>
               <SettingsSection id="settings-appearance-cards" padded>
                 <SettingsAppearanceCards/>
               </SettingsSection>
-              <SettingsSection id="settings-filtering"><SettingsFilterBehavior/></SettingsSection>
+              <SettingsGroupLabel :title="t('settings_labels.appearance.page')" icon="page-layout-body" accent/>
               <SettingsSection id="settings-appearance-page" padded>
                 <SettingsAppearancePage/>
               </SettingsSection>
@@ -91,6 +92,9 @@
               <SettingsSection id="settings-quick-tags-section">
                 <SettingsQuickTags/>
               </SettingsSection>
+              <SettingsSection id="settings-parse-library-tags">
+                <SettingsParseLibraryTags/>
+              </SettingsSection>
               <SettingsSection id="settings-folder-tags">
                 <SettingsFolderTags/>
               </SettingsSection>
@@ -102,15 +106,32 @@
               <SettingsSection id="settings-watched-folders">
                 <SettingsWatchedFolders/>
               </SettingsSection>
-              <SettingsSection id="settings-sources"><SourcesPanel/></SettingsSection>
-              <SettingsSection id="settings-metadata-transfer">
-                <DialogMetadataTransfer>
-                  <template #activator="{open}">
-                    <v-btn prepend-icon="mdi-file-import-outline" variant="tonal" @click="open">{{ t('metadata_transfer.title') }}</v-btn>
-                  </template>
-                </DialogMetadataTransfer>
+              <SettingsSection id="settings-sources">
+                <SettingsCategoryDivider :title="t('sources.title')" icon="server-network-outline"/>
+                <SourcesPanel/>
               </SettingsSection>
-              <SettingsPluginPanels :panels="panelsForActiveTab"/>
+              <SettingsSection id="settings-metadata-transfer">
+                <SettingsCategoryDivider :title="t('metadata_transfer.title')" icon="file-export-outline"/>
+                <div class="d-flex align-center flex-wrap ga-2">
+                  <DialogMetadataTransfer>
+                    <template #activator="{open}">
+                      <v-btn prepend-icon="mdi-file-import-outline" variant="tonal" @click="open">{{ t('metadata_transfer.title') }}</v-btn>
+                    </template>
+                  </DialogMetadataTransfer>
+                  <ButtonDocumentation id="settings.files.metadata_transfer"/>
+                </div>
+              </SettingsSection>
+              <SettingsGroupLabel :title="t('settingsLayout.recovery')" icon="folder-search-outline" accent/>
+              <SettingsSection id="settings-bulk-paths">
+                <SettingsBulkPathEditing/>
+              </SettingsSection>
+            </SettingsList>
+          </div>
+
+          <div v-else-if="tab === 'processing'">
+            <SettingsList>
+              <SettingsGenerateAutoChapters/>
+              <SettingsLocalAi v-if="LOCAL_AI_UI_ENABLED"/>
             </SettingsList>
           </div>
 
@@ -119,21 +140,34 @@
               <SettingsLibraryHealthGuide/>
 
               <SettingsGroupLabel
-                :title="t('settings_labels.database.health_guide_phase_visuals')"
-                icon="image-multiple-outline"
+                :title="t('settings_labels.appearance.cards')"
+                icon="view-grid-outline"
                 accent
               />
-
               <SettingsGenerateVideoImages/>
-
-              <SettingsGenerateAutoChapters/>
+              <SettingsTagImageAiUpscale/>
 
               <SettingsGroupLabel
-                :title="t('settings_labels.database.health_guide_phase_reliability')"
-                icon="shield-check-outline"
+                :title="t('settingsLayout.maintenance_media_data')"
+                icon="file-document-outline"
                 accent
               />
+              <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL"/>
+              <SettingsBackfillTask :config="MEDIA_CREATED_BACKFILL"/>
 
+              <SettingsGroupLabel
+                :title="t('settingsLayout.maintenance_recognition')"
+                icon="magnify-scan"
+                accent
+              />
+              <SettingsBackfillTask :config="CLIP_EMBEDDING_BACKFILL"/>
+              <SettingsDetectFaces/>
+
+              <SettingsGroupLabel
+                :title="t('settingsLayout.maintenance_duplicates')"
+                icon="content-duplicate"
+                accent
+              />
               <SettingsSwitch
                 option="remoteOshashBackground"
                 :title="t('settings_labels.database.remote_oshash_background')"
@@ -141,50 +175,10 @@
                 data-testid="remote-oshash-background"
               />
               <SettingsBackfillTask :config="FINGERPRINT_BACKFILL"/>
-
               <SettingsBackfillTask :config="VISUAL_HASH_BACKFILL"/>
-
-              <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL"/>
-
-              <SettingsBackfillTask :config="MEDIA_CREATED_BACKFILL"/>
-
-              <SettingsGroupLabel
-                :title="t('settings_labels.database.health_guide_phase_search')"
-                icon="magnify-scan"
-                accent
-              />
-
-              <SettingsBackfillTask :config="CLIP_EMBEDDING_BACKFILL"/>
-
-              <SettingsGroupLabel
-                :title="t('settings_labels.database.health_guide_phase_optional')"
-                icon="tune-variant"
-                accent
-              />
-
-              <SettingsDetectFaces/>
-
               <SettingsFindDuplicates/>
 
-              <SettingsTagImageAiUpscale/>
-
-              <SettingsGroupLabel :title="t('settingsLayout.recovery')" icon="folder-search-outline" accent/>
-              <SettingsSection id="settings-bulk-paths">
-                <SettingsBulkPathEditing/>
-              </SettingsSection>
               <SettingsFindMissingMedia/>
-
-
-              <SettingsSection id="settings-parse-library-tags">
-                <SettingsParseLibraryTags/>
-              </SettingsSection>
-              <SettingsLocalAi v-if="LOCAL_AI_UI_ENABLED"/>
-              <SettingsPluginPanels :panels="panelsForActiveTab"/>
-              <SettingsGroupLabel :title="t('settings.groups.maintenance_cleanup')" icon="broom" accent/>
-              <SettingsClearGeneratedImages/>
-              <SettingsSection id="settings-transcode-cache-link" padded>
-                <v-btn variant="tonal" prepend-icon="mdi-cached" :to="{path: '/settings', query: {tab: 'viewing', section: 'video_player'}}">{{ t('settingsLayout.transcode_cache') }}</v-btn>
-              </SettingsSection>
             </SettingsList>
           </div>
 
@@ -193,7 +187,6 @@
               <SettingsSection id="settings-databases">
                 <SettingsDatabases/>
               </SettingsSection>
-              <SettingsSection id="settings-backups"><SettingsBackups/></SettingsSection>
               <SettingsSection id="settings-open-data-folder">
                 <SettingsOpenDataFolder/>
               </SettingsSection>
@@ -215,7 +208,7 @@
                   <span>{{ t('change_history.protection_hint') }}</span>
                 </div>
               </SettingsSection>
-              <SettingsGroupLabel :title="t('settings.groups.library_reset')" icon="alert-outline" accent/>
+              <SettingsClearGeneratedImages/>
               <SettingsLibraryReset/>
             </SettingsList>
           </div>
@@ -226,6 +219,7 @@
                 <SettingsPlugins/>
               </SettingsSection>
               <SettingsPluginPanels :panels="panelsForActiveTab"/>
+
             </SettingsList>
           </div>
 
@@ -252,12 +246,13 @@
 <script setup lang="ts">
 import {useSettingsSearch} from '@/composable/useSettingsSearch'
 import SettingsSearch from '@/components/settings/SettingsSearch.vue'
+import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
+import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import SettingsPluginPanels from '@/components/settings/SettingsPluginPanels.vue'
 import SettingsNetwork from '@/components/settings/general/SettingsNetwork.vue'
 import SettingsAppearanceNavigation from '@/components/settings/appearance/SettingsAppearanceNavigation.vue'
 import SettingsFilterBehavior from '@/components/settings/appearance/SettingsFilterBehavior.vue'
 import SettingsImageGrid from '@/components/settings/appearance/SettingsImageGrid.vue'
-import SettingsBackups from '@/components/settings/database/SettingsBackups.vue'
 import {CORE_SETTINGS_TABS, resolveSettingsLocation, settingsPanelTab} from '@/utils/settingsNavigation'
 import type {SettingsSearchItem} from '@/utils/settingsNavigation'
 import DialogChangeHistory from '@/components/dialogs/DialogChangeHistory.vue'
@@ -518,6 +513,8 @@ watch(tab, (nextTab) => {
 
 watch(() => route.fullPath, applyRouteSettings)
 </script>
+
+<style src="@/components/settings/settingsCards.css"></style>
 
 <style scoped>
 .settings-history {

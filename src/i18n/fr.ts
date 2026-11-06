@@ -1,6 +1,8 @@
 const fr = {
   copyDiscovery: {stats: {total: 'Fichiers', attached: 'Liés', pending: 'En attente', ambiguous: 'À examiner', failed: 'Erreurs'}},
   settingsLayout: {
+    processing: "Traitement des médias",
+    processing_hint: "Aperçus, chapitres, recherche visuelle, visages et IA",
     show_history_button: "Afficher l’historique dans la barre supérieure",
     show_history_button_hint: "Ajoute un bouton d’historique à côté de l’aide. L’historique reste disponible dans Données et sauvegardes.",
     transcode_cache: "Cache de transcodage",

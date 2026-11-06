@@ -15,12 +15,12 @@ async function open(page: Page, url: string, locale = 'en') {
   await expect(page.locator('#settings-search')).toBeVisible({timeout:30_000})
 }
 
-test('nine core sections, legacy links, and directly available tagging tools', async ({page}) => {
+test('ten core sections, legacy links, and directly available tagging tools', async ({page}) => {
   test.setTimeout(120_000)
   const errors:string[]=[]
   page.on('pageerror',error=>errors.push(error.message))
   await open(page,'/settings?tab=general&section=video_player')
-  await expect(page.locator('.settings-nav .v-list-item')).toHaveCount(9)
+  await expect(page.locator('.settings-nav .v-list-item')).toHaveCount(10)
   await expect(page.locator('#settings-doc-tab-viewing')).toHaveClass(/v-list-item--active/, {timeout: 30_000})
   await expect(page.locator('#settings-video-player')).toBeVisible()
   await page.locator('#settings-doc-tab-library').click()
@@ -48,6 +48,25 @@ test('nine core sections, legacy links, and directly available tagging tools', a
   await page.locator('#database_backups').click()
   await expect(page.locator('.backups-dialog')).toBeVisible()
   expect(errors).toEqual([])
+})
+
+test('maintenance keeps preparation tools together and supports legacy links', async ({page}) => {
+  await open(page, '/settings?tab=maintenance&section=generate_video_images')
+  await expect(page.locator('#settings-doc-tab-maintenance')).toHaveClass(/v-list-item--active/)
+  await expect(page.locator('#settings-generate-video-images')).toBeVisible()
+  await expect(page.locator('#settings-fingerprint-backfill')).toBeAttached()
+  for (const id of ['settings-clip-embedding-backfill', 'settings-detect-faces', 'settings-tag-image-ai-upscale', 'settings-find-missing-media']) {
+    await expect(page.locator(`#${id}`)).toBeAttached()
+  }
+  await page.goto('/settings?tab=maintenance&section=bulk_paths')
+  await expect(page.locator('#settings-doc-tab-connections')).toHaveClass(/v-list-item--active/)
+  await expect(page.locator('#settings-bulk-paths')).toBeVisible()
+  await page.goto('/settings?tab=maintenance&section=parse_library_tags')
+  await expect(page.locator('#settings-doc-tab-library')).toHaveClass(/v-list-item--active/)
+  await expect(page.locator('#settings-parse-library-tags')).toBeVisible()
+  await page.goto('/settings?tab=maintenance&section=clear_generated')
+  await expect(page.locator('#settings-doc-tab-database')).toHaveClass(/v-list-item--active/)
+  await expect(page.locator('#settings-clear-generated-images')).toBeVisible()
 })
 
 test('search finds translated nested controls, supports keyboard navigation and empty results', async ({page}) => {

@@ -1,6 +1,8 @@
 const pt = {
   copyDiscovery: {stats: {total: 'Arquivos', attached: 'Vinculados', pending: 'Pendentes', ambiguous: 'Revisar', failed: 'Erros'}},
   settingsLayout: {
+    processing: "Processamento de mídia",
+    processing_hint: "Prévias, capítulos, pesquisa visual, rostos e IA",
     show_history_button: "Mostrar histórico de alterações na barra superior",
     show_history_button_hint: "Adiciona um botão de histórico ao lado da Ajuda. O histórico continua disponível em Dados e backups.",
     transcode_cache: "Cache de transcodificação",

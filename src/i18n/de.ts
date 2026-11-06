@@ -1,6 +1,8 @@
 const de = {
   copyDiscovery: {stats: {total: 'Dateien', attached: 'Verknüpft', pending: 'Ausstehend', ambiguous: 'Auswahl nötig', failed: 'Fehler'}},
   settingsLayout: {
+    processing: "Medienverarbeitung",
+    processing_hint: "Vorschaubilder, Kapitel, visuelle Suche, Gesichter und KI",
     show_history_button: "Änderungsverlauf in der oberen Leiste anzeigen",
     show_history_button_hint: "Fügt eine Verlaufsschaltfläche neben der Hilfe hinzu. Der Verlauf bleibt unter Daten & Sicherungen verfügbar.",
     transcode_cache: "Transkodierungs-Cache",

@@ -8,13 +8,17 @@ const message = (catalog: unknown, key: string): string => key.split('.').reduce
 
 describe('settings navigation compatibility', () => {
   it.each([
+    ['maintenance', 'generate_video_images', 'maintenance', 'settings-generate-video-images'],
+    ['maintenance', 'detect_faces', 'maintenance', 'settings-detect-faces'],
+    ['maintenance', 'clip_embedding_backfill', 'maintenance', 'settings-clip-embedding-backfill'],
+    ['maintenance', 'clear_generated', 'database', 'settings-clear-generated-images'],
     ['general', 'video_player', 'viewing', 'settings-video-player'],
     ['general', 'video_preview', 'viewing', 'video_preview'],
-    ['general', 'local_ai', 'maintenance', 'settings-local-ai'],
+    ['general', 'local_ai', 'processing', 'settings-local-ai'],
     ['appearance', 'appearance_image_viewer', 'viewing', 'settings-appearance-image-viewer'],
     ['appearance', 'appearance_sfw', 'general', 'settings-appearance-sfw'],
-    ['library', 'parse_library_tags', 'maintenance', 'settings-parse-library-tags'],
-    ['files', 'bulk_paths', 'maintenance', 'settings-bulk-paths'],
+    ['library', 'parse_library_tags', 'library', 'settings-parse-library-tags'],
+    ['files', 'bulk_paths', 'connections', 'settings-bulk-paths'],
     ['files', 'folder_tags', 'library', 'settings-folder-tags'],
     ['files', 'watched_folders', 'connections', 'settings-watched-folders'],
     ['database', 'find_duplicates', 'maintenance', 'settings-find-duplicates'],
@@ -24,11 +28,11 @@ describe('settings navigation compatibility', () => {
     ['database', 'oshash_backfill', 'maintenance', 'settings-fingerprint-backfill'],
     ['database', 'content_hash_backfill', 'maintenance', 'settings-fingerprint-backfill'],
     ['connections', 'nas', 'connections', 'settings-nas'],
-    ['plugins', 'adult_scraper', 'maintenance', 'settings-adult-scraper'],
+    ['plugins', 'adult_scraper', 'plugins', 'settings-adult-scraper'],
   ])('keeps %s / %s working', (oldTab, section, tab, elementId) => {
     expect(resolveSettingsLocation(oldTab, section)).toEqual({tab, elementId})
   })
-  it.each([['files','connections'],['video','viewing'],['assignment','library'],['data_scraper','maintenance'],['adult','maintenance']])('supports the old %s tab', (oldTab, tab) => {
+  it.each([['files','connections'],['video','viewing'],['assignment','library'],['data_scraper','plugins'],['adult','plugins']])('supports the old %s tab', (oldTab, tab) => {
     expect(resolveSettingsLocation(oldTab).tab).toBe(tab)
   })
   it('resolves every canonical section and DOM anchor to its owner', () => {
@@ -38,11 +42,23 @@ describe('settings navigation compatibility', () => {
     }
     expect(new Set(SETTINGS_SECTIONS.map(item => item.key)).size).toBe(SETTINGS_SECTIONS.length)
   })
-  it('preserves custom plugin tabs and relocates known integrations', () => {
-    expect(settingsPanelTab({tab:'plugins', sectionId:'settings-import-plex'})).toBe('connections')
-    expect(settingsPanelTab({tab:'plugins', sectionId:'settings-tmdb'})).toBe('maintenance')
+  it('keeps every library preparation destination in maintenance', () => {
+    for (const section of [
+      'generate_video_images', 'generate_image_thumbs', 'oshash_backfill',
+      'video_codec_backfill', 'clip_embedding_backfill', 'detect_faces',
+      'find_duplicates', 'tag_image_ai_upscale', 'find_missing',
+    ]) {
+      expect(resolveSettingsLocation('database', section).tab, section).toBe('maintenance')
+    }
+  })
+  it('groups all plugin panels under plugins', () => {
+    expect(settingsPanelTab({tab:'plugins', sectionId:'settings-import-plex'})).toBe('plugins')
+    expect(settingsPanelTab({tab:'plugins', sectionId:'settings-tmdb'})).toBe('plugins')
+    for (const section of ['settings-adult-scraper', 'settings-tmdb', 'settings-import-plex', 'settings-import-emby', 'settings-import-jellyfin', 'settings-import-stash']) {
+      expect(resolveSettingsLocation('processing', section)).toEqual({tab: 'plugins', elementId: section})
+    }
     const panel = {pluginId:'custom', tab:'custom', sectionId:'custom-panel', componentKey:'Custom'}
-    expect(resolveSettingsLocation('plugins','custom-panel',[panel])).toEqual({tab:'custom',elementId:'custom-panel'})
+    expect(resolveSettingsLocation('plugins','custom-panel',[panel])).toEqual({tab:'plugins',elementId:'custom-panel'})
   })
   it('keeps all public documentation IDs unique and settings links on the right tab', () => {
     const ids: string[] = []

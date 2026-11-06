@@ -14,20 +14,20 @@ links remain available; this change does not migrate or reset stored preferences
   transcoding, permanent conversion quality/resolution, transcode cache,
   static/hover previews and image slideshow interval/loop.
 - **Catalog & tags**: tag categories and default category, metadata fields,
-  field pinning, media types, chip recipes, quick tags and folder tags.
+  field pinning, media types, chip recipes, quick tags, folder tags and library tag parsing.
   Field pinning and quick tags no longer require an Advanced switch.
 - **Sources & import**: watched folders and exclusions, cloud accounts, NAS,
-  import options, metadata transfer and enabled Plex/Emby/Jellyfin/Stash panels.
-- **Processing & maintenance**: library health, video/image previews, chapters,
+  import options, metadata transfer and path replacement.
+- **Media processing**: chapters and Local AI.
+- **Maintenance**: library preparation and all its linked tools: video/image previews,
   file/visual fingerprints, codec and creation-date backfills, CLIP search index,
-  faces, duplicates and copy discovery, AI tag image upscaling, path replacement,
-  missing-file recovery, library tag parsing, Local AI, metadata scraper plugins
-  and generated-image cleanup.
+  face recognition, duplicates, AI tag image upscaling and missing-file recovery.
 - **Data & backups**: library creation/switching, backups and restore, data folder,
-  change history and library reset. Backup management has its own visible section.
-- **Plugins**: installation, permissions, status, enabling/disabling and removal.
+  change history, generated-image cleanup and library reset. Backup management has its own visible section.
+- **Plugins**: installation, permissions, status, enabling/disabling, removal,
+  and all plugin settings, including scrapers and Plex/Emby/Jellyfin/Stash imports.
   An enabled plugin's card links to its settings at their current location.
-  Unknown third-party settings contributions retain their declared tab.
+  Third-party settings contributions also appear under Plugins.
 - **About**: application information, license activation and device management.
 
 ## Search
@@ -61,14 +61,14 @@ The section determines the destination, even if an old URL names its former tab:
 - `/settings?tab=appearance&section=appearance_sfw` opens General.
 - `/settings?tab=files&section=watched_folders` opens Sources & import.
 - `/settings?tab=files&section=folder_tags` opens Catalog & tags.
-- `/settings?tab=files&section=bulk_paths` opens Processing & maintenance.
-- `/settings?tab=library&section=parse_library_tags` opens Processing & maintenance.
-- `/settings?tab=database&section=find_duplicates` opens Processing & maintenance.
+- `/settings?tab=files&section=bulk_paths` opens Sources & import.
+- `/settings?tab=library&section=parse_library_tags` opens Catalog & tags.
+- `/settings?tab=database&section=find_duplicates` opens Maintenance.
 - `/settings?tab=database&section=backups` still opens backup management.
 - `oshash_backfill` and `content_hash_backfill` still target `fingerprint_backfill`.
 - `google_drive` and `nas` select the requested provider instead of the remembered
   provider. They work on initial load and subsequent navigation.
-- Plugin section IDs still work after their panels move to import or maintenance.
+- Plugin section IDs still work after their panels move to Plugins.
 
 Tab-only aliases `tools`, `meta`, `media`, `assignment`, `video`, `files`,
 `data_scraper` and `adult` remain supported. Field-pinning queries such as `view`,

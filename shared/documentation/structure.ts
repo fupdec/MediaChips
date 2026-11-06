@@ -714,40 +714,40 @@ export const docs: DocumentationEntry[] = [
             "name": "Clear generated images",
             "icon": "mdi-trash-can-outline",
             "selector": [
-              "#settings-doc-tab-maintenance",
+              "#settings-doc-tab-database",
               "#settings-clear-generated-images"
             ],
-            "navigate": "/settings?tab=maintenance&section=clear_generated"
+            "navigate": "/settings?tab=database&section=clear_generated"
           },
           {
             "id": "settings.library.parse_tags",
             "name": "Parse library tags",
             "icon": "mdi-tag-search-outline",
             "selector": [
-              "#settings-doc-tab-maintenance",
+              "#settings-doc-tab-library",
               "#settings-parse-library-tags"
             ],
-            "navigate": "/settings?tab=maintenance&section=parse_library_tags"
+            "navigate": "/settings?tab=library&section=parse_library_tags"
           },
           {
             "id": "settings.general.local_ai",
             "name": "Local AI",
             "icon": "mdi-robot-outline",
             "selector": [
-              "#settings-doc-tab-maintenance",
+              "#settings-doc-tab-processing",
               "#settings-local-ai"
             ],
-            "navigate": "/settings?tab=maintenance&section=local_ai"
+            "navigate": "/settings?tab=processing&section=local_ai"
           },
           {
             "id": "data_scraper",
             "name": "Data scraper",
             "icon": "mdi-search-web",
             "selector": [
-              "#settings-doc-tab-maintenance",
+              "#settings-doc-tab-plugins",
               "#settings-adult-scraper"
             ],
-            "navigate": "/settings?tab=maintenance&section=adult_scraper"
+            "navigate": "/settings?tab=plugins&section=adult_scraper"
           },
           {
             "id": "settings.duplicates",
@@ -784,10 +784,10 @@ export const docs: DocumentationEntry[] = [
             "name": "Automatic chapters",
             "icon": "mdi-cog-outline",
             "selector": [
-              "#settings-doc-tab-maintenance",
+              "#settings-doc-tab-processing",
               "#settings-generate-auto-chapters"
             ],
-            "navigate": "/settings?tab=maintenance&section=generate_auto_chapters"
+            "navigate": "/settings?tab=processing&section=generate_auto_chapters"
           },
           {
             "id": "settings.media_created",
@@ -814,10 +814,10 @@ export const docs: DocumentationEntry[] = [
             "name": "Bulk path editing",
             "icon": "mdi-cog-outline",
             "selector": [
-              "#settings-doc-tab-maintenance",
+              "#settings-doc-tab-connections",
               "#settings-bulk-paths"
             ],
-            "navigate": "/settings?tab=maintenance&section=bulk_paths"
+            "navigate": "/settings?tab=connections&section=bulk_paths"
           }
         ]
       },

@@ -55,6 +55,13 @@ export const CORE_SETTINGS_TABS = [
     "docId": "settings-doc-tab-connections"
   },
   {
+    "value": "processing",
+    "icon": "mdi-auto-fix",
+    "labelKey": "settingsLayout.processing",
+    "descKey": "settingsLayout.processing_hint",
+    "docId": "settings-doc-tab-processing"
+  },
+  {
     "value": "maintenance",
     "icon": "mdi-wrench-outline",
     "labelKey": "settingsLayout.maintenance",
@@ -439,7 +446,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   {
     "key": "parse_library_tags",
     "elementId": "settings-parse-library-tags",
-    "tab": "maintenance",
+    "tab": "library",
     "titleKey": "settings_labels.library.parse_library_tags",
     "searchKeys": [
       "settings_labels.database.refresh_status",
@@ -476,7 +483,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   {
     "key": "bulk_paths",
     "elementId": "settings-bulk-paths",
-    "tab": "maintenance",
+    "tab": "connections",
     "titleKey": "settings_labels.tools.bulk_edit_paths",
     "searchKeys": [
       "settings_labels.tools.bulk_edit_paths",
@@ -734,7 +741,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   {
     "key": "generate_auto_chapters",
     "elementId": "settings-generate-auto-chapters",
-    "tab": "maintenance",
+    "tab": "processing",
     "titleKey": "settings_labels.database.generate_auto_chapters",
     "searchKeys": [
       "settings_labels.database.generate_auto_chapters",
@@ -772,7 +779,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   {
     "key": "local_ai",
     "elementId": "settings-local-ai",
-    "tab": "maintenance",
+    "tab": "processing",
     "titleKey": "settings_labels.local_ai.title",
     "searchKeys": [
       "settings.path_parser.statuses.disabled",
@@ -961,7 +968,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   {
     "key": "clear_generated",
     "elementId": "settings-clear-generated-images",
-    "tab": "maintenance",
+    "tab": "database",
     "titleKey": "settings_labels.database.clear_generated_images",
     "searchKeys": [
       "settings_labels.database.calculate_sizes",
@@ -1325,7 +1332,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   {
     "key": "filtering",
     "elementId": "settings-filtering",
-    "tab": "appearance",
+    "tab": "general",
     "titleKey": "settings_labels.general.exact_filtering",
     "searchKeys": [
       "settings_labels.general.exact_filtering",
@@ -1338,15 +1345,15 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
 const SECTION_ALIASES: Record<string, string> = {oshash_backfill: 'fingerprint_backfill', content_hash_backfill: 'fingerprint_backfill'}
 const TAB_ALIASES: Record<string, string> = {
   tools: 'general', meta: 'library', media: 'library', assignment: 'library',
-  video: 'viewing', files: 'connections', data_scraper: 'maintenance', adult: 'maintenance',
+  video: 'viewing', files: 'connections', data_scraper: 'plugins', adult: 'plugins',
 }
-const IMPORT_SECTIONS = new Set(['settings-import-plex', 'settings-import-emby', 'settings-import-jellyfin', 'settings-import-stash'])
-const ENRICHMENT_SECTIONS = new Set(['settings-adult-scraper', 'settings-tmdb'])
+const PLUGIN_SECTIONS = new Set([
+  'settings-import-plex', 'settings-import-emby', 'settings-import-jellyfin',
+  'settings-import-stash', 'settings-adult-scraper', 'settings-tmdb',
+])
 
-export function settingsPanelTab(panel: Pick<PluginSettingsPanelContribution, 'tab' | 'sectionId'>): string {
-  if (IMPORT_SECTIONS.has(panel.sectionId || '')) return 'connections'
-  if (ENRICHMENT_SECTIONS.has(panel.sectionId || '')) return 'maintenance'
-  return TAB_ALIASES[panel.tab] || panel.tab
+export function settingsPanelTab(_panel: Pick<PluginSettingsPanelContribution, 'tab' | 'sectionId'>): string {
+  return 'plugins'
 }
 
 export function resolveSettingsLocation(tab = 'general', section = '', panels: PluginSettingsPanelContribution[] = []) {
@@ -1355,7 +1362,8 @@ export function resolveSettingsLocation(tab = 'general', section = '', panels: P
   if (entry) return {tab: entry.tab, elementId: entry.elementId}
   // Legacy provider and scraper section keys predate plugin panel contributions.
   if (section === 'google_drive' || section === 'nas') return {tab: 'connections', elementId: `settings-${section === 'google_drive' ? 'google-drive' : 'nas'}`}
-  if (section === 'adult_scraper') return {tab: 'maintenance', elementId: 'settings-adult-scraper'}
+  if (section === 'adult_scraper') return {tab: 'plugins', elementId: 'settings-adult-scraper'}
+  if (PLUGIN_SECTIONS.has(section)) return {tab: 'plugins', elementId: section}
   const panel = panels.find(panel => panel.sectionId === section)
   if (panel) return {tab: settingsPanelTab(panel), elementId: panel.sectionId}
   return {tab: TAB_ALIASES[tab] || tab, elementId: undefined}
