@@ -1,9 +1,15 @@
 <template>
   <section class="sources-panel" :aria-label="t('sources.title')">
-    <v-tabs v-model="provider" :aria-label="t('sources.provider')" color="primary" class="mb-4">
-      <v-tab value="cloud" :disabled="busy" prepend-icon="mdi-cloud-outline">{{ tr('Облако', 'Cloud') }}</v-tab>
-      <v-tab value="nas" :disabled="busy" prepend-icon="mdi-server-network-outline">{{ t('nas.title') }}</v-tab>
-    </v-tabs>
+    <SettingsSegmentedControl
+      v-model="provider"
+      :label="t('sources.provider')"
+      :disabled="busy"
+      :items="[
+        {value: 'cloud', title: tr('Облако', 'Cloud'), icon: 'mdi-cloud-outline'},
+        {value: 'nas', title: t('nas.title'), icon: 'mdi-server-network-outline'},
+      ]"
+      class="mb-4"
+    />
     <div :id="embedded ? undefined : 'settings-google-drive'" v-show="provider === 'cloud'">
     <div class="sources-panel__cloud-picker">
       <v-select :model-value="selectedAccount" :items="cloudAccounts" :placeholder="tr('Новый аккаунт', 'New account')" :aria-label="tr('Облачный аккаунт', 'Cloud account')" :disabled="busy" variant="outlined" rounded="lg" density="compact" hide-details @update:model-value="selectAccount">
@@ -49,6 +55,7 @@ import CloudAccountsSource from './CloudAccountsSource.vue'
 import GoogleDriveSource from './GoogleDriveSource.vue'
 import NasSources from './NasSources.vue'
 import MediaImportOptions from './MediaImportOptions.vue'
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {defaultRemoteImportOptions, type RemoteImportOptions} from '@/services/remoteImportOptions'
 defineProps<{embedded?: boolean; extensions?: string}>()
 const importOptions = defineModel<RemoteImportOptions>('importOptions', {default: defaultRemoteImportOptions})

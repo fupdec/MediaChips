@@ -796,7 +796,7 @@ async function onMetaCreated(): Promise<void> {
 }
 
 .sidebar-tags-browser__toolbar {
-  padding: 0 0 8px;
+  padding: 16px 0 8px;
   position: sticky;
   top: 0;
   z-index: 1;

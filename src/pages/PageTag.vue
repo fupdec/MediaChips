@@ -481,7 +481,7 @@
           v-if="is_init"
           :model-value="tab"
           @update:model-value="changeTab"
-          class="fullwidth-tabs"
+          class="fullwidth-tabs mx-auto"
           slider-size="3"
           color="primary"
           icons-and-text

@@ -546,7 +546,7 @@ const handleFileDrop = (event: DragEvent) => {
 </script>
 
 <style scoped>
-.media-adding-dialog__tabs { flex: 0 0 auto; border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
+.media-adding-dialog__tabs { flex: 0 0 auto; margin: 12px 16px; max-width: calc(100% - 32px); }
 @media (max-width: 600px) {
   .media-adding-dialog__tabs :deep(.v-tab) { min-width: 0; padding-inline: 10px; font-size: 0.75rem; }
 }

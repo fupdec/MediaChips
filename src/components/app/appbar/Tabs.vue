@@ -1,7 +1,7 @@
 <template>
   <v-tabs
     v-model="active"
-    class="borders"
+    class="borders app-navigation-tabs"
     hide-slider
     show-arrows
     height="26"

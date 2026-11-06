@@ -262,7 +262,11 @@ onBeforeUnmount(() => {
   -webkit-app-region: no-drag;
   cursor: grab;
   z-index: 1;
-  background-color: rgba(150, 150, 150, 0.1);
+  background: linear-gradient(
+    110deg,
+    rgba(var(--v-theme-primary), 0.1),
+    rgba(var(--v-theme-primary), 0.025)
+  );
   box-shadow: 0 2px 10px #0000002b;
   user-select: none;
 

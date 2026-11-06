@@ -48,32 +48,17 @@
           </template>
         </v-switch>
 
-        <v-btn-toggle
+        <SettingsSegmentedControl
           v-if="filters.length >= 2"
           :model-value="filtersJoin"
-          class="filters-join-toggle"
-          color="primary"
-          density="compact"
-          variant="outlined"
-          divided
-          mandatory
           @update:model-value="onFiltersJoinChange"
-        >
-          <v-btn
-            value="and"
-            size="x-small"
-            v-tooltip:top="t('filters.join_and_hint')"
-          >
-            {{ t('filters.join_and') }}
-          </v-btn>
-          <v-btn
-            value="or"
-            size="x-small"
-            v-tooltip:top="t('filters.join_or_hint')"
-          >
-            {{ t('filters.join_or') }}
-          </v-btn>
-        </v-btn-toggle>
+          :label="t('filters.join_and')"
+          :items="[
+            {value: 'and', title: t('filters.join_and'), tooltip: t('filters.join_and_hint')},
+            {value: 'or', title: t('filters.join_or'), tooltip: t('filters.join_or_hint')},
+          ]"
+          compact
+        />
       </div>
 
       <v-spacer/>
@@ -358,6 +343,7 @@
 </template>
 
 <script setup lang="ts">
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {computed, defineAsyncComponent, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import FilterRow from '@/components/app/FilterRow.vue'
@@ -562,18 +548,6 @@ function dragItemKey(filter: FilterObject) {
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-}
-
-.filters-join-toggle {
-  flex: 0 0 auto;
-  height: 28px;
-
-  :deep(.v-btn) {
-    min-width: 0;
-    padding-inline: 8px;
-    font-size: 0.7rem;
-    letter-spacing: 0.02em;
   }
 }
 

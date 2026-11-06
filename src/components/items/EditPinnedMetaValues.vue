@@ -86,31 +86,17 @@
               size="18"
               icon="mdi-tag-multiple-outline"
             />
-            <v-btn-toggle
+            <SettingsSegmentedControl
               :model-value="useMixedTagsInput ? 'mixed' : 'separate'"
-              class="editing-section__tags-mode"
-              density="compact"
-              variant="outlined"
-              color="primary"
-              divided
-              mandatory
+              class="editing-section__tags-segmented"
               @update:model-value="onTagsModeChange"
-            >
-              <v-btn
-                value="mixed"
-                size="small"
-                :title="t('meta.fields.tags_mode_combined_hint')"
-              >
-                {{ t('meta.fields.tags_mode_combined') }}
-              </v-btn>
-              <v-btn
-                value="separate"
-                size="small"
-                :title="t('meta.fields.tags_mode_separate_hint')"
-              >
-                {{ t('meta.fields.tags_mode_separate') }}
-              </v-btn>
-            </v-btn-toggle>
+              :label="t('meta.fields.tags_mode_combined')"
+              :items="[
+                {value: 'mixed', title: t('meta.fields.tags_mode_combined'), tooltip: t('meta.fields.tags_mode_combined_hint')},
+                {value: 'separate', title: t('meta.fields.tags_mode_separate'), tooltip: t('meta.fields.tags_mode_separate_hint')},
+              ]"
+              compact
+            />
           </div>
         </div>
 
@@ -557,6 +543,7 @@
 </template>
 
 <script setup lang="ts">
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {ref, computed, onMounted, onUnmounted, watch, reactive} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
@@ -1924,7 +1911,7 @@ defineExpose({
     width: 100%;
   }
 
-  .editing-section__tags-mode,
+  .editing-section__tags-segmented,
   .editing-section__filters {
     flex: 0 0 auto;
   }
@@ -1987,7 +1974,7 @@ defineExpose({
       }
     }
 
-    .editing-section__tags-mode {
+    .editing-section__tags-segmented {
       .v-btn {
         --v-btn-height: 22px;
         min-height: 22px !important;

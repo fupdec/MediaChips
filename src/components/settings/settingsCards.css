@@ -1,0 +1,385 @@
+/* Shared card treatment, matching the change-history section. */
+.settings-page--styled-sections {
+  --settings-card-radius: 24px;
+  --settings-card-padding: 20px;
+}
+
+.settings-page--styled-sections .settings-section,
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-task,
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-guide__hero,
+.settings-page--styled-sections .settings-meta-assignment {
+  border: 1px solid rgba(var(--settings-accent, var(--v-theme-primary)), .14);
+  border-radius: var(--settings-card-radius) !important;
+  background: linear-gradient(120deg, rgba(var(--settings-accent, var(--v-theme-primary)), .045), rgba(var(--v-theme-surface), .6)) !important;
+  box-shadow: none;
+}
+
+.settings-page--styled-sections .settings-section {
+  padding: var(--settings-card-padding) !important;
+}
+
+.settings-page--styled-sections .settings-section > .mx-4 {
+  margin-inline: 0 !important;
+}
+
+.settings-page--styled-sections .settings-meta-assignment {
+  padding: var(--settings-card-padding);
+}
+
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-task__rail {
+  display: none;
+}
+
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-task__body,
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-task--compact .health-task__body {
+  padding: var(--settings-card-padding);
+}
+
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-task--optional {
+  border-style: solid;
+}
+
+.settings-page--styled-sections .settings-category-divider {
+  gap: 12px;
+  min-width: 0;
+  margin-bottom: 16px !important;
+}
+
+.settings-page--styled-sections .settings-category-divider > .v-icon,
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  margin-inline: 0;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(var(--settings-accent, var(--v-theme-primary)), .09);
+  color: rgb(var(--settings-accent, var(--v-theme-primary)));
+  font-size: 20px;
+}
+
+.settings-page--styled-sections .settings-category-divider > span,
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header__title {
+  font-size: .875rem !important;
+  font-weight: 700 !important;
+  line-height: 1.4;
+}
+
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header {
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header__icon > .v-icon {
+  font-size: 20px !important;
+}
+
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header__hint {
+  color: rgba(var(--v-theme-on-surface), .65);
+  font-size: .8125rem;
+  line-height: 1.6;
+}
+
+/* The section supplies the frame; inner groups only organize their content. */
+.settings-page--styled-sections .settings-section .settings-group-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+}
+
+.settings-page--styled-sections .settings-section .settings-group-panel + .settings-group-panel {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), .08);
+}
+
+.settings-page--styled-sections .settings-section > div > .mx-4 {
+  margin-inline: 0 !important;
+}
+
+.settings-page--styled-sections .settings-section .v-divider,
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-task .v-divider {
+  border-color: rgba(var(--v-theme-on-surface), .08);
+  opacity: 1;
+}
+
+.settings-page--styled-sections .settings-section .v-btn--variant-tonal,
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-task .v-btn--variant-tonal {
+  border: 1px solid currentColor;
+  border-color: color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.settings-page--styled-sections .settings-list > .settings-switch {
+  padding: var(--settings-card-padding);
+  border: 1px solid rgba(var(--settings-accent, var(--v-theme-primary)), .14);
+  border-radius: var(--settings-card-radius);
+  background: linear-gradient(120deg, rgba(var(--settings-accent, var(--v-theme-primary)), .045), rgba(var(--v-theme-surface), .6));
+}
+
+@media (max-width: 600px) {
+  .settings-page--styled-sections {
+    --settings-card-padding: 16px;
+    --settings-card-radius: 20px;
+  }
+
+  .settings-page--styled-sections .settings-category-divider {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .settings-page--styled-sections .settings-category-divider > span {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .settings-page--styled-sections .settings-section .v-select {
+    max-width: 100%;
+  }
+}
+
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-guide__hero {
+  padding: var(--settings-card-padding);
+}
+
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-guide__hero-glow {
+  display: none;
+}
+
+/* Keep semantic status colors in the shared card and icon treatment. */
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-task--done,
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header--done {
+  --settings-accent: var(--v-theme-success);
+}
+
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-task--pending,
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header--pending {
+  --settings-accent: var(--v-theme-warning);
+}
+
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-task--error,
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-section-header--error {
+  --settings-accent: var(--v-theme-error);
+}
+
+.settings-page--styled-sections:not(.settings-page--maintenance) .health-task--error {
+  border-color: rgba(var(--settings-accent), .28);
+}
+
+/* Maintenance keeps its status treatments and hierarchy with the shared spacing. */
+.settings-page--maintenance .health-task,
+.settings-page--maintenance .health-guide__hero {
+  border-radius: var(--settings-card-radius);
+  box-shadow: none;
+}
+
+.settings-page--maintenance .health-task__body,
+.settings-page--maintenance .health-task--compact .health-task__body,
+.settings-page--maintenance .health-guide__hero {
+  padding: var(--settings-card-padding);
+}
+
+.settings-page--maintenance .health-task .v-btn--variant-tonal {
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Plugin forms share a compact rhythm while retaining their status colors. */
+.settings-plugin-panel .integration-settings,
+.settings-plugin-panel .plugin-scraper-settings {
+  min-width: 0;
+  margin-inline: 0 !important;
+}
+
+.integration-settings__connection,
+.plugin-scraper-settings__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.plugin-scraper-settings__block {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(var(--v-theme-on-surface), .08);
+  border-radius: 16px;
+  background: rgba(var(--v-theme-surface), .45);
+}
+
+.settings-plugin-panel .scraper-field,
+.settings-plugin-panel .tmdb-field {
+  max-width: none;
+}
+
+.settings-plugin-panel .text-subtitle-1 {
+  font-size: .875rem !important;
+}
+
+.settings-plugin-panel .text-body-2 {
+  font-size: .8125rem !important;
+  line-height: 1.55;
+}
+
+.settings-plugin-panel .v-alert {
+  padding: 10px 14px;
+  border-radius: 12px !important;
+  margin-bottom: 12px !important;
+}
+
+.settings-plugin-panel .v-alert .v-alert__prepend {
+  margin-inline-end: 10px;
+}
+
+.settings-plugin-panel .v-alert .v-icon { font-size: 20px; }
+
+.settings-plugin-panel .v-field {
+  border-radius: 10px;
+  font-size: .8125rem;
+}
+
+.settings-plugin-panel .v-btn {
+  min-height: 34px;
+  height: auto;
+  padding-block: 8px;
+  border-radius: 10px !important;
+  font-size: .75rem;
+  letter-spacing: 0;
+  text-transform: none;
+  max-width: 100%;
+}
+
+.settings-plugin-panel .v-btn__content {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.settings-plugin-panel .settings-switch .v-label {
+  opacity: 1;
+  white-space: normal;
+}
+
+.settings-plugin-panel .settings-switch .text-body-1 {
+  font-size: .8125rem !important;
+}
+
+.settings-plugin-panel .settings-switch .v-label > .ml-4 {
+  margin-left: 8px !important;
+}
+
+.settings-plugin-panel .selectable { overflow-wrap: anywhere; }
+
+@media (max-width: 600px) {
+  .plugin-scraper-settings__grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .integration-settings__connection { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .plugin-scraper-settings__block { padding: 12px; }
+}
+
+/* Import panels use the same two-column rhythm as the scraper. */
+.settings-plugin-panel .integration-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  align-items: start;
+}
+
+.settings-plugin-panel .integration-settings > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-block: 0 !important;
+}
+
+.settings-plugin-panel .integration-settings > .v-alert--type-info,
+.settings-plugin-panel .integration-settings > .v-alert--type-warning {
+  grid-column: auto;
+}
+
+.settings-plugin-panel .integration-settings__connection {
+  gap: 12px 16px;
+  padding: 16px;
+  border: 1px solid rgba(var(--v-theme-on-surface), .08);
+  border-radius: 16px;
+  background: rgba(var(--v-theme-surface), .45);
+}
+
+.settings-plugin-panel .integration-settings__connection > .v-input {
+  min-width: 0;
+  margin-bottom: 0 !important;
+}
+
+.settings-plugin-panel .plugin-scraper-settings__block .mb-4 {
+  margin-bottom: 12px !important;
+}
+
+.settings-plugin-panel .plugin-scraper-settings__block > .text-subtitle-1 {
+  font-weight: 700 !important;
+}
+
+@media (max-width: 600px) {
+  .settings-plugin-panel .integration-settings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-plugin-panel .integration-settings__connection {
+    padding: 12px;
+    gap: 12px;
+  }
+}
+
+/* Keep section headings consistent across core settings and plugin panels. */
+.settings-page--styled-sections .settings-group-label__title,
+.settings-page--styled-sections .health-section-header__title,
+.settings-page--styled-sections .settings-category-divider > span,
+.settings-page--styled-sections .settings-tab-header h2,
+.settings-page--styled-sections h3,
+.settings-page--styled-sections h4 {
+  font-weight: 700 !important;
+}
+
+.settings-plugin-panel .integration-settings__form .integration-settings__connection {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  margin-bottom: 12px;
+}
+
+.settings-plugin-panel .integration-settings__form .plugin-scraper-settings__block > :last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Import checkboxes follow the compact typography of their surrounding fields. */
+.settings-plugin-panel .integration-settings .v-checkbox .v-selection-control {
+  --v-selection-control-size: 28px;
+  align-items: flex-start;
+  min-height: 28px;
+}
+
+.settings-plugin-panel .integration-settings .v-checkbox .v-selection-control__wrapper {
+  flex: 0 0 28px;
+}
+
+.settings-plugin-panel .integration-settings .v-checkbox .v-label {
+  display: block;
+  min-width: 0;
+  padding-top: 4px;
+  margin-inline-start: 6px;
+  font-size: .8125rem;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  opacity: 1;
+}

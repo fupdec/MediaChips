@@ -39,7 +39,7 @@ const setOption = (value: SettingsState[keyof SettingsState]) => {
     true-value="1"
     class="mt-0 settings-switch"
     :disabled="disabled"
-    :hide-details="!hint"
+    hide-details
     inset
   >
     <template #label>

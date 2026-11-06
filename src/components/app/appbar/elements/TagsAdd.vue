@@ -117,23 +117,15 @@
 
             <div v-if="suggestions.length" class="d-flex align-center ga-2 mb-3">
               <span class="text-caption text-medium-emphasis">{{ t('meta.dialogs.pick_mode') }}:</span>
-              <v-btn-toggle
+              <SettingsSegmentedControl
                 v-model="pickMode"
-                mandatory
-                rounded
-                variant="tonal"
-                color="primary"
-                density="compact"
-              >
-                <v-btn size="small" value="top">
-                  <v-icon icon="mdi-star-outline" start/>
-                  {{ t('meta.dialogs.pick_top') }}
-                </v-btn>
-                <v-btn size="small" value="random">
-                  <v-icon icon="mdi-shuffle-variant" start/>
-                  {{ t('meta.dialogs.pick_random') }}
-                </v-btn>
-              </v-btn-toggle>
+                :label="t('meta.dialogs.pick_top')"
+                :items="[
+                  {value: 'top', title: t('meta.dialogs.pick_top'), icon: 'mdi-star-outline'},
+                  {value: 'random', title: t('meta.dialogs.pick_random'), icon: 'mdi-shuffle-variant'},
+                ]"
+                compact
+              />
               <span class="text-caption text-medium-emphasis">
                 {{ filteredSuggestions.length }} / {{ Math.min(suggestions.length, MAX_VISIBLE) }}
               </span>
@@ -294,6 +286,7 @@
 </template>
 
 <script setup lang="ts">
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue'
 import type { PropType } from 'vue'
 import {useRoute} from 'vue-router'

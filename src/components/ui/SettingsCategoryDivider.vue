@@ -3,8 +3,8 @@
     class="settings-category-divider d-flex align-center"
     :class="compact ? 'settings-category-divider--compact' : 'mb-6'"
   >
-    <v-icon start :size="compact ? 'small' : 'default'">{{ `mdi-${props.icon}` }}</v-icon>
-    <span class="text-h6 font-weight-medium">{{ props.title }}</span>
+    <v-icon v-if="icon" start :size="compact ? 'small' : 'default'">{{ props.icon?.startsWith('mdi-') ? props.icon : `mdi-${props.icon}` }}</v-icon>
+    <span class="text-h6 font-weight-regular"><slot name="title">{{ props.title }}</slot></span>
     <slot name="actions"></slot>
   </div>
 </template>

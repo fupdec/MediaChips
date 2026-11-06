@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {ref, computed, nextTick, onMounted, onBeforeUnmount, watch, triggerRef} from 'vue'
 import Documentation from '@/assets/Documentation'
 import {localizeDocumentation} from '@/assets/DocumentationTranslations'
@@ -1584,24 +1585,17 @@ function getNameHighlighted(text: string) {
             </v-chip>
           </div>
           <div class="d-flex align-center ga-2 flex-shrink-0">
-            <v-btn-toggle
+            <SettingsSegmentedControl
               :model-value="paletteMode"
-              mandatory
-              density="compact"
-              variant="outlined"
-              divided
               class="global-search__mode-toggle"
               @update:model-value="onModeToggle"
-            >
-              <v-btn value="search" size="small">
-                <v-icon start size="16">mdi-magnify</v-icon>
-                {{ t('globalSearch.modeSearch') }}
-              </v-btn>
-              <v-btn value="commands" size="small">
-                <v-icon start size="16">mdi-console-line</v-icon>
-                {{ t('globalSearch.modeCommands') }}
-              </v-btn>
-            </v-btn-toggle>
+              :label="t('globalSearch.modeSearch')"
+              :items="[
+                {value: 'search', title: t('globalSearch.modeSearch'), icon: 'mdi-magnify'},
+                {value: 'commands', title: t('globalSearch.modeCommands'), icon: 'mdi-console-line'},
+              ]"
+              compact
+            />
             <v-hotkey :keys="isCommandsMode ? 'meta+k' : 'slash'" variant="flat"/>
           </div>
         </div>

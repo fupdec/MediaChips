@@ -8,39 +8,22 @@
         </div>
 
         <div class="widget-chart-stats__controls">
-          <v-btn-toggle
+          <SettingsSegmentedControl
             v-model="scope"
-            density="compact"
-            color="primary"
-            variant="outlined"
-            divided
-            mandatory
-          >
-            <v-btn value="media" size="small">
-              {{ t('home.widgets.chart_stats_scope_media') }}
-            </v-btn>
-            <v-btn value="tags" size="small">
-              {{ t('home.widgets.chart_stats_scope_tags') }}
-            </v-btn>
-          </v-btn-toggle>
+            :label="t('home.widgets.chart_stats_scope_media')"
+            :items="[
+              {value: 'media', title: t('home.widgets.chart_stats_scope_media')},
+              {value: 'tags', title: t('home.widgets.chart_stats_scope_tags')},
+            ]"
+            compact
+          />
 
-          <v-btn-toggle
+          <SettingsSegmentedControl
             v-model="period"
-            density="compact"
-            color="primary"
-            variant="tonal"
-            divided
-            mandatory
-          >
-            <v-btn
-              v-for="option in periodOptions"
-              :key="String(option.value)"
-              :value="option.value"
-              size="small"
-            >
-              {{ option.label }}
-            </v-btn>
-          </v-btn-toggle>
+            :label="t('home.widgets.chart_stats_period_all')"
+            :items="periodOptions.map(option => ({value: option.value, title: option.label}))"
+            compact
+          />
         </div>
       </div>
 
@@ -81,6 +64,7 @@
 </template>
 
 <script setup lang="ts">
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {computed, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTheme} from 'vuetify'

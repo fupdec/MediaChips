@@ -1243,31 +1243,35 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 
 .inspector-panel__facts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 10px;
-  padding: 8px 12px 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 20px;
+  margin: 12px 12px 0;
   font-size: 0.7rem;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .inspector-panel__fact {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
 
+.inspector-panel__fact:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .inspector-panel__fact-label {
-  opacity: 0.5;
+  color: rgba(var(--v-theme-on-surface), 0.65);
   font-size: 0.62rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  line-height: 1.3;
 }
 
 .inspector-panel__fact-value {
   min-width: 0;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .inspector-panel__gallery {

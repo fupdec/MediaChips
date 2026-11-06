@@ -7,16 +7,23 @@
       'settings-group-label--large': large,
     }"
   >
+    <v-avatar
+      v-if="icon && accent"
+      :icon="iconName"
+      :color="error ? 'error' : 'primary'"
+      variant="tonal"
+      size="40"
+      rounded="lg"
+    />
     <v-icon
-      v-if="icon"
-      :size="large ? 24 : 16"
+      v-else-if="icon"
+      :size="accent || large ? 20 : 16"
       class="settings-group-label__icon"
     >
       {{ iconName }}
     </v-icon>
     <span
-      class="text-medium-emphasis font-weight-medium"
-      :class="large ? 'text-subtitle-1' : 'text-caption'"
+      class="settings-group-label__title"
     >{{ title }}</span>
   </div>
 </template>
@@ -54,15 +61,34 @@ const iconName = computed(() => {
 }
 
 .settings-group-label--accent {
-  padding: 8px 12px;
-  margin-bottom: 4px;
-  border-radius: 12px;
-  background: linear-gradient(
-    90deg,
-    rgba(var(--v-theme-primary), 0.1),
-    transparent 70%
-  );
-  border: 1px solid rgba(var(--v-theme-primary), 0.1);
+  --group-accent: var(--v-theme-primary);
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 0;
+  margin-block: 12px 4px;
+}
+
+.settings-group-label__title {
+  color: rgba(var(--v-theme-on-surface), .65);
+  font-size: .75rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.settings-group-label--accent .settings-group-label__title {
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 1.125rem;
+  font-weight: 400;
+  letter-spacing: -.025em;
+}
+
+.settings-group-label--accent::after {
+  content: '';
+  flex: 1;
+  min-width: 24px;
+  height: 1px;
+  margin-inline-start: 8px;
+  background: linear-gradient(90deg, rgba(var(--group-accent), .24), rgba(var(--group-accent), .03));
 }
 
 .settings-group-label--large {
@@ -73,7 +99,7 @@ const iconName = computed(() => {
 
 .settings-group-label--large span {
   font-size: 1.125rem;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.3;
   letter-spacing: 0.01em;
 }
@@ -84,15 +110,22 @@ const iconName = computed(() => {
 }
 
 .settings-group-label--accent.settings-group-label--error {
-  background: linear-gradient(
-    90deg,
-    rgba(var(--v-theme-error), 0.12),
-    transparent 70%
-  );
-  border-color: rgba(var(--v-theme-error), 0.16);
+  --group-accent: var(--v-theme-error);
 }
 
 .settings-group-label--error .settings-group-label__icon {
   color: rgb(var(--v-theme-error));
+}
+
+@media (max-width: 600px) {
+  .settings-group-label--accent {
+    gap: 12px;
+  }
+
+  .settings-group-label--accent .settings-group-label__title {
+    font-size: 1rem;
+  }
+
+
 }
 </style>

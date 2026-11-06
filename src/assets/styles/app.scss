@@ -9,7 +9,6 @@
 @use "./screen.scss";
 
 html {
-  //overflow-y: hidden !important;
   -webkit-font-smoothing: subpixel-antialiased !important;
   // Prevent Chrome/macOS trackpad "swipe between pages" from stealing horizontal gestures.
   overscroll-behavior-x: none;
@@ -1785,4 +1784,78 @@ header {
   .v-list-item-subtitle { font-size: .6875rem; line-height: 1.3; }
   .v-list-item__prepend > .v-icon, .v-list-item__append > .v-icon { font-size: 16px; }
   .v-list-item__spacer { width: 6px; }
+}
+
+
+// Match the segmented controls while retaining tab navigation and scrolling.
+.v-tabs.v-slide-group:not(.app-navigation-tabs) {
+  width: fit-content;
+  align-self: flex-start;
+  margin-block: 12px;
+  height: auto;
+  min-height: 48px;
+  flex: 0 0 auto;
+  max-width: 100%;
+  padding: 4px;
+  border: 1px solid rgba(var(--v-theme-on-surface), .07);
+  border-radius: 14px;
+  background: rgba(var(--v-theme-on-surface), .035);
+
+  .v-slide-group__content {
+    gap: 4px;
+    flex: 0 1 auto;
+  }
+
+  .v-slide-group__content > .v-tab {
+    flex: 0 0 auto;
+    margin-inline: 0;
+  }
+
+  .v-tab.v-btn {
+    height: 38px;
+    min-width: 0;
+    padding-inline: 14px;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: 10px !important;
+    background: transparent;
+    color: rgba(var(--v-theme-on-surface), .7);
+    font-size: .875rem;
+    font-weight: normal;
+    transition: background-color .15s, color .15s, box-shadow .15s;
+
+    &:hover {
+      background: rgba(var(--v-theme-primary), .05);
+    }
+
+    &.v-tab--selected {
+      background: rgb(var(--v-theme-surface));
+      border-color: rgba(var(--v-theme-primary), .18);
+      color: rgb(var(--v-theme-primary));
+      box-shadow: 0 1px 4px rgb(0 0 0 / 7%);
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgb(var(--v-theme-primary));
+      outline-offset: -2px;
+    }
+
+    .v-btn__overlay {
+      opacity: 0;
+    }
+  }
+
+  .v-tab__slider {
+    display: none;
+  }
+
+  &.v-slide-group--vertical .v-tab.v-btn {
+    flex: 0 0 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-tabs.v-slide-group:not(.app-navigation-tabs) .v-tab.v-btn {
+    transition: none;
+  }
 }
