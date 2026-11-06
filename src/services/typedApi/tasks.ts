@@ -350,31 +350,31 @@ export const tasksApi = {
     return apiClient.post<{ data?: string } | string>(API_ROUTES.taskCreateBackupLowDb, body)
   },
 
-  restoreBackup(body: BackupNamePayload) {
-    return apiClient.post(API_ROUTES.tasksBackupsRestoreBackup, body)
+  restoreBackup(body: BackupNamePayload, databaseId?: string) {
+    return apiClient.post(API_ROUTES.tasksBackupsRestoreBackup, body, {params: {databaseId}})
   },
 
-  getBackups() {
-    return apiClient.get(API_ROUTES.tasksBackupsGetBackups).then((res) => ({
+  getBackups(databaseId?: string) {
+    return apiClient.get(API_ROUTES.tasksBackupsGetBackups, {params: {databaseId}}).then((res) => ({
       ...res,
       data: validated(parseBackupList, res.data),
     }))
   },
 
-  createBackup() {
-    return apiClient.get(API_ROUTES.tasksBackupsCreateBackup)
+  createBackup(databaseId?: string) {
+    return apiClient.get(API_ROUTES.tasksBackupsCreateBackup, {params: {databaseId}})
   },
 
-  deleteBackup(body: BackupNamePayload) {
-    return apiClient.post(API_ROUTES.tasksBackupsDeleteBackup, body)
+  deleteBackup(body: BackupNamePayload, databaseId?: string) {
+    return apiClient.post(API_ROUTES.tasksBackupsDeleteBackup, body, {params: {databaseId}})
   },
 
-  importBackup(body: BackupNamePayload) {
-    return apiClient.post(API_ROUTES.tasksBackupsImportBackup, body)
+  importBackup(body: BackupNamePayload, databaseId?: string) {
+    return apiClient.post(API_ROUTES.tasksBackupsImportBackup, body, {params: {databaseId}})
   },
 
-  exportBackup(body: BackupNamePayload) {
-    return apiClient.post(API_ROUTES.tasksBackupsExportBackup, body)
+  exportBackup(body: BackupNamePayload, databaseId?: string) {
+    return apiClient.post(API_ROUTES.tasksBackupsExportBackup, body, {params: {databaseId}})
   },
 
   updateWatchedFolder(id: number, data: WatchedFolderUpdatePayload) {

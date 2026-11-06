@@ -2510,6 +2510,8 @@ const es = {
       restart_application: 'Reinicia la aplicación',
       adding_database: 'Agregando base de datos',
       editing_database: 'Editando base de datos',
+      backups_button: 'Copias de seguridad',
+      backup_database: 'Base de datos',
       backups_management: 'Copias de seguridad',
       backups_hint: 'Crea instantáneas de tu biblioteca, restáuralas o mueve archivos de respaldo.',
       backups_empty_hint: 'Crea una copia de seguridad para proteger tu biblioteca antes de cambios importantes.',

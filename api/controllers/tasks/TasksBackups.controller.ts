@@ -1,3 +1,5 @@
+import Database from 'better-sqlite3'
+import {resolveBackupTarget} from '../../services/backupTarget'
 import {withLibraryRestore} from '../../services/libraryMaintenance'
 import crypto from 'node:crypto'
 import type { Express } from 'express'
@@ -20,25 +22,29 @@ export function isLowDbSettingsEntry(name: string): boolean {
 }
 
 export default function (app: Express, db: ApiDb) {
-  const getDbPath = () => {
-    if (!db.path) {
-      throw new Error('Database path is not configured')
-    }
-    return db.path
+  const targetFor = (req: ApiRequest) => resolveBackupTarget(db, req.query?.databaseId)
+  const getBackupsPath = (req: ApiRequest) => path.join(targetFor(req).root, 'backups')
+  const archivePath = (req: ApiRequest, value: unknown) => {
+    const name = String(value ?? '')
+    if (!name || name === '.' || name === '..' || /[\\/]/.test(name)) throw new HttpError(400, 'Invalid backup name')
+    return path.join(getBackupsPath(req), name + '.zip')
   }
-  const getBackupsPath = () => path.join(getDbPath(), 'backups')
 
   const createBackup = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const name = new Date().toISOString().replace(/[:]/g, '-') + '-' + crypto.randomUUID()
-      await createLibraryBackup(db.sqlite, getDbPath(), path.join(getBackupsPath(), name + '.zip'))
+      const target = targetFor(req)
+      const sqlite = target.active ? db.sqlite : new Database(path.join(target.root, 'db.sqlite'), {readonly: true, fileMustExist: true})
+      try {
+        await createLibraryBackup(sqlite, target.root, path.join(target.root, 'backups', name + '.zip'))
+      } finally { if (!target.active) sqlite.close() }
       sendOk(res)
     } catch (error) { sendControllerError(res, error, 'Failed to create backup') }
   }
 
   const getBackups = function (req: ApiRequest, res: ApiResponse) {
     const backups: BackupEntry[] = []
-    const backupsPath = getBackupsPath()
+    const backupsPath = getBackupsPath(req)
     if (!fs.existsSync(backupsPath)) {
       sendOk(res, backups)
       return
@@ -50,6 +56,7 @@ export default function (app: Express, db: ApiDb) {
       const filestats = fs.statSync(pathToFile)
       const info: BackupEntry = {
         date: path.parse(fileName).name,
+        name: fileName,
         size: (filestats.size / 1024 / 1024).toFixed(2)
       }
       backups.push(info)
@@ -58,7 +65,7 @@ export default function (app: Express, db: ApiDb) {
   };
 
   const deleteBackup = function (req: ApiRequest, res: ApiResponse) {
-    const backupPath = path.join(getBackupsPath(), String(req.body.name) + '.zip')
+    const backupPath = archivePath(req, req.body.name)
     fs.unlink(backupPath, (err: unknown) => {
       if (err) {
         sendControllerError(res, err, 'Failed to delete backup')
@@ -67,8 +74,9 @@ export default function (app: Express, db: ApiDb) {
   }
 
   const restoreBackupLocked = async (req: ApiRequest) => {
-    const dbPath = getDbPath()
-    const backupPath = path.join(getBackupsPath(), String(req.body.name) + '.zip')
+    const target = targetFor(req)
+    const dbPath = target.root
+    const backupPath = archivePath(req, req.body.name)
     const zip = new StreamZip.async({
       file: backupPath
     })
@@ -93,6 +101,7 @@ export default function (app: Express, db: ApiDb) {
     try {
       const is_low_db_backup = await checkLowDbBackup()
       if (is_low_db_backup) {
+        if (!target.active) throw new HttpError(400, 'Activate this database before restoring a legacy backup')
         await zip.close()
         getDatabaseManager().closeConnection()
         const tasksLowDb = createTasksMigrateFromLowDbController(db)
@@ -104,13 +113,18 @@ export default function (app: Express, db: ApiDb) {
       await zip.close()
       const stage = await stageLibraryBackup(backupPath, dbPath)
       await replaceLibraryFromStage(dbPath, stage, {
-        close: () => getDatabaseManager().closeConnection(),
-        reload: () => getDatabaseManager().reloadCurrentDatabase(),
+        close: () => { if (target.active) getDatabaseManager().closeConnection() },
+        reload: async () => {
+          if (target.active) return getDatabaseManager().reloadCurrentDatabase()
+          const check = new Database(path.join(dbPath, 'db.sqlite'), {readonly: true, fileMustExist: true})
+          try { if (check.pragma('integrity_check', {simple: true}) !== 'ok') throw new Error('Invalid library database') }
+          finally { check.close() }
+        },
       })
     } catch (e: unknown) {
       console.error('restoreBackup failed:', e)
       try {
-        await getDatabaseManager().reloadCurrentDatabase()
+        if (target.active) await getDatabaseManager().reloadCurrentDatabase()
       } catch (reloadErr: unknown) {
         console.error('restoreBackup reload failed:', reloadErr)
       }
@@ -139,7 +153,7 @@ export default function (app: Express, db: ApiDb) {
         throw new HttpError(400, 'File not found')
       }
       const archive = path.basename(fromPath)
-      const toPath = path.join(getBackupsPath(), archive)
+      const toPath = path.join(getBackupsPath(req), archive)
       fse.copySync(fromPath, toPath, {overwrite: false})
       sendOk(res)
     } catch (err) {
@@ -151,7 +165,7 @@ export default function (app: Express, db: ApiDb) {
     try {
       const archiveName = String(req.body.archive ?? '')
       const destDir = String(req.body.path ?? '')
-      const fromPath = path.join(getBackupsPath(), archiveName + '.zip')
+      const fromPath = archivePath(req, archiveName)
       const toPath = path.join(destDir, archiveName + '.zip')
 
       if (!fs.existsSync(fromPath)) {

@@ -3123,6 +3123,8 @@ const en = {
       restart_application: 'Restart the app',
       adding_database: 'Adding database',
       editing_database: 'Editing database',
+      backups_button: 'Backups',
+      backup_database: 'Database',
       backups_management: 'Backups',
       backups_hint: 'Create snapshots of your library, restore them, or move archives in and out.',
       backups_empty_hint: 'Create a backup to protect your library before major changes.',
