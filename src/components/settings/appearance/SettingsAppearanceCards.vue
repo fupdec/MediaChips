@@ -3,7 +3,6 @@ import {computed} from 'vue'
 import {useSettingsStore} from '@/stores/settings'
 import {useI18n} from 'vue-i18n'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
-import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import SettingsGroupPanel from '@/components/ui/SettingsGroupPanel.vue'
 import {setOption} from '@/services/settingsService'
 import type {SettingsState} from '@/types/settings'
@@ -47,12 +46,7 @@ const chips_default_data: Array<{icon: string; textKey: string; value: DefaultMe
 </script>
 
 <template>
-  <SettingsCategoryDivider
-    :title="t('settings_labels.appearance.cards')"
-    icon="post"
-  />
-
-  <SettingsGroupPanel :title="t('settings_labels.appearance.group_card_display')">
+  <SettingsGroupPanel>
     <settings-switch
       :title="t('settings_labels.appearance.rating_favorite_description')"
       option="ratingAndFavoriteInCard"
@@ -79,7 +73,7 @@ const chips_default_data: Array<{icon: string; textKey: string; value: DefaultMe
     />
   </SettingsGroupPanel>
 
-  <SettingsGroupPanel
+  <SettingsGroupPanel icon="tag-multiple-outline"
     v-if="SETTINGS.show_preset_metadata_in_card === '1'"
     :title="t('settings_labels.appearance.group_card_metadata')"
     :spaced="false"

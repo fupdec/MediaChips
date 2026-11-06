@@ -1,5 +1,5 @@
 <template>
-  <div id="settings-import-stash" class="mx-4 pb-4">
+  <div id="settings-import-stash" class="integration-settings mx-4">
     <settings-category-divider
       :title="t('settings_labels.database.import_stash')"
       icon="package-variant"
@@ -29,100 +29,107 @@
       </span>
     </v-alert>
 
-    <v-text-field
-      :model-value="dbPath"
-      @update:model-value="onPathInput"
-      @blur="validatePath"
-      :label="t('settings_labels.database.import_stash_path')"
-      :hint="t('settings_labels.database.import_stash_path_hint')"
-      persistent-hint
-      variant="outlined"
-      density="comfortable"
-      rounded="lg"
-      class="mb-2"
-      :disabled="active"
-      :error="isFileExists === false"
-      :error-messages="isFileExists === false ? t('settings_labels.database.file_missing') : ''"
-    />
+    <div class="plugin-scraper-settings__grid integration-settings__form">
+      <section class="plugin-scraper-settings__block">
+        <v-text-field
+          :model-value="dbPath"
+          @update:model-value="onPathInput"
+          @blur="validatePath"
+          :label="t('settings_labels.database.import_stash_path')"
+          :hint="t('settings_labels.database.import_stash_path_hint')"
+          persistent-hint
+          variant="outlined"
+          density="compact"
+          rounded="lg"
+          class="mb-2"
+          :disabled="active"
+          :error="isFileExists === false"
+          :error-messages="isFileExists === false ? t('settings_labels.database.file_missing') : ''"
+        />
 
-    <div class="d-flex flex-wrap ga-2 mb-4">
-      <v-btn
-        v-if="appStore.isElectron"
-        @click="selectFileNative"
-        color="primary"
-        rounded
-        variant="outlined"
-        class="pr-4"
-        :disabled="active"
-      >
-        <v-icon icon="mdi-file-search-outline" start/>
-        {{ t('settings_labels.database.import_stash_select_file') }}
-      </v-btn>
+        <div class="d-flex flex-wrap ga-2 mb-4">
+          <v-btn
+            v-if="appStore.isElectron"
+            @click="selectFileNative"
+            color="primary"
+            rounded
+            variant="outlined"
+            class="pr-4"
+            :disabled="active"
+          >
+            <v-icon icon="mdi-file-search-outline" start/>
+            {{ t('settings_labels.database.import_stash_select_file') }}
+          </v-btn>
 
-      <v-btn
-        @click="showBrowseDialog = true"
-        color="primary"
-        rounded
-        :variant="appStore.isElectron ? 'tonal' : 'outlined'"
-        class="pr-4"
-        :disabled="active"
-      >
-        <v-icon icon="mdi-folder-search-outline" start/>
-        {{ t('media.adding.browse_folders') }}
-      </v-btn>
-    </div>
+          <v-btn
+            @click="showBrowseDialog = true"
+            color="primary"
+            rounded
+            :variant="appStore.isElectron ? 'tonal' : 'outlined'"
+            class="pr-4"
+            :disabled="active"
+          >
+            <v-icon icon="mdi-folder-search-outline" start/>
+            {{ t('media.adding.browse_folders') }}
+          </v-btn>
+        </div>
+      </section>
+      <section class="plugin-scraper-settings__block">
+        <div class="integration-settings__connection">
+          <v-text-field
+            v-model="graphqlUrl"
+            :label="t('settings_labels.database.import_stash_graphql_url')"
+            :hint="t('settings_labels.database.import_stash_graphql_url_hint')"
+            persistent-hint
+            variant="outlined"
+            density="compact"
+            rounded="lg"
+            class="mb-2"
+            :disabled="active"
+          />
 
-    <v-text-field
-      v-model="graphqlUrl"
-      :label="t('settings_labels.database.import_stash_graphql_url')"
-      :hint="t('settings_labels.database.import_stash_graphql_url_hint')"
-      persistent-hint
-      variant="outlined"
-      density="comfortable"
-      rounded="lg"
-      class="mb-2"
-      :disabled="active"
-    />
+          <v-text-field
+            v-model="apiKey"
+            :label="t('settings_labels.database.import_stash_api_key')"
+            :hint="t('settings_labels.database.import_stash_api_key_hint')"
+            persistent-hint
+            variant="outlined"
+            density="compact"
+            rounded="lg"
+            class="mb-4"
+            type="password"
+            autocomplete="off"
+            :disabled="active"
+          />
+        </div>
 
-    <v-text-field
-      v-model="apiKey"
-      :label="t('settings_labels.database.import_stash_api_key')"
-      :hint="t('settings_labels.database.import_stash_api_key_hint')"
-      persistent-hint
-      variant="outlined"
-      density="comfortable"
-      rounded="lg"
-      class="mb-4"
-      type="password"
-      autocomplete="off"
-      :disabled="active"
-    />
+        <v-checkbox
+          v-model="createMissingMedia"
+          :label="t('settings_labels.database.import_stash_create_missing')"
+          density="compact"
+          hide-details
+          class="mb-2"
+          :disabled="active"
+        />
 
-    <v-checkbox
-      v-model="createMissingMedia"
-      :label="t('settings_labels.database.import_stash_create_missing')"
-      density="compact"
-      hide-details
-      class="mb-2"
-      :disabled="active"
-    />
+        <div class="text-caption text-medium-emphasis mb-4">
+          {{ t('settings_labels.database.sync_push_matched_hint') }}
+        </div>
 
-    <div class="text-caption text-medium-emphasis mb-4">
-      {{ t('settings_labels.database.sync_push_matched_hint') }}
-    </div>
-
-    <div class="d-flex flex-wrap ga-2 mb-4">
-      <v-btn
-        @click="saveConnection"
-        color="primary"
-        rounded
-        variant="tonal"
-        class="pr-4"
-        :disabled="active"
-      >
-        <v-icon icon="mdi-content-save-outline" start/>
-        {{ t('settings_labels.database.sync_save_connection') }}
-      </v-btn>
+        <div class="d-flex flex-wrap ga-2 mb-4">
+          <v-btn
+            @click="saveConnection"
+            color="primary"
+            rounded
+            variant="tonal"
+            class="pr-4"
+            :disabled="active"
+          >
+            <v-icon icon="mdi-content-save-outline" start/>
+            {{ t('settings_labels.database.sync_save_connection') }}
+          </v-btn>
+        </div>
+      </section>
     </div>
 
     <v-progress-linear

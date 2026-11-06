@@ -1,6 +1,6 @@
 <template>
   <div class="mx-4">
-    <SettingsGroupPanel :title="t('settings_labels.general.group_behavior')">
+    <SettingsGroupPanel>
       <settings-switch
         option="startupHealthNotifications"
         :title="t('settings_labels.general.startup_health_notifications')"

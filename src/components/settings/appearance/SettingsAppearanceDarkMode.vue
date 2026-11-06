@@ -31,7 +31,7 @@ async function toggleDarkMode(value: string) {
 </script>
 
 <template>
-  <SettingsGroupPanel :title="t('settings_labels.appearance.group_theme')">
+  <SettingsGroupPanel icon="theme-light-dark" :title="t('settings_labels.appearance.group_theme')">
     <settings-switch
       @update="syncDarkModeWithSystem"
       option="system_dark_mode"
@@ -68,6 +68,7 @@ async function toggleDarkMode(value: string) {
         </v-icon>
       </template>
     </settings-switch>
+    <slot/>
   </SettingsGroupPanel>
 
 </template>

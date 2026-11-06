@@ -8,7 +8,7 @@ const {syncLibraryNavFromLegacyFlags} = useLibraryNavItems()
 </script>
 <template>
   <div class="mx-4">
-  <SettingsGroupPanel :title="t('settings_labels.appearance.group_navigation')">
+  <SettingsGroupPanel icon="menu" :title="t('settings_labels.appearance.group_navigation')">
     <settings-switch
       option="bottomBar"
       :title="t('settings_labels.appearance.nav_bottom')"

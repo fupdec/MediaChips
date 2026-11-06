@@ -10,7 +10,6 @@ const SETTINGS = computed(() => settingsStore)
 <template><div class="mx-4">
       <settings-switch
         option="typingFiltersDefault"
-        :hide-details="false"
       >
         <template #label>
           <div class="d-flex flex-column ml-4">

@@ -487,7 +487,7 @@ function focusPhase(id: LibrarySetupPhaseId) {
 function openSection(section: string) {
   void router.push({
     path: '/settings',
-    query: {tab: 'database', section},
+    query: {tab: 'maintenance', section},
   })
 }
 

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {computed} from 'vue'
+import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {useI18n} from 'vue-i18n'
 import {useAppZoom} from '@/composable/useAppZoom'
 import {MAX_ZOOM, MIN_ZOOM} from '@/utils/appZoom'
-import SettingsGroupPanel from '@/components/ui/SettingsGroupPanel.vue'
 
 const {t} = useI18n({useScope: 'global'})
 const {zoom, setZoom, zoomIn, zoomOut, resetZoom, formatZoomPercent} = useAppZoom()
@@ -12,10 +12,11 @@ const zoomPercent = computed(() => Math.round(zoom.value * 100))
 </script>
 
 <template>
-  <SettingsGroupPanel
-    :title="t('settings_labels.appearance.zoom')"
-    :spaced="false"
-  >
+  <section class="mt-4">
+    <SettingsCategoryDivider
+      :title="t('settings_labels.appearance.zoom')"
+      icon="magnify-plus-outline"
+    />
     <div class="app-zoom">
       <div class="d-flex align-center flex-wrap">
         <v-btn
@@ -74,7 +75,7 @@ const zoomPercent = computed(() => Math.round(zoom.value * 100))
         </div>
       </div>
     </div>
-  </SettingsGroupPanel>
+  </section>
 </template>
 
 <style lang="scss" scoped>

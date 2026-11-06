@@ -1,5 +1,5 @@
 <template>
-  <div id="settings-import-jellyfin" class="mx-4 pb-4">
+  <div id="settings-import-jellyfin" class="integration-settings mx-4">
     <settings-category-divider
       :title="t('settings_labels.database.import_jellyfin')"
       icon="server"
@@ -29,89 +29,96 @@
       </span>
     </v-alert>
 
-    <v-text-field
-      v-model="baseUrl"
-      :label="t('settings_labels.database.import_jellyfin_url')"
-      :hint="t('settings_labels.database.import_jellyfin_url_hint')"
-      persistent-hint
-      variant="outlined"
-      density="comfortable"
-      rounded="lg"
-      class="mb-2"
-      :disabled="active"
-    />
+    <div class="plugin-scraper-settings__grid integration-settings__form">
+      <section class="plugin-scraper-settings__block">
+        <div class="integration-settings__connection">
+          <v-text-field
+            v-model="baseUrl"
+            :label="t('settings_labels.database.import_jellyfin_url')"
+            :hint="t('settings_labels.database.import_jellyfin_url_hint')"
+            persistent-hint
+            variant="outlined"
+            density="compact"
+            rounded="lg"
+            class="mb-2"
+            :disabled="active"
+          />
 
-    <v-text-field
-      v-model="apiKey"
-      :label="t('settings_labels.database.import_jellyfin_api_key')"
-      :hint="t('settings_labels.database.import_jellyfin_api_key_hint')"
-      persistent-hint
-      variant="outlined"
-      density="comfortable"
-      rounded="lg"
-      class="mb-4"
-      type="password"
-      autocomplete="off"
-      :disabled="active"
-    />
+          <v-text-field
+            v-model="apiKey"
+            :label="t('settings_labels.database.import_jellyfin_api_key')"
+            :hint="t('settings_labels.database.import_jellyfin_api_key_hint')"
+            persistent-hint
+            variant="outlined"
+            density="compact"
+            rounded="lg"
+            class="mb-4"
+            type="password"
+            autocomplete="off"
+            :disabled="active"
+          />
+        </div>
 
-    <div class="d-flex flex-wrap ga-2 mb-4">
-      <v-btn
-        @click="loadLibraries"
-        color="primary"
-        rounded
-        variant="outlined"
-        class="pr-4"
-        :disabled="!canLoadLibraries || loadingLibraries || active"
-        :loading="loadingLibraries"
-      >
-        <v-icon icon="mdi-library" start/>
-        {{ t('settings_labels.database.import_jellyfin_load_libraries') }}
-      </v-btn>
+        <div class="d-flex flex-wrap ga-2 mb-4">
+          <v-btn
+            @click="loadLibraries"
+            color="primary"
+            rounded
+            variant="outlined"
+            class="pr-4"
+            :disabled="!canLoadLibraries || loadingLibraries || active"
+            :loading="loadingLibraries"
+          >
+            <v-icon icon="mdi-library" start/>
+            {{ t('settings_labels.database.import_jellyfin_load_libraries') }}
+          </v-btn>
 
-      <v-btn
-        @click="saveConnection"
-        color="primary"
-        rounded
-        variant="tonal"
-        class="pr-4"
-        :disabled="!canLoadLibraries || active"
-      >
-        <v-icon icon="mdi-content-save-outline" start/>
-        {{ t('settings_labels.database.sync_save_connection') }}
-      </v-btn>
-    </div>
+          <v-btn
+            @click="saveConnection"
+            color="primary"
+            rounded
+            variant="tonal"
+            class="pr-4"
+            :disabled="!canLoadLibraries || active"
+          >
+            <v-icon icon="mdi-content-save-outline" start/>
+            {{ t('settings_labels.database.sync_save_connection') }}
+          </v-btn>
+        </div>
+      </section>
+      <section class="plugin-scraper-settings__block">
+        <v-select
+          v-if="libraries.length"
+          v-model="selectedLibraryIds"
+          :items="libraryItems"
+          item-title="title"
+          item-value="value"
+          :label="t('settings_labels.database.import_jellyfin_libraries')"
+          :hint="t('settings_labels.database.import_jellyfin_libraries_hint')"
+          persistent-hint
+          multiple
+          chips
+          closable-chips
+          variant="outlined"
+          density="compact"
+          rounded="lg"
+          class="mb-4"
+          :disabled="active"
+        />
 
-    <v-select
-      v-if="libraries.length"
-      v-model="selectedLibraryIds"
-      :items="libraryItems"
-      item-title="title"
-      item-value="value"
-      :label="t('settings_labels.database.import_jellyfin_libraries')"
-      :hint="t('settings_labels.database.import_jellyfin_libraries_hint')"
-      persistent-hint
-      multiple
-      chips
-      closable-chips
-      variant="outlined"
-      density="comfortable"
-      rounded="lg"
-      class="mb-4"
-      :disabled="active"
-    />
+        <v-checkbox
+          v-model="createMissingMedia"
+          :label="t('settings_labels.database.import_jellyfin_create_missing')"
+          density="compact"
+          hide-details
+          class="mb-2"
+          :disabled="active"
+        />
 
-    <v-checkbox
-      v-model="createMissingMedia"
-      :label="t('settings_labels.database.import_jellyfin_create_missing')"
-      density="compact"
-      hide-details
-      class="mb-2"
-      :disabled="active"
-    />
-
-    <div class="text-caption text-medium-emphasis mb-4">
-      {{ t('settings_labels.database.sync_push_matched_hint') }}
+        <div class="text-caption text-medium-emphasis mb-4">
+          {{ t('settings_labels.database.sync_push_matched_hint') }}
+        </div>
+      </section>
     </div>
 
     <v-progress-linear

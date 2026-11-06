@@ -38,27 +38,16 @@
         {{ t('settings_labels.library.parse_library_tags_match_precision') }}
       </div>
 
-      <v-btn-toggle
+      <SettingsSegmentedControl
         v-model="matchPrecisionPreset"
-        mandatory
-        divided
-        rounded="lg"
-        color="primary"
         class="match-precision-toggle mb-3"
-      >
-        <v-btn value="strict" class="match-precision-toggle__btn">
-          <v-icon icon="mdi-target" start/>
-          {{ t('settings_labels.library.parse_library_tags_match_precision_level_strict') }}
-        </v-btn>
-        <v-btn value="balanced" class="match-precision-toggle__btn">
-          <v-icon icon="mdi-tune-variant" start/>
-          {{ t('settings_labels.library.parse_library_tags_match_precision_level_balanced') }}
-        </v-btn>
-        <v-btn value="permissive" class="match-precision-toggle__btn">
-          <v-icon icon="mdi-select-search" start/>
-          {{ t('settings_labels.library.parse_library_tags_match_precision_level_permissive') }}
-        </v-btn>
-      </v-btn-toggle>
+        :label="t('settings_labels.library.parse_library_tags_match_precision_level_balanced')"
+        :items="[
+          {value: 'strict', title: t('settings_labels.library.parse_library_tags_match_precision_level_strict'), icon: 'mdi-target'},
+          {value: 'balanced', title: t('settings_labels.library.parse_library_tags_match_precision_level_balanced'), icon: 'mdi-tune-variant'},
+          {value: 'permissive', title: t('settings_labels.library.parse_library_tags_match_precision_level_permissive'), icon: 'mdi-select-search'},
+        ]"
+      />
 
       <v-alert
         :color="matchPrecisionColor"
@@ -311,6 +300,7 @@
 </template>
 
 <script setup lang="ts">
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -1015,11 +1005,6 @@ onMounted(() => {
 .match-precision-toggle {
   display: flex;
   width: 100%;
-}
-
-.match-precision-toggle__btn {
-  flex: 1 1 0;
-  min-width: 0;
 }
 
 .match-precision-alert {

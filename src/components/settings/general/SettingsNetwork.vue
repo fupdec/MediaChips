@@ -1,6 +1,6 @@
 <template>
   <div class="mx-4">
-    <SettingsGroupPanel :title="t('settings_labels.general.group_network')">
+    <SettingsGroupPanel icon="lan" :title="t('settings_labels.general.group_network')">
       <v-alert
         :type="SETTINGS.allowLanAccess === '1' ? 'info' : 'warning'"
         variant="tonal"

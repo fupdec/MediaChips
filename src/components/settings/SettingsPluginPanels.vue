@@ -17,7 +17,7 @@ function resolveComponent(key: string): Component | null {
 }
 </script>
 <template>
-  <SettingsSection v-for="panel in panels" :key="`${panel.pluginId}:${panel.componentKey}`" :id="panel.sectionId">
+  <SettingsSection v-for="panel in panels" :key="`${panel.pluginId}:${panel.componentKey}`" :id="panel.sectionId" class="settings-plugin-panel">
     <component :is="resolveComponent(panel.componentKey)"/>
   </SettingsSection>
 </template>

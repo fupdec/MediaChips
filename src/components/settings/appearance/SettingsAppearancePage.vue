@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useSettingsStore} from '@/stores/settings'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
-import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import SettingsGroupPanel from '@/components/ui/SettingsGroupPanel.vue'
 import {setOption} from '@/services/settingsService'
 
@@ -13,12 +13,7 @@ const {t} = useI18n()
 </script>
 
 <template>
-  <SettingsCategoryDivider
-    :title="t('settings_labels.appearance.page')"
-    icon="page-layout-body"
-  />
-
-  <SettingsGroupPanel :title="t('settings_labels.appearance.group_interface')">
+  <SettingsGroupPanel icon="monitor-dashboard" :title="t('settings_labels.appearance.group_interface')">
     <settings-switch
       :title="t('settings_labels.appearance.saved_filters')"
       :hint="t('settings_labels.appearance.saved_filters_hint')"
@@ -85,7 +80,7 @@ const {t} = useI18n()
     </settings-switch>
   </SettingsGroupPanel>
 
-  <SettingsGroupPanel :title="t('settings_labels.appearance.group_editing')">
+  <SettingsGroupPanel icon="pencil-outline" :title="t('settings_labels.appearance.group_editing')">
     <settings-switch
       option="showIconsOfMetaInEditingDialog"
       :hide-details="false"
@@ -126,7 +121,7 @@ const {t} = useI18n()
 
   </SettingsGroupPanel>
 
-  <SettingsGroupPanel
+  <SettingsGroupPanel icon="view-agenda-outline"
     :title="t('settings_labels.appearance.group_layout')"
     :spaced="false"
   >
@@ -136,20 +131,19 @@ const {t} = useI18n()
         {{ t('settings_labels.appearance.gap_size_between_items') }}
       </div>
 
-      <v-btn-toggle
+      <SettingsSegmentedControl
         v-model="SETTINGS.gapSize"
         @update:model-value="setOption($event, 'gapSize')"
-        color="primary"
         class="mb-2"
-        rounded="xl"
-        mandatory
-      >
-        <v-btn variant="outlined" value="xs">XS</v-btn>
-        <v-btn variant="outlined" value="s">S</v-btn>
-        <v-btn variant="outlined" value="m">M</v-btn>
-        <v-btn variant="outlined" value="l">L</v-btn>
-        <v-btn variant="outlined" value="xl">XL</v-btn>
-      </v-btn-toggle>
+        :label="t('settings_labels.appearance.gap_size_between_items')"
+        :items="[
+          {value: 'xs', title: 'XS'},
+          {value: 's', title: 'S'},
+          {value: 'm', title: 'M'},
+          {value: 'l', title: 'L'},
+          {value: 'xl', title: 'XL'},
+        ]"
+      />
     </div>
 
     <div class="d-flex align-center flex-wrap">
@@ -158,21 +152,20 @@ const {t} = useI18n()
         {{ t('settings_labels.appearance.visible_pages_pagination') }}
       </div>
 
-      <v-btn-toggle
+      <SettingsSegmentedControl
         v-model="SETTINGS.numberOfPagesLimit"
         @update:model-value="setOption($event, 'numberOfPagesLimit')"
-        color="primary"
         class="mb-2"
-        rounded="xl"
-        mandatory
-      >
-        <v-btn variant="outlined" value="5">5</v-btn>
-        <v-btn variant="outlined" value="7">7</v-btn>
-        <v-btn variant="outlined" value="9">9</v-btn>
-        <v-btn variant="outlined" value="11">11</v-btn>
-        <v-btn variant="outlined" value="13">13</v-btn>
-        <v-btn variant="outlined" value="15">15</v-btn>
-      </v-btn-toggle>
+        :label="t('settings_labels.appearance.visible_pages_pagination')"
+        :items="[
+          {value: '5', title: '5'},
+          {value: '7', title: '7'},
+          {value: '9', title: '9'},
+          {value: '11', title: '11'},
+          {value: '13', title: '13'},
+          {value: '15', title: '15'},
+        ]"
+      />
     </div>
 
     <v-card

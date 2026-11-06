@@ -15,23 +15,15 @@
       </div>
     </div>
 
-    <v-btn-toggle
+    <SettingsSegmentedControl
       v-model="viewMode"
-      mandatory
-      rounded="xl"
-      color="primary"
-      density="comfortable"
       class="settings-meta-assignment__toggle mb-4"
-    >
-      <v-btn value="media" size="small" variant="outlined">
-        <v-icon start size="18">mdi-file-outline</v-icon>
-        {{ t('settings_labels.field_pinning.view_by_media') }}
-      </v-btn>
-      <v-btn value="tags" size="small" variant="outlined">
-        <v-icon start size="18">mdi-tag-multiple-outline</v-icon>
-        {{ t('settings_labels.field_pinning.view_by_tags') }}
-      </v-btn>
-    </v-btn-toggle>
+      :label="t('settings_labels.field_pinning.title')"
+      :items="[
+        {value: 'media', title: t('settings_labels.field_pinning.view_by_media'), icon: 'mdi-file-outline'},
+        {value: 'tags', title: t('settings_labels.field_pinning.view_by_tags'), icon: 'mdi-tag-multiple-outline'},
+      ]"
+    />
 
     <div v-if="!hasItems" class="layout-img">
       <v-img src="/images/no-data.svg" max-height="30vh" class="my-4" contain/>
@@ -112,6 +104,7 @@
 </template>
 
 <script setup lang="ts">
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {ref, computed, watch, onMounted, onBeforeUnmount} from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
