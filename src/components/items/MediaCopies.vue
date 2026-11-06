@@ -50,7 +50,7 @@
                 <v-btn v-if="copy.verified && data.copies.length > 1" class="media-copies__detach" icon="mdi-link-off" variant="text" size="small" :title="t('copies.detach')" :aria-label="t('copies.detach') + ': ' + copy.path" :disabled="pending || loading" @click="detach(copy.id)" />
               </li>
             </ul>
-            <MediaCopyDiscovery :media-id="mediaId" @changed="load" />
+            <MediaCopyDiscovery class="media-copies__discovery" :media-id="mediaId" @changed="load" />
             <form class="media-copies__add" @submit.prevent="attach">
               <div class="media-copies__add-fields">
                 <span class="media-copies__label">{{ t('copies.add_local') }}</span>
@@ -162,6 +162,7 @@ watch([() => props.mediaId, () => app.dbPath, () => app.localhost], () => {
   :deep(.v-field__append-inner) { padding-top: 0; align-items: center; }
   :deep(.v-field__outline) { --v-field-border-opacity: 0.16; }
   &__list { padding: 0; margin: 0; list-style: none; }
+  &__discovery { padding-inline: 12px; }
   &__copy { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-top: 1px solid rgba(var(--v-theme-primary), 0.1); }
   &__copy--preferred { background: rgba(var(--v-theme-primary), 0.045); }
   &__provider-icon { display: flex; color: rgba(var(--v-theme-on-surface), 0.6); }

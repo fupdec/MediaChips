@@ -1,4 +1,5 @@
 const de = {
+  copyDiscovery: {stats: {total: 'Dateien', attached: 'Verknüpft', pending: 'Ausstehend', ambiguous: 'Auswahl nötig', failed: 'Fehler'}},
   settingsLayout: {
     show_history_button: "Änderungsverlauf in der oberen Leiste anzeigen",
     show_history_button_hint: "Fügt eine Verlaufsschaltfläche neben der Hilfe hinzu. Der Verlauf bleibt unter Daten & Sicherungen verfügbar.",

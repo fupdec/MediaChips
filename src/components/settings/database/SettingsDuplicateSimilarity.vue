@@ -1,13 +1,5 @@
 <template>
   <v-card variant="flat" rounded="lg" class="similarity-settings">
-    <div class="similarity-heading">
-      <span class="similarity-heading__icon"><v-icon size="20">mdi-file-compare</v-icon></span>
-      <div>
-        <h3>{{ t('duplicateSimilarity.title') }}</h3>
-        <p>{{ t('duplicateSimilarity.subtitle') }}</p>
-      </div>
-    </div>
-
     <div class="similarity-presets">
       <v-btn size="small" rounded="lg" :variant="presetMode === 'fingerprint' ? 'tonal' : 'text'" color="primary" prepend-icon="mdi-fingerprint" @click="preset('fingerprint')">{{ t('duplicateSimilarity.presetFingerprint') }}</v-btn>
       <v-btn size="small" rounded="lg" :variant="presetMode === 'visual' ? 'tonal' : 'text'" color="primary" prepend-icon="mdi-view-grid-outline" @click="preset('visual')">{{ t('duplicateSimilarity.presetVisual') }}</v-btn>
@@ -23,34 +15,61 @@
         :aria-label="t('duplicateSimilarity.threshold')" hide-details thumb-size="16" track-size="4" />
       <div class="similarity-threshold__scale"><span>{{ t('duplicateSimilarity.moreMatches') }}</span><span>{{ t('duplicateSimilarity.stricter') }}</span></div>
     </div>
+
     <p class="similarity-caption similarity-score-hint">{{ t('duplicateSimilarity.scoreHint') }}</p>
 
-    <v-expansion-panels variant="accordion" class="similarity-signals" elevation="0">
+    <v-expansion-panels :model-value="0" variant="accordion" class="similarity-signals" elevation="0">
       <v-expansion-panel elevation="0">
         <v-expansion-panel-title>
           <v-icon size="18" class="mr-2" color="primary">mdi-tune-variant</v-icon>
-          <span>{{ t('duplicateSimilarity.signals') }}</span>
+          <span class="similarity-signals__title">{{ t('duplicateSimilarity.signals') }}</span>
           <span class="similarity-signals__count">{{ enabledSignals }}/5</span>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
-          <div v-for="signal in SIMILARITY_SIGNALS" :key="signal" class="signal-row" :class="{'signal-row--disabled': draft.weights[signal] === 0}">
-            <div class="signal-row__description">
+          <div class="similarity-signals__grid">
+          <div v-for="signal in SIMILARITY_SIGNALS" :key="signal" class="signal-row" :class="{'signal-row--disabled': draft.weights[signal] === 0, 'signal-row--required': draft.required.includes(signal)}">
+            <div class="signal-row__header">
               <div class="signal-row__title">
                 <span>{{ t(`duplicateSimilarity.${signal}`) }}</span>
                 <span class="signal-strength" :class="`signal-strength--${signal}`">{{ t(`duplicateSimilarity.strength_${signal}`) }}</span>
               </div>
-              <p class="similarity-caption">{{ t(`duplicateSimilarity.${signal}Hint`) }}</p>
+              <v-checkbox class="signal-row__required" v-model="draft.required" :value="signal"
+                :label="t('duplicateSimilarity.required')"
+                :aria-label="`${t(`duplicateSimilarity.${signal}`)}: ${t('duplicateSimilarity.required')}`"
+                density="compact" hide-details color="primary" />
             </div>
-            <v-number-input v-model="draft.weights[signal]" :min="0" :max="100" :step="5" control-variant="hidden"
-              :label="t('duplicateSimilarity.weight')" density="compact" variant="outlined" rounded="lg" hide-details />
-            <v-checkbox v-model="draft.required" :value="signal" :label="t('duplicateSimilarity.required')" density="compact" hide-details color="primary" />
+            <p class="signal-row__description similarity-caption">{{ t(`duplicateSimilarity.${signal}Hint`) }}</p>
+            <div class="signal-row__weight similarity-slider">
+              <div class="similarity-slider__heading">
+                <span>{{ t('duplicateSimilarity.weight') }}</span>
+                <output>{{ draft.weights[signal] }}</output>
+              </div>
+              <v-slider v-model="draft.weights[signal]" :min="0" :max="100" :step="5"
+                :aria-label="`${t(`duplicateSimilarity.${signal}`)}: ${t('duplicateSimilarity.weight')}`"
+                color="primary" hide-details thumb-label thumb-size="16" track-size="4" />
+            </div>
+          </div>
           </div>
           <p class="similarity-caption mt-3">{{ t('duplicateSimilarity.weightHint') }}</p>
           <div class="similarity-fields mt-4">
-            <v-number-input v-model="draft.visualMinimum" :min="1" :max="100" control-variant="hidden"
-              :label="t('duplicateSimilarity.visualMinimum')" density="compact" variant="outlined" rounded="lg" hide-details />
-            <v-number-input v-model="draft.minimumFrames" :min="1" :max="9" control-variant="hidden"
-              :label="t('duplicateSimilarity.minimumFrames')" density="compact" variant="outlined" rounded="lg" hide-details />
+            <div class="similarity-slider">
+              <div class="similarity-slider__heading">
+                <span>{{ t('duplicateSimilarity.visualMinimum') }}</span>
+                <output>{{ draft.visualMinimum }}%</output>
+              </div>
+              <v-slider v-model="draft.visualMinimum" :min="1" :max="100" :step="1"
+                :aria-label="t('duplicateSimilarity.visualMinimum')" color="primary"
+                hide-details thumb-label thumb-size="16" track-size="4" />
+            </div>
+            <div class="similarity-slider">
+              <div class="similarity-slider__heading">
+                <span>{{ t('duplicateSimilarity.minimumFrames') }}</span>
+                <output>{{ draft.minimumFrames }}/9</output>
+              </div>
+              <v-slider v-model="draft.minimumFrames" :min="1" :max="9" :step="1"
+                :aria-label="t('duplicateSimilarity.minimumFrames')" color="primary"
+                hide-details thumb-label show-ticks="always" thumb-size="16" track-size="4" />
+            </div>
           </div>
           <div class="similarity-note mt-4"><v-icon size="17">mdi-shield-check-outline</v-icon><span>{{ t('duplicateSimilarity.guarantee') }}</span></div>
         </v-expansion-panel-text>
@@ -132,12 +151,8 @@ async function save(): Promise<boolean> {
 defineExpose({save})
 </script>
 <style scoped>
-.similarity-settings { padding: 20px; margin-bottom: 16px; border: 1px solid rgba(var(--v-theme-on-surface), .09); border-radius: 18px !important; overflow: visible; }
-.similarity-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
-.similarity-heading__icon { width: 36px; height: 36px; display: grid; place-items: center; flex-shrink: 0; border-radius: 11px; background: rgba(var(--v-theme-primary), .08); color: rgb(var(--v-theme-primary)); }
-.similarity-heading h3 { font-size: .9375rem; font-weight: 600; line-height: 1.5; }
-.similarity-heading p, .similarity-caption { font-size: .75rem; line-height: 1.6; color: rgba(var(--v-theme-on-surface), .6); margin: 0; }
-.similarity-heading p { margin-top: 3px; font-size: .8125rem; }
+.similarity-settings { container-type: inline-size; padding: 0; border: 0; background: transparent; overflow: visible; }
+.similarity-caption { font-size: .75rem; line-height: 1.6; color: rgba(var(--v-theme-on-surface), .6); margin: 0; }
 .similarity-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 16px; }
 .similarity-presets__custom { font-size: .6875rem; color: rgba(var(--v-theme-on-surface), .55); margin-left: auto; }
 .similarity-threshold { background: rgba(var(--v-theme-primary), .045); border: 1px solid rgba(var(--v-theme-primary), .09); border-radius: 12px; padding: 12px 16px; }
@@ -147,19 +162,43 @@ defineExpose({save})
 .similarity-threshold :deep(.v-input) { margin: 2px 0; }
 .similarity-threshold__scale { display: flex; justify-content: space-between; font-size: .6875rem; color: rgba(var(--v-theme-on-surface), .5); }
 .similarity-score-hint { margin: 9px 0 16px; }
-.similarity-signals { border: 1px solid rgba(var(--v-theme-on-surface), .09); border-radius: 12px; overflow: hidden; }
-.similarity-signals :deep(.v-expansion-panel-title) { min-height: 48px; padding: 12px 16px; font-size: .8125rem; }
+.similarity-signals { border: 1px solid rgba(var(--v-theme-primary), .12); border-radius: 12px; background: rgba(var(--v-theme-primary), .045); overflow: hidden; }
+.similarity-signals :deep(.v-expansion-panel-title) { min-height: 48px; gap: 0; padding: 12px 16px; font-size: .8125rem; }
 .similarity-signals :deep(.v-expansion-panel-text__wrapper) { padding: 0 16px 16px; }
-.similarity-signals__count { margin-left: auto; padding-right: 12px; font-size: .6875rem; font-variant-numeric: tabular-nums; color: rgba(var(--v-theme-on-surface), .5); }
-.signal-row { display: grid; grid-template-columns: minmax(0, 1fr) 92px 112px; gap: 12px; align-items: center; padding: 14px 0; border-bottom: 1px solid rgba(var(--v-theme-on-surface), .06); }
-.signal-row :deep(.v-field-label) { font-size: .75rem; }
-.signal-row__title { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: .8125rem; font-weight: 500; margin-bottom: 3px; }
-.signal-row--disabled .signal-row__description { opacity: .6; }
-.signal-strength { font-size: .625rem; font-weight: 500; border-radius: 5px; padding: 1px 5px; color: rgba(var(--v-theme-on-surface), .6); background: rgba(var(--v-theme-on-surface), .05); }
+.similarity-signals__title { flex: 1; font-weight: 700; }
+.similarity-signals__count { flex: 0 0 auto; margin-left: auto; padding: 4px 9px; margin-inline-end: 12px; border-radius: 8px; background: rgba(var(--v-theme-primary), .09); font-size: .75rem; font-weight: 600; font-variant-numeric: tabular-nums; color: rgb(var(--v-theme-primary)); }
+.similarity-signals__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.signal-row { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px solid rgba(var(--v-theme-on-surface), .1); border-radius: 16px; background: rgb(var(--v-theme-surface)); transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
+.signal-row__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.signal-row__header .signal-row__title { min-width: 0; margin: 5px 0 0; }
+.signal-row__header .signal-row__required { flex: 0 0 auto; margin-top: -2px; }
+.signal-row__weight { margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(var(--v-theme-on-surface), .06); }
+.similarity-slider { min-width: 0; }
+.similarity-slider__heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 0; font-size: .75rem; line-height: 1.5; }
+.similarity-slider__heading output { flex-shrink: 0; color: rgb(var(--v-theme-primary)); font-weight: 700; font-variant-numeric: tabular-nums; }
+.similarity-slider :deep(.v-slider) { margin: 0 8px; }
+.similarity-slider :deep(.v-slider .v-input__control) { min-height: 32px; }
+.signal-row__description { min-width: 0; }
+.signal-row__description.similarity-caption { font-size: .75rem; line-height: 1.5; color: rgba(var(--v-theme-on-surface), .74); }
+.signal-row__weight, .signal-row__required { min-width: 0; }
+.similarity-settings :deep(.v-field__input) { font-size: .8125rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.similarity-settings :deep(.v-field-label) { font-size: .75rem; }
+.similarity-settings :deep(.v-label.v-field-label--floating) { font-size: .6875rem; }
+.signal-row__required :deep(.v-label) { font-size: .8125rem; line-height: 1.5; white-space: normal; opacity: 1; }
+.signal-row__required :deep(.v-selection-control) { min-height: 36px; }
+.signal-row__required :deep(.v-selection-control__wrapper) { width: 32px; height: 36px; }
+.signal-row__required :deep(.v-icon) { font-size: 20px; }
+.similarity-signals :deep(.v-expansion-panel-title--active) { min-height: 48px; }
+.similarity-signals :deep(.v-expansion-panel) { background: transparent; }
+.signal-row__title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: .875rem; font-weight: 700; margin-bottom: 4px; }
+.signal-row--disabled { border-style: dashed; background: rgba(var(--v-theme-surface), .65); }
+.signal-row--required { border: 1px solid rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .035); box-shadow: 0 0 0 1px rgba(var(--v-theme-primary), .18); }
+.signal-row--required .signal-row__weight { border-color: rgba(var(--v-theme-primary), .14); }
+.signal-strength { font-size: .6875rem; font-weight: 600; border-radius: 6px; padding: 2px 6px; color: rgba(var(--v-theme-on-surface), .8); background: rgba(var(--v-theme-on-surface), .05); }
 .signal-strength--oshash, .signal-strength--path { color: rgb(var(--v-theme-success)); background: rgba(var(--v-theme-success), .08); }
 .signal-strength--visual { color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .08); }
-.similarity-note { display: flex; align-items: flex-start; gap: 8px; font-size: .75rem; line-height: 1.6; color: rgba(var(--v-theme-on-surface), .65); }
-.similarity-note .v-icon { margin-top: 2px; color: rgb(var(--v-theme-primary)); }
+.similarity-note { padding: 12px; border-radius: 10px; background: rgba(var(--v-theme-primary), .06); display: flex; align-items: flex-start; gap: 8px; font-size: .75rem; line-height: 1.6; color: rgba(var(--v-theme-on-surface), .65); }
+.similarity-note .v-icon { flex-shrink: 0; margin-top: 2px; color: rgb(var(--v-theme-primary)); }
 .similarity-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .similarity-outcome { margin-top: 20px; }
 .similarity-outcome h4, .similarity-auto h4 { font-size: .8125rem; font-weight: 600; line-height: 1.5; margin: 0 0 12px; }
@@ -171,10 +210,14 @@ defineExpose({save})
 .similarity-footer > .v-btn { margin-left: auto; }
 .similarity-footer__status { display: flex; align-items: center; gap: 5px; font-size: .75rem; color: rgba(var(--v-theme-on-surface), .45); }
 .similarity-footer__status--changed { color: rgb(var(--v-theme-primary)); }
+@container (min-width: 620px) {
+  .similarity-signals__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .signal-row:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
 @media (max-width: 600px) {
-  .similarity-settings { padding: 16px; }
-  .signal-row { grid-template-columns: minmax(0, 1fr) 70px; gap: 8px; }
-  .signal-row > :last-child { grid-column: 1 / -1; }
+  .signal-row { padding: 12px; }
+  .signal-row__header { gap: 8px; }
   .similarity-fields { grid-template-columns: minmax(0, 1fr); }
 }
 </style>

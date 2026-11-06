@@ -2,22 +2,41 @@
   <section class="copy-discovery" data-testid="copy-discovery">
     <h3 v-if="showHeading" class="text-subtitle-2 mb-2">{{ t('copyDiscovery.title') }}</h3>
     <p v-if="showHeading" class="text-caption mb-3">{{ t('copyDiscovery.hint') }}</p>
-    <v-textarea v-model="rootsText" :label="t('copyDiscovery.folders')" :hint="t('copyDiscovery.folders_hint')"
-      persistent-hint rows="2" variant="outlined" density="compact" :disabled="pending" />
-    <v-btn class="my-3" variant="tonal" color="primary" :disabled="!rootsText.trim() || pending" :loading="pending" @click="start">
-      {{ t('copyDiscovery.start') }}
-    </v-btn>
-    <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-3" role="alert">{{ error }}</v-alert>
-    <div v-if="collapseHistory && jobs.length" class="mb-3" data-testid="copy-discovery-summary">
-      <p class="text-caption font-weight-medium">{{ t('copyDiscovery.summary', {count: jobs.length}) }}</p>
-      <p class="text-caption" role="status">{{ t('copyDiscovery.progress', totals) }}</p>
+    <div class="copy-discovery__input">
+      <v-textarea v-model="rootsText" :label="t('copyDiscovery.folders')"
+        rows="3" auto-grow variant="outlined" density="comfortable" rounded="lg"
+        hide-details :disabled="pending" />
+      <p class="copy-discovery__hint"><v-icon size="16" aria-hidden="true">mdi-information-outline</v-icon>{{ t('copyDiscovery.folders_hint') }}</p>
+      <div class="copy-discovery__actions">
+        <v-btn variant="flat" color="primary" rounded="lg" prepend-icon="mdi-folder-search-outline"
+          :disabled="!rootsText.trim() || pending" :loading="pending" @click="start">
+          {{ t('copyDiscovery.start') }}
+        </v-btn>
+      </div>
     </div>
-    <v-btn v-if="collapseHistory && jobs.some(job => !active(job))" size="small" variant="text"
-      class="mb-2" :disabled="pending" data-testid="copy-discovery-clear-history" @click="clearHistory">
-      {{ t('copyDiscovery.clear_history') }}
-    </v-btn>
+    <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-3" role="alert">{{ error }}</v-alert>
+    <div v-if="collapseHistory && jobs.length" class="copy-discovery__summary" data-testid="copy-discovery-summary">
+      <div class="copy-discovery__summary-heading">
+        <span>{{ t('copyDiscovery.summary', {count: jobs.length}) }}</span>
+        <v-btn v-if="jobs.some(job => !active(job))" size="small" variant="text"
+          prepend-icon="mdi-delete-outline" :disabled="pending" data-testid="copy-discovery-clear-history" @click="clearHistory">
+          {{ t('copyDiscovery.clear_history') }}
+        </v-btn>
+      </div>
+      <div class="copy-discovery__stats" role="status" :aria-label="t('copyDiscovery.progress', totals)">
+        <div v-for="stat in summaryStats" :key="stat.key" class="copy-discovery__stat" :class="{'copy-discovery__stat--alert': stat.key === 'failed' && stat.value > 0}">
+          <v-icon :icon="stat.icon" size="18" aria-hidden="true" />
+          <strong>{{ stat.value }}</strong>
+          <span>{{ t('copyDiscovery.stats.' + stat.key) }}</span>
+        </div>
+      </div>
+    </div>
     <component v-for="group in jobGroups" :key="group.id" :is="group.history ? 'details' : 'div'" class="copy-discovery__group">
-      <summary v-if="group.history" class="text-caption">{{ t('copyDiscovery.history', {count: group.jobs.length}) }}</summary>
+      <summary v-if="group.history" class="copy-discovery__history-toggle">
+        <v-icon size="18" aria-hidden="true" class="copy-discovery__chevron">mdi-chevron-right</v-icon>
+        <v-icon size="18" aria-hidden="true">mdi-history</v-icon>
+        <span>{{ t('copyDiscovery.history', {count: group.jobs.length}) }}</span>
+      </summary>
       <div :class="{'copy-discovery__history': group.history}">
         <div v-for="job in group.jobs" :key="job.id" class="copy-discovery__job">
           <div class="d-flex align-center flex-wrap ga-2">
@@ -86,6 +105,13 @@ const totals = computed(() => jobs.value.reduce((sum, job) => ({
   ambiguous: sum.ambiguous + (job.counts.ambiguous || 0),
   failed: sum.failed + (job.counts.failed || 0),
 }), {total: 0, attached: 0, pending: 0, ambiguous: 0, failed: 0}))
+const summaryStats = computed(() => [
+  {key: 'total', value: totals.value.total, icon: 'mdi-file-outline'},
+  {key: 'attached', value: totals.value.attached, icon: 'mdi-link-variant'},
+  {key: 'pending', value: totals.value.pending, icon: 'mdi-clock-outline'},
+  {key: 'ambiguous', value: totals.value.ambiguous, icon: 'mdi-call-split'},
+  {key: 'failed', value: totals.value.failed, icon: 'mdi-alert-circle-outline'},
+])
 const message = (code: string) => te('copyDiscovery.errors.' + code) ? t('copyDiscovery.errors.' + code) : t('copyDiscovery.errors.failed')
 const showError = (err: unknown) => { error.value = message((err as {response?: {data?: {code?: string}}}).response?.data?.code || 'failed') }
 async function load() {
@@ -150,7 +176,33 @@ watch([() => app.dbPath, () => app.localhost, () => props.mediaId], () => {
 </script>
 
 <style scoped>
-.copy-discovery { margin-block: 16px; }
+.copy-discovery { margin-block: 16px; min-width: 0; }
+.copy-discovery__input { padding: 16px; border-radius: 14px; background: rgba(var(--v-theme-primary), .035); border: 1px solid rgba(var(--v-theme-primary), .09); margin-bottom: 20px; }
+.copy-discovery__input :deep(textarea) { font-family: monospace; font-size: .8125rem; line-height: 1.7; overflow-wrap: anywhere; }
+.copy-discovery__hint { display: flex; align-items: flex-start; gap: 7px; font-size: .75rem; line-height: 1.6; color: rgba(var(--v-theme-on-surface), .6); margin: 10px 0 16px; overflow-wrap: anywhere; }
+.copy-discovery__hint .v-icon { margin-top: 2px; flex-shrink: 0; }
+.copy-discovery__actions { display: flex; justify-content: flex-end; }
+.copy-discovery__summary { margin-bottom: 16px; }
+.copy-discovery__summary-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; font-size: .75rem; font-weight: 600; color: rgba(var(--v-theme-on-surface), .65); }
+.copy-discovery__stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.copy-discovery__stat { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px 4px; padding: 12px; border-radius: 12px; background: rgba(var(--v-theme-on-surface), .035); }
+.copy-discovery__stat > .v-icon { color: rgba(var(--v-theme-on-surface), .45); }
+.copy-discovery__stat strong { font-size: 1.125rem; font-variant-numeric: tabular-nums; }
+.copy-discovery__stat span { grid-column: 1 / -1; font-size: .6875rem; line-height: 1.4; color: rgba(var(--v-theme-on-surface), .6); }
+.copy-discovery__stat--alert { background: rgba(var(--v-theme-error), .07); }
+.copy-discovery__stat--alert strong, .copy-discovery__stat--alert > .v-icon { color: rgb(var(--v-theme-error)); }
+.copy-discovery__history-toggle { display: flex; align-items: center; gap: 8px; list-style: none; padding: 12px 0; font-size: .8125rem; font-weight: 500; border-top: 1px solid rgba(var(--v-theme-on-surface), .08); }
+.copy-discovery__history-toggle::-webkit-details-marker { display: none; }
+.copy-discovery__chevron { transition: transform .18s ease; }
+details[open] > .copy-discovery__history-toggle .copy-discovery__chevron { transform: rotate(90deg); }
+.copy-discovery__history-toggle:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); outline-offset: 2px; border-radius: 4px; }
+@media (max-width: 600px) {
+  .copy-discovery__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .copy-discovery__stat:first-child { grid-column: 1 / -1; }
+  .copy-discovery__input { padding: 12px; }
+  .copy-discovery__actions > .v-btn { width: 100%; height: auto; min-height: 40px; }
+  .copy-discovery__actions :deep(.v-btn__content) { white-space: normal; }
+}
 .copy-discovery__history { max-height: 320px; overflow: auto; }
 .copy-discovery__group > summary { cursor: pointer; }
 .copy-discovery__job { padding-block: 12px; border-top: 1px solid rgba(var(--v-theme-on-surface), .12); }

@@ -1,4 +1,5 @@
 const pt = {
+  copyDiscovery: {stats: {total: 'Arquivos', attached: 'Vinculados', pending: 'Pendentes', ambiguous: 'Revisar', failed: 'Erros'}},
   settingsLayout: {
     show_history_button: "Mostrar histórico de alterações na barra superior",
     show_history_button_hint: "Adiciona um botão de histórico ao lado da Ajuda. O histórico continua disponível em Dados e backups.",

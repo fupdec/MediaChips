@@ -1,5 +1,9 @@
 const en = {
   settingsLayout: {
+    maintenance_media_data: "Media data",
+    maintenance_duplicates: "Fingerprints & duplicates",
+    maintenance_recognition: "Search & recognition",
+
     show_history_button: "Show change history in the top bar",
     show_history_button_hint: "Adds a history button next to Help. History is always available in Data & backups.",
     transcode_cache: "Transcode cache",
@@ -46,6 +50,8 @@ const en = {
 },
   duplicateSimilarity: {
     "sectionHint": "Find similar files and keep them in one library entry.",
+    "advancedTitle": "Comparison & merge settings",
+    "advancedHint": "Open to adjust search precision or file retention rules.",
     "searchTitle": "Search the library",
     "searchHint": "Choose a file type and comparison method.",
     "verificationTitle": "File verification",
@@ -143,6 +149,7 @@ const en = {
 },
 
   copyDiscovery: {
+    stats: {total: 'Files', attached: 'Attached', pending: 'Pending', ambiguous: 'Need review', failed: 'Errors'},
     clear_history: 'Clear check history',
     summary: 'Recent checks: {count}',
     history: 'Check history ({count})',

@@ -1,11 +1,12 @@
 <template>
   <SettingsHealthTask id="settings-find-duplicates" status="idle" class="duplicates-section">
-    <SettingsHealthSectionHeader
+    <SettingsGroupLabel
       :title="t('settings_labels.database.find_duplicates')"
       icon="content-duplicate"
-      :hint="t('duplicateSimilarity.sectionHint')"
-      status="idle"
+      accent
     />
+
+    <p class="duplicates-section__hint">{{ t('duplicateSimilarity.sectionHint') }}</p>
 
     <section class="duplicates-panel duplicates-search">
       <div class="duplicates-panel__heading">
@@ -28,7 +29,13 @@
       </div>
     </section>
 
-    <SettingsDuplicateSimilarity ref="similaritySettings" />
+    <section class="duplicates-panel duplicates-advanced">
+      <div class="duplicates-panel__heading">
+        <span class="duplicates-panel__icon" aria-hidden="true"><v-icon size="20">mdi-tune-variant</v-icon></span>
+        <h3>{{ t('duplicateSimilarity.advancedTitle') }}</h3>
+      </div>
+      <SettingsDuplicateSimilarity ref="similaritySettings" />
+    </section>
 
     <section class="duplicates-panel">
       <div class="duplicates-panel__heading">
@@ -52,11 +59,11 @@
       </div>
       <div class="duplicates-automation">
         <SettingsSwitch option="copyDiscoveryOnImport" :title="t('duplicateSimilarity.onImport')"
-          :hint="t('duplicateSimilarity.onImportHint')" data-testid="copy-auto-import" class="duplicates-setting" />
+        :hint="t('duplicateSimilarity.onImportHint')" data-testid="copy-auto-import" class="duplicates-setting" />
         <SettingsSwitch option="copyDiscoveryOnFolderUpdate" :title="t('duplicateSimilarity.onFolder')"
-          :hint="t('duplicateSimilarity.onFolderHint')" data-testid="copy-auto-folders" class="duplicates-setting" />
+        :hint="t('duplicateSimilarity.onFolderHint')" data-testid="copy-auto-folders" class="duplicates-setting" />
         <SettingsSwitch option="copyDiscoveryOnReconnect" :title="t('duplicateSimilarity.onReconnect')"
-          :hint="t('duplicateSimilarity.onReconnectHint')" data-testid="copy-auto-reconnect" class="duplicates-setting" />
+        :hint="t('duplicateSimilarity.onReconnectHint')" data-testid="copy-auto-reconnect" class="duplicates-setting" />
       </div>
     </section>
 
@@ -79,7 +86,7 @@ import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
 import MediaCopyDiscovery from '@/components/items/MediaCopyDiscovery.vue'
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
+import SettingsGroupLabel from '@/components/settings/SettingsGroupLabel.vue'
 import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
@@ -143,7 +150,7 @@ async function openReview() {
 .duplicates-section { background: transparent; border: 0; border-radius: 0; }
 .duplicates-section :deep(.health-task__rail) { display: none; }
 .duplicates-section :deep(.health-task__body) { padding: 0; }
-.duplicates-section :deep(.health-section-header) { margin: 4px 0 22px; }
+.duplicates-section__hint { margin: 8px 0 22px; font-size: .8125rem; line-height: 1.5; color: rgba(var(--v-theme-on-surface), .65); }
 .duplicates-panel { padding: 20px; margin-bottom: 16px; border: 1px solid rgba(var(--v-theme-on-surface), .09); border-radius: 18px; background: rgb(var(--v-theme-surface)); }
 .duplicates-panel:last-child { margin-bottom: 0; }
 .duplicates-panel__heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
@@ -152,6 +159,7 @@ async function openReview() {
 .duplicates-panel__heading p { margin: 3px 0 0; font-size: .8125rem; line-height: 1.5; color: rgba(var(--v-theme-on-surface), .6); }
 .duplicates-search__controls { display: grid; grid-template-columns: 1fr 1.15fr; gap: 12px; align-items: center; }
 .duplicates-search__controls > .v-btn { grid-column: 1 / -1; justify-self: end; }
+.duplicates-advanced .duplicates-panel__heading { align-items: center; }
 .duplicates-setting :deep(.v-selection-control) { align-items: flex-start; }
 .duplicates-setting :deep(.v-label) { margin-left: 8px !important; }
 .duplicates-setting :deep(.v-input__details) { display: none; }

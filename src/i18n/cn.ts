@@ -1,4 +1,5 @@
 const cn = {
+  copyDiscovery: {stats: {total: '文件', attached: '已关联', pending: '等待中', ambiguous: '待确认', failed: '错误'}},
   settingsLayout: {
     show_history_button: "在顶部栏显示修改历史",
     show_history_button_hint: "在帮助旁添加历史按钮。也可随时从“数据与备份”打开历史记录。",

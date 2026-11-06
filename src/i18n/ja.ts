@@ -1,4 +1,5 @@
 const ja = {
+  copyDiscovery: {stats: {total: 'ファイル', attached: '関連付け済み', pending: '待機中', ambiguous: '要確認', failed: 'エラー'}},
   settingsLayout: {
     show_history_button: "上部バーに変更履歴を表示",
     show_history_button_hint: "ヘルプの隣に履歴ボタンを追加します。履歴は「データとバックアップ」から常に開けます。",
