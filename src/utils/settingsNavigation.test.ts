@@ -126,3 +126,15 @@ it('shows the description matching all search words when available', () => {
   expect(settingsMatchContext({section:'player',tab:'viewing',title:'Player',category:'Viewing',
     terms:['Conversion quality','Maximum conversion resolution']}, 'conversion resolution')).toBe('Maximum conversion resolution')
 })
+
+it('skips context already shown in the result labels', () => {
+  const item = {
+    section: 'duplicates',
+    tab: 'maintenance',
+    title: 'Поиск дубликатов',
+    category: 'Обслуживание',
+    terms: ['  ПОИСК ДУБЛИКАТОВ  ', 'Обслуживание', 'Найдено несколько дубликатов'],
+  }
+  expect(settingsMatchContext(item, 'поиск дубли')).toBe('Найдено несколько дубликатов')
+  expect(settingsMatchContext(item, 'обслуживание')).toBe('')
+})

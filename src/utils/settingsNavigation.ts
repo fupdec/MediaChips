@@ -5,6 +5,7 @@ export interface SettingsSectionDefinition {
   elementId: string
   tab: string
   titleKey: string
+  icon?: string
   searchKeys: string[]
   keywords?: string[]
   localAi?: boolean
@@ -14,6 +15,8 @@ export interface SettingsSearchItem {
   tab: string
   title: string
   category: string
+  sectionIcon?: string
+  categoryIcon?: string
   terms: string[]
 }
 
@@ -109,6 +112,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "network",
+    "icon": "mdi-lan",
     "elementId": "settings-network",
     "tab": "general",
     "titleKey": "settings_labels.general.group_network",
@@ -124,6 +128,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "locale",
+    "icon": "mdi-translate",
     "elementId": "settings-locale",
     "tab": "general",
     "titleKey": "settings.groups.localization",
@@ -133,6 +138,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "login",
+    "icon": "mdi-security",
     "elementId": "settings-login",
     "tab": "general",
     "titleKey": "settings_labels.security.title",
@@ -149,6 +155,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "video_player",
+    "icon": "mdi-play-circle",
     "elementId": "settings-video-player",
     "tab": "viewing",
     "titleKey": "settings_labels.video_player.title",
@@ -184,6 +191,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "video_preview",
+    "icon": "mdi-animation-play",
     "elementId": "video_preview",
     "tab": "viewing",
     "titleKey": "settings_labels.appearance.video_preview",
@@ -210,6 +218,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "appearance_theme",
+    "icon": "mdi-theme-light-dark",
     "elementId": "settings-appearance-theme",
     "tab": "appearance",
     "titleKey": "settings_labels.appearance.group_theme",
@@ -225,6 +234,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "appearance_navigation",
+    "icon": "mdi-menu",
     "elementId": "settings-appearance-navigation",
     "tab": "appearance",
     "titleKey": "settings_labels.appearance.group_navigation",
@@ -240,6 +250,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "appearance_colors",
+    "icon": "mdi-brush-variant",
     "elementId": "settings-appearance-colors",
     "tab": "appearance",
     "titleKey": "settings_labels.appearance.colors",
@@ -261,6 +272,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "appearance_cards",
+    "icon": "mdi-view-grid-outline",
     "elementId": "settings-appearance-cards",
     "tab": "appearance",
     "titleKey": "settings_labels.appearance.cards",
@@ -279,6 +291,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "appearance_page",
+    "icon": "mdi-page-layout-body",
     "elementId": "settings-appearance-page",
     "tab": "appearance",
     "titleKey": "settings_labels.appearance.page",
@@ -313,6 +326,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "appearance_image_viewer",
+    "icon": "mdi-image-multiple-outline",
     "elementId": "settings-appearance-image-viewer",
     "tab": "viewing",
     "titleKey": "settings_labels.appearance.image_viewer",
@@ -336,6 +350,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "appearance_sfw",
+    "icon": "mdi-eye-off",
     "elementId": "settings-appearance-sfw",
     "tab": "general",
     "titleKey": "settings_labels.tools.sfw_mode",
@@ -346,6 +361,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "meta",
+    "icon": "mdi-shape-outline",
     "elementId": "settings-meta",
     "tab": "library",
     "titleKey": "settings.tabs.meta",
@@ -357,6 +373,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "tag_categories",
+    "icon": "mdi-tag-multiple-outline",
     "elementId": "settings-tag-categories",
     "tab": "library",
     "titleKey": "settings_labels.library.tag_categories",
@@ -370,6 +387,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "chip_recipes",
+    "icon": "mdi-puzzle-outline",
     "elementId": "settings-chip-recipes",
     "tab": "library",
     "titleKey": "settings_labels.library.chip_recipes",
@@ -410,6 +428,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "media_types",
+    "icon": "mdi-file-outline",
     "elementId": "settings-media-types",
     "tab": "library",
     "titleKey": "settings.tabs.media",
@@ -419,6 +438,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "field_pinning",
+    "icon": "mdi-pin-outline",
     "elementId": "settings-meta-assignment",
     "tab": "library",
     "titleKey": "settings_labels.field_pinning.title",
@@ -436,6 +456,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "quick_tags",
+    "icon": "mdi-tag-plus-outline",
     "elementId": "settings-quick-tags",
     "tab": "library",
     "titleKey": "settings_labels.library.quick_tags",
@@ -445,6 +466,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "parse_library_tags",
+    "icon": "mdi-tag-search-outline",
     "elementId": "settings-parse-library-tags",
     "tab": "library",
     "titleKey": "settings_labels.library.parse_library_tags",
@@ -482,6 +504,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "bulk_paths",
+    "icon": "mdi-find-replace",
     "elementId": "settings-bulk-paths",
     "tab": "connections",
     "titleKey": "settings_labels.tools.bulk_edit_paths",
@@ -507,6 +530,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "folder_tags",
+    "icon": "mdi-folder-multiple-outline",
     "elementId": "settings-folder-tags",
     "tab": "library",
     "titleKey": "settings_labels.tools.folder_tags",
@@ -519,6 +543,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "watched_folders",
+    "icon": "mdi-folder-eye-outline",
     "elementId": "settings-watched-folders",
     "tab": "connections",
     "titleKey": "settings_labels.tools.folders",
@@ -566,6 +591,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "databases",
+    "icon": "mdi-database-outline",
     "elementId": "settings-databases",
     "tab": "database",
     "titleKey": "settings.groups.storage",
@@ -626,6 +652,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "backups",
+    "icon": "mdi-backup-restore",
     "elementId": "database_backups",
     "tab": "database",
     "titleKey": "settings_labels.database.manage_backups",
@@ -665,6 +692,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "library_reset",
+    "icon": "mdi-database-remove-outline",
     "elementId": "settings-library-reset",
     "tab": "database",
     "titleKey": "settings_labels.database.library_reset",
@@ -696,6 +724,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "library_health_guide",
+    "icon": "mdi-auto-fix",
     "elementId": "settings-library-health-guide",
     "tab": "maintenance",
     "titleKey": "settings.groups.maintenance_health",
@@ -716,6 +745,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "generate_video_images",
+    "icon": "mdi-movie-open-outline",
     "elementId": "settings-generate-video-images",
     "tab": "maintenance",
     "titleKey": "settings_labels.database.generate_video_images",
@@ -728,6 +758,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "generate_image_thumbs",
+    "icon": "mdi-image-outline",
     "elementId": "settings-generate-image-thumbs",
     "tab": "maintenance",
     "titleKey": "settings_labels.database.generate_image_thumbs",
@@ -740,6 +771,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "generate_auto_chapters",
+    "icon": "mdi-bookmark-multiple-outline",
     "elementId": "settings-generate-auto-chapters",
     "tab": "processing",
     "titleKey": "settings_labels.database.generate_auto_chapters",
@@ -756,6 +788,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "tag_image_ai_upscale",
+    "icon": "mdi-image-auto-adjust",
     "elementId": "settings-tag-image-ai-upscale",
     "tab": "maintenance",
     "titleKey": "settings_labels.database.tag_image_ai_upscale",
@@ -778,6 +811,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "local_ai",
+    "icon": "mdi-robot-outline",
     "elementId": "settings-local-ai",
     "tab": "processing",
     "titleKey": "settings_labels.local_ai.title",
@@ -812,6 +846,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "detect_faces",
+    "icon": "mdi-face-recognition",
     "elementId": "settings-detect-faces",
     "tab": "maintenance",
     "titleKey": "settings_labels.database.face_workflow_title",
@@ -887,6 +922,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "find_missing",
+    "icon": "mdi-file-search-outline",
     "elementId": "settings-find-missing-media",
     "tab": "maintenance",
     "titleKey": "settings_labels.database.find_missing_media",
@@ -912,6 +948,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "find_duplicates",
+    "icon": "mdi-content-duplicate",
     "elementId": "settings-find-duplicates",
     "tab": "maintenance",
     "titleKey": "settings_labels.database.find_duplicates",
@@ -967,6 +1004,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "clear_generated",
+    "icon": "mdi-delete-sweep",
     "elementId": "settings-clear-generated-images",
     "tab": "database",
     "titleKey": "settings_labels.database.clear_generated_images",
@@ -1007,6 +1045,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "registration",
+    "icon": "mdi-key-variant",
     "elementId": "settings-registration",
     "tab": "about",
     "titleKey": "registration.activation_key",
@@ -1059,6 +1098,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "sources",
+    "icon": "mdi-server-network-outline",
     "keywords": ["Google Drive", "Dropbox", "OneDrive", "OAuth", "Client ID", "App key", "Client secret", "Redirect URI"],
     "elementId": "settings-sources",
     "tab": "connections",
@@ -1072,6 +1112,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "metadata_transfer",
+    "icon": "mdi-file-export-outline",
     "elementId": "settings-metadata-transfer",
     "tab": "connections",
     "titleKey": "metadata_transfer.title",
@@ -1114,6 +1155,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "change_history",
+    "icon": "mdi-history",
     "elementId": "settings-change-history",
     "tab": "database",
     "titleKey": "change_history.title",
@@ -1148,6 +1190,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "fingerprint_backfill",
+    "icon": "mdi-fingerprint",
     "elementId": "settings-fingerprint-backfill",
     "tab": "maintenance",
     "titleKey": "settings_labels.database.fingerprint_backfill",
@@ -1166,6 +1209,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "visual_hash_backfill",
+    "icon": "mdi-image-multiple",
     "elementId": "settings-visual-hash-backfill",
     "tab": "maintenance",
     "titleKey": "settings_labels.database.visual_hash_backfill",
@@ -1182,6 +1226,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "video_codec_backfill",
+    "icon": "mdi-movie-filter",
     "elementId": "settings-video-codec-backfill",
     "tab": "maintenance",
     "titleKey": "settings_labels.database.video_codec_backfill",
@@ -1198,6 +1243,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "media_created_backfill",
+    "icon": "mdi-calendar-star",
     "elementId": "settings-media-created-backfill",
     "tab": "maintenance",
     "titleKey": "settings_labels.database.media_created_backfill",
@@ -1214,6 +1260,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "clip_embedding_backfill",
+    "icon": "mdi-brain",
     "elementId": "settings-clip-embedding-backfill",
     "tab": "maintenance",
     "titleKey": "settings_labels.database.clip_embedding_backfill",
@@ -1242,6 +1289,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "google_drive",
+    "icon": "mdi-cloud-outline",
     "elementId": "settings-google-drive",
     "tab": "connections",
     "titleKey": "settingsLayout.google_drive",
@@ -1249,6 +1297,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "nas",
+    "icon": "mdi-server-network-outline",
     "keywords": ["NAS", "SFTP", "FTP", "FTPS"],
     "elementId": "settings-nas",
     "tab": "connections",
@@ -1415,10 +1464,12 @@ export function highlightSettingsMatch(text: string, query: string): Array<{text
 /** Prefer the description matching the most query words, rather than the first partial hit. */
 export function settingsMatchContext(item: SettingsSearchItem, query: string): string {
   const words = normalizeSettingsSearch(query).trim().split(/\s+/).filter(Boolean)
+  const displayedLabels = [item.title, item.category].map(label => normalizeSettingsSearch(label).trim())
   let context = ''
   let bestScore = 0
   for (const term of item.terms) {
-    const normalized = normalizeSettingsSearch(term)
+    const normalized = normalizeSettingsSearch(term).trim()
+    if (displayedLabels.includes(normalized)) continue
     const score = words.filter(word => normalized.includes(word)).length
     if (score > bestScore) { context = term; bestScore = score }
   }

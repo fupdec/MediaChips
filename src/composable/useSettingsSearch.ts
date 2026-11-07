@@ -11,13 +11,18 @@ export function useSettingsSearch() {
   const pluginsStore = usePluginsStore()
   const items = computed((): SettingsSearchItem[] => {
     void pluginsStore.revision
-    const core = SETTINGS_SECTIONS.filter(item => (!item.localAi || LOCAL_AI_UI_ENABLED) && !['general_app', 'database_add'].includes(item.key)).map(item => ({
-      section: item.key,
-      tab: item.tab,
-      title: t(item.titleKey),
-      category: t(CORE_SETTINGS_TABS.find(tab => tab.value === item.tab)!.labelKey),
-      terms: [...item.searchKeys.map(key => t(key)), ...(item.keywords || [])],
-    }))
+    const core = SETTINGS_SECTIONS.filter(item => (!item.localAi || LOCAL_AI_UI_ENABLED) && !['general_app', 'database_add'].includes(item.key)).map(item => {
+      const nav = CORE_SETTINGS_TABS.find(tab => tab.value === item.tab)!
+      return {
+        section: item.key,
+        tab: item.tab,
+        title: t(item.titleKey),
+        category: t(nav.labelKey),
+        sectionIcon: item.icon,
+        categoryIcon: nav.icon,
+        terms: [...item.searchKeys.map(key => t(key)), ...(item.keywords || [])],
+      }
+    })
     const panels = pluginsStore.settingsPanels.filter(panel => panel.sectionId).map(panel => {
       const entry = pluginsStore.catalog.find(entry => entry.manifest.id === panel.pluginId)
       const panelTab = settingsPanelTab(panel)
@@ -26,6 +31,7 @@ export function useSettingsSearch() {
         section: panel.sectionId!, tab: panelTab,
         title: te(`settings_labels.plugins.catalog.${panel.pluginId}.name`) ? t(`settings_labels.plugins.catalog.${panel.pluginId}.name`) : entry?.manifest.name || panel.pluginId,
         category: nav ? t(nav.labelKey) : t('settings.tabs.plugins'),
+        categoryIcon: nav?.icon,
         terms: [te(`settings_labels.plugins.catalog.${panel.pluginId}.description`) ? t(`settings_labels.plugins.catalog.${panel.pluginId}.description`) : entry?.manifest.description || '', panel.componentKey],
       }
     })
