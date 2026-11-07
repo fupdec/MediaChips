@@ -43,6 +43,11 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       markSeenOnClose: false,
       seenVersion: '',
     },
+    mediaCardAction: {
+      kind: null as 'copies' | 'originals' | 'relink' | 'history' | 'metadata' | null,
+      mediaIds: [] as number[],
+      media: null as MediaItem | null,
+    },
     mediaEditing: { show: false, media: null as MediaItem | null, mediaType: {} as Partial<MediaType> },
     faceResults: { show: false, media: null as MediaItem | null, taskId: null as string | null },
     enrollmentQuality: { show: false, metaId: null as number | null },

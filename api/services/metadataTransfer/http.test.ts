@@ -1,5 +1,8 @@
 // @vitest-environment node
 import express from 'express'
+import {mkdtemp, rm, writeFile} from 'node:fs/promises'
+import {tmpdir} from 'node:os'
+import path from 'node:path'
 import type {Server} from 'node:http'
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {createTestDb, closeTestDb, type TestDb} from '../../db/testUtils/createTestDb'
@@ -42,5 +45,25 @@ describe('metadata transfer HTTP', () => {
     expect((await post('import',{bundle})).status).toBe(400)
     expect((await post('sidecars',{mediaIds:[1],formats:['xml']})).status).toBe(400)
     expect(db.sqlite.prepare('SELECT count(*) AS n FROM media').get()).toEqual({n:1})
+  })
+  it('previews a JSON file from a configured browse folder', async () => {
+    const folder = await mkdtemp(path.join(tmpdir(), 'metadata-preview-'))
+    const previousRoots = process.env.MEDIA_CHIPS_MEDIA_ROOTS
+    process.env.MEDIA_CHIPS_MEDIA_ROOTS = folder
+    try {
+      const bundle = await (await post('export', {mediaIds: [1]})).json()
+      const filePath = path.join(folder, 'metadata.json')
+      await writeFile(filePath, JSON.stringify(bundle))
+      const result = await post('preview-file', {filePath})
+      expect(result.status).toBe(200)
+      expect(await result.json()).toMatchObject({bundle, preview: {conflicts: []}})
+      expect((await post('preview-file', {filePath: path.join(folder, '..', 'outside.json')})).status).toBe(403)
+      await writeFile(filePath, 'invalid JSON')
+      expect((await post('preview-file', {filePath})).status).toBe(400)
+    } finally {
+      if (previousRoots === undefined) delete process.env.MEDIA_CHIPS_MEDIA_ROOTS
+      else process.env.MEDIA_CHIPS_MEDIA_ROOTS = previousRoots
+      await rm(folder, {recursive: true, force: true})
+    }
   })
 })

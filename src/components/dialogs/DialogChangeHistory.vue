@@ -22,13 +22,13 @@
         </div>
         <div v-else-if="operations.length" class="history-layout">
           <aside class="history-sidebar">
-            <div class="operation-section-heading"><h3>{{ t('change_history.operations') }}</h3><v-chip size="x-small" variant="tonal">{{ operations.length }}{{ moreOperations ? '+' : '' }}</v-chip></div>
+            <div class="operation-section-heading"><h3><v-icon icon="mdi-history" size="16" aria-hidden="true" />{{ t('change_history.operations') }}</h3><v-chip color="primary" size="x-small" variant="tonal">{{ operations.length }}{{ moreOperations ? '+' : '' }}</v-chip></div>
             <v-list class="history-timeline" :aria-label="t('change_history.operations')">
               <v-list-item v-for="operation in operations" :key="operation.id" :active="selected?.id === operation.id" :disabled="busy || loading || detailsLoading"
                 class="history-operation" rounded="lg" color="primary" @click="selectOperation(operation)">
                 <div class="history-operation__top">
                   <v-icon :icon="operation.remaining === 0 ? 'mdi-check-circle-outline' : sourceIcon(operation.source)" :color="operation.remaining === 0 ? 'success' : undefined" size="16" />
-                  <time :datetime="operation.occurredAt">{{ date(operation.occurredAt) }}</time>
+                  <time :datetime="operation.occurredAt" :title="exactDate(operation.occurredAt)">{{ relativeDate(operation.occurredAt) }}</time>
                 </div>
                 <div class="history-operation__title">{{ sourceLabel(operation.source) }}</div>
                 <div class="history-operation__summary">{{ t('change_history.summary', {items: operation.items, fields: operation.fields}) }}</div>
@@ -42,7 +42,7 @@
               <div>
                 <span class="operation-eyebrow">{{ t('change_history.details') }}</span>
                 <h2>{{ sourceLabel(selected.source) }}</h2>
-                <time class="history-detail__date" :datetime="selected.occurredAt">{{ date(selected.occurredAt) }}</time>
+                <time class="history-detail__date" :datetime="selected.occurredAt" :title="exactDate(selected.occurredAt)">{{ relativeDate(selected.occurredAt) }}</time>
               </div>
               <v-chip v-if="!selected.remaining" color="success" variant="tonal" prepend-icon="mdi-check-circle-outline" size="x-small">{{ t('change_history.restored') }}</v-chip>
             </div>
@@ -83,8 +83,17 @@
   </v-dialog>
 </template>
 <script setup lang="ts">
-import {ref} from 'vue'
+import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/de'
+import 'dayjs/locale/fr'
+import 'dayjs/locale/ja'
+import 'dayjs/locale/pt-br'
+import 'dayjs/locale/es'
+import 'dayjs/locale/zh-cn'
+import 'dayjs/locale/ru'
 import type {HistoryEntity, HistoryField, HistoryOperation} from '@shared/changeHistory'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {typedApi} from '@/services/typedApi'
@@ -93,8 +102,8 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {useEventBus} from '@/utils/eventBus'
 
-const props = defineProps<{entityType?: HistoryEntity; entityId?: number; disabled?: boolean}>()
-const emit = defineEmits<{restored: []}>()
+const props = defineProps<{entityType?: HistoryEntity; entityId?: number; disabled?: boolean; modelValue?: boolean}>()
+const emit = defineEmits<{restored: []; 'update:modelValue': [value: boolean]}>()
 const {t, te, locale} = useI18n()
 const listSync = useItemsListSync()
 const eventBus = useEventBus()
@@ -104,7 +113,19 @@ const operations = ref<HistoryOperation[]>([]), fields = ref<HistoryField[]>([])
 const selected = ref<HistoryOperation | null>(null)
 const moreOperations = ref(false), moreFields = ref(false)
 
-function date(text: string) { return new Date(text).toLocaleString(locale.value) }
+dayjs.extend(relativeTime)
+const dateLocale = computed(() => locale.value === 'cn' ? 'zh-cn' : locale.value === 'pt' ? 'pt-br' : locale.value)
+const now = ref(Date.now())
+
+watch(visible, (open, _, onCleanup) => {
+  if (!open) return
+  now.value = Date.now()
+  const timer = setInterval(() => { now.value = Date.now() }, 30_000)
+  onCleanup(() => clearInterval(timer))
+})
+
+function relativeDate(text: string) { return dayjs(text).locale(dateLocale.value).from(now.value) }
+function exactDate(text: string) { return new Date(text).toLocaleString(dateLocale.value) }
 function sourceLabel(source: string) {
   if (source === 'history:restore') return t('change_history.restore_source')
   if (source.includes('bulk-meta') || source === 'bulk-edit') return t('change_history.bulk_source')
@@ -135,6 +156,12 @@ async function open() {
   error.value = ''; success.value = ''; selected.value = null; fields.value = []
   await loadOperations(true)
 }
+watch(() => props.modelValue, (value) => {
+  if (value) void open()
+  else if (value === false) visible.value = false
+}, {immediate: true})
+watch(visible, (value) => emit('update:modelValue', value))
+
 async function loadOperations(reset: boolean) {
   loading.value = true
   error.value = ''
@@ -202,60 +229,93 @@ async function restore(fieldId?: number) {
   box-shadow: 0 24px 80px rgba(0, 0, 0, .24);
 
   :deep(.dialog-header) {
-    background: transparent;
     box-shadow: none;
     border-bottom: 1px solid var(--operation-border);
   }
-  :deep(.dialog-header .content) { min-height: 52px; padding: 8px 20px; }
-  :deep(.dialog-header .headline__title) { font-size: 1rem; font-weight: 600; }
-  :deep(.dialog-header__close) { width: 32px; height: 32px; }
-  .operation-body { padding: 20px !important; }
-  .operation-hero { padding: 0 0 16px; margin-bottom: 16px; border: 0; border-bottom: 1px solid var(--operation-border); border-radius: 0; background: transparent; }
+  @media (max-width: 600px) {
+    :deep(.dialog-header .content) { min-height: 52px; padding: 8px 20px; }
+    :deep(.dialog-header .headline__title) { font-size: 1rem; font-weight: 600; }
+    :deep(.dialog-header__close) { width: 32px; height: 32px; }
+  }
+  .operation-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0 !important;
+  }
+  .operation-body > :not(.history-layout, .history-empty) { flex-shrink: 0; }
+  .operation-hero { padding: 20px; margin: 0; border: 0; border-bottom: 1px solid var(--operation-border); border-radius: 0; background: transparent; }
   .operation-hero p { font-size: .8125rem; }
   .v-btn { min-height: 32px; font-size: .75rem; }
-  .history-layout { grid-template-columns: 248px minmax(0, 1fr); gap: 24px; }
-  .operation-section-heading { margin-bottom: 12px; }
-  .operation-section-heading h3 { font-size: .8125rem; font-weight: 600; }
-  .history-timeline { max-height: min(480px, 55vh); padding-right: 4px; scrollbar-width: thin; }
+  .history-layout { flex: 1 1 auto; min-height: 0; grid-template: minmax(0, 1fr) / 292px minmax(0, 1fr); gap: 0; }
+  .history-sidebar {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding-inline: 16px;
+    border-inline-end: 1px solid var(--operation-border);
+    background: rgba(var(--v-theme-on-surface), .025);
+  }
+  .history-sidebar > :not(.history-timeline) { flex-shrink: 0; }
+  .operation-section-heading { margin: 12px 0; }
+  .operation-section-heading h3 { display: flex; align-items: center; gap: 6px; font-size: .8125rem; font-weight: 600; }
+  .operation-section-heading .v-icon { color: rgb(var(--v-theme-primary)); }
+  .history-timeline { min-height: 0; max-height: none; padding-right: 4px; }
   .history-operation {
     padding: 12px !important;
     margin-bottom: 6px;
-    border-color: transparent;
+    border-color: var(--operation-border);
     border-radius: 8px !important;
+    background: rgb(var(--v-theme-surface));
     &__top { font-size: .6875rem; gap: 6px; }
     &__title { font-size: .8125rem; margin: 6px 0 3px; }
     &__summary { font-size: .75rem; }
-    &.v-list-item--active { border-color: rgba(var(--v-theme-primary), .22); }
+    &.v-list-item--active {
+      border-color: rgba(var(--v-theme-primary), .35);
+      border-inline-start: 3px solid rgb(var(--v-theme-primary));
+      padding-inline-start: 10px !important;
+    }
   }
-  .history-detail { padding-left: 24px; }
-  .history-detail__header { margin-bottom: 16px; }
+  .history-detail { min-height: 0; overflow-y: auto; padding-inline: 24px 20px; border: 0; }
+  .history-timeline, .history-detail { overscroll-behavior-y: contain; scrollbar-width: thin; }
+  .history-detail__header { margin: 12px 0 16px; }
   .operation-eyebrow { font-size: .6875rem; margin-bottom: 4px; }
   .history-detail h2 { display: block; font-size: 1.125rem; font-weight: 600; margin: 0 0 4px; }
   .history-detail__date { font-size: .75rem; }
   .history-detail__summary { gap: 8px; margin-bottom: 18px; }
-  .history-stat { border: 0; border-radius: 6px; padding: 6px 8px; background: rgba(var(--v-theme-on-surface), .045); }
+  .history-stat { border-radius: 8px; padding: 6px 10px; background: rgba(var(--v-theme-primary), .04); }
+  .history-stat > .v-icon { color: rgb(var(--v-theme-primary)); }
   .history-stat strong { font-weight: 600; }
-  .history-undo { align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+  .history-undo {
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    border: 1px solid var(--operation-border);
+    border-radius: 8px;
+    background: rgba(var(--v-theme-primary), .035);
+  }
   .history-undo__hint { font-size: .75rem; line-height: 1.6; }
   .history-field { margin-bottom: 12px; border-radius: 10px; background: rgb(var(--v-theme-surface)); }
-  .history-field__header { padding: 12px; gap: 10px; }
+  .history-field__header { padding: 12px; gap: 10px; background: rgba(var(--v-theme-on-surface), .025); }
   .history-field__entity-icon { align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: rgba(var(--v-theme-on-surface), .045); }
   .history-field h3 { display: block; margin: 0 0 3px; font-size: .8125rem; font-weight: 600; }
   .history-field__name > span { font-size: .6875rem; }
-  .history-values { padding: 0 12px 12px; gap: 10px; grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr); }
+  .history-values { padding: 12px; gap: 10px; grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr); border-top: 1px solid var(--operation-border); }
   .history-value-panel { padding: 10px 12px; border-radius: 8px; }
   .history-value-label { font-size: .6875rem; margin-bottom: 8px; }
   .history-value { font-size: .8125rem; line-height: 1.6; }
   .operation-footer { padding: 12px 20px; background: transparent; font-size: .6875rem; }
-  .history-empty { min-height: 260px; }
+  .history-empty { min-height: 0; height: 260px; }
 }
 @media (max-width: 700px) {
   .history-dialog {
-    .operation-body { padding: 14px !important; }
+    .operation-hero { padding: 14px; }
     :deep(.dialog-header .content) { padding-inline: 14px; }
-    .history-layout { grid-template-columns: 1fr; gap: 16px; }
+    .history-layout { grid-template: none; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(0, auto); }
+    .history-sidebar { padding-inline: 14px; border-inline-end: 0; }
     .history-timeline { max-height: 180px; }
-    .history-detail { padding: 16px 0 0; }
+    .history-detail { padding: 0 14px; border-top: 1px solid var(--operation-border); }
     .history-field__header > .v-btn { margin-left: auto; }
     .history-values { grid-template-columns: minmax(0, 1fr); }
     .history-values__arrow { justify-self: center; transform: rotate(90deg); }

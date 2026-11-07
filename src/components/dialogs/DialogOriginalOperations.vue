@@ -1,7 +1,7 @@
 <template>
   <v-dialog v-model="visible" :aria-label="t('originals.title')" class="originals-dialog" max-width="960" scrollable>
-    <v-card class="operation-dialog" rounded="xl">
-      <DialogHeader :header="t('originals.title')" icon="file-cog-outline" compact closable @close="visible = false" />
+    <v-card class="operation-dialog originals-workspace" rounded="xl">
+      <DialogHeader class="originals-header" :header="t('originals.title')" icon="file-cog-outline" compact closable @close="visible = false" />
       <v-card-text class="operation-body">
         <div class="operation-hero">
           <div class="operation-hero__text">
@@ -21,19 +21,25 @@
               </div>
               <v-icon v-if="!source.writable" icon="mdi-lock-outline" size="18" :title="t('originals.read_only')" />
             </div>
-            <div class="operation-section-heading"><h3>{{ t('originals.action') }}</h3></div>
-            <div class="originals-actions" role="group" :aria-label="t('originals.action')">
-              <v-btn v-for="option in kinds" :key="option.value" class="originals-action" :class="{'originals-action--selected': kind === option.value}"
-                :color="kind === option.value ? (option.value === 'delete' ? 'error' : 'primary') : undefined"
-                :variant="kind === option.value ? 'flat' : 'outlined'" :disabled="pending" :aria-pressed="kind === option.value"
-                :aria-label="t('originals.choose_action', {action: option.title})" @click="kind = option.value">
-                <v-icon :icon="actionIcons[option.value]" size="16" />
-                <span>{{ option.title }}</span>
-              </v-btn>
+            <div class="originals-action-picker">
+              <div class="operation-section-heading"><h3>{{ t('originals.action') }}</h3></div>
+              <div class="originals-actions" role="group" :aria-label="t('originals.action')">
+                <v-btn v-for="option in kinds" :key="option.value" class="originals-action" :class="{'originals-action--selected': kind === option.value}"
+                  :color="kind === option.value ? (option.value === 'delete' ? 'error' : 'primary') : undefined"
+                  :variant="kind === option.value ? 'flat' : 'outlined'" :disabled="pending" :aria-pressed="kind === option.value"
+                  :aria-label="t('originals.choose_action', {action: option.title})" @click="kind = option.value">
+                  <v-icon :icon="actionIcons[option.value]" size="16" />
+                  <span>{{ option.title }}</span>
+                </v-btn>
+              </div>
             </div>
             <v-alert v-if="!sameConnection && !['download', 'transfer', 'delete'].includes(kind)" type="info" variant="tonal" rounded="lg" class="mb-2">{{ t('originals.same_connection') }}</v-alert>
             <v-alert v-if="source && !source.writable && !['download', 'transfer'].includes(kind)" type="warning" variant="tonal" rounded="lg" class="mb-2">{{ t(source.provider === 'gdrive' ? 'originals.drive_authorization' : 'originals.read_only') }}</v-alert>
-            <form class="originals-settings" @submit.prevent="submit">
+            <form class="originals-settings" :class="{'originals-settings--delete': kind === 'delete'}" @submit.prevent="submit">
+              <div class="originals-settings__heading">
+                <v-icon :icon="actionIcons[kind]" size="18" color="primary" />
+                <h3>{{ t('originals.' + kind) }}</h3>
+              </div>
               <template v-if="kind === 'transfer'">
                 <v-select v-model="targetConnection" :items="destinationOptions" :label="t('originals.target_source')" :disabled="pending" variant="outlined" density="compact" hide-details />
                 <v-select v-model="removeSource" :items="transferModes" :label="t('originals.transfer_mode')" :disabled="pending" variant="outlined" density="compact" hide-details />
@@ -50,9 +56,9 @@
               <template v-if="kind === 'delete'">
                 <v-alert type="warning" variant="tonal" rounded="lg">
                   {{ t('originals.delete_count', {count: sources.length}) }}
-                  <div v-for="row in sources" :key="row.path" class="text-caption text-break mt-2">{{ row.name }} · {{ row.path }}</div>
+                  <div v-for="row in sources" :key="row.path" class="originals-delete-source">{{ row.name }} · {{ row.path }}</div>
                 </v-alert>
-                <v-checkbox v-model="confirmDelete" :disabled="pending" color="error" :label="t('originals.confirm_delete')" hide-details />
+                <v-checkbox v-model="confirmDelete" :disabled="pending" color="error" density="compact" :label="t('originals.confirm_delete')" hide-details />
               </template>
               <v-btn type="submit" class="originals-submit" :prepend-icon="actionIcons[kind]" :color="kind === 'delete' ? 'error' : 'primary'" variant="flat" size="small" rounded="lg" :loading="pending" :disabled="!canSubmit">{{ t('originals.' + kind) }}</v-btn>
             </form>
@@ -293,5 +299,61 @@ onBeforeUnmount(() => { generation++; clearTimeout(timer) })
 @media (max-width: 700px) {
   .originals-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .originals-history { padding: 10px 0 0; border-left: 0; border-top: 1px solid var(--operation-border); }
+}
+
+// Local workspace layout: keep these overrides within the originals dialog.
+.originals-workspace {
+  @media (max-width: 600px) {
+    :deep(.originals-header .content) {
+      min-height: 40px !important;
+      padding: 4px 16px !important;
+    }
+    :deep(.originals-header .headline__title) { font-size: .875rem !important; line-height: 1.3; }
+    :deep(.originals-header .dialog-header__close) { width: 28px; height: 28px; min-height: 28px; }
+  }
+  .operation-body { padding: 16px 20px 20px !important; }
+  .operation-hero { padding: 0; margin-bottom: 16px; border: 0; background: transparent; gap: 16px; align-items: flex-start; }
+  .operation-hero p { font-size: .75rem; line-height: 1.5; max-width: 70ch; }
+  .originals-layout { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .originals-source { padding: 12px; margin-bottom: 16px; border-radius: 12px; }
+  .originals-source strong { font-size: .8125rem; }
+  .originals-source__text { gap: 4px; }
+  .originals-action-picker { margin-bottom: 0; }
+  .operation-section-heading { margin-bottom: 10px; }
+  .operation-section-heading h3 { font-size: .75rem; font-weight: 600; }
+  .originals-settings { padding: 16px; gap: 14px; border: 1px solid var(--operation-border); border-radius: 12px; background: rgba(var(--v-theme-on-surface), .02); }
+  .originals-settings__heading { display: flex; align-items: center; gap: 8px; }
+  .originals-settings__heading h3 { font-size: .8125rem; font-weight: 600; }
+  .originals-settings :deep(.v-alert__content) { font-size: .75rem; line-height: 1.5; }
+  .originals-submit { min-height: 34px; padding-inline: 14px; }
+  .originals-history { padding: 14px; border: 1px solid var(--operation-border); border-radius: 12px; background: rgba(var(--v-theme-on-surface), .015); }
+  .originals-history__hint { margin-bottom: 12px; }
+  .operation-empty { min-height: 160px; padding: 20px 8px; }
+  .operation-empty p { max-width: 28ch; }
+  .operation-footer { padding: 9px 20px; }
+}
+.originals-workspace .originals-settings--delete {
+  gap: 8px;
+  padding: 12px;
+
+  .originals-delete-source {
+    margin-top: 4px;
+    font-size: .6875rem;
+    overflow-wrap: anywhere;
+  }
+  .v-checkbox :deep(.v-label) {
+    font-size: .75rem;
+    line-height: 1.4;
+  }
+  .originals-submit { min-height: 28px; padding-inline: 10px; }
+}
+@media (max-width: 700px) {
+  .originals-workspace {
+    .operation-body { padding: 12px !important; }
+    .originals-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    .originals-history { padding: 12px; }
+    .originals-settings { padding: 12px; }
+    .operation-footer { padding-inline: 12px; }
+  }
 }
 </style>

@@ -3149,8 +3149,14 @@ body > .video-preview-container.video-preview-container--expanded {
     white-space: nowrap;
   }
 
+  &__rating:has(> .editing-rating-field__hint)::before {
+    content: '';
+    height: 1.2em;
+    font-size: 0.6875rem;
+  }
+
   &__hint {
-    display: none;
+    visibility: hidden;
     max-width: 100%;
     font-size: 0.6875rem;
     line-height: 1.2;
@@ -3160,11 +3166,10 @@ body > .video-preview-container.video-preview-container--expanded {
     white-space: nowrap;
   }
 
-  // Keep the resting row height in sync with other fields; reveal the hint
-  // only while interacting, matching the show-on-focus hint fields elsewhere.
+  // Reserve the hint line so revealing it does not resize the field.
   .editing-field-card:hover &__hint,
   .editing-field-card:focus-within &__hint {
-    display: block;
+    visibility: visible;
   }
 
   .v-rating {

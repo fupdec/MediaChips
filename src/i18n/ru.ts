@@ -185,6 +185,7 @@ const ru = {
     },
   },
   copies: {
+    originals: 'Оригиналы',
     add_local: 'Добавить локальную копию',
     help: 'Как добавить копии с NAS или из облака',
     title: 'Копии файла',
@@ -1371,6 +1372,7 @@ const ru = {
     test_segment_created: 'Тестовый отрезок 5 сек создан',
   },
   context_menu: {
+    manage_file: 'Управление файлом',
     convert_video: 'Конвертировать видео',
     bulk_edit: 'Массовое редактирование',
     merge_tags: 'Объединить теги',

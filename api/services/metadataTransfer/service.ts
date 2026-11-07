@@ -86,11 +86,24 @@ export function exportMetadata(db: ApiDb, mediaIds: number[]): MetadataBundle {
       if (fieldIds.size > 100_000) fail('Too many related fields')
       if (before === fieldIds.size) break
     }
+    const exportedFieldIds = idsOf(fields)
+    const hasField = (row: Row) => exportedFieldIds.has(Number(row.metaId))
+    // Legacy databases may retain tags or parent links after a field was removed.
+    const exportedTags = tags.filter(hasField)
+    const exportedTagIds = idsOf(exportedTags)
+    const hasTag = (row: Row) => exportedTagIds.has(Number(row.tagId))
     const types = new Map(fields.map(r => [r.id, String(r.type)]))
-    const values = (rows: Row[]) => rows.map(r => ({...r, rawValue: r.value, value: metadataNativeValue(types.get(r.metaId)!, r.value as string | null)}))
+    const values = (rows: Row[]) => rows.filter(hasField).map(r => ({...r, rawValue: r.value, value: metadataNativeValue(types.get(r.metaId)!, r.value as string | null)}))
     const bundle = MetadataBundleSchema.parse({format: METADATA_FORMAT, version: METADATA_VERSION,
-      exportedAt: new Date().toISOString(), fields, tags, media, mediaTypes, marks,
-      mediaTags, tagTags, mediaValues: values(mediaValues), tagValues: values(tagValues), fieldAssignments, fieldPins})
+      exportedAt: new Date().toISOString(),
+      fields: fields.map(r => ({...r, parentMetaId: exportedFieldIds.has(Number(r.parentMetaId)) ? r.parentMetaId : null})),
+      tags: exportedTags.map(r => ({...r, parentTagId: exportedTagIds.has(Number(r.parentTagId)) ? r.parentTagId : null})),
+      media, mediaTypes, marks: marks.map(r => ({...r, tagId: hasTag(r) ? r.tagId : null})),
+      mediaTags: mediaTags.filter(r => hasField(r) && hasTag(r)),
+      tagTags: tagTags.filter(r => hasField(r) && hasTag(r) && exportedTagIds.has(Number(r.parentTagId))),
+      mediaValues: values(mediaValues), tagValues: values(tagValues.filter(hasTag)),
+      fieldAssignments: fieldAssignments.filter(hasField),
+      fieldPins: fieldPins.filter(r => hasField(r) && exportedFieldIds.has(Number(r.pinnedMetaId)))})
     validateBundle(bundle)
     return bundle
   })()

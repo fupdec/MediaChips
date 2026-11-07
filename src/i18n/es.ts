@@ -1,4 +1,5 @@
 const es = {
+  copies: {originals: 'Originales'},
   copyDiscovery: {stats: {total: 'Archivos', attached: 'Vinculados', pending: 'Pendientes', ambiguous: 'Requieren revisión', failed: 'Errores'}},
   settingsLayout: {
     show_history_button: "Mostrar historial de cambios en la barra superior",
@@ -762,6 +763,7 @@ const es = {
     test_segment_created: 'Segmento de prueba de 5 segundos creado',
   },
   context_menu: {
+    manage_file: 'Gestionar archivo',
     convert_video: 'Convertir vídeo',
     bulk_edit: 'Edición masiva',
     merge_tags: 'Combinar etiquetas',

@@ -53,6 +53,24 @@ function semantic(db: TestDb) {
 }
 
 describe('portable metadata', () => {
+  it('exports valid metadata even when old relations reference missing fields', () => {
+    source.sqlite.exec(`
+      INSERT INTO valuesInMedia (mediaId,metaId,value) VALUES (1,28,'orphan');
+      INSERT INTO metaInMediaTypes (metaId,mediaTypeId,"order",show) VALUES (28,1,4,1);
+      INSERT INTO pinnedMetas (metaId,pinnedMetaId,"order",show) VALUES (1,28,2,1);
+      UPDATE meta SET parentMetaId=28 WHERE id=7;
+      INSERT INTO tags (id,name,metaId,createdAt,updatedAt) VALUES (28,'Orphan tag',28,'2026','2026');
+      INSERT INTO tagsInMedia (mediaId,tagId,metaId) VALUES (1,28,28);
+    `)
+    const bundle = exportMetadata(source, [1])
+    expect(bundle.mediaValues.map(row => row.metaId)).toEqual([2, 3, 4, 5, 6])
+    expect(bundle.fieldAssignments.map(row => row.metaId)).toEqual([1, 2])
+    expect(bundle.fieldPins.map(row => row.pinnedMetaId)).toEqual([3])
+    expect(bundle.fields.find(row => row.id === 7)?.parentMetaId).toBeNull()
+    expect(bundle.tags.map(row => row.id)).toEqual([1, 2, 3])
+    expect(bundle.mediaTags.map(row => row.tagId)).toEqual([2])
+    expect(() => importAll(target, bundle)).not.toThrow()
+  })
   it('exports only selected cards and preserves native types and exact storage', () => {
     const bundle = exportMetadata(source, [1])
     expect(bundle.media).toHaveLength(1)

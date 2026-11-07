@@ -1,4 +1,5 @@
 const pt = {
+  copies: {originals: 'Originais'},
   copyDiscovery: {stats: {total: 'Arquivos', attached: 'Vinculados', pending: 'Pendentes', ambiguous: 'Revisar', failed: 'Erros'}},
   settingsLayout: {
     processing: "Processamento de mídia",
@@ -762,6 +763,7 @@ const pt = {
     test_segment_created: 'Segmento de teste de 5 segundos criado',
   },
   context_menu: {
+    manage_file: 'Gerenciar arquivo',
     convert_video: 'Converter vídeo',
     bulk_edit: 'Edição em massa',
     merge_tags: 'Mesclar tags',

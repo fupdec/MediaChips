@@ -1,4 +1,5 @@
 const ja = {
+  copies: {originals: 'オリジナル'},
   copyDiscovery: {stats: {total: 'ファイル', attached: '関連付け済み', pending: '待機中', ambiguous: '要確認', failed: 'エラー'}},
   settingsLayout: {
     processing: "メディア処理",
@@ -762,6 +763,7 @@ const ja = {
     test_segment_created: '5秒テストを作成しました',
   },
   context_menu: {
+    manage_file: 'ファイル管理',
     convert_video: '動画を変換',
     bulk_edit: '一括編集',
     merge_tags: 'タグをマージ',

@@ -1,7 +1,7 @@
 <template>
   <div
     class="dialog-header"
-    :class="{'dialog-header--compact': compact}"
+    :class="{'dialog-header--compact': isCompact}"
   >
     <div class="content">
       <div class="headline">
@@ -62,7 +62,7 @@
           :key="index"
           :color="btn.color"
           :variant="btn.outlined ? 'outlined' : 'flat'"
-          :size="compact ? 'small' : undefined"
+          :size="isCompact ? 'small' : undefined"
           :disabled="btn.disabled"
           :loading="btn.loading"
           :title="btn.title || btn.text"
@@ -73,7 +73,7 @@
           <v-icon
             v-if="btn.icon"
             :icon="`mdi-${btn.icon}`"
-            :size="compact ? 18 : undefined"
+            :size="isCompact ? 18 : undefined"
             start
           />
           <span
@@ -88,14 +88,14 @@
         class="dialog-header__close"
         icon
         variant="text"
-        :size="compact ? 'small' : undefined"
+        :size="isCompact ? 'small' : undefined"
         :aria-label="t('common.close')"
         :title="t('common.close')"
         @click="emit('close')"
       >
         <v-icon
           icon="mdi-close"
-          :size="compact ? 18 : undefined"
+          :size="isCompact ? 18 : undefined"
         />
       </v-btn>
     </div>
@@ -106,6 +106,7 @@
 import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
 import type { PropType } from 'vue'
 import {useI18n} from 'vue-i18n'
+import {useDisplay} from 'vuetify'
 import sortBy from 'lodash/sortBy'
 import {copyToClipboard} from '@/utils/copyToClipboard'
 
@@ -142,6 +143,8 @@ const props = defineProps({
 })
 
 const {t} = useI18n()
+const {xs} = useDisplay()
+const isCompact = computed(() => props.compact && xs.value)
 
 const buttonsOrdered = computed(() =>
   sortBy(props.buttons, 'order'),

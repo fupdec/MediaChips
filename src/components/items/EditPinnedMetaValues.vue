@@ -19,6 +19,7 @@
           :preset-meta="preset_meta"
           @media-path-update="onMediaPathUpdate"
         />
+        <slot name="after-overview" />
       </div>
     </div>
 
@@ -868,7 +869,7 @@ const showCountryField = computed(() => Boolean(props.meta?.country || props.met
 type FieldFilter = 'all' | 'filled' | 'empty'
 const FIELD_TOOLBAR_MIN_PINNED = 4
 const fieldFilter = ref<FieldFilter>('all')
-const fieldSearch = ref('')
+const fieldSearch = ref<string | null>('')
 
 const viewsEnabled = computed(() => settingsStore.count_number_of_views === '1')
 const showFieldToolbar = computed(() => assignedItems.value.length > FIELD_TOOLBAR_MIN_PINNED)
@@ -885,7 +886,7 @@ const isValueFilled = (val: MetaFieldValue, type?: string): boolean => {
 }
 
 const matchesFieldSearch = (label: string): boolean => {
-  const query = fieldSearch.value.trim().toLowerCase()
+  const query = (fieldSearch.value ?? '').trim().toLowerCase()
   if (!query) return true
   return label.toLowerCase().includes(query)
 }

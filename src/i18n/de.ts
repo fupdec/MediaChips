@@ -1,4 +1,5 @@
 const de = {
+  copies: {originals: 'Originale'},
   copyDiscovery: {stats: {total: 'Dateien', attached: 'Verknüpft', pending: 'Ausstehend', ambiguous: 'Auswahl nötig', failed: 'Fehler'}},
   settingsLayout: {
     processing: "Medienverarbeitung",
@@ -762,6 +763,7 @@ const de = {
     test_segment_created: '5-Sekunden-Test erstellt',
   },
   context_menu: {
+    manage_file: 'Datei verwalten',
     convert_video: 'Video konvertieren',
     bulk_edit: 'Massenbearbeitung',
     merge_tags: 'Tags zusammenführen',

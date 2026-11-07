@@ -90,6 +90,7 @@
       v-if="dialogsStore.mediaMerge.show"
     />
 
+    <DialogMediaCardActions v-if="dialogsStore.mediaCardAction.kind" />
     <DialogDuplicateReview />
 
     <DialogSimilarMediaWall
@@ -336,6 +337,10 @@ const DialogTagMerge = defineAsyncComponent(() =>
 const DialogMediaMerge = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMediaMerge.vue')
 )
+const DialogMediaCardActions = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogMediaCardActions.vue')
+)
+
 const DialogDuplicateReview = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogDuplicateReview.vue')
 )

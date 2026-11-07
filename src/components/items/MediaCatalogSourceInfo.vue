@@ -9,7 +9,13 @@
       </v-chip>
     </div>
     <MediaOfflineCopy v-if="kinds.some(kind => ['nas', 'gdrive', 'onedrive', 'dropbox'].includes(kind))" :media-id="media.id" />
-    <v-icon size="14" class="media-catalog-source-info__hint" :title="t('sources.catalog.offline_editing')" :aria-label="t('sources.catalog.offline_editing')" tabindex="0">mdi-information-outline</v-icon>
+    <v-tooltip location="top" max-width="360" open-on-focus>
+      <template #activator="{props: tooltipProps}">
+        <v-btn v-bind="tooltipProps" class="media-catalog-source-info__hint" icon="mdi-information-outline"
+          variant="text" size="x-small" :aria-label="t('sources.catalog.offline_editing')" />
+      </template>
+      {{ t('sources.catalog.offline_editing') }}
+    </v-tooltip>
   </div>
 </template>
 
@@ -34,5 +40,5 @@ const kinds = computed((): string[] => {
 .media-catalog-source-info__name { height: auto; min-height: 22px; padding-block: 2px; }
 .media-catalog-source-info__name :deep(.v-chip__content) { white-space: normal; overflow-wrap: anywhere; }
 .media-catalog-source-info__summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; max-width: 100%; }
-.media-catalog-source-info__hint { opacity: 0.55; }
+.media-catalog-source-info__hint { color: rgba(var(--v-theme-on-surface), .55); }
 </style>

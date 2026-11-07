@@ -1,14 +1,15 @@
 <template>
-  <section class="copy-discovery" data-testid="copy-discovery">
+  <section class="copy-discovery" :class="{'copy-discovery--compact': compact}" data-testid="copy-discovery">
     <h3 v-if="showHeading" class="text-subtitle-2 mb-2">{{ t('copyDiscovery.title') }}</h3>
     <p v-if="showHeading" class="text-caption mb-3">{{ t('copyDiscovery.hint') }}</p>
     <div class="copy-discovery__input">
-      <v-textarea v-model="rootsText" :label="t('copyDiscovery.folders')"
-        rows="3" auto-grow variant="outlined" density="comfortable" rounded="lg"
+      <label class="copy-discovery__label" :for="pathsId">{{ t('copyDiscovery.folders') }}</label>
+      <v-textarea :id="pathsId" v-model="rootsText"
+        :rows="compact ? 2 : 3" auto-grow variant="solo-filled" flat :density="compact ? 'compact' : 'comfortable'" rounded="lg"
         hide-details :disabled="pending" />
       <p class="copy-discovery__hint"><v-icon size="16" aria-hidden="true">mdi-information-outline</v-icon>{{ t('copyDiscovery.folders_hint') }}</p>
       <div class="copy-discovery__actions">
-        <v-btn variant="flat" color="primary" rounded="lg" prepend-icon="mdi-folder-search-outline"
+        <v-btn class="copy-discovery__start" size="small" variant="flat" color="primary" rounded="lg" prepend-icon="mdi-folder-search-outline"
           :disabled="!rootsText.trim() || pending" :loading="pending" @click="start">
           {{ t('copyDiscovery.start') }}
         </v-btn>
@@ -71,12 +72,12 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, onMounted, onBeforeUnmount, watch} from 'vue'
+import {computed, ref, onMounted, onBeforeUnmount, watch, useId} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
 import {copyDiscoveryApi as api} from '@/services/typedApi/copyDiscovery'
 import type {CopyDiscoveryJob, CopyDiscoveryInput} from '@shared/copyDiscovery'
-const props = withDefaults(defineProps<{mediaId?: number; showHeading?: boolean; showResults?: boolean; collapseHistory?: boolean}>(), {
+const props = withDefaults(defineProps<{mediaId?: number; compact?: boolean; showHeading?: boolean; showResults?: boolean; collapseHistory?: boolean}>(), {
   showHeading: true,
   showResults: true,
   collapseHistory: false,
@@ -84,6 +85,7 @@ const props = withDefaults(defineProps<{mediaId?: number; showHeading?: boolean;
 const emit = defineEmits<{changed: []}>()
 const {t, te} = useI18n()
 const app = useAppStore()
+const pathsId = useId()
 const rootsText = ref('')
 const jobs = ref<CopyDiscoveryJob[]>([])
 const error = ref('')
@@ -178,10 +180,15 @@ watch([() => app.dbPath, () => app.localhost, () => props.mediaId], () => {
 <style scoped>
 .copy-discovery { margin-block: 16px; min-width: 0; }
 .copy-discovery__input { padding: 16px; border-radius: 14px; background: rgba(var(--v-theme-primary), .035); border: 1px solid rgba(var(--v-theme-primary), .09); margin-bottom: 20px; }
+.copy-discovery__label { display: block; margin-bottom: 6px; font-size: .75rem; }
+.copy-discovery__input :deep(.v-field) { border: 1px solid rgba(var(--v-theme-on-surface), .22); }
+.copy-discovery__input :deep(.v-field--focused) { border-color: rgb(var(--v-theme-primary)); }
 .copy-discovery__input :deep(textarea) { font-family: monospace; font-size: .8125rem; line-height: 1.7; overflow-wrap: anywhere; }
 .copy-discovery__hint { display: flex; align-items: flex-start; gap: 7px; font-size: .75rem; line-height: 1.6; color: rgba(var(--v-theme-on-surface), .6); margin: 10px 0 16px; overflow-wrap: anywhere; }
 .copy-discovery__hint .v-icon { margin-top: 2px; flex-shrink: 0; }
 .copy-discovery__actions { display: flex; justify-content: flex-end; }
+.copy-discovery__start.v-btn { height: 28px !important; min-height: 28px !important; padding-inline: 9px !important; font-size: .6875rem !important; }
+.copy-discovery__start :deep(.v-icon) { font-size: 15px; }
 .copy-discovery__summary { margin-bottom: 16px; }
 .copy-discovery__summary-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; font-size: .75rem; font-weight: 600; color: rgba(var(--v-theme-on-surface), .65); }
 .copy-discovery__stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
@@ -210,4 +217,10 @@ details[open] > .copy-discovery__history-toggle .copy-discovery__chevron { trans
 .copy-discovery__results li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-block: 6px; }
 .copy-discovery__path { flex: 1 1 240px; overflow-wrap: anywhere; font-size: 12px; }
 .copy-discovery__roots { overflow-wrap: anywhere; opacity: .7; }
+.copy-discovery--compact { margin-block: 8px 0; }
+.copy-discovery--compact .copy-discovery__input { padding: 10px; margin-bottom: 8px; border-radius: 10px; }
+.copy-discovery--compact .copy-discovery__hint { margin: 6px 0 8px; font-size: .6875rem; line-height: 1.5; }
+.copy-discovery--compact :deep(.v-field-label) { font-size: .75rem; }
+.copy-discovery--compact .copy-discovery__input :deep(textarea) { font-size: .6875rem; line-height: 1.5; }
+.copy-discovery--compact .copy-discovery__actions > .v-btn { min-height: 28px; font-size: .6875rem; letter-spacing: 0; }
 </style>

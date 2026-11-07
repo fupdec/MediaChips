@@ -20,9 +20,6 @@
       />
 
       <v-card-text class="edit-dialog-card__body">
-        <MediaCopies v-if="media" ref="mediaCopies" :media-id="media.id">
-          <template #source><MediaCatalogSourceInfo :media="media" /></template>
-        </MediaCopies>
         <DialogOriginalOperations v-if="media" v-model="originalsOpen" :media-ids="[media.id]" @changed="mediaCopies?.refresh()" />
         <EditPinnedMetaValues
           v-if="media"
@@ -33,6 +30,11 @@
           :media="media"
           ref="editingComponent"
         >
+          <template #after-overview>
+            <MediaCopies v-if="media" ref="mediaCopies" :media-id="media.id" class="mt-2">
+              <template #source><MediaCatalogSourceInfo :media="media" /></template>
+            </MediaCopies>
+          </template>
           <template #media>
             <EditDialogMediaPanel
               v-if="isImageMedia"

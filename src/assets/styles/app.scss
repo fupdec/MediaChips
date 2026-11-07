@@ -43,6 +43,13 @@ header {
   outline: none;
 }
 
+// Keep the label notch's bottom border level with the rest of the outline,
+// including when focus increases the border width.
+.v-field--variant-outlined .v-field__outline__notch::after {
+  top: auto;
+  height: 0;
+}
+
 .v-tab,
 .v-btn {
   text-transform: none !important;

@@ -89,13 +89,11 @@
               <!-- Заголовок -->
               <div class="content-header">
                 <div class="header-left">
-                  <v-icon :icon="selected.icon || 'mdi-file'" color="primary" class="mr-2" />
-                  <div>
-                    <div class="text-h5">{{ selected.name }}</div>
-                    <div v-if="selected.subtitle || selected.description"
-                      class="text-caption text-medium-emphasis mt-1">
-                      {{ selected.subtitle || selected.description }}
-                    </div>
+                  <v-icon :icon="selected.icon || 'mdi-file'" color="primary" />
+                  <div class="text-h5">{{ selected.name }}</div>
+                  <div v-if="selected.subtitle || selected.description"
+                    class="header-description text-caption text-medium-emphasis mt-1">
+                    {{ selected.subtitle || selected.description }}
                   </div>
                 </div>
 
@@ -500,9 +498,14 @@ onBeforeUnmount(() => {
 }
 
 .header-left {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+}
+
+.header-description {
+  grid-column: 2;
 }
 
 .header-right {

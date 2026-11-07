@@ -4,7 +4,7 @@
       <v-chip v-if="status?.state !== 'absent' && status" size="x-small" :color="status.state === 'ready' ? 'success' : 'warning'">
         {{ t('sources.offline.' + status.state) }} · {{ (status.size / 1024 ** 2).toFixed(1) }} MB
       </v-chip>
-      <v-btn size="x-small" variant="tonal" prepend-icon="mdi-download" :loading="pending" :disabled="pending || !!job" @click="save">
+      <v-btn class="media-offline-copy__save" size="x-small" color="primary" variant="tonal" prepend-icon="mdi-download" :loading="pending" :disabled="pending || !!job" @click="save">
         {{ t(status?.state === 'ready' ? 'sources.offline.verify' : 'sources.offline.save') }}
       </v-btn>
       <v-btn v-if="status && status.state !== 'absent'" size="x-small" variant="text" :disabled="pending || !!job" @click="remove">{{ t('sources.offline.remove') }}</v-btn>
@@ -79,5 +79,18 @@ onBeforeUnmount(() => { generation++; clearTimeout(timer) })
 <style scoped>
 .media-offline-copy { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; flex: 1 1 240px; }
 .media-offline-copy__error { display: inline-flex; align-items: center; gap: 4px; font-size: 0.6875rem; line-height: 1.4; }
-.v-btn { min-height: 22px; text-transform: none; letter-spacing: 0; }
+.media-offline-copy .v-btn {
+  height: 26px !important;
+  min-height: 26px !important;
+  padding: 0 9px !important;
+  border-radius: 7px;
+  font-size: .6875rem !important;
+  text-transform: none;
+  letter-spacing: 0;
+  flex: 0 0 auto;
+}
+.media-offline-copy .v-btn :deep(.v-btn__content) { font-size: inherit; line-height: 1.2; }
+.media-offline-copy .v-btn :deep(.v-icon) { font-size: 15px; }
+.media-offline-copy .v-btn :deep(.v-btn__prepend) { margin-inline: 0 5px; }
+
 </style>

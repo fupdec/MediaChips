@@ -289,6 +289,8 @@
               {{ mediaPath }}
             </div>
 
+            <MediaOriginalsButton v-if="focusedMedia" :media="focusedMedia" />
+
             <template v-if="inlineEdit">
               <EditPinnedMetaValues
                 v-if="focusedMedia"
@@ -468,6 +470,7 @@ import dayjs from 'dayjs'
 import {useI18n} from 'vue-i18n'
 import EditPinnedMetaValues from '@/components/items/EditPinnedMetaValues.vue'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
+import MediaOriginalsButton from '@/components/items/MediaOriginalsButton.vue'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
 import {useItemsStore} from '@/stores/items'

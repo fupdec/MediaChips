@@ -563,7 +563,7 @@ export const docs: DocumentationEntry[] = [
           {
             "id": "settings.files.folder_tags",
             "name": "Folder tags",
-            "icon": "mdi-folder-tag-outline",
+            "icon": "mdi-folder-pound-outline",
             "selector": [
               "#settings-doc-tab-library",
               "#settings-folder-tags"
@@ -662,7 +662,7 @@ export const docs: DocumentationEntry[] = [
           {
             "id": "database.video_codec",
             "name": "Video codec backfill",
-            "icon": "mdi-codec",
+            "icon": "mdi-file-video-outline",
             "selector": [
               "#settings-doc-tab-maintenance",
               "#settings-video-codec-backfill"

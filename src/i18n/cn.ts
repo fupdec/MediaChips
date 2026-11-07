@@ -1,4 +1,5 @@
 const cn = {
+  copies: {originals: '原始文件'},
   copyDiscovery: {stats: {total: '文件', attached: '已关联', pending: '等待中', ambiguous: '待确认', failed: '错误'}},
   settingsLayout: {
     processing: "媒体处理",
@@ -762,6 +763,7 @@ const cn = {
     test_segment_created: '5 秒测试片段已创建',
   },
   context_menu: {
+    manage_file: '文件管理',
     convert_video: '转换视频',
     bulk_edit: '批量编辑',
     merge_tags: '合并标签',

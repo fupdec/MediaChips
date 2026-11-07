@@ -185,6 +185,7 @@ const en = {
     },
   },
   copies: {
+    originals: 'Originals',
     add_local: 'Add a local copy',
     help: 'How to add NAS or cloud copies',
     title: 'File copies',
@@ -1371,6 +1372,7 @@ const en = {
     test_segment_created: '5-second test segment created',
   },
   context_menu: {
+    manage_file: 'Manage file',
     bulk_edit: 'Bulk Edit',
     merge_tags: 'Merge tags',
     merge_media: 'Merge media',

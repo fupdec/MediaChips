@@ -4,9 +4,11 @@
   border: 1px solid var(--operation-border);
   font-size: .75rem;
 
-  :deep(.dialog-header .content) { min-height: 40px; padding: 6px 12px; gap: 8px; }
-  :deep(.dialog-header .headline__title) { font-size: .875rem; }
-  :deep(.dialog-header__close) { width: 28px; height: 28px; }
+  @media (max-width: 600px) {
+    :deep(.dialog-header .content) { min-height: 40px; padding: 6px 12px; gap: 8px; }
+    :deep(.dialog-header .headline__title) { font-size: .875rem; }
+    :deep(.dialog-header__close) { width: 28px; height: 28px; }
+  }
   .operation-body { padding: 12px !important; }
   .v-btn { min-height: 28px; font-size: .75rem; text-transform: none; letter-spacing: 0; }
   .v-alert { padding: 8px 10px; font-size: .75rem; line-height: 1.5; }
