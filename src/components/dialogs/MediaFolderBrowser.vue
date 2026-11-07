@@ -477,11 +477,13 @@
           </v-list>
         </template>
       </div>
-      <div v-if="showSelection" class="media-folder-browser__selection-bar">
-        <span class="media-folder-browser__selected-count" aria-live="polite">
+      <div v-if="showSelection || $slots.footerActions" class="media-folder-browser__selection-bar"
+           :class="{'media-folder-browser__selection-bar--with-extra': $slots.footerActions}">
+        <slot name="footerActions"/>
+        <span v-if="showSelection" class="media-folder-browser__selected-count" aria-live="polite">
           {{ t('media.adding.browser_selected_count', {count: selectedPaths.size}) }}
         </span>
-        <div class="media-folder-browser__selection-actions">
+        <div v-if="showSelection" class="media-folder-browser__selection-actions">
           <v-btn v-if="!isFilePicker" size="small" variant="text" rounded="lg"
                  :disabled="loading || disabled || !selectableEntries.length || allVisibleSelected"
                  @click="selectAll">
@@ -507,7 +509,10 @@
     <DialogSelectedPaths v-if="showSelection" v-model="selectionEditorOpen"
                          :selected-paths="props.selectedPaths" :disabled="loading || disabled"
                          :file-picker="isFilePicker" :hint="selectionHint"
-                         @update:selected-paths="emitSelection(new Set($event))"/>
+                         v-model:import-options="importOptions"
+                         @update:selected-paths="emitSelection(new Set($event))">
+      <template v-if="$slots.folderPicker" #folderPicker="picker"><slot name="folderPicker" v-bind="picker" /></template>
+    </DialogSelectedPaths>
 
     <DialogFolderTagsManager
       v-if="enableFolderTags"
@@ -573,6 +578,8 @@ const props = withDefaults(defineProps<{
   fillHeight: false,
   enableFolderTags: true,
 })
+
+const importOptions = defineModel<import('@/services/remoteImportOptions').RemoteImportOptions>('importOptions')
 
 const emit = defineEmits<{
   'update:path': [value: string]
@@ -1172,6 +1179,8 @@ watch(showHidden, value => emit('showHidden', value))
   border-top: 1px solid rgba(var(--v-theme-primary), 0.1);
   background: rgba(var(--v-theme-primary), 0.035);
 }
+
+.media-folder-browser__selection-bar--with-extra { flex-wrap: wrap; }
 
 .media-folder-browser__selection-actions {
   display: flex;

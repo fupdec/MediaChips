@@ -38,43 +38,21 @@
     <!-- Main form -->
     <v-form v-model="valid" ref="form" @submit.prevent>
       <v-container fluid class="px-0 editing-form">
-        <div v-if="showFieldToolbar || arrayAssignedItems.length" class="editing-section__toolbar">
+        <div v-if="showFieldToolbar || (arrayAssignedItems.length && !isInspectorLayout)" class="editing-section__toolbar">
           <div
             v-if="showFieldToolbar"
             class="editing-section__group editing-section__group--filters"
           >
-            <v-chip-group
+            <SettingsSegmentedControl
               v-model="fieldFilter"
               class="editing-section__filters"
-              selected-class="text-primary"
-              mandatory
-            >
-              <v-chip value="all" filter :size="isInspectorLayout ? 'x-small' : 'small'" variant="tonal">
-                {{ t('editing.filter_all') }}
-              </v-chip>
-              <v-chip value="filled" filter :size="isInspectorLayout ? 'x-small' : 'small'" variant="tonal">
-                {{ t('editing.filter_filled') }}
-              </v-chip>
-              <v-chip value="empty" filter :size="isInspectorLayout ? 'x-small' : 'small'" variant="tonal">
-                {{ t('editing.filter_empty', {count: emptyPinnedCount}) }}
-              </v-chip>
-            </v-chip-group>
-          </div>
-
-          <div
-            v-if="showFieldToolbar"
-            class="editing-section__group editing-section__group--search"
-          >
-            <v-text-field
-              v-model="fieldSearch"
-              :placeholder="t('editing.search_fields')"
-              prepend-inner-icon="mdi-magnify"
-              density="compact"
-              hide-details
-              clearable
-              rounded="xl"
-              variant="outlined"
-              class="editing-section__search"
+              :label="t('editing.filter_fields_label')"
+              :items="[
+                {value: 'all', title: t('editing.filter_all')},
+                {value: 'filled', title: t('editing.filter_filled')},
+                {value: 'empty', title: t('editing.filter_empty', {count: emptyPinnedCount})},
+              ]"
+              compact
             />
           </div>
 
@@ -97,6 +75,24 @@
                 {value: 'separate', title: t('meta.fields.tags_mode_separate'), tooltip: t('meta.fields.tags_mode_separate_hint')},
               ]"
               compact
+            />
+          </div>
+
+          <div
+            v-if="showFieldToolbar"
+            class="editing-section__group editing-section__group--search"
+          >
+            <v-text-field
+              v-model="fieldSearch"
+              :placeholder="t('editing.search_fields')"
+              :aria-label="t('editing.search_fields')"
+              prepend-inner-icon="mdi-magnify"
+              density="compact"
+              hide-details
+              clearable
+              rounded="xl"
+              variant="outlined"
+              class="editing-section__search"
             />
           </div>
         </div>
@@ -1866,34 +1862,25 @@ defineExpose({
 
   .editing-section__toolbar {
     display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 0;
+    gap: 8px 12px;
   }
 
   .editing-section__group {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-width: 0;
+    max-width: 100%;
+  }
 
-    & + & {
-      margin-left: 10px;
-      padding-left: 10px;
-      border-left: 1px solid rgba(var(--v-theme-on-surface), 0.14);
-    }
+  .editing-section__group--filters + .editing-section__group--tags {
+    margin-inline-start: 10px;
   }
 
   .editing-section__group--search {
-    flex: 1 1 auto;
-    margin-left: 0;
-    margin-right: 0;
-  }
-
-  .editing-section__group--tags,
-  .editing-section__group--filters {
-    flex: 0 0 auto;
+    flex: 0 1 18rem;
+    margin-inline-start: auto;
   }
 
   .editing-section__tags-icon {
@@ -1917,12 +1904,6 @@ defineExpose({
     flex: 0 0 auto;
   }
 
-  .editing-section__filters {
-    .v-chip-group__content {
-      flex-wrap: nowrap;
-    }
-  }
-
   &--inspector {
     // Uniform scale-down so Vuetify controls match the rest of the inspector chrome.
     zoom: 0.78;
@@ -1935,7 +1916,7 @@ defineExpose({
 
     .editing-section__toolbar {
       flex-wrap: nowrap;
-      gap: 0;
+      gap: 6px;
       margin-bottom: 4px;
       overflow-x: auto;
     }
@@ -1961,17 +1942,11 @@ defineExpose({
       display: none;
     }
 
-    .editing-section__group + .editing-section__group {
-      margin-left: 6px;
-      padding-left: 6px;
-    }
-
     .editing-section__filters {
-      .v-chip {
-        --v-chip-height: 22px;
-        height: 22px !important;
-        font-size: 0.65rem !important;
-        padding-inline: 6px !important;
+      .settings-segmented__option {
+        min-height: 22px;
+        padding: 2px 6px;
+        font-size: 0.65rem;
       }
     }
 

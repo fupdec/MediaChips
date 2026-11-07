@@ -38,18 +38,6 @@
           </v-btn>
 
           <v-btn
-            v-if="focusedItem || pendingDraft"
-            class="inspector-panel__close"
-            icon
-            variant="text"
-            size="x-small"
-            :aria-label="t('browser_layout.clear_selection')"
-            @click="clearFocus"
-          >
-            <v-icon size="16">mdi-close</v-icon>
-          </v-btn>
-
-          <v-btn
             class="inspector-panel__toggle"
             icon
             variant="text"
@@ -259,19 +247,25 @@
             {{ previewInfoLabel }}
           </div>
 
-          <div
+          <details
             v-if="inspectorFacts.length"
-            class="inspector-panel__facts"
+            class="inspector-panel__details"
           >
-            <div
-              v-for="fact in inspectorFacts"
-              :key="fact.key"
-              class="inspector-panel__fact"
-            >
-              <span class="inspector-panel__fact-label">{{ fact.label }}</span>
-              <span class="inspector-panel__fact-value">{{ fact.value }}</span>
+            <summary class="inspector-panel__details-title">
+              <v-icon size="16" class="inspector-panel__details-chevron">mdi-chevron-down</v-icon>
+              {{ isTag ? t('editing.tag_information') : t('editing.media_file_information') }}
+            </summary>
+            <div class="inspector-panel__facts">
+              <div
+                v-for="fact in inspectorFacts"
+                :key="fact.key"
+                class="inspector-panel__fact"
+              >
+                <span class="inspector-panel__fact-label">{{ fact.label }}</span>
+                <span class="inspector-panel__fact-value">{{ fact.value }}</span>
+              </div>
             </div>
-          </div>
+          </details>
 
           <div class="inspector-panel__body">
             <div
@@ -531,7 +525,7 @@ const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const eventBus = useEventBus()
 const listSync = useItemsListSync()
-const {focused: foldersFocus, clearFocus: clearFoldersFocus} = useFoldersBrowserFocus()
+const {focused: foldersFocus} = useFoldersBrowserFocus()
 const winElectronUi = isWinElectronUi()
 
 const DialogImageEditing = defineAsyncComponent(() =>
@@ -540,7 +534,7 @@ const DialogImageEditing = defineAsyncComponent(() =>
 
 const collapsed = computed(() => settingsStore.inspectorCollapsed === '1')
 const inlineEdit = computed(() => settingsStore.inspectorInlineEdit !== '0')
-const panelWidth = computed(() => props.width ?? (inlineEdit.value ? 360 : 300))
+const panelWidth = computed(() => props.width ?? 360)
 const inspectorHint = computed(() => (
   inlineEdit.value
     ? t('browser_layout.inspector_hint_edit')
@@ -982,12 +976,6 @@ async function flushEdits(): Promise<void> {
   }
 }
 
-async function clearFocus(): Promise<void> {
-  await flushEdits()
-  itemsStore.clearInspectorFocus()
-  clearFoldersFocus()
-}
-
 async function toggleCollapsed(): Promise<void> {
   if (!collapsed.value) {
     await flushEdits()
@@ -1143,7 +1131,6 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   flex-shrink: 0;
 }
 
-.inspector-panel__close,
 .inspector-panel__toggle {
   flex-shrink: 0;
 }
@@ -1244,11 +1231,36 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   letter-spacing: 0.01em;
 }
 
+.inspector-panel__details {
+  margin: 12px 12px 0;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  border-radius: 8px;
+}
+
+.inspector-panel__details-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.inspector-panel__details-title::-webkit-details-marker {
+  display: none;
+}
+
+.inspector-panel__details[open] .inspector-panel__details-chevron {
+  transform: rotate(180deg);
+}
+
 .inspector-panel__facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px 20px;
-  margin: 12px 12px 0;
+  padding: 4px 8px 8px;
   font-size: 0.7rem;
   line-height: 1.4;
 }

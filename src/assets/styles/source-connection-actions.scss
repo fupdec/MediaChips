@@ -1,3 +1,10 @@
+.source-connection-panel {
+  padding: 8px;
+  border: 1px solid rgba(var(--v-theme-primary), .22);
+  border-radius: 12px;
+  background: rgba(var(--v-theme-primary), .07);
+}
+
 .nas-sources__connection-actions,
 .google-drive-source__connection-actions {
   display: flex;

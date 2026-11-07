@@ -42,11 +42,14 @@
           @drop.prevent="handleFileDrop"
           @dragenter.prevent
           @dragover.prevent
-          class="pa-2 pa-sm-4"
+          class="pa-2 pa-sm-4 pt-0 pt-sm-0"
         >
-          <MediaImportTypes v-if="activeSource !== 'links'" v-model="selectedMediaTypeIds" :disabled="sourceBusy" />
           <WebVideoImport v-model:import-options="importOptions" v-if="webVideoAvailable" v-show="activeSource === 'links'" ref="webVideoSource" @started="onRemoteImportStarted" embedded />
-          <SourcesPanel v-model:import-options="importOptions" :extensions="browserExtensions" v-show="activeSource === 'sources'" ref="remoteSources" @started="onRemoteImportStarted" embedded />
+          <SourcesPanel v-model:import-options="importOptions" :extensions="browserExtensions" v-show="activeSource === 'sources'" ref="remoteSources" @started="onRemoteImportStarted" embedded>
+            <template #browser-footer>
+              <MediaImportTypes v-model="selectedMediaTypeIds" :disabled="sourceBusy"/>
+            </template>
+          </SourcesPanel>
           <div v-show="activeSource === 'local'" class="media-adding-dialog__local">
             <MediaFolderBrowser
               v-if="browsePath || browsePlaces.length"
@@ -63,6 +66,9 @@
               @update:selected-paths="onBrowserSelection"
               @select-place="openBrowsePlace"
             >
+              <template #footerActions>
+                <MediaImportTypes v-model="selectedMediaTypeIds" :disabled="sourceBusy"/>
+              </template>
               <template #entryActions="{entry, loading}">
                 <FilePreviewButton :file="entry" :disabled="sourceBusy || loading" />
               </template>
@@ -80,6 +86,7 @@
             </v-alert>
 
             <template v-if="!browsePath && !browsePlaces.length">
+              <MediaImportTypes v-model="selectedMediaTypeIds" :disabled="sourceBusy"/>
               <v-btn variant="text" rounded="lg" class="mb-3" :disabled="sourceBusy" @click="selectionEditorOpen = true">
                 {{ t('media.adding.browser_edit_selection') }}
               </v-btn>
@@ -87,7 +94,7 @@
                                    :hint="pathsHint" :disabled="sourceBusy" @update:selected-paths="onBrowserSelection"/>
             </template>
           </div>
-          <MediaImportOptions v-model="importOptions" :disabled="sourceBusy"
+          <MediaImportOptions v-if="activeSource !== 'sources' || !remoteSources?.hasPathSettings" v-model="importOptions" :disabled="sourceBusy"
                               :parse-disabled="activeSource === 'local' && mediaAddingState.is_fast_import">
             <template v-if="activeSource === 'local'" #before>
               <div class="import-option import-option--fast">
@@ -546,7 +553,7 @@ const handleFileDrop = (event: DragEvent) => {
 </script>
 
 <style scoped>
-.media-adding-dialog__tabs { flex: 0 0 auto; margin: 12px 16px; max-width: calc(100% - 32px); }
+.media-adding-dialog__tabs { flex: 0 0 auto; margin: 12px 16px 0; max-width: calc(100% - 32px); }
 @media (max-width: 600px) {
   .media-adding-dialog__tabs :deep(.v-tab) { min-width: 0; padding-inline: 10px; font-size: 0.75rem; }
 }

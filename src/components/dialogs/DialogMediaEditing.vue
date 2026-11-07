@@ -88,7 +88,7 @@
             <div class="d-flex flex-wrap ga-2 mt-3">
               <DialogChangeHistory entity-type="media" :entity-id="media.id" :disabled="formDirty" @restored="requestClose">
                 <template #activator="{open}">
-                  <v-btn class="edit-dialog-media-action" color="primary" variant="tonal" rounded="xl" size="small" prepend-icon="mdi-history" :disabled="formDirty" @click="open">
+                  <v-btn class="edit-dialog-media-action edit-dialog-history-action" color="primary" variant="tonal" rounded="xl" size="small" prepend-icon="mdi-history" :disabled="formDirty" @click="open">
                     {{ t('change_history.title') }}
                   </v-btn>
                 </template>
@@ -465,3 +465,9 @@ watch(
   {immediate: true},
 )
 </script>
+
+<style scoped>
+.edit-dialog-history-action :deep(.v-btn__prepend) {
+  margin-inline-start: 4px;
+}
+</style>

@@ -1,6 +1,6 @@
 <template>
   <MediaImportSection :embedded="embedded" :title="t('nas.title')" icon="server-network-outline" class="nas-sources">
-    <div class="nas-sources__connection-bar">
+    <div class="nas-sources__connection-bar source-connection-panel">
       <v-select v-model="selectedId" :items="connections" item-title="name" item-value="id"
                 class="nas-sources__connection-select" :label="t('nas.connection')" :disabled="busy"
                 density="compact" hide-details variant="outlined" rounded="lg">
@@ -32,14 +32,20 @@
       </div>
     </div>
     <SourceHealth v-if="selected" :state="!selected.hasCredentials ? 'disconnected' : health[selected.id]?.state || 'unchecked'"
-                  :disabled="busy || saving || editing" @reconnect="editConnection" />
+                  :disabled="busy || saving || editing" @reconnect="editConnection">
+      <template #retry>
+        <v-btn icon="mdi-refresh" size="small" variant="tonal" color="primary"
+               :aria-label="t('sources.check')" v-tooltip:top="t('sources.check')" :loading="checking"
+               :disabled="busy || saving || editing || !selected.hasCredentials" @click="checkConnection" />
+      </template>
+    </SourceHealth>
     <v-alert v-if="selected && !selected.hasCredentials" type="info" variant="tonal" density="compact" rounded="lg" class="nas-sources__notice">
       {{ t('nas.disconnected') }}
     </v-alert>
     <v-alert v-if="message" :type="error ? 'error' : 'success'" variant="tonal" density="compact" rounded="lg" class="nas-sources__notice">{{ message }}</v-alert>
     <v-progress-linear v-if="busy && !batchActive" indeterminate class="mt-2" rounded />
     <div v-if="!connectionsOnly && selected?.hasCredentials" class="nas-sources__browser-section">
-      <v-btn variant="tonal" size="small" prepend-icon="mdi-file-cog-outline" class="mb-3" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
+      <v-btn color="primary" variant="tonal" rounded="xl" size="small" prepend-icon="mdi-file-cog-outline" class="mb-1" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
       <DialogOriginalOperations v-model="originalsOpen" :media-ids="[]" :scope="{connectionId: selected.id, key: catalogRootKey || ''}" @changed="browser?.refresh()" />
       <SourceCatalogControls v-if="selected && catalogRootKey !== null" :connection-id="selected.id" :root-key="catalogRootKey" :name="folder"
                              @updated="browser?.refresh(); sync.getItemsFromDb({ids: [], type: 'media'}); events.emit('library:nav-counts-changed')" />
@@ -49,6 +55,7 @@
         ref="browser"
         v-model:path="folder"
         v-model:selected-paths="selectedPaths"
+        v-model:import-options="importOptions"
         :base-url="app.localhost || ''"
         :directory-loader="directoryLoader"
         :extensions="extensions"
@@ -60,12 +67,21 @@
         @visible-entries="onVisibleEntries"
         @show-hidden="showHidden = $event"
       >
+        <template v-if="$slots['browser-footer']" #footerActions><slot name="browser-footer"/></template>
+        <template #folderPicker="{addFolder}">
+          <MediaFolderBrowser v-model:path="pickerPath" :base-url="app.localhost || ''"
+                              :favorites-scope="JSON.stringify([app.dbPath, app.localhost, selected.id])"
+                              :directory-loader="directoryLoader" :error-message="apiError"
+                              :selected-paths="[]" :show-selection="false" :enable-folder-tags="false"
+                              :disabled="busy" folders-only class="mt-3" @loading="pickerLoading = $event" />
+          <v-btn variant="tonal" color="primary" class="mt-2" :disabled="busy || pickerLoading || !pickerPath"
+                 @click="addFolder(pickerPath)">{{ t('media.adding.browser_select_folder') }}</v-btn>
+        </template>
         <template #entryActions="{entry, loading}">
           <FilePreviewButton v-if="!entry.isDirectory && (entry.addable || entry.inLibrary)"
                              :file="entry" :disabled="busy || loading" :preview-action="() => previewFile(entry)" />
         </template>
       </MediaFolderBrowser>
-      <MediaImportOptions v-if="!embedded" v-model="importOptions" :disabled="busy" />
       <div v-if="!embedded" class="nas-sources__import-bar">
         <div class="nas-sources__import-actions">
           <v-btn v-if="!embedded && mediaEntries.length" size="small" variant="text" rounded="lg" :disabled="busy || browserLoading" @click="importSelected(mediaEntries.map(entry => entry.path))">{{ t('nas.import_visible') }}</v-btn>
@@ -135,7 +151,6 @@ import SourceHealth from './SourceHealth.vue'
 import {computed, onMounted, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import MediaImportSection from './MediaImportSection.vue'
-import MediaImportOptions from './MediaImportOptions.vue'
 import {defaultRemoteImportOptions, remotePathExcluder, importExtensionMatcher, type RemoteImportOptions} from '@/services/remoteImportOptions'
 import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
 import {NasConnectionSchema, type NasConnection, type NasConnectionInput, type NasImportResult} from '@shared/nas'
@@ -197,6 +212,8 @@ function onVisibleEntries(visible: BrowseDirectoryEntry[]) {
   for (const entry of visible) if (entry.isDirectory) directories.add(entry.path)
 }
 const selectedPaths = ref<string[]>([])
+const pickerPath = ref('')
+const pickerLoading = ref(false)
 const importOptions = defineModel<RemoteImportOptions>('importOptions', {default: defaultRemoteImportOptions})
 const mediaEntries = computed(() => entries.value.filter(entry => !entry.isDirectory && entry.addable && !entry.inLibrary))
 const batchActive = ref(false)
@@ -208,6 +225,7 @@ const batchErrors = ref<Array<{path: string; message: string}>>([])
 let importController: AbortController | undefined
 let stopCurrentBatch: (() => void) | undefined
 const folder = ref('')
+watch(folder, path => { pickerPath.value = path })
 const catalogRootKey = computed(() => {
   try { return selected.value ? nasRelativePath(selected.value.root, folder.value) : null } catch { return null }
 })
@@ -467,7 +485,7 @@ onMounted(loadConnections)
 onBeforeUnmount(() => { generation++; stopCurrentBatch?.(); importController?.abort() })
 const canSubmit = computed(() => !!selected.value?.hasCredentials && !addingProcess.active && !busy.value && !browserLoading.value && !!selectedPaths.value.length)
 const selectionCount = computed(() => selectedPaths.value.length)
-defineExpose({refreshConnections: loadConnections, canSubmit, busy: computed(() => busy.value || saving.value || editing.value), selectionCount, submit: () => importSelected(), stop: stopBatch, stopping: stopRequested, canStop: batchActive})
+defineExpose({hasPathSettings: computed(() => !connectionsOnly && !!selected.value?.hasCredentials), refreshConnections: loadConnections, canSubmit, busy: computed(() => busy.value || saving.value || editing.value), selectionCount, submit: () => importSelected(), stop: stopBatch, stopping: stopRequested, canStop: batchActive})
 </script>
 
 <style scoped lang="scss">

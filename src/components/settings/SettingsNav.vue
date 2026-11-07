@@ -26,13 +26,6 @@
         <v-list-item-subtitle v-if="!compact" v-show="false" class="settings-nav__subtitle">
           {{ t(item.descKey) }}
         </v-list-item-subtitle>
-        <v-tooltip
-          activator="parent"
-          location="end"
-          :open-delay="400"
-          max-width="320"
-          :text="t(item.descKey)"
-        />
       </v-list-item>
     </v-list>
   </nav>

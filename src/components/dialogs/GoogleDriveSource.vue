@@ -1,7 +1,7 @@
 <template>
   <div class="google-drive-source">
     <Teleport :to="actionsTarget || 'body'" :disabled="!unified || !actionsTarget">
-    <div class="google-drive-source__connection-bar">
+    <div class="google-drive-source__connection-bar" :class="{'source-connection-panel': !unified}">
       <v-text-field :model-value="t('drive.title')" :label="t('nas.connection')" readonly
                     v-if="!unified" class="google-drive-source__connection" prepend-inner-icon="mdi-google-drive"
                     density="compact" hide-details variant="outlined" rounded="lg">
@@ -51,7 +51,7 @@
         <v-btn size="small" variant="flat" color="primary" rounded="lg" prepend-icon="mdi-google-drive"
                class="google-drive-source__reconnect" :loading="waiting" :disabled="busy || waiting || editing" @click="connect">{{ t('sources.reconnect') }}</v-btn>
       </v-alert>
-      <v-btn variant="tonal" size="small" prepend-icon="mdi-file-cog-outline" class="mb-3" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
+      <v-btn variant="tonal" size="small" prepend-icon="mdi-file-cog-outline" class="mb-1" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
       <DialogOriginalOperations v-model="originalsOpen" :media-ids="[]" :scope="{connectionId: 'google-drive', key: driveFileIdFromPath(folder)}" :scope-writable="status.capabilities?.move === true" @changed="browser?.refresh()" />
       <SourceCatalogControls connection-id="google-drive" :root-key="driveFileIdFromPath(folder)" :name="pathTitles[folder] || t('drive.title')"
                              @updated="browser?.refresh(); sync.getItemsFromDb({ids: [], type: 'media'}); events.emit('library:nav-counts-changed')" />
@@ -60,6 +60,7 @@
                           :favorites-scope="browserPrefsScope() + ':gdrive'" :error-message="apiError"
                           :disabled="busy" :enable-folder-tags="false" select-addable-only
                           @favorite-titles="titles => Object.assign(pathTitles, titles)" @loading="browserLoading = $event" @visible-entries="visibleEntries" @show-hidden="showHidden = $event">
+        <template v-if="$slots['browser-footer']" #footerActions><slot name="browser-footer"/></template>
         <template #entryActions="{entry, loading}">
           <FilePreviewButton :file="{...entry, path: driveMediaPath(driveFileIdFromPath(entry.path))}" :disabled="busy || loading" />
         </template>

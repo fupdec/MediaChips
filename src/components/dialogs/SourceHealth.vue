@@ -1,10 +1,11 @@
 <template>
-  <div v-if="failed || state === 'disconnected'" class="source-health" :class="{'source-health--warning': failed}" role="status" aria-live="polite">
+  <div v-if="failed || state === 'disconnected'" class="source-health" :class="{'source-health--warning': failed, 'source-health--retry': state === 'network_error' && $slots.retry}" role="status" aria-live="polite">
     <v-icon class="source-health__icon" size="18" :icon="icon" aria-hidden="true" />
     <div class="source-health__content">
       <div class="source-health__title">{{ t(`sources.states.${state}`) }}</div>
       <p v-if="failed" class="source-health__description">{{ t(`sources.help.${state}`) }}</p>
     </div>
+    <slot v-if="state === 'network_error'" name="retry" />
     <v-btn v-if="state === 'auth_required' || state === 'disconnected'" class="source-health__action" size="x-small" variant="tonal" color="primary" :disabled="disabled" @click="$emit('reconnect')">{{ t('sources.reconnect') }}</v-btn>
   </div>
 </template>
@@ -51,7 +52,7 @@ const icon = computed(() => ({ready: 'mdi-check-circle-outline', unchecked: 'mdi
 .source-health__action { flex-shrink: 0; letter-spacing: 0; text-transform: none; }
 @media (max-width: 599px) {
   .source-health { flex-wrap: wrap; }
-  .source-health__content { flex-basis: calc(100% - 26px); }
+  .source-health:not(.source-health--retry) .source-health__content { flex-basis: calc(100% - 26px); }
   .source-health__action { margin-inline-start: 26px; }
 }
 </style>

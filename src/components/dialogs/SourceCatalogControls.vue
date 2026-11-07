@@ -1,5 +1,5 @@
 <template>
-  <v-expansion-panels class="catalog-controls my-2" variant="accordion">
+  <v-expansion-panels class="catalog-controls mt-2 mb-4" variant="accordion">
     <v-expansion-panel elevation="0">
       <v-expansion-panel-title hide-actions v-slot="{expanded}">
         <v-icon size="16" class="catalog-controls__chevron" aria-hidden="true">{{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>

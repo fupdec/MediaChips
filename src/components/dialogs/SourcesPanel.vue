@@ -11,7 +11,7 @@
       class="mb-4"
     />
     <div :id="embedded ? undefined : 'settings-google-drive'" v-show="provider === 'cloud'">
-    <div class="sources-panel__cloud-picker">
+    <div class="sources-panel__cloud-picker source-connection-panel">
       <v-select :model-value="selectedAccount" :items="cloudAccounts" :placeholder="tr('Новый аккаунт', 'New account')" :aria-label="tr('Облачный аккаунт', 'Cloud account')" :disabled="busy" variant="outlined" rounded="lg" density="compact" hide-details @update:model-value="selectAccount">
         <template #selection="{item}">
           <v-icon :icon="item.raw.icon" size="20" class="mr-2" />
@@ -35,11 +35,17 @@
         </template>
       </div>
     </div>
-    <div v-show="driveSelected"><GoogleDriveSource ref="drive" :actions-target="accountActions" unified @started="emit('started')" embedded :extensions="extensions" v-model:import-options="importOptions" /></div>
+    <div v-show="driveSelected"><GoogleDriveSource ref="drive" :actions-target="accountActions" unified @started="emit('started')" embedded :extensions="extensions" v-model:import-options="importOptions">
+      <template v-if="$slots['browser-footer']" #browser-footer><slot name="browser-footer"/></template>
+    </GoogleDriveSource></div>
     </div>
-    <div :id="embedded ? undefined : 'settings-nas'" v-if="visitedNas" v-show="provider === 'nas'"><NasSources ref="nas" @started="emit('started')" embedded :extensions="extensions" v-model:import-options="importOptions" /></div>
-    <CloudAccountsSource v-show="provider === 'cloud' && !driveSelected" unified ref="cloud" :extensions="extensions" :import-options="importOptions" @started="emit('started')" />
-    <MediaImportOptions v-if="!embedded" v-model="importOptions" :disabled="busy" />
+    <div :id="embedded ? undefined : 'settings-nas'" v-if="visitedNas" v-show="provider === 'nas'"><NasSources ref="nas" @started="emit('started')" embedded :extensions="extensions" v-model:import-options="importOptions">
+      <template v-if="$slots['browser-footer']" #browser-footer><slot name="browser-footer"/></template>
+    </NasSources></div>
+    <CloudAccountsSource v-show="provider === 'cloud' && !driveSelected" unified ref="cloud" :extensions="extensions" :import-options="importOptions" @started="emit('started')">
+      <template v-if="$slots['browser-footer']" #browser-footer><slot name="browser-footer"/></template>
+    </CloudAccountsSource>
+    <MediaImportOptions v-if="!embedded && !hasPathSettings" v-model="importOptions" :disabled="busy" />
     <div v-if="!embedded" class="d-flex flex-wrap justify-end ga-2 mt-3">
       <v-btn v-if="active?.canStop" variant="text" :disabled="active.stopping" @click="active.stop()">{{ t(active.stopping ? 'nas.stopping' : 'nas.stop_import') }}</v-btn>
       <v-btn color="primary" :disabled="!active?.canSubmit || busy" @click="active?.submit()">{{ t('nas.import_selected') }}</v-btn>
@@ -117,7 +123,8 @@ watch(() => cloud.value?.editing, (editing, wasEditing) => {
 })
 const active = computed(() => provider.value === 'nas' ? nas.value : driveSelected.value ? drive.value : cloud.value)
 const busy = computed(() => !!cloud.value?.busy || !!drive.value?.busy || !!nas.value?.busy)
-defineExpose({busy, canSubmit: computed(() => !!active.value?.canSubmit), selectionCount: computed(() => active.value?.selectionCount || 0),
+const hasPathSettings = computed(() => provider.value === 'nas' && !!nas.value?.hasPathSettings)
+defineExpose({busy, hasPathSettings, canSubmit: computed(() => !!active.value?.canSubmit), selectionCount: computed(() => active.value?.selectionCount || 0),
   submit: () => active.value?.submit(), canStop: computed(() => !!active.value?.canStop), stopping: computed(() => !!active.value?.stopping), stop: () => active.value?.stop(),
   refresh: async () => {
     restoreProviderTab()

@@ -1,9 +1,10 @@
 <template>
   <MediaImportSection :embedded="embedded" :title="t('media.adding.web_video_title')" icon="link-variant" class="web-video-import">
-    <div class="web-video-import__input-row">
+    <div class="web-video-import__input-row source-connection-panel">
       <v-text-field
         v-model="url"
         class="web-video-import__url"
+        color="primary"
         :label="t('media.adding.web_video_url')"
         :disabled="busy"
         density="compact"
@@ -148,6 +149,8 @@ const selectionCount = computed(() => validUrl.value ? 1 : 0)
 defineExpose({canSubmit, busy, selectionCount, submit: importVideo})
 </script>
 
+<style scoped lang="scss" src="@/assets/styles/source-connection-actions.scss"></style>
+
 <style scoped lang="scss">
 .web-video-import {
   :deep(.v-expansion-panel) {
@@ -171,6 +174,7 @@ defineExpose({canSubmit, busy, selectionCount, submit: importVideo})
   align-items: center;
   gap: 6px;
   min-width: 0;
+  padding-block-start: 12px;
 }
 
 .web-video-import__url {

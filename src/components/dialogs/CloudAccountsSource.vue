@@ -64,6 +64,7 @@
         </v-list-item>
       </v-list>
       <v-btn v-if="nextPageToken" :disabled="busy" @click="load(true)">{{ tr('Ещё', 'More') }}</v-btn>
+      <div v-if="$slots['browser-footer']" class="mt-1"><slot name="browser-footer"/></div>
     </template>
     <v-progress-linear v-if="busy" indeterminate class="my-3" />
     <v-list v-if="imported.length">
