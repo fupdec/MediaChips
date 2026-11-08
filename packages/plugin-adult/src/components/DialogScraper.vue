@@ -9,9 +9,9 @@
     <v-card rounded="xl">
       <DialogHeader @close="dialogsStore.scraper.show = false" :header="t('actions.scrape_info')" closable/>
 
-      <v-card-text class="py-6">
+      <v-card-text class="pa-4">
         <form @submit.prevent="searchPerformer()">
-          <div class="d-flex flex-wrap ga-3 mb-4 align-start">
+          <div class="scraper-search">
             <v-select
               v-model="selectedGender"
               :items="genderOptions"
@@ -20,10 +20,9 @@
               :label="t('scraper.gender_filter')"
               :disabled="searchInProgress"
               hide-details
-              density="comfortable"
+              density="compact"
               variant="outlined"
               rounded="lg"
-              class="scraper-gender-select"
             />
 
             <v-text-field
@@ -34,11 +33,10 @@
               append-inner-icon="mdi-magnify"
               @click:append-inner="searchPerformer(1)"
               hide-details
-              density="comfortable"
+              density="compact"
               variant="outlined"
               rounded="lg"
               autofocus
-              class="scraper-search-field flex-grow-1"
             />
           </div>
         </form>
@@ -54,13 +52,13 @@
           rounded
         ></v-pagination>
 
-        <v-row>
-          <v-col cols="4" xs="4" sm="3" md="2" v-for="i in performers" :key="i.id">
+        <v-row dense>
+          <v-col cols="6" sm="3" md="2" v-for="i in performers" :key="i.id">
             <v-card
               @click="getInfo(i)"
               height="100%"
               variant="outlined"
-              rounded="xl"
+              rounded="sm"
               class="scraper-result-card"
             >
               <v-img :src="i.face || getEmptyImg()" aspect-ratio="1" cover>
@@ -70,7 +68,7 @@
                   </div>
                 </template>
               </v-img>
-              <div class="pa-2 text-body-2 text-truncate">
+              <div class="px-2 py-1 text-body-2 font-weight-medium text-truncate" :title="i.name">
                 {{ i.name }}
               </div>
             </v-card>
@@ -232,23 +230,29 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.scraper-gender-select {
-  width: 12.5rem;
-  min-width: 10rem;
-  flex: 0 0 auto;
+.scraper-search {
+  display: grid;
+  grid-template-columns: minmax(10rem, 12rem) minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
-.scraper-search-field {
-  min-width: 16rem;
+@media (max-width: 480px) {
+  .scraper-search {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .scraper-result-card {
   cursor: pointer;
   overflow: hidden;
+  border-color: rgba(var(--v-border-color), var(--v-border-opacity));
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.scraper-result-card:hover {
+.scraper-result-card:hover,
+.scraper-result-card:focus-visible {
   border-color: rgb(var(--v-theme-primary));
+  background-color: rgba(var(--v-theme-primary), 0.06);
 }
 </style>

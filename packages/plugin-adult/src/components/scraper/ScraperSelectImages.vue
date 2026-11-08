@@ -1,7 +1,7 @@
 <template>
   <v-card class="mt-4" variant="flat">
-    <v-card-actions>
-      <v-card-title>
+    <v-card-actions class="px-0 flex-wrap">
+      <v-card-title class="px-0">
         {{ t('scraper.images_import') }}
         <span v-if="assignments.length">({{ assignments.length }})</span>
       </v-card-title>
@@ -18,17 +18,17 @@
         {{ t('common.reset') }}
       </v-btn>
       <v-spacer></v-spacer>
-      <v-btn @click="showGallery" class="ml-4 px-4" color="primary" variant="flat" rounded="xl">
+      <v-btn @click="showGallery" class="px-4" color="primary" variant="flat" rounded="xl">
         <v-icon start>mdi-view-gallery</v-icon>
         {{ t('scraper.open_gallery') }}
       </v-btn>
     </v-card-actions>
-    <v-card-text>
+    <v-card-text class="px-0">
       <v-alert type="info" class="caption mb-4" variant="tonal" density="compact" rounded="xl" closable>
         {{ t('scraper.select_images_hint', {count: SCRAPER_IMAGE_SLOTS.length}) }}
       </v-alert>
 
-      <v-row>
+      <v-row dense>
         <v-col
           v-for="poster in images"
           :key="poster.id"
