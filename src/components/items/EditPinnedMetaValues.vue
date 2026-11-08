@@ -1309,21 +1309,19 @@ const getMetaValues = async () => {
       scraperStore.pinned = assignedItems.value as ScraperPinnedItem[]
 
     } else if (isMedia.value) {
-      const tagsResponse = await typedApi.getTagsInMedia(currentItemId.value)
-      tags = tagsResponse.data
-
-      const valuesResponse = await typedApi.getValuesInMedia(currentItemId.value)
-      values = valuesResponse.data
-
+      const mediaId = currentItemId.value
       const mediaTypeId = props.media?.mediaTypeId ?? itemsStore.environment?.media_type_id
-      if (mediaTypeId) {
-        const pinnedResponse = await typedApi.getAssignedMetaForMediaType(mediaTypeId)
-        assignedItems.value = sortPinnedAssignmentItems(pinnedResponse.data)
-        sceneScraperStore.pinned = assignedItems.value as ScraperPinnedItem[]
-      } else {
-        assignedItems.value = sortPinnedAssignmentItems(itemsStore.safeAssigned)
-        sceneScraperStore.pinned = assignedItems.value as ScraperPinnedItem[]
-      }
+      const [tagsResponse, valuesResponse, pinnedResponse] = await Promise.all([
+        typedApi.getTagsInMedia(mediaId),
+        typedApi.getValuesInMedia(mediaId),
+        mediaTypeId ? typedApi.getAssignedMetaForMediaType(mediaTypeId) : null,
+      ])
+      if (mediaId !== currentItemId.value) return
+
+      tags = tagsResponse.data
+      values = valuesResponse.data
+      assignedItems.value = sortPinnedAssignmentItems(pinnedResponse?.data ?? itemsStore.safeAssigned)
+      sceneScraperStore.pinned = assignedItems.value as ScraperPinnedItem[]
     }
 
     for (const item of assignedItems.value) {

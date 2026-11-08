@@ -198,7 +198,7 @@
     </template>
 
     <template v-if="showSortButton" #append-inner>
-      <v-menu location="bottom end" :close-on-content-click="false">
+      <v-menu location="bottom end" content-class="rounded-lg" :close-on-content-click="false">
         <template #activator="{ props: menuProps }">
           <v-btn
             v-bind="menuProps"
@@ -208,13 +208,15 @@
             density="compact"
             size="small"
             v-tooltip:top="t('meta.sorting.sort_tags_by')"
+            @mousedown.stop
+            @keydown.stop
             @click.stop
           >
             <v-icon size="18">mdi-sort</v-icon>
           </v-btn>
         </template>
 
-        <v-list density="compact" min-width="220">
+        <v-list class="meta-tag-sort-menu py-1" density="compact" max-width="min(260px, calc(100vw - 24px))">
           <v-list-subheader>{{ t('meta.sorting.sort_direction') }}</v-list-subheader>
           <v-list-item @click="changeSortDir">
             <v-list-item-title>
@@ -229,6 +231,7 @@
             </v-list-item-title>
           </v-list-item>
 
+          <v-divider class="mx-3 my-1"/>
           <v-list-subheader>{{ t('meta.sorting.sort_tags_by') }}</v-list-subheader>
           <v-list-item
             v-for="s in sortBy"
@@ -244,7 +247,7 @@
             </v-list-item-title>
           </v-list-item>
 
-          <v-divider class="my-1"/>
+          <v-divider class="mx-3 my-1"/>
           <v-list-item
             :disabled="selectedCount < 2"
             @click="sortSelectedTags"
@@ -1000,6 +1003,27 @@ watch(search, (query) => {
 </script>
 
 <style scoped>
+.meta-tag-sort-menu :deep(.v-list-item) {
+  min-height: 32px;
+  padding: 4px 10px;
+}
+
+.meta-tag-sort-menu :deep(.v-list-subheader) {
+  min-height: 26px;
+  padding-inline: 10px;
+  font-size: 0.75rem;
+}
+
+.meta-tag-sort-menu :deep(.v-list-item-title) {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.meta-tag-sort-menu :deep(.v-icon) {
+  font-size: 16px;
+}
+
 .list-item {
   display: flex;
   align-items: center;

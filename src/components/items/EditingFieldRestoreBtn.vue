@@ -35,6 +35,7 @@ const {t} = useI18n()
 .editing-field-restore {
   flex-shrink: 0;
   width: 28px !important;
+  min-width: 28px !important;
   height: 28px !important;
   opacity: 1 !important;
   pointer-events: auto !important;
