@@ -39,7 +39,7 @@ test('shows conflicts and recovery, streams uploads, and restores job history af
     return route.fulfill({json: jobs[0]})
   })
   await openSettingsTab(page, 'settings-doc-tab-connections')
-  await page.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
+  await page.getByRole('tab', {name: 'Network', exact: true}).click()
   await page.locator('#settings-nas').getByRole('button', {name: /Manage originals|Управление оригиналами/}).click()
   const dialog = page.getByRole('dialog', {name: /Manage originals|Управление оригиналами/})
   await dialog.getByRole('textbox', {name: /Destination folder|Папка назначения/}).fill('new-folder')

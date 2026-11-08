@@ -74,7 +74,7 @@ for (const provider of ['drive', 'nas'] as const) {
     await page.getByRole('button', {name: /^(Add media|Добавить медиа)$/}).first().click()
     const dialog = page.locator('.media-adding-dialog')
     await dialog.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
-    if (provider === 'nas') await dialog.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
+    if (provider === 'nas') await dialog.getByRole('tab', {name: 'Network', exact: true}).click()
     const source = dialog.locator(provider === 'drive' ? '.google-drive-source' : '.nas-sources')
     await dialog.getByRole('button', {name: /^(Import settings|Настройки импорта)$/}).click()
     await dialog.getByRole('checkbox', {name: /^(Exclude specific paths|Исключить определенные пути)$/}).check()

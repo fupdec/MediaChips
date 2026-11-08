@@ -37,7 +37,7 @@ async function setup(page: Page, directories: Record<string, NasEntry[]>, delayB
   })
   await page.route('**/api/Media/get-stats', route => route.fulfill({json: {total: 0, filesize: 0}}))
   await openSettingsTab(page, 'settings-doc-tab-connections')
-  await page.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
+  await page.getByRole('tab', {name: 'Network', exact: true}).click()
   const browser = page.locator('#settings-nas .media-folder-browser')
   await expect(browser.locator('.media-folder-browser__header')).toBeVisible()
   return {browser, batches}
@@ -101,7 +101,7 @@ test('remembers the last NAS connection and each connection folder after reopeni
 
   await page.reload()
   await openSettingsTab(page, 'settings-doc-tab-connections')
-  await page.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
+  await page.getByRole('tab', {name: 'Network', exact: true}).click()
   await expect(select).toContainText('Second NAS')
   await expect(browser.getByText('episode.mp4', {exact: true})).toBeVisible()
   await select.click()

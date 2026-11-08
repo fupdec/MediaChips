@@ -1,6 +1,6 @@
 # WebDAV HTTPS
 
-WebDAV подключается в **Источники → NAS / SFTP / FTP / WebDAV → Добавить подключение**. В протоколе выберите **WebDAV HTTPS**. Укажите имя сервера без `https://`, порт (по умолчанию 443), логин, пароль и корневой путь WebDAV без URL-кодирования.
+WebDAV подключается в **Источники → Сеть → Добавить подключение**. В протоколе выберите **WebDAV HTTPS**. Укажите имя сервера без `https://`, порт (по умолчанию 443), логин, пароль и корневой путь WebDAV без URL-кодирования.
 
 Для Nextcloud адрес `https://cloud.example/remote.php/dav/files/USERNAME/` задаётся как сервер `cloud.example`, порт `443`, корень `/remote.php/dav/files/USERNAME/`. Если Nextcloud установлен в подпапке, включите её в корень. Используйте пароль приложения из настроек безопасности Nextcloud. См. [документацию Nextcloud](https://docs.nextcloud.com/server/latest/user_manual/en/files/access_webdav.html).
 

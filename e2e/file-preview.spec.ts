@@ -64,7 +64,7 @@ for (const source of ['local', 'drive', 'nas'] as const) {
       await page.getByRole('button', {name: /^(Add media|Добавить медиа)$/}).first().click()
       const dialog = page.locator('.media-adding-dialog')
       if (source !== 'local') await dialog.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
-      if (source === 'nas') await dialog.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
+      if (source === 'nas') await dialog.getByRole('tab', {name: 'Network', exact: true}).click()
       const browser = dialog.locator(source === 'drive' ? '.google-drive-source' : source === 'nas' ? '.nas-sources' : '.media-adding-dialog__local')
       const libraryRequests: string[] = []
       page.on('request', request => {
@@ -173,7 +173,7 @@ test('NAS: starts before the download completes, seeks and cancels reading on cl
     await page.getByRole('button', {name: /^(Add media|Добавить медиа)$/}).first().click()
     const dialog = page.locator('.media-adding-dialog')
     await dialog.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
-    await dialog.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
+    await dialog.getByRole('tab', {name: 'Network', exact: true}).click()
     await dialog.locator('.nas-sources .v-list-item').filter({hasText: 'stream.mp4'})
       .getByRole('button', {name: /^(Preview without adding to library|Просмотреть без добавления в библиотеку)$/}).click()
     const video = page.locator('#player video[data-player-bound]')

@@ -12,7 +12,7 @@ for (const [implementation, port, root] of [
     expect(healthSetting.ok()).toBe(true)
     await disableFeatureHints(page)
     await openSettingsTab(page, 'settings-doc-tab-connections')
-    await page.getByRole('tab', {name: 'NAS / SFTP / FTP / WebDAV', exact: true}).click()
+    await page.getByRole('tab', {name: 'Network', exact: true}).click()
     const source = page.locator('#settings-nas')
     await source.getByRole('button', {name: /^(Add connection|Добавить подключение)$/}).click()
     const connectionEditor = page.locator('.nas-source-editor')
