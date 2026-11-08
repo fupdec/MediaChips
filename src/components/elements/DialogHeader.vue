@@ -1,6 +1,9 @@
 <template>
   <div
     class="dialog-header"
+    @pointerdown="startDrag"
+    @pointermove="moveDrag"
+    @lostpointercapture="endDrag"
     :class="{'dialog-header--compact': isCompact}"
   >
     <div class="content">
@@ -103,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
+import {computed, onBeforeUnmount} from 'vue'
 import type { PropType } from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useDisplay} from 'vuetify'
@@ -161,109 +164,90 @@ const copySubheader = () => {
   })
 }
 
-const INTERACTIVE_SELECTOR = 'button, a, input, textarea, select, [role="button"], .v-btn, .v-selection-control'
+const INTERACTIVE_SELECTOR = 'button, a, input, textarea, select, [contenteditable], [role="button"], .v-btn, .v-selection-control'
 
-const dragWindow = (headerSelector: string, dialogSelector: string) => {
-  let isDragging = false
-  let dragElement: HTMLElement | null = null
-  let startX = 0
-  let startY = 0
-  let initialLeft = 0
-  let initialTop = 0
+let content: HTMLElement | null = null
+let overlay: HTMLElement | null = null
+let observer: ResizeObserver | null = null
+let originalTranslate = ''
+let offsetX = 0
+let offsetY = 0
+let drag: {pointerId: number; x: number; y: number; offsetX: number; offsetY: number} | null = null
 
-  const onMouseDown = (e: MouseEvent) => {
-    const target = e.target as HTMLElement | null
-    if (!target?.closest(headerSelector)) return
-    if (target.closest(INTERACTIVE_SELECTOR)) return
+function positionDialog(x: number, y: number) {
+  if (!content || !overlay || !content.getClientRects().length) return
 
-    const dialog = target.closest(dialogSelector)
-    if (!dialog) return
+  const rect = content.getBoundingClientRect()
+  const bounds = overlay.getBoundingClientRect()
+  const minX = Math.max(0, bounds.left) - (rect.left - offsetX)
+  const minY = Math.max(0, bounds.top) - (rect.top - offsetY)
+  const maxX = Math.min(window.innerWidth, bounds.right) - (rect.right - offsetX)
+  const maxY = Math.min(window.innerHeight, bounds.bottom) - (rect.bottom - offsetY)
 
-    const dialogContent = dialog.closest('.v-overlay__content') as HTMLElement | null
-    if (!dialogContent) return
-
-    dragElement = dialogContent
-    isDragging = true
-
-    const rect = dragElement.getBoundingClientRect()
-    startX = e.clientX
-    startY = e.clientY
-    initialLeft = rect.left
-    initialTop = rect.top
-
-    dragElement.style.position = 'fixed'
-    dragElement.style.margin = '0'
-    dragElement.style.left = `${initialLeft}px`
-    dragElement.style.top = `${initialTop}px`
-    dragElement.style.zIndex = '9999'
-
-    const oldTransition = dragElement.style.transition
-    dragElement.style.transition = 'none'
-    dragElement.dataset.oldTransition = oldTransition
-
-    e.preventDefault()
-  }
-
-  const onMouseMove = (e: MouseEvent) => {
-    if (!isDragging || !dragElement) return
-
-    const deltaX = e.clientX - startX
-    const deltaY = e.clientY - startY
-
-    let newLeft = initialLeft + deltaX
-    let newTop = initialTop + deltaY
-
-    const windowWidth = window.innerWidth
-    const windowHeight = window.innerHeight
-    const elementWidth = dragElement.offsetWidth
-    const elementHeight = dragElement.offsetHeight
-
-    newLeft = Math.max(0, Math.min(newLeft, windowWidth - elementWidth))
-    newTop = Math.max(0, Math.min(newTop, windowHeight - elementHeight))
-
-    dragElement.style.left = `${newLeft}px`
-    dragElement.style.top = `${newTop}px`
-  }
-
-  const onMouseUp = () => {
-    if (!isDragging || !dragElement) return
-
-    if (dragElement.dataset.oldTransition !== undefined) {
-      dragElement.style.transition = dragElement.dataset.oldTransition
-    }
-
-    isDragging = false
-    dragElement = null
-  }
-
-  document.addEventListener('mousedown', onMouseDown)
-  document.addEventListener('mousemove', onMouseMove)
-  document.addEventListener('mouseup', onMouseUp)
-
-  return () => {
-    document.removeEventListener('mousedown', onMouseDown)
-    document.removeEventListener('mousemove', onMouseMove)
-    document.removeEventListener('mouseup', onMouseUp)
-  }
+  offsetX = Math.max(minX, Math.min(x, maxX))
+  offsetY = Math.max(minY, Math.min(y, maxY))
+  content.style.translate = `${offsetX}px ${offsetY}px`
 }
 
-const cleanupDragWindow = ref<(() => void) | null>(null)
+function constrainPosition() {
+  positionDialog(offsetX, offsetY)
+}
 
-onMounted(() => {
-  cleanupDragWindow.value = dragWindow('.dialog-header', '.v-overlay__content')
-})
+function resetPosition() {
+  observer?.disconnect()
+  observer = null
+  window.removeEventListener('resize', constrainPosition)
+  if (content) content.style.translate = originalTranslate
+  content = null
+  overlay = null
+  offsetX = 0
+  offsetY = 0
+  drag = null
+}
 
-onBeforeUnmount(() => {
-  if (cleanupDragWindow.value) {
-    cleanupDragWindow.value()
+function startDrag(event: PointerEvent) {
+  if (event.button !== 0 || drag || !(event.target instanceof Element)) return
+  if (event.target.closest(INTERACTIVE_SELECTOR)) return
+
+  const header = event.currentTarget as HTMLElement
+  const dialogContent = header.closest<HTMLElement>('.v-overlay__content')
+  const dialogOverlay = dialogContent?.parentElement
+  if (!dialogContent || !dialogOverlay?.matches('.v-overlay:not(.v-dialog--fullscreen)')) return
+
+  if (content !== dialogContent) {
+    resetPosition()
+    content = dialogContent
+    overlay = dialogOverlay
+    originalTranslate = content.style.translate
+    observer = new ResizeObserver(constrainPosition)
+    observer.observe(content)
+    observer.observe(overlay)
+    window.addEventListener('resize', constrainPosition)
   }
-})
+
+  constrainPosition()
+  drag = {pointerId: event.pointerId, x: event.clientX, y: event.clientY, offsetX, offsetY}
+  header.setPointerCapture(event.pointerId)
+  event.preventDefault()
+}
+
+function moveDrag(event: PointerEvent) {
+  if (drag?.pointerId !== event.pointerId) return
+  positionDialog(drag.offsetX + event.clientX - drag.x, drag.offsetY + event.clientY - drag.y)
+}
+
+function endDrag(event: PointerEvent) {
+  if (drag?.pointerId === event.pointerId) drag = null
+}
+
+onBeforeUnmount(resetPosition)
 </script>
 
 <style scoped lang="scss">
 .dialog-header {
   -webkit-app-region: no-drag;
   cursor: grab;
+  touch-action: none;
   z-index: 1;
   background: linear-gradient(
     110deg,
@@ -381,6 +365,11 @@ onBeforeUnmount(() => {
       height: var(--edit-deck-control-h, 40px);
     }
   }
+}
+
+:global(.v-dialog--fullscreen .dialog-header) {
+  cursor: default;
+  touch-action: auto;
 }
 
 /* Narrow phones: title + close on first row, actions wrap on the second. */
