@@ -61,11 +61,15 @@
                           :disabled="busy" :enable-folder-tags="false" select-addable-only
                           @favorite-titles="titles => Object.assign(pathTitles, titles)" @loading="browserLoading = $event" @visible-entries="visibleEntries" @show-hidden="showHidden = $event">
         <template v-if="$slots['browser-footer']" #footerActions><slot name="browser-footer"/></template>
+        <template #importSettings>
+          <MediaImportOptions v-model="importOptions" :disabled="busy"
+                              :folder-browser="{baseUrl: app.localhost || '', path: folder, pathTitles, errorMessage: apiError,
+                                               favoritesScope: browserPrefsScope() + ':gdrive', directoryLoader: loadExclusionDirectory}" />
+        </template>
         <template #entryActions="{entry, loading}">
           <FilePreviewButton :file="{...entry, path: driveMediaPath(driveFileIdFromPath(entry.path))}" :disabled="busy || loading" />
         </template>
       </MediaFolderBrowser>
-      <MediaImportOptions v-if="!embedded" v-model="importOptions" :disabled="busy" />
 
     </div>
     <v-dialog v-model="editing" max-width="560" persistent scrollable>
@@ -201,6 +205,11 @@ const directoryLoader: BrowseDirectoryLoader = async input => {
   directories.add(result.currentPath)
   for (const entry of result.entries) pathTitles.value[entry.path] = entry.name
   persistDriveBrowserLocation(scope, result.currentPath, pathTitles.value)
+  return result
+}
+const loadExclusionDirectory: BrowseDirectoryLoader = async input => {
+  const result = await listDriveDirectory(input)
+  for (const entry of result.entries) pathTitles.value[entry.path] = entry.name
   return result
 }
 function visibleEntries(entries: BrowseDirectoryEntry[]) {

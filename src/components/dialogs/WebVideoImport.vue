@@ -31,7 +31,9 @@
         <v-icon size="18" icon="mdi-plus" />
       </v-btn>
     </div>
-    <MediaImportOptions v-if="!embedded" v-model="importOptions" :disabled="busy" />
+    <footer class="mt-2">
+      <MediaImportOptions v-model="importOptions" :disabled="busy" inline />
+    </footer>
     <v-alert v-if="message" :type="error ? 'error' : 'success'" variant="tonal" density="compact" rounded="lg"
              class="web-video-import__notice" role="status" aria-live="polite">
       {{ message }}
@@ -52,7 +54,7 @@ import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
 import {useEventBus} from '@/utils/eventBus'
 import {remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 import MediaImportOptions from './MediaImportOptions.vue'
-import {defaultRemoteImportOptions, remotePathExcluder, type RemoteImportOptions} from '@/services/remoteImportOptions'
+import {defaultRemoteImportOptions, type RemoteImportOptions} from '@/services/remoteImportOptions'
 import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
 import {useAppStore} from '@/stores/app'
 
@@ -75,16 +77,12 @@ const readablePath = computed(() => {
   try { return decodeURIComponent(new URL(url.value.trim()).pathname) }
   catch { return new URL(url.value.trim()).pathname }
 })
-const isExcluded = computed(() => {
-  const excludes = remotePathExcluder(importOptions.value)
-  return excludes(url.value.trim()) || excludes(readablePath.value)
-})
 const sync = useItemsListSync()
 const gate = useFreeLibraryGate()
 const events = useEventBus()
 
 async function importVideo() {
-  if (addingProcess.active || !validUrl.value || busy.value || isExcluded.value) return
+  if (addingProcess.active || !validUrl.value || busy.value) return
   const path = readablePath.value
   const originalUrl = url.value.trim()
   const options = {...importOptions.value}
@@ -144,7 +142,7 @@ watch([() => app.dbPath, () => app.localhost], () => {
   generation++; controller?.abort(); busy.value = false; message.value = ''; error.value = false
 })
 onBeforeUnmount(() => { generation++; controller?.abort() })
-const canSubmit = computed(() => !!validUrl.value && !addingProcess.active && !busy.value && !isExcluded.value)
+const canSubmit = computed(() => !!validUrl.value && !addingProcess.active && !busy.value)
 const selectionCount = computed(() => validUrl.value ? 1 : 0)
 defineExpose({canSubmit, busy, selectionCount, submit: importVideo})
 </script>

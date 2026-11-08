@@ -110,7 +110,7 @@
         </div>
 
         <div
-          v-if="enableFolderTags || (showSelection && !isFilePicker)"
+          v-if="enableFolderTags"
           class="media-folder-browser__actions"
         >
           <FolderTagsMenu
@@ -144,19 +144,6 @@
             @click="folderTagsManagerOpen = true"
           >
             <v-icon size="18" icon="mdi-folder-multiple-outline"/>
-          </v-btn>
-          <v-btn
-            v-if="showSelection && !isFilePicker"
-            size="small"
-            variant="flat"
-            color="primary"
-            rounded="xl"
-            icon
-            :disabled="loading || disabled || !currentPath"
-            v-tooltip:top="t('media.adding.browser_select_folder')"
-            @click="selectCurrentFolder"
-          >
-            <v-icon size="18" icon="mdi-folder-check-outline"/>
           </v-btn>
         </div>
 
@@ -232,7 +219,7 @@
         </v-menu>
       </div>
 
-      <div class="media-folder-browser__favorites d-flex align-center flex-wrap ga-1 px-2 py-1">
+      <div v-if="!hideFavorites" class="media-folder-browser__favorites d-flex align-center flex-wrap ga-1 px-2 py-1">
         <v-btn size="small" variant="text" :disabled="loading || disabled || !currentPath || !!error || (!isFavorite && favorites.length >= 100)"
                :aria-label="t(isFavorite ? 'sources.remove_favorite' : 'sources.add_favorite')" :aria-pressed="isFavorite" @click="toggleFavorite">
           <v-icon start size="16" :icon="isFavorite ? 'mdi-star' : 'mdi-star-outline'" />{{ t('sources.favorites') }}
@@ -477,31 +464,50 @@
           </v-list>
         </template>
       </div>
-      <div v-if="showSelection || $slots.footerActions" class="media-folder-browser__selection-bar"
+      <div v-if="showSelectedPaths && selectedPaths.size" class="media-folder-browser__selection-bar flex-wrap">
+        <v-chip v-for="path in selectedPaths" :key="path" size="small" closable :disabled="disabled || loading"
+                @click:close="emitSelection(new Set(props.selectedPaths.filter(selected => selected !== path)))">
+          {{ pathTitles?.[path] || path }}
+        </v-chip>
+      </div>
+      <div v-if="showSelection || $slots.footerActions || $slots.importSettings" class="media-folder-browser__selection-bar"
            :class="{'media-folder-browser__selection-bar--with-extra': $slots.footerActions}">
-        <slot name="footerActions"/>
         <span v-if="showSelection" class="media-folder-browser__selected-count" aria-live="polite">
           {{ t('media.adding.browser_selected_count', {count: selectedPaths.size}) }}
         </span>
-        <div v-if="showSelection" class="media-folder-browser__selection-actions">
-          <v-btn v-if="!isFilePicker" size="small" variant="text" rounded="lg"
-                 :disabled="loading || disabled || !selectableEntries.length || allVisibleSelected"
-                 @click="selectAll">
-            {{ t('media.adding.browser_select_all') }}
-          </v-btn>
-          <v-btn size="small" variant="text" rounded="lg" icon
-                 :disabled="loading || disabled || !selectedPaths.size"
-                 :aria-label="t('media.adding.browser_clear_selection')"
-                 v-tooltip:top="t('media.adding.browser_clear_selection')" @click="clearSelection">
-            <v-icon size="18" icon="mdi-select-off"/>
-          </v-btn>
-          <v-btn size="small" variant="text" rounded="lg" icon
-                 :disabled="loading || disabled"
-                 :aria-label="t('media.adding.browser_edit_selection')"
-                 aria-haspopup="dialog"
-                 v-tooltip:top="t('media.adding.browser_edit_selection')" @click="editSelection">
-            <v-icon size="18" icon="mdi-playlist-edit"/>
-          </v-btn>
+        <div v-if="showSelection || $slots.footerActions || $slots.importSettings" class="media-folder-browser__selection-actions">
+          <slot name="footerActions"/>
+          <slot name="importSettings" />
+          <div v-if="showSelection" class="media-folder-browser__selection-controls">
+            <v-divider v-if="$slots.footerActions || $slots.importSettings" vertical inset class="mx-2" />
+            <v-btn v-if="!isFilePicker" size="small" variant="text" rounded="lg" icon
+                   :disabled="loading || disabled || !currentPath"
+                   :aria-label="t('media.adding.browser_select_folder')"
+                   v-tooltip:top="t('media.adding.browser_select_folder')" @click="selectCurrentFolder">
+              <v-icon size="18" icon="mdi-folder-check-outline"/>
+            </v-btn>
+            <v-btn v-if="!isFilePicker" size="small" variant="text" rounded="lg" icon
+                   :disabled="loading || disabled || !selectableEntries.length || allVisibleSelected"
+                   :aria-label="t('media.adding.browser_select_all')"
+                   v-tooltip:top="t('media.adding.browser_select_all')" @click="selectAll">
+              <v-icon size="18" icon="mdi-select-all"/>
+            </v-btn>
+            <v-btn size="small" variant="text" rounded="lg" icon
+                   :disabled="loading || disabled || !selectedPaths.size"
+                   :aria-label="t('media.adding.browser_clear_selection')"
+                   v-tooltip:top="t('media.adding.browser_clear_selection')" @click="clearSelection">
+              <v-icon size="18" icon="mdi-select-off"/>
+            </v-btn>
+            <v-btn size="small" variant="text" rounded="lg" icon
+                   :disabled="loading || disabled"
+                   :aria-label="t('media.adding.browser_edit_selection')"
+                   aria-haspopup="dialog"
+                   v-tooltip:top="t('media.adding.browser_edit_selection')" @click="editSelection">
+              <v-badge :model-value="selectedPaths.size > 0" color="primary" dot floating aria-hidden="true">
+                <v-icon size="18" icon="mdi-playlist-edit"/>
+              </v-badge>
+            </v-btn>
+          </div>
         </div>
       </div>
     </div>
@@ -509,7 +515,6 @@
     <DialogSelectedPaths v-if="showSelection" v-model="selectionEditorOpen"
                          :selected-paths="props.selectedPaths" :disabled="loading || disabled"
                          :file-picker="isFilePicker" :hint="selectionHint"
-                         v-model:import-options="importOptions"
                          @update:selected-paths="emitSelection(new Set($event))">
       <template v-if="$slots.folderPicker" #folderPicker="picker"><slot name="folderPicker" v-bind="picker" /></template>
     </DialogSelectedPaths>
@@ -549,6 +554,7 @@ const props = withDefaults(defineProps<{
   pathTitles?: Record<string, string>
   errorMessage?: (error: unknown) => string
   favoritesScope?: string
+  hideFavorites?: boolean
   disabled?: boolean
   selectAddableOnly?: boolean
   baseUrl: string
@@ -563,6 +569,7 @@ const props = withDefaults(defineProps<{
   fileExtensions?: string[]
   /** Show row checkboxes and selection toolbar actions. */
   showSelection?: boolean
+  showSelectedPaths?: boolean
   /** Optional provider-specific path instructions in the selection dialog. */
   selectionHint?: string
   /** Stretch list to fill parent height (side panel). */
@@ -579,7 +586,6 @@ const props = withDefaults(defineProps<{
   enableFolderTags: true,
 })
 
-const importOptions = defineModel<import('@/services/remoteImportOptions').RemoteImportOptions>('importOptions')
 
 const emit = defineEmits<{
   'update:path': [value: string]
@@ -1184,9 +1190,17 @@ watch(showHidden, value => emit('showHidden', value))
 
 .media-folder-browser__selection-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 2px;
   margin-left: auto;
+}
+
+.media-folder-browser__selection-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .media-folder-browser__view-btn--on {

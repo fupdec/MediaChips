@@ -64,7 +64,7 @@
         </v-list-item>
       </v-list>
       <v-btn v-if="nextPageToken" :disabled="busy" @click="load(true)">{{ tr('Ещё', 'More') }}</v-btn>
-      <div v-if="$slots['browser-footer']" class="mt-1"><slot name="browser-footer"/></div>
+      <footer v-if="$slots['browser-footer']" class="d-flex align-center justify-end flex-wrap ga-2 mt-1"><slot name="browser-footer" :folder-browser="exclusionBrowser"/></footer>
     </template>
     <v-progress-linear v-if="busy" indeterminate class="my-3" />
     <v-list v-if="imported.length">
@@ -79,6 +79,8 @@
 import {remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 import {computed, onMounted, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {collectRemoteDirectoryPages} from '@/services/remoteDirectoryPages'
+import type {BrowseDirectoryLoader} from '@/services/typedApi/browse'
 import {apiClient, buildApiUrl} from '@/services/apiClient'
 import {getAuthToken} from '@/services/authSession'
 import {openExternal} from '@/services/shellService'
@@ -192,19 +194,75 @@ async function connect() {
 }
 async function logout() { await guarded(async () => { await apiClient.post(`${base()}/logout`); entries.value = []; selected.value = [] }); await refresh() }
 async function load(more = false) { if (!account.value?.authenticated) return; await guarded(async () => {
+  if (!more) { entries.value = []; nextPageToken.value = undefined }
   const {data} = await apiClient.get<{entries: Entry[]; nextPageToken?: string}>(`${base()}/files`, {params: {key: folder.value, pageToken: more ? nextPageToken.value : undefined}, signal: controller?.signal})
   entries.value = more ? [...entries.value, ...data.entries] : data.entries; nextPageToken.value = data.nextPageToken
 }) }
 async function resetFolder() { entries.value = []; selected.value = []; history.value = []; folder.value = 'root'; nextPageToken.value = undefined; await load() }
 async function openFolder(key: string) { if (busy.value) return; history.value.push(folder.value); folder.value = key; selected.value = []; await load() }
 async function back() { folder.value = history.value.pop() || 'root'; selected.value = []; await load() }
-const eligible = (entry: Entry) => !entry.isDirectory && !!mediaFileKind(entry.name) && importExtensionMatcher(props.extensions)(entry.name) && (!props.importOptions || !remotePathExcluder(props.importOptions)(entry.name))
+// Include the account and folder ancestry so identical names in different trees stay independent.
+const exclusionRoot = computed(() => `/cloud-folders/${encodeURIComponent(accountId.value)}`)
+const folderTitles = ref<Record<string, string>>({})
+const loadExclusionDirectory: BrowseDirectoryLoader = async ({path, showHidden}) => {
+  const rootPath = exclusionRoot.value
+  if (path !== rootPath && !path.startsWith(`${rootPath}/`)) throw new Error('Folder belongs to a different cloud account')
+  const accountBase = base()
+  const parentPath = path === rootPath ? null : path.slice(0, path.lastIndexOf('/'))
+  const key = parentPath === null ? 'root' : decodeURIComponent(path.slice(path.lastIndexOf('/') + 1))
+  const {entries: children, truncated} = await collectRemoteDirectoryPages({
+    load: async pageToken => {
+      const {data} = await apiClient.get<{entries: Entry[]; nextPageToken?: string}>(`${accountBase}/files`, {params: {key, pageToken}})
+      return data
+    },
+  })
+  const folders = children.filter(entry => entry.isDirectory && (showHidden || !entry.name.startsWith('.'))).map(entry => ({
+    path: `${path}/${encodeURIComponent(entry.resourceKey)}`,
+    name: entry.name,
+    isDirectory: true,
+    size: null,
+    mtimeMs: null,
+    extension: null,
+    inLibrary: false,
+    mediaId: null,
+    addable: false,
+  }))
+  for (const entry of folders) folderTitles.value[entry.path] = entry.name
+  return {currentPath: path, rootPath, parentPath, entries: folders, truncated, platform: 'linux'}
+}
+const exclusionBrowser = computed(() => ({
+  baseUrl: app.localhost || '',
+  path: exclusionRoot.value,
+  pathTitles: {...folderTitles.value, [exclusionRoot.value]: account.value?.name || ''},
+  favoritesScope: JSON.stringify([app.dbPath, app.localhost, exclusionRoot.value]),
+  directoryLoader: loadExclusionDirectory,
+  errorMessage: (error: unknown) => remoteSourceErrorMessage(error, t),
+}))
+const folderIsExcluded = computed(() => {
+  if (!props.importOptions?.excluded) return false
+  const currentPath = [exclusionRoot.value, ...[...history.value, folder.value].slice(1).map(encodeURIComponent)].join('/')
+  return props.importOptions.excluded.split(/\r?\n/).some(line => {
+    const path = line.trim()
+    return (path === exclusionRoot.value || path.startsWith(`${exclusionRoot.value}/`))
+      && (currentPath === path || currentPath.startsWith(`${path}/`))
+  })
+})
+const excludesName = computed(() => props.importOptions && remotePathExcluder(props.importOptions))
+const eligible = (entry: Entry) => !folderIsExcluded.value && !entry.isDirectory && !!mediaFileKind(entry.name)
+  && importExtensionMatcher(props.extensions)(entry.name) && !excludesName.value?.(entry.name)
+watch(() => props.importOptions, () => {
+  const allowed = new Set(entries.value.filter(eligible).map(entry => entry.resourceKey))
+  selected.value = selected.value.filter(key => allowed.has(key))
+})
 function toggle(key: string) { if (busy.value || !entries.value.some(e => e.resourceKey === key && eligible(e))) return
   selected.value = selected.value.includes(key) ? selected.value.filter(v => v !== key) : [...selected.value, key] }
 function selectFiles() { selected.value = entries.value.filter(eligible).map(e => e.resourceKey) }
 function preview(key: string) { const query = new URLSearchParams({key}); const token = getAuthToken(); if (token) query.set('token', token); return buildApiUrl(`${base()}/stream?${query}`) }
 async function submit() {
-  const keys = [...selected.value], accountBase = base()
+  const allowed = new Set(entries.value.filter(eligible).map(entry => entry.resourceKey))
+  const keys = selected.value.filter(key => allowed.has(key))
+  if (!keys.length) return
+  const accountBase = base()
   await guarded(async () => {
     importing.value = true; stopping.value = false; processed.value = 0; total.value = keys.length; failures.value = []
     const run = addingProcess.begin({source: account.value?.name || 'Cloud', phase: 'importing', stop: () => { stopping.value = true }, retry: submit,

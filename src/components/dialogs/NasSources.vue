@@ -55,7 +55,6 @@
         ref="browser"
         v-model:path="folder"
         v-model:selected-paths="selectedPaths"
-        v-model:import-options="importOptions"
         :base-url="app.localhost || ''"
         :directory-loader="directoryLoader"
         :extensions="extensions"
@@ -76,6 +75,11 @@
                               :disabled="busy" folders-only class="mt-3" @loading="pickerLoading = $event" />
           <v-btn variant="tonal" color="primary" class="mt-2" :disabled="busy || pickerLoading || !pickerPath"
                  @click="addFolder(pickerPath)">{{ t('media.adding.browser_select_folder') }}</v-btn>
+        </template>
+        <template #importSettings>
+          <MediaImportOptions v-model="importOptions" :disabled="busy"
+                              :folder-browser="{baseUrl: app.localhost || '', path: folder, directoryLoader,
+                                               favoritesScope: JSON.stringify([app.dbPath, app.localhost, selected.id]), errorMessage: apiError}" />
         </template>
         <template #entryActions="{entry, loading}">
           <FilePreviewButton v-if="!entry.isDirectory && (entry.addable || entry.inLibrary)"
@@ -151,6 +155,7 @@ import SourceHealth from './SourceHealth.vue'
 import {computed, onMounted, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import MediaImportSection from './MediaImportSection.vue'
+import MediaImportOptions from './MediaImportOptions.vue'
 import {defaultRemoteImportOptions, remotePathExcluder, importExtensionMatcher, type RemoteImportOptions} from '@/services/remoteImportOptions'
 import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
 import {NasConnectionSchema, type NasConnection, type NasConnectionInput, type NasImportResult} from '@shared/nas'
@@ -485,7 +490,7 @@ onMounted(loadConnections)
 onBeforeUnmount(() => { generation++; stopCurrentBatch?.(); importController?.abort() })
 const canSubmit = computed(() => !!selected.value?.hasCredentials && !addingProcess.active && !busy.value && !browserLoading.value && !!selectedPaths.value.length)
 const selectionCount = computed(() => selectedPaths.value.length)
-defineExpose({hasPathSettings: computed(() => !connectionsOnly && !!selected.value?.hasCredentials), refreshConnections: loadConnections, canSubmit, busy: computed(() => busy.value || saving.value || editing.value), selectionCount, submit: () => importSelected(), stop: stopBatch, stopping: stopRequested, canStop: batchActive})
+defineExpose({refreshConnections: loadConnections, canSubmit, busy: computed(() => busy.value || saving.value || editing.value), selectionCount, submit: () => importSelected(), stop: stopBatch, stopping: stopRequested, canStop: batchActive})
 </script>
 
 <style scoped lang="scss">

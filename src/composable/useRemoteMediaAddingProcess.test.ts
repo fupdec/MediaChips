@@ -122,12 +122,10 @@ describe('shared media import process', () => {
     const {begin, task} = setup()
     begin()!.record('movie.mp4', 31, true)
     task.paths = '/local'
-    task.is_exclude = true
     resetMediaAddingRun(task)
     expect(task.remoteImport).toBeNull()
     expect(task.addedTotal).toBe(0)
     expect(task.addedMedia).toEqual([])
     expect(task.paths).toBe('/local')
-    expect(task.is_exclude).toBe(true)
   })
 })

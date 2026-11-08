@@ -1,11 +1,13 @@
 <template>
-  <div id="settings-import-emby" class="integration-settings mx-4">
+  <div :id="embedded ? undefined : 'settings-import-emby'" class="integration-settings" :class="{'mx-4': !embedded}">
     <settings-category-divider
+      v-if="!embedded"
       :title="t('settings_labels.database.import_emby')"
       icon="television-box"
     />
 
     <v-alert
+      v-if="!embedded"
       type="info"
       variant="tonal"
       density="compact"
@@ -18,6 +20,7 @@
     </v-alert>
 
     <v-alert
+      v-if="!embedded"
       type="warning"
       variant="tonal"
       density="compact"
@@ -32,45 +35,53 @@
     <div class="plugin-scraper-settings__grid integration-settings__form">
       <section class="plugin-scraper-settings__block">
         <div class="integration-settings__connection">
+          <slot name="server-selector" />
           <v-text-field
             v-model="baseUrl"
             :label="t('settings_labels.database.import_emby_url')"
-            :hint="t('settings_labels.database.import_emby_url_hint')"
-            persistent-hint
+            :hint="embedded ? undefined : t('settings_labels.database.import_emby_url_hint')"
+            :placeholder="embedded ? t('settings_labels.database.import_emby_url_hint') : undefined"
+            :persistent-hint="!embedded"
+            :hide-details="embedded"
             variant="outlined"
             density="compact"
             rounded="lg"
-            class="mb-2"
-            :disabled="active"
+            :class="{'mb-2': !embedded}"
+            :disabled="active || (embedded && loadingLibraries)"
           />
 
           <v-text-field
             v-model="apiKey"
             :label="t('settings_labels.database.import_emby_api_key')"
-            :hint="t('settings_labels.database.import_emby_api_key_hint')"
-            persistent-hint
+            :hint="embedded ? undefined : t('settings_labels.database.import_emby_api_key_hint')"
+            :persistent-hint="!embedded"
+            :hide-details="embedded"
             variant="outlined"
             density="compact"
             rounded="lg"
-            class="mb-4"
+            :class="{'mb-4': !embedded}"
             type="password"
             autocomplete="off"
-            :disabled="active"
+            :disabled="active || (embedded && loadingLibraries)"
           />
         </div>
 
-        <div class="d-flex flex-wrap ga-2 mb-4">
+        <div class="integration-settings__actions d-flex flex-wrap ga-2" :class="{'mb-4': !embedded}">
           <v-btn
             @click="loadLibraries"
             color="primary"
-            rounded
-            variant="outlined"
-            class="pr-4"
+            :size="embedded ? 'small' : undefined"
+            :rounded="embedded ? 'lg' : true"
+            :variant="embedded ? 'tonal' : 'outlined'"
+            :class="{'pr-4': !embedded}"
+            :icon="embedded"
+            :aria-label="t('settings_labels.database.import_emby_load_libraries')"
+            v-tooltip:top="embedded ? t('settings_labels.database.import_emby_load_libraries') : undefined"
             :disabled="!canLoadLibraries || loadingLibraries || active"
             :loading="loadingLibraries"
           >
-            <v-icon icon="mdi-library" start/>
-            {{ t('settings_labels.database.import_emby_load_libraries') }}
+            <v-icon icon="mdi-library" :start="!embedded"/>
+            <template v-if="!embedded">{{ t('settings_labels.database.import_emby_load_libraries') }}</template>
           </v-btn>
         </div>
       </section>
@@ -82,8 +93,9 @@
           item-title="title"
           item-value="value"
           :label="t('settings_labels.database.import_emby_libraries')"
-          :hint="t('settings_labels.database.import_emby_libraries_hint')"
-          persistent-hint
+          :hint="embedded ? undefined : t('settings_labels.database.import_emby_libraries_hint')"
+          :persistent-hint="!embedded"
+          :hide-details="embedded"
           multiple
           chips
           closable-chips
@@ -91,7 +103,7 @@
           density="compact"
           rounded="lg"
           class="mb-4"
-          :disabled="active"
+          :disabled="active || (embedded && loadingLibraries)"
         />
 
         <v-checkbox
@@ -99,7 +111,7 @@
           :label="t('settings_labels.database.import_emby_create_missing')"
           density="compact"
           hide-details
-          class="mb-4"
+          :class="{'mb-4': !embedded}"
           :disabled="active"
         />
       </section>
@@ -144,7 +156,7 @@
 
     <div class="d-flex flex-wrap ga-2">
       <v-btn
-        v-if="!active"
+        v-if="!active && !embedded"
         @click="startImport"
         :disabled="!canStart"
         color="primary"
@@ -157,7 +169,7 @@
       </v-btn>
 
       <v-btn
-        v-else
+        v-if="active"
         @click="stopImport"
         color="error"
         rounded
@@ -172,12 +184,14 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from 'vue'
+import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {setNotification} from '@/services/notificationService'
 import {typedApi} from '@/services/typedApi'
 
+const {embedded = false} = defineProps<{embedded?: boolean}>()
+const emit = defineEmits<{imported: []}>()
 const {t} = useI18n()
 
 const baseUrl = ref('')
@@ -201,11 +215,21 @@ const progress = computed(() => {
 })
 
 const canLoadLibraries = computed(() => Boolean(baseUrl.value.trim() && apiKey.value.trim()))
-const canStart = computed(() => canLoadLibraries.value && !active.value)
+const canStart = computed(() => canLoadLibraries.value && !active.value
+  && (!embedded || (!loadingLibraries.value && selectedLibraryIds.value.length > 0)))
 
 const libraryItems = computed(() =>
   libraries.value.map((lib) => ({title: lib.name, value: lib.id})),
 )
+
+if (embedded) {
+  watch([baseUrl, apiKey], () => {
+    libraries.value = []
+    selectedLibraryIds.value = []
+    lastError.value = ''
+    lastSummary.value = null
+  })
+}
 
 const phaseLabel = computed(() => {
   const key = `settings_labels.database.import_emby_phase_${phase.value}`
@@ -220,6 +244,7 @@ const stopImport = () => {
 const loadLibraries = async () => {
   if (!canLoadLibraries.value || loadingLibraries.value) return
   loadingLibraries.value = true
+  if (embedded) selectedLibraryIds.value = []
   lastError.value = ''
   try {
     const {data} = await typedApi.listMediaServerLibraries('emby', {
@@ -227,7 +252,8 @@ const loadLibraries = async () => {
       apiKey: apiKey.value.trim(),
     })
     libraries.value = data.libraries || []
-    selectedLibraryIds.value = libraries.value.map((lib) => lib.id)
+    if (embedded && !libraries.value.length) lastError.value = t('sources.media_servers.no_libraries')
+    if (!embedded) selectedLibraryIds.value = libraries.value.map((lib) => lib.id)
   } catch (error) {
     lastError.value = (error as Error)?.message || String(error)
     libraries.value = []
@@ -278,6 +304,7 @@ const startImport = async () => {
             mediaSkipped: Number(event.mediaSkipped) || 0,
             markers: Number(event.markers) || 0,
           }
+          emit('imported')
           setNotification({
             type: 'success',
             text: t('settings_labels.database.import_emby_success'),
@@ -300,4 +327,10 @@ const startImport = async () => {
     currentPath.value = ''
   }
 }
+onBeforeUnmount(stopImport)
+defineExpose({
+  busy: computed(() => active.value || loadingLibraries.value),
+  canSubmit: canStart,
+  submit: startImport,
+})
 </script>

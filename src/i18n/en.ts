@@ -399,6 +399,14 @@ const en = {
     "refresh_failed": "Import succeeded. Reload the page to refresh the catalogs."
 },
   sources: {
+    media_servers: {
+      path_hint: 'MediaChips plays files using the paths in the server library. Make sure the app can access those paths.',
+      no_libraries: 'The server returned no libraries.',
+      title: 'Media servers',
+      server: 'Server',
+      enable_plugins: 'Enable Plex, Jellyfin or Emby in Settings → Plugins to import a library.',
+      stash_hint: 'To add scenes from Stash, open Settings → Plugins and select your Stash database.',
+    },
     refresh: {
       "title": "Catalog updates and offline storage",
       "hint": "Reconcile this folder and its subfolders. New media will be added; changed and missing files keep their cards and chips. A failed or cancelled scan applies no changes.",
@@ -3470,6 +3478,7 @@ const en = {
       source_links: 'Links',
       source_nas: 'NAS / WebDAV',
       import_options: 'Import settings',
+      ignored_folders: 'Ignored folders',
       web_video_title: 'Video from a web page',
       web_video_url: 'HTTPS link to a video page',
       web_video_loading: 'Resolving the video… On first use, the verified yt-dlp adapter is downloaded from GitHub. This can take a few minutes.',

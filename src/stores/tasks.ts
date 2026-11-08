@@ -63,7 +63,6 @@ export interface MediaAddingState {
    */
   media_type_ids: number[]
   is_parsing: boolean
-  is_exclude: boolean
   is_check_duplicates: boolean
   /** Skip probe/thumbs; use bulk lite insert. */
   is_fast_import: boolean
@@ -114,7 +113,6 @@ export const useTasksStore = defineStore('useTasksStore', {
       media_type_id: null,
       media_type_ids: [],
       is_parsing: true,
-      is_exclude: false,
       is_check_duplicates: true,
       is_fast_import: false,
       fast_import_locked: false,

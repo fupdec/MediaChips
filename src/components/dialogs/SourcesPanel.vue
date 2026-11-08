@@ -1,15 +1,19 @@
 <template>
   <section class="sources-panel" :aria-label="t('sources.title')">
-    <SettingsSegmentedControl
-      v-model="provider"
-      :label="t('sources.provider')"
-      :disabled="busy"
-      :items="[
-        {value: 'cloud', title: tr('Облако', 'Cloud'), icon: 'mdi-cloud-outline'},
-        {value: 'nas', title: t('nas.title'), icon: 'mdi-server-network-outline'},
-      ]"
-      class="mb-4"
-    />
+    <Teleport :to="providerTabsTarget" :disabled="!providerTabsTarget">
+      <SettingsSegmentedControl
+        v-model="provider"
+        :label="t('sources.provider')"
+        :disabled="busy"
+        :items="[
+          {value: 'cloud', title: tr('Облако', 'Cloud'), icon: 'mdi-cloud-outline'},
+          {value: 'nas', title: t('nas.title'), icon: 'mdi-server-network-outline'},
+          ...(mediaServersAvailable ? [{value: 'media-servers', title: t('sources.media_servers.title'), icon: 'mdi-server'}] : []),
+        ]"
+        :compact="!!providerTabsTarget"
+        :class="{'mb-4': !providerTabsTarget}"
+      />
+    </Teleport>
     <div :id="embedded ? undefined : 'settings-google-drive'" v-show="provider === 'cloud'">
     <div class="sources-panel__cloud-picker source-connection-panel">
       <v-select :model-value="selectedAccount" :items="cloudAccounts" :placeholder="tr('Новый аккаунт', 'New account')" :aria-label="tr('Облачный аккаунт', 'Cloud account')" :disabled="busy" variant="outlined" rounded="lg" density="compact" hide-details @update:model-value="selectAccount">
@@ -43,18 +47,23 @@
       <template v-if="$slots['browser-footer']" #browser-footer><slot name="browser-footer"/></template>
     </NasSources></div>
     <CloudAccountsSource v-show="provider === 'cloud' && !driveSelected" unified ref="cloud" :extensions="extensions" :import-options="importOptions" @started="emit('started')">
-      <template v-if="$slots['browser-footer']" #browser-footer><slot name="browser-footer"/></template>
+      <template #browser-footer="{folderBrowser}">
+        <slot name="browser-footer"/>
+        <MediaImportOptions v-model="importOptions" :disabled="busy" :folder-browser="folderBrowser" />
+      </template>
     </CloudAccountsSource>
-    <MediaImportOptions v-if="!embedded && !hasPathSettings" v-model="importOptions" :disabled="busy" />
+    <MediaServerSources v-if="mediaServersAvailable && provider === 'media-servers'" ref="mediaServers" />
     <div v-if="!embedded" class="d-flex flex-wrap justify-end ga-2 mt-3">
-      <v-btn v-if="active?.canStop" variant="text" :disabled="active.stopping" @click="active.stop()">{{ t(active.stopping ? 'nas.stopping' : 'nas.stop_import') }}</v-btn>
-      <v-btn color="primary" :disabled="!active?.canSubmit || busy" @click="active?.submit()">{{ t('nas.import_selected') }}</v-btn>
+      <v-btn v-if="provider !== 'media-servers' && active?.canStop" variant="text" :disabled="active.stopping" @click="active.stop()">{{ t(active.stopping ? 'nas.stopping' : 'nas.stop_import') }}</v-btn>
+      <v-btn color="primary" :disabled="!activeImport?.canSubmit || busy" @click="activeImport?.submit()">{{ t('nas.import_selected') }}</v-btn>
     </div>
   </section>
 </template>
 <script setup lang="ts">
 import {computed, nextTick, ref, watch} from 'vue'
 import {useRoute} from 'vue-router'
+import {isSfwBuild} from '@shared/buildFlags'
+import MediaServerSources from './MediaServerSources.vue'
 import {useRememberedTab} from '@/composable/useRememberedTab'
 import {useI18n} from 'vue-i18n'
 import CloudAccountsSource from './CloudAccountsSource.vue'
@@ -63,12 +72,15 @@ import NasSources from './NasSources.vue'
 import MediaImportOptions from './MediaImportOptions.vue'
 import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {defaultRemoteImportOptions, type RemoteImportOptions} from '@/services/remoteImportOptions'
-defineProps<{embedded?: boolean; extensions?: string}>()
+defineProps<{embedded?: boolean; extensions?: string; providerTabsTarget?: HTMLElement}>()
 const importOptions = defineModel<RemoteImportOptions>('importOptions', {default: defaultRemoteImportOptions})
 const {t, locale} = useI18n()
 const tr = (ru: string, en: string) => locale.value.startsWith('ru') ? ru : en
 const emit = defineEmits<{started: []}>()
-const {tab: provider, restore: restoreProviderTab} = useRememberedTab('mediachips.sources.provider', ['drive', 'nas', 'cloud'] as const, 'drive')
+const mediaServersAvailable = !isSfwBuild()
+const {tab: provider, restore: restoreProviderTab} = useRememberedTab<'drive' | 'nas' | 'cloud' | 'media-servers'>(
+  'mediachips.sources.provider', mediaServersAvailable ? ['drive', 'nas', 'cloud', 'media-servers'] : ['drive', 'nas', 'cloud'], 'drive',
+)
 // Preserve old saved tabs while presenting a single cloud tab.
 if (provider.value === 'drive') provider.value = 'cloud'
 watch(provider, value => { if (value === 'drive') { driveSelected.value = true; provider.value = 'cloud' } }, {flush: 'sync'})
@@ -121,11 +133,12 @@ watch(() => cloud.value?.editing, (editing, wasEditing) => {
     if (fallback) void selectAccount(fallback.value)
   }
 })
+const mediaServers = ref<InstanceType<typeof MediaServerSources>>()
 const active = computed(() => provider.value === 'nas' ? nas.value : driveSelected.value ? drive.value : cloud.value)
-const busy = computed(() => !!cloud.value?.busy || !!drive.value?.busy || !!nas.value?.busy)
-const hasPathSettings = computed(() => provider.value === 'nas' && !!nas.value?.hasPathSettings)
-defineExpose({busy, hasPathSettings, canSubmit: computed(() => !!active.value?.canSubmit), selectionCount: computed(() => active.value?.selectionCount || 0),
-  submit: () => active.value?.submit(), canStop: computed(() => !!active.value?.canStop), stopping: computed(() => !!active.value?.stopping), stop: () => active.value?.stop(),
+const activeImport = computed(() => provider.value === 'media-servers' ? mediaServers.value : active.value)
+const busy = computed(() => !!cloud.value?.busy || !!drive.value?.busy || !!nas.value?.busy || !!mediaServers.value?.busy)
+defineExpose({busy, canSubmit: computed(() => !!activeImport.value?.canSubmit), selectionCount: computed(() => provider.value === 'media-servers' ? 0 : active.value?.selectionCount || 0),
+  submit: () => activeImport.value?.submit(), canStop: computed(() => !!active.value?.canStop), stopping: computed(() => !!active.value?.stopping), stop: () => active.value?.stop(),
   refresh: async () => {
     restoreProviderTab()
     await nextTick()
@@ -133,7 +146,9 @@ defineExpose({busy, hasPathSettings, canSubmit: computed(() => !!active.value?.c
   }})
 </script>
 <style scoped>.sources-panel { min-width: 0; }
-.sources-panel__cloud-picker { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.sources-panel__cloud-picker { display: flex; align-items: center; gap: 12px; }
+.sources-panel :deep(.google-drive-source > :first-child),
+.sources-panel :deep(.cloud-accounts-source > :first-child) { margin-top: 16px; }
 .sources-panel__cloud-picker :deep(.v-select) { min-width: 0; }
 .sources-panel__cloud-picker :deep(.v-field), .sources-panel__add-account { border-radius: 12px !important; }
 .sources-panel__cloud-picker :deep(.v-select__selection) { width: 100%; max-width: 100%; flex-wrap: nowrap; }

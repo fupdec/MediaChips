@@ -366,7 +366,7 @@ export const useMediaAdding = () => {
               type: mediaType,
               roots: paths,
               files: typeFiles.length ? typeFiles : undefined,
-              excluded: task.value.is_exclude ? excluded : [],
+              excluded,
               expandZips: isImageMediaType(mediaType),
             })
             const data = response.data
@@ -520,7 +520,7 @@ export const useMediaAdding = () => {
           const response = await typedApi.getFileList({
             path: zipPath,
             filter: regexString,
-            excluded: task.value.is_exclude ? excluded : [],
+            excluded,
             expandZips: true,
             extensions: extensionList,
           })
@@ -542,7 +542,7 @@ export const useMediaAdding = () => {
           const response = await typedApi.getFileList({
             path: entryPath,
             filter: regexString,
-            excluded: task.value.is_exclude ? excluded : [],
+            excluded,
             expandZips,
             extensions: extensionList,
           })
@@ -559,7 +559,7 @@ export const useMediaAdding = () => {
               const response = await typedApi.getFileList({
                 path: zipPath,
                 filter: regexString,
-                excluded: task.value.is_exclude ? excluded : [],
+                excluded,
                 expandZips: true,
                 extensions: extensionList,
               })
@@ -1142,7 +1142,7 @@ export const useMediaAdding = () => {
       await typedApi.streamScanFolderDuplicates(
         {
           folders: paths,
-          excluded: task.value.is_exclude ? excluded : [],
+          excluded,
           mediaTypeId: mediaType.id,
         },
         {signal: abortController.signal},

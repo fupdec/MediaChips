@@ -25,7 +25,7 @@ describe('Drive file browser pagination', () => {
       {id: 'movie-id', name: 'Кино.mp4', isFolder: false, size: 100},
       {id: 'trailer-id', name: 'trailer.mp4', isFolder: false, size: 100},
     ]}} as never)
-    const excludes = remotePathExcluder({parseTags: true, excludePaths: true, excluded: 'Пропустить\ntrailer'})
+    const excludes = remotePathExcluder({parseTags: true, excluded: 'Пропустить\ntrailer'})
     const result = await expandNasSelection({paths: [root], directories: new Set([root]),
       shouldStop: () => false, onFolderError: vi.fn(),
       isExcluded: path => excludes(path) || excludes(driveReadablePath(path, titles)),

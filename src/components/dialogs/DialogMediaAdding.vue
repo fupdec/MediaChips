@@ -31,11 +31,14 @@
           :closable="!sourceBusy"
         />
 
-        <v-tabs v-model="activeSource" color="primary" grow class="media-adding-dialog__tabs" :aria-label="t('media.adding.source')">
-          <v-tab v-for="source in sources" :key="source.id" :value="source.id" :disabled="sourceBusy" :prepend-icon="source.icon">
-            {{ source.title }}
-          </v-tab>
-        </v-tabs>
+        <div class="media-adding-dialog__navigation" :class="{'media-adding-dialog__navigation--sources': activeSource === 'sources'}">
+          <v-tabs v-model="activeSource" color="primary" grow class="media-adding-dialog__tabs" :aria-label="t('media.adding.source')">
+            <v-tab v-for="source in sources" :key="source.id" :value="source.id" :disabled="sourceBusy" :prepend-icon="source.icon">
+              {{ source.title }}
+            </v-tab>
+          </v-tabs>
+          <div v-show="activeSource === 'sources'" ref="providerTabsTarget" class="media-adding-dialog__providers" />
+        </div>
 
         <!-- Основное содержимое диалога -->
         <v-card-text
@@ -45,15 +48,13 @@
           class="pa-2 pa-sm-4 pt-0 pt-sm-0"
         >
           <WebVideoImport v-model:import-options="importOptions" v-if="webVideoAvailable" v-show="activeSource === 'links'" ref="webVideoSource" @started="onRemoteImportStarted" embedded />
-          <SourcesPanel v-model:import-options="importOptions" :extensions="browserExtensions" v-show="activeSource === 'sources'" ref="remoteSources" @started="onRemoteImportStarted" embedded>
+          <SourcesPanel :provider-tabs-target="providerTabsTarget" v-model:import-options="importOptions" :extensions="browserExtensions" v-show="activeSource === 'sources'" ref="remoteSources" @started="onRemoteImportStarted" embedded>
             <template #browser-footer>
               <MediaImportTypes v-model="selectedMediaTypeIds" :disabled="sourceBusy"/>
             </template>
           </SourcesPanel>
           <div v-show="activeSource === 'local'" class="media-adding-dialog__local">
             <MediaFolderBrowser
-              v-if="browsePath || browsePlaces.length"
-              class="mb-4"
               :base-url="appStore.localhost || ''"
               :path="browsePath"
               :extensions="browserExtensions"
@@ -69,6 +70,30 @@
               <template #footerActions>
                 <MediaImportTypes v-model="selectedMediaTypeIds" :disabled="sourceBusy"/>
               </template>
+              <template #importSettings>
+                <MediaImportOptions v-model="importOptions" :disabled="sourceBusy"
+                                    :parse-disabled="mediaAddingState.is_fast_import"
+                                    :folder-browser="{baseUrl: appStore.localhost || '', path: browsePath, places: browsePlaces}">
+                  <template #before>
+                    <div class="import-option import-option--fast">
+                      <v-checkbox v-model="mediaAddingState.is_fast_import"
+                                  :disabled="sourceBusy || mediaAddingState.fast_import_locked"
+                                  :label="t('media.adding.fast_import')" color="primary"
+                                  hide-details class="mt-0" density="compact" @update:model-value="onFastImportToggle" />
+                      <p class="import-option__hint">{{ t('media.adding.fast_import_hint') }}</p>
+                    </div>
+                    <div class="import-option">
+                      <v-checkbox v-model="mediaAddingState.is_check_duplicates"
+                                  :disabled="sourceBusy || mediaAddingState.is_fast_import" color="primary"
+                                  :label="t('media.adding.check_duplicates')" class="mt-0" hide-details density="compact" />
+                    </div>
+                    <div v-if="isImageAdding" class="import-option__note">
+                      <v-icon icon="mdi-check-circle-outline" size="16" />
+                      <span>{{ t('media.adding.images_skip_by_path_hint') }}</span>
+                    </div>
+                  </template>
+                </MediaImportOptions>
+              </template>
               <template #entryActions="{entry, loading}">
                 <FilePreviewButton :file="entry" :disabled="sourceBusy || loading" />
               </template>
@@ -80,47 +105,11 @@
               variant="tonal"
               density="compact"
               rounded="xl"
-              class="mb-4 text-caption"
+              class="mt-4 text-caption"
             >
               {{ t('media.adding.mounted_roots_empty') }}
             </v-alert>
-
-            <template v-if="!browsePath && !browsePlaces.length">
-              <MediaImportTypes v-model="selectedMediaTypeIds" :disabled="sourceBusy"/>
-              <v-btn variant="text" rounded="lg" class="mb-3" :disabled="sourceBusy" @click="selectionEditorOpen = true">
-                {{ t('media.adding.browser_edit_selection') }}
-              </v-btn>
-              <DialogSelectedPaths v-model="selectionEditorOpen" :selected-paths="selectedBrowserPaths"
-                                   :hint="pathsHint" :disabled="sourceBusy" @update:selected-paths="onBrowserSelection"/>
-            </template>
           </div>
-          <MediaImportOptions v-if="activeSource !== 'sources' || !remoteSources?.hasPathSettings" v-model="importOptions" :disabled="sourceBusy"
-                              :parse-disabled="activeSource === 'local' && mediaAddingState.is_fast_import">
-            <template v-if="activeSource === 'local'" #before>
-              <div class="import-option import-option--fast">
-                <v-checkbox v-model="mediaAddingState.is_fast_import"
-                            :disabled="sourceBusy || mediaAddingState.fast_import_locked"
-                            :label="t('media.adding.fast_import')" color="primary"
-                            hide-details class="mt-0" density="compact" @update:model-value="onFastImportToggle" />
-                <p class="import-option__hint">{{ t('media.adding.fast_import_hint') }}</p>
-              </div>
-              <div class="import-option">
-                <v-checkbox v-model="mediaAddingState.is_check_duplicates"
-                            :disabled="sourceBusy || mediaAddingState.is_fast_import" color="primary"
-                            :label="t('media.adding.check_duplicates')" class="mt-0" hide-details density="compact" />
-              </div>
-              <div v-if="isImageAdding" class="import-option__note">
-                <v-icon icon="mdi-check-circle-outline" size="16" />
-                <span>{{ t('media.adding.images_skip_by_path_hint') }}</span>
-              </div>
-            </template>
-            <template v-if="activeSource === 'local' && isElectron" #exclusionActions>
-              <v-btn @click="selectMultipleDirectoriesExcluded" :disabled="sourceBusy" color="primary"
-                     rounded="lg" variant="flat" class="mb-2 mt-2">
-                <v-icon start>mdi-folder-open</v-icon>{{ t('media.adding.select_folders') }}
-              </v-btn>
-            </template>
-          </MediaImportOptions>
         </v-card-text>
       </v-card>
     </template>
@@ -154,7 +143,6 @@ import {typedApi} from '@/services/typedApi'
 import type {BrowsePlace} from '@/services/typedApi/browse'
 import MediaFolderBrowser from '@/components/dialogs/MediaFolderBrowser.vue'
 import FilePreviewButton from '@/components/dialogs/FilePreviewButton.vue'
-import DialogSelectedPaths from '@/components/dialogs/DialogSelectedPaths.vue'
 import {transformTextToArray} from '@/services/formatUtils'
 
 
@@ -211,7 +199,6 @@ function onRemoteImportStarted() {
   keepSourcesMounted.value = true
   isDialogVisible.value = false
 }
-const selectionEditorOpen = ref(false)
 const browsePlaces = ref<BrowsePlace[]>([])
 const browsePlacesLoaded = ref(false)
 const isContainerRuntime = ref(false)
@@ -221,6 +208,7 @@ const {tab: activeSource, restore: restoreSourceTab} = useRememberedTab<'local' 
   'mediachips.media-adding.source', webVideoAvailable ? ['local', 'sources', 'links'] : ['local', 'sources'], 'local',
 )
 const webVideoSource = ref<InstanceType<typeof WebVideoImport>>()
+const providerTabsTarget = ref<HTMLElement>()
 const remoteSources = ref<InstanceType<typeof SourcesPanel>>()
 const submitting = ref(false)
 const sources = computed(() => [
@@ -342,12 +330,10 @@ const onPathsInput = (value: string) => {
 const importOptions = computed<RemoteImportOptions>({
   get: () => ({
     parseTags: mediaAddingState.value.is_parsing,
-    excludePaths: mediaAddingState.value.is_exclude,
     excluded: mediaAddingState.value.excluded || '',
   }),
   set: value => {
     tasksStore.mediaAdding.is_parsing = value.parseTags
-    tasksStore.mediaAdding.is_exclude = value.excludePaths
     tasksStore.mediaAdding.excluded = String(normalizePastedFilePathsText(value.excluded) ?? '')
   },
 })
@@ -435,14 +421,6 @@ const selectMultipleDirectories = async () => {
   }
 }
 
-const selectMultipleDirectoriesExcluded = async () => {
-  const paths = await showOpenDialog(['openDirectory', 'multiSelections'])
-  if (!paths?.length) return
-  const existing = (tasksStore.mediaAdding.excluded || '').trim()
-  const merged = existing ? `${existing}\n${paths}` : paths
-  tasksStore.mediaAdding.excluded = String(normalizePastedFilePathsText(merged) ?? '')
-}
-
 const handleAddMedia = async () => {
   await mediaAdding.addMedia()
 }
@@ -489,7 +467,6 @@ const resetDialogState = () => {
   } else {
     browsePath.value = ''
   }
-  selectionEditorOpen.value = false
   tasksStore.mediaAdding.paths = props.initialPaths || ''
   tasksStore.mediaAdding.directFiles = props.initialPaths
     ? props.initialPaths.split('\n').map((row) => row.trim()).filter(Boolean)
@@ -553,7 +530,25 @@ const handleFileDrop = (event: DragEvent) => {
 </script>
 
 <style scoped>
-.media-adding-dialog__tabs { flex: 0 0 auto; margin: 12px 16px 0; max-width: calc(100% - 32px); }
+.media-adding-dialog__navigation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 12px 16px;
+}
+.media-adding-dialog__tabs, .media-adding-dialog__providers { min-width: 0; max-width: 100%; }
+.media-adding-dialog__navigation > .media-adding-dialog__tabs { margin-block: 0; }
+.media-adding-dialog__providers { margin-inline-start: auto; }
+@media (max-width: 800px) {
+  .media-adding-dialog__navigation--sources .media-adding-dialog__tabs :deep(.v-tab) {
+    min-width: 0;
+    padding-inline: 8px;
+    font-size: .75rem;
+  }
+  .media-adding-dialog__navigation--sources .media-adding-dialog__tabs :deep(.v-btn__prepend) { display: none; }
+  .media-adding-dialog__providers :deep(.settings-segmented__option > .v-icon) { display: none; }
+}
 @media (max-width: 600px) {
   .media-adding-dialog__tabs :deep(.v-tab) { min-width: 0; padding-inline: 10px; font-size: 0.75rem; }
 }

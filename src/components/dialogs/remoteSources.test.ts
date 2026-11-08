@@ -5,8 +5,16 @@ import type {BrowseDirectoryEntry, BrowseDirectoryLoader} from '@/services/typed
 import type {RemoteImportOptions} from '@/services/remoteImportOptions'
 
 const mocks = vi.hoisted(() => ({
+  listMediaServerLibraries: vi.fn(), streamMediaServerImport: vi.fn(),
   ensureCanImport: vi.fn(), get: vi.fn(), post: vi.fn(), parseTags: vi.fn(), refreshCount: vi.fn(), sync: vi.fn(), emit: vi.fn(),
 }))
+vi.mock('@/services/typedApi/imports', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/services/typedApi/imports')>()
+  return {importsApi: {...actual.importsApi,
+    listMediaServerLibraries: mocks.listMediaServerLibraries,
+    streamMediaServerImport: mocks.streamMediaServerImport,
+  }}
+})
 vi.mock('@/services/apiClient', () => ({apiClient: {get: mocks.get, post: mocks.post}}))
 vi.mock('@/services/importPathAutoTag', () => ({parseAndAssignImportPathTags: mocks.parseTags}))
 vi.mock('@/composable/itemsListSync', () => ({useItemsListSync: () => ({getItemsFromDb: mocks.sync})}))
@@ -25,6 +33,7 @@ vi.mock('./MediaImportSection.vue', () => ({default: {}}))
 vi.mock('./SourceCatalogControls.vue', () => ({default: {}}))
 vi.mock('./DialogOriginalOperations.vue', () => ({default: {}}))
 vi.mock('@/components/elements/DialogHeader.vue', () => ({default: {}}))
+vi.mock('@/components/ui/SettingsCategoryDivider.vue', () => ({default: {}}))
 // Vuetify's template auto-imports include CSS; these tests only run source actions.
 vi.mock('vuetify/lib/components/VCheckbox/index.mjs', () => ({VCheckbox: {}}))
 vi.mock('vuetify/lib/components/VAlert/index.mjs', () => ({VAlert: {}}))
@@ -46,6 +55,9 @@ import NasSources from './NasSources.vue'
 import GoogleDriveSource from './GoogleDriveSource.vue'
 import WebVideoImport from './WebVideoImport.vue'
 import {useAppStore} from '@/stores/app'
+import SettingsImportPlex from '@mediachips/plugin-plex/components/SettingsImportPlex.vue'
+import SettingsImportJellyfin from '@mediachips/plugin-jellyfin/components/SettingsImportJellyfin.vue'
+import SettingsImportEmby from '@mediachips/plugin-emby/components/SettingsImportEmby.vue'
 
 type SourceState = {
   selectedId?: string
@@ -92,6 +104,42 @@ beforeEach(() => {
   })
 })
 afterEach(() => { for (const app of mounted.splice(0)) app.unmount() })
+
+describe('embedded media server imports', () => {
+  it.each([
+    ['plex', SettingsImportPlex, 'token'],
+    ['jellyfin', SettingsImportJellyfin, 'apiKey'],
+    ['emby', SettingsImportEmby, 'apiKey'],
+  ] as const)('requires an explicit library selection for %s', async (kind, component, credential) => {
+    mocks.listMediaServerLibraries.mockResolvedValue({
+      data: {ok: true, libraries: [{id: 'movies', name: 'Movies'}, {id: 'tv', name: 'TV'}]},
+    })
+    mocks.streamMediaServerImport.mockResolvedValue(undefined)
+    const app = createApp({...component as ComponentOptions, render: () => null}, {embedded: true})
+    const importer = app.mount(document.createElement('div')) as unknown as {canSubmit: boolean; submit: () => Promise<void>}
+    mounted.push(app)
+    const state = app._instance!.setupState
+    state.baseUrl = 'http://media-server'
+    state[credential] = 'test-key'
+    await nextTick()
+    await state.loadLibraries()
+    expect(mocks.listMediaServerLibraries).toHaveBeenCalledWith(kind, {baseUrl: 'http://media-server', [credential]: 'test-key'})
+    expect(importer.canSubmit).toBe(false)
+    await importer.submit()
+    expect(mocks.streamMediaServerImport).not.toHaveBeenCalled()
+
+    state.selectedLibraryIds = ['movies']
+    expect(importer.canSubmit).toBe(true)
+    await importer.submit()
+    expect(mocks.streamMediaServerImport).toHaveBeenCalledWith(
+      kind, expect.objectContaining({libraryIds: ['movies']}), expect.anything(), expect.any(Function),
+    )
+
+    state.baseUrl = 'http://another-server'
+    await nextTick()
+    expect(importer.canSubmit).toBe(false)
+  })
+})
 
 describe('remote source import actions', () => {
   it.each([
@@ -201,7 +249,7 @@ describe('remote source import actions', () => {
     await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
     source.state.onVisibleEntries([])
     source.state.selectedPaths = ['/Медиа']
-    source.state.importOptions = {parseTags: false, excludePaths: true, excluded: 'Пропустить'}
+    source.state.importOptions = {parseTags: false, excluded: 'Пропустить'}
     mocks.get.mockResolvedValue({data: {path: '', truncated: false, entries: [
       {name: 'Пропустить', path: 'Пропустить', isDirectory: true, size: 0},
       {name: 'Кино.mp4', path: 'Кино.mp4', isDirectory: false, size: 100},
@@ -237,7 +285,7 @@ describe('remote source import actions', () => {
     ]}})
     await source.state.directoryLoader({path: driveRoot})
     source.state.selectedPaths = [driveRoot]
-    source.state.importOptions = {...source.state.importOptions, excluded: 'Пропустить', excludePaths: true}
+    source.state.importOptions = {...source.state.importOptions, excluded: 'Пропустить'}
     mocks.get.mockImplementation(async (url: string) => {
       if (url === '/api/drive/folders/root') return {data: {files: [
         {id: 'folder-id', name: 'Драма', isFolder: true}, {id: 'skip-id', name: 'Пропустить', isFolder: true},
@@ -388,14 +436,11 @@ describe('remote source import actions', () => {
     expect(source.state.url).toBe('')
   })
 
-  it('prevents excluded links from importing and lets users disable tag parsing', async () => {
+  it('ignores folder exclusions for links and lets users disable tag parsing', async () => {
     const source = mountSource(WebVideoImport)
     source.state.url = 'https://xhamster.com/videos/drama-test-abc123'
-    source.state.importOptions = {parseTags: false, excludePaths: true, excluded: 'drama'}
-    expect(source.state.canSubmit).toBe(false)
-    await source.submit()
-    expect(mocks.post).not.toHaveBeenCalled()
-    source.state.importOptions = {...source.state.importOptions, excludePaths: false}
+    source.state.importOptions = {parseTags: false, excluded: 'drama'}
+    expect(source.state.canSubmit).toBe(true)
     mocks.post.mockResolvedValue({data: {id: 71, title: 'Movie', created: true}})
     await source.submit()
     expect(mocks.post).toHaveBeenCalledTimes(1)
