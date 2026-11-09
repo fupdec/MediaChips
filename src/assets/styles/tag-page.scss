@@ -195,7 +195,7 @@
   }
 
   .v-expansion-panel-text__wrapper {
-    padding: 8px 14px 14px !important;
+    padding: 14px !important;
   }
 
   &__progress {
@@ -205,9 +205,11 @@
 }
 
 .tag-page--profile {
+  .tag-page-params {
+    gap: 12px;
+  }
+
   .tag-page-param {
-    margin-right: 12px;
-    margin-bottom: 12px;
     border-radius: 14px;
 
     &__value,
@@ -247,10 +249,6 @@
         font-size: 18px !important;
       }
     }
-  }
-
-  .nested-tags {
-    margin-top: 2px !important;
   }
 }
 
@@ -294,12 +292,10 @@
   }
 
   .tag-page-params {
-    margin-bottom: -2px;
+    gap: 10px;
   }
 
   .tag-page-param {
-    margin-right: 10px;
-    margin-bottom: 10px;
     border-radius: 10px;
     min-height: 0;
     background: rgba(var(--v-theme-on-surface), 0.04) !important;
@@ -408,18 +404,19 @@
       }
 
       .v-expansion-panel-text__wrapper {
-        padding: 8px 10px 12px !important;
+        padding: 10px !important;
       }
     }
 
     .nested-tags {
-      margin-top: 8px !important;
       font-size: 0.9rem;
     }
 
+    .tag-page-params {
+      gap: 8px;
+    }
+
     .tag-page-param {
-      margin-right: 8px;
-      margin-bottom: 8px;
       border-radius: 10px;
       min-height: 0;
 

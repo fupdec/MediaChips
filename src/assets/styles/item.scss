@@ -4197,6 +4197,7 @@ body > .video-preview-container.video-preview-container--expanded {
 .tag-page-params {
   display: flex;
   flex-wrap: wrap;
+  gap: 16px;
 }
 
 .tag-page-param {
@@ -4205,8 +4206,6 @@ body > .video-preview-container.video-preview-container--expanded {
   justify-content: space-between;
   min-height: 100%;
   border-radius: 16px;
-  margin-right: 16px;
-  margin-bottom: 16px;
   background: none !important;
   backdrop-filter: blur(1px);
   &__value,

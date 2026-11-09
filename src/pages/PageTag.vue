@@ -341,7 +341,6 @@
                     :is-show-all="true"
                     type="tag"
                     tag-page
-                    class="mt-3"
                   />
                 </v-expansion-panel-text>
                 <div class="profile-hover-btn show">
