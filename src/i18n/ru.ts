@@ -2113,6 +2113,8 @@ const ru = {
     quick_filters_expand: 'Показать',
   },
   editing: {
+    show_media_panel: 'Показать боковую панель',
+    hide_media_panel: 'Скрыть боковую панель',
     progress_filling_data: 'Заполнение',
     media_file_information: 'Информация о медиафайле',
     tag_information: 'Информация о теге',

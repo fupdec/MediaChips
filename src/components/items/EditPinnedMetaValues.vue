@@ -8,8 +8,19 @@
     }"
   >
     <div v-if="layout === 'hero'" class="edit-dialog-hero mb-1">
-      <div class="edit-dialog-hero__media">
-        <slot name="media"/>
+      <div
+        class="edit-dialog-hero__media"
+        :class="{
+          'edit-dialog-hero__media--collapsed': hideMediaPanel,
+          'edit-dialog-hero__media--outlined': $slots['media-toggle'] && !hideMediaPanel,
+        }"
+      >
+        <div v-if="$slots['media-toggle']" class="edit-dialog-hero__media-toggle d-flex">
+          <slot name="media-toggle"/>
+        </div>
+        <div v-show="!hideMediaPanel">
+          <slot name="media"/>
+        </div>
       </div>
       <div class="edit-dialog-hero__overview">
         <EditPinnedOverview
@@ -670,6 +681,7 @@ interface MetaInputMixedTagsInstance {
 
 const props = withDefaults(defineProps<{
   layout?: EditLayout
+  hideMediaPanel?: boolean
   showOverview?: boolean
   tag?: Tag | null
   meta?: Meta | null

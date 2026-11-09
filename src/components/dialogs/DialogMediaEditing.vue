@@ -25,6 +25,7 @@
           v-if="media"
           :key="media.id"
           layout="hero"
+          :hide-media-panel="mediaPanelHidden"
           @close="requestClose"
           @dirty-change="formDirty = $event"
           :media="media"
@@ -34,6 +35,19 @@
             <MediaCopies v-if="media" ref="mediaCopies" :media-id="media.id" class="mt-2">
               <template #source><MediaCatalogSourceInfo :media="media" /></template>
             </MediaCopies>
+          </template>
+          <template #media-toggle>
+            <v-btn
+              :icon="mediaPanelHidden ? 'mdi-chevron-right' : 'mdi-chevron-left'"
+              :title="t(mediaPanelHidden ? 'editing.show_media_panel' : 'editing.hide_media_panel')"
+              :aria-label="t(mediaPanelHidden ? 'editing.show_media_panel' : 'editing.hide_media_panel')"
+              :aria-expanded="!mediaPanelHidden"
+              color="primary"
+              :variant="mediaPanelHidden ? 'outlined' : 'elevated'"
+              rounded="lg"
+              size="x-small"
+              @click="mediaPanelHidden = !mediaPanelHidden"
+            />
           </template>
           <template #media>
             <EditDialogMediaPanel
@@ -88,13 +102,13 @@
             <div class="d-flex flex-wrap ga-2 mt-3">
               <DialogChangeHistory entity-type="media" :entity-id="media.id" :disabled="formDirty" @restored="requestClose">
                 <template #activator="{open}">
-                  <v-btn class="edit-dialog-media-action edit-dialog-history-action" color="primary" variant="tonal" rounded="xl" size="small" prepend-icon="mdi-history" :disabled="formDirty" @click="open">
-                    {{ t('change_history.title') }}
+                  <v-btn class="edit-dialog-media-action" color="primary" variant="tonal" rounded="xl" size="small" prepend-icon="mdi-history" :disabled="formDirty" @click="open">
+                    <span class="text-truncate" :title="t('change_history.title')">{{ t('change_history.title') }}</span>
                   </v-btn>
                 </template>
               </DialogChangeHistory>
               <v-btn class="edit-dialog-media-action" color="primary" variant="tonal" rounded="xl" size="small" prepend-icon="mdi-file-cog-outline" @click="originalsOpen = true">
-                {{ t('originals.title') }}
+                <span class="text-truncate" :title="t('originals.title')">{{ t('originals.title') }}</span>
               </v-btn>
             </div>
           </template>
@@ -184,6 +198,7 @@ const imgPath = ref<string | null>(null)
 const isFileExists = ref(true)
 const bigPreviewOpen = ref(false)
 const buttons = ref<DialogHeaderButton[]>([])
+const mediaPanelHidden = ref(false)
 const editingComponent = ref<EditComponentInstance | null>(null)
 const formDirty = ref(false)
 const is_show_unsaved_confirm = ref(false)
@@ -467,7 +482,19 @@ watch(
 </script>
 
 <style scoped>
-.edit-dialog-history-action :deep(.v-btn__prepend) {
-  margin-inline-start: 4px;
+.edit-dialog-media-action {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+}
+
+.edit-dialog-media-action :deep(.v-btn__content) {
+  min-width: 0;
+  max-width: 100%;
+  justify-self: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+  text-align: start;
 }
 </style>

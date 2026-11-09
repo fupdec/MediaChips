@@ -3715,6 +3715,32 @@ body > .video-preview-container.video-preview-container--expanded {
     }
   }
 
+  &__media--collapsed {
+    width: auto;
+  }
+
+  &__media--outlined {
+    position: relative;
+    outline: 1px solid rgba(var(--v-theme-primary), 0.16);
+    border-radius: var(--edit-deck-radius);
+    padding: 6px;
+
+    .edit-dialog-hero__media-toggle {
+      position: absolute;
+      inset-block-start: 8px;
+      inset-inline-end: 0;
+      transform: translateX(25%);
+      z-index: 1;
+    }
+
+    @media (hover: hover) {
+      &:not(:hover):not(:focus-within) .edit-dialog-hero__media-toggle {
+        opacity: 0;
+        pointer-events: none;
+      }
+    }
+  }
+
   &__overview {
     flex: 1 1 280px;
     min-width: 0;

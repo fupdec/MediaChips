@@ -2113,6 +2113,8 @@ const en = {
     quick_filters_expand: 'Show',
   },
   editing: {
+    show_media_panel: 'Show media panel',
+    hide_media_panel: 'Hide media panel',
     progress_filling_data: 'Fill progress',
     media_file_information: 'Media file information',
     tag_information: 'Tag information',
