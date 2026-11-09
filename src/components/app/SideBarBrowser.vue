@@ -917,7 +917,6 @@ watch(
 
 .sidebar-browser__tags-panel {
   margin: 0 0 4px;
-  padding-inline: 8px;
 }
 
 .sidebar-browser__system {

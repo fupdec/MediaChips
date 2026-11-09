@@ -796,7 +796,7 @@ async function onMetaCreated(): Promise<void> {
 }
 
 .sidebar-tags-browser__toolbar {
-  padding: 16px 0 8px;
+  padding: 8px 0;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -804,6 +804,7 @@ async function onMetaCreated(): Promise<void> {
 }
 
 .sidebar-tags-browser__search {
+  margin-inline: 4px;
   font-size: 0.75rem;
 
   :deep(.v-input__control) {
