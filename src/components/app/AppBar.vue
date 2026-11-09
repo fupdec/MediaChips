@@ -184,7 +184,7 @@
       <v-spacer/>
 
       <!-- RIGHT AREA -->
-      <div class="d-flex align-center">
+      <div v-show="!itemsStore.isSelect" class="d-flex align-center">
         <v-tooltip v-if="showFreeLibraryLock"
           location="bottom">
           <template v-slot:activator="{ props: activatorProps }">
