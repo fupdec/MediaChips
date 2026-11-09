@@ -33,6 +33,14 @@ const errorCode = (err: unknown) => {
   return code && /^[a-z_]+$/.test(code) ? code : 'copy_check_failed'
 }
 
+// Separate lookups let SQLite use a path index for each branch.
+const existingCopyPathSql = `
+  SELECT 1 FROM media WHERE path = ?
+  UNION ALL SELECT 1 FROM media WHERE trashOriginalPath = ?
+  UNION ALL SELECT 1 FROM verifiedMediaCopies WHERE path = ?
+  LIMIT 1
+`
+
 /** Every address is indexed, including retained copies whose primary original is offline. */
 export function libraryCopyResources(db: ApiDb, size: number, mediaId: number | null = null): Resource[] {
   const rows = db.sqlite.prepare(`SELECT m.id, m.path, m.filesize AS size FROM media m
@@ -90,6 +98,8 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
 
   async function discover(current: ApiDb, job: JobRow, signal: AbortSignal, assertCurrent: () => void) {
     const seen = new Set<string>()
+    const existingPath = current.sqlite.prepare(existingCopyPathSql)
+    let filesSinceYield = 0
     const insert = current.sqlite.prepare(`INSERT INTO copyDiscoveryItems (id,jobId,path,name,size,version,state,candidateIds)
       VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(jobId,path) DO UPDATE SET name = excluded.name, size = excluded.size,
         version = excluded.version, state = excluded.state, candidateIds = excluded.candidateIds, error = NULL
@@ -109,7 +119,7 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
           if (!mediaFileKind(file.name) || !file.version || !Number.isSafeInteger(file.size) || file.size < 0 || /\.mediachips-|\.part$/i.test(file.name)) return
           const filePath = address(file.resourceKey)
           const ids = [...new Set(libraryCopyResources(current, file.size, job.mediaId).filter(row => row.path !== filePath).map(row => row.id))]
-          const existing = current.sqlite.prepare('SELECT 1 FROM media WHERE path = ? OR trashOriginalPath = ? UNION SELECT 1 FROM verifiedMediaCopies WHERE path = ? LIMIT 1').get(filePath, filePath, filePath)
+          const existing = existingPath.get(filePath, filePath, filePath)
           insert.run(randomUUID(), job.id, filePath, file.name, file.size, file.version, existing ? 'existing' : ids.length ? 'candidate' : 'unmatched', JSON.stringify(ids))
         }
         const first = root.connectionId && root.key === '' ? null
@@ -131,7 +141,15 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
             for (const file of page.entries) {
               if (excluded(file.resourceKey)) continue
               if (file.isDirectory) pending.push(file.resourceKey)
-              else add(file)
+              else {
+                add(file)
+                filesSinceYield += 1
+                if (filesSinceYield >= 32) {
+                  filesSinceYield = 0
+                  await new Promise(resolve => setImmediate(resolve))
+                  assertCurrent()
+                }
+              }
             }
             const count = current.sqlite.prepare('SELECT COUNT(*) AS n FROM copyDiscoveryItems WHERE jobId = ?').get(job.id) as {n: number}
             if (count.n > 100_000) throw sourceError('catalog_too_large')
@@ -167,8 +185,7 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
       cache.set(key, checked)
       return checked
     }
-    const owner = () => current.sqlite.prepare(`SELECT id FROM media WHERE (path = ? OR trashOriginalPath = ?)
-      UNION SELECT mediaId AS id FROM verifiedMediaCopies WHERE path = ? LIMIT 1`).get(item.path, item.path, item.path) as {id: number} | undefined
+    const owner = () => current.sqlite.prepare(existingCopyPathSql).get(item.path, item.path, item.path)
     if (owner()) { updateItem(current, item.id, 'existing'); return }
     const resources = () => libraryCopyResources(current, item.size, item.mediaId || job.mediaId).filter(row => row.path !== item.path)
     const initialResources = resources()
@@ -266,6 +283,25 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
       return view(current, id)
     },
     jobs() { const current = pinSourceDb(db).db; return (current.sqlite.prepare('SELECT id FROM copyDiscoveryJobs ORDER BY rowid DESC LIMIT 20').all() as {id: string}[]).map(row => view(current, row.id)) },
+    activity() {
+      const current = pinSourceDb(db).db
+      return current.sqlite.prepare(`SELECT id, state FROM copyDiscoveryJobs
+        WHERE state IN ('queued','discovering','verifying','paused') ORDER BY rowid`).all() as Pick<CopyDiscoveryJob, 'id' | 'state'>[]
+    },
+    pause(id: string) {
+      const current = pinSourceDb(db).db
+      const job = readJob(current, id)
+      if (['queued', 'discovering', 'verifying'].includes(job.state)) {
+        updateJob(current, id, 'paused')
+        if (runningId === id && runningDb?.sqlite === current.sqlite) controller?.abort()
+      }
+      return view(current, id)
+    },
+    resume(id: string) {
+      const current = pinSourceDb(db).db
+      if (readJob(current, id).state === 'paused') updateJob(current, id, 'queued')
+      return view(current, id)
+    },
     clearHistory() {
       const current = pinSourceDb(db).db
       const running = runningDb?.sqlite === current.sqlite ? runningId || '' : ''
@@ -276,7 +312,7 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
     cancel(id: string) {
       const current = pinSourceDb(db).db
       const job = readJob(current, id)
-      if (!['queued', 'discovering', 'verifying'].includes(job.state)) return view(current, id)
+      if (!['queued', 'discovering', 'verifying', 'paused'].includes(job.state)) return view(current, id)
       updateJob(current, id, 'cancelled')
       if (runningId === id && runningDb?.sqlite === current.sqlite) controller?.abort()
       return view(current, id)
@@ -284,7 +320,7 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
     retry(id: string) {
       const current = pinSourceDb(db).db
       const job = readJob(current, id)
-      if (['queued', 'discovering', 'verifying'].includes(job.state) || (runningId === id && runningDb?.sqlite === current.sqlite)) throw sourceError('source_busy')
+      if (['queued', 'discovering', 'verifying', 'paused'].includes(job.state) || (runningId === id && runningDb?.sqlite === current.sqlite)) throw sourceError('source_busy')
       current.sqlite.transaction(() => {
         current.sqlite.prepare("UPDATE copyDiscoveryItems SET state = 'candidate', error = NULL WHERE jobId = ? AND state IN ('failed','checking')").run(id)
         current.sqlite.prepare('UPDATE copyDiscoveryJobs SET listingComplete = 0 WHERE id = ?').run(id)
@@ -295,7 +331,7 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
     choose(id: string, itemId: string, mediaId: number) {
       const current = pinSourceDb(db).db
       const job = readJob(current, id)
-      if (['queued', 'discovering', 'verifying'].includes(job.state) || (runningId === id && runningDb?.sqlite === current.sqlite)) throw sourceError('source_busy')
+      if (['queued', 'discovering', 'verifying', 'paused'].includes(job.state) || (runningId === id && runningDb?.sqlite === current.sqlite)) throw sourceError('source_busy')
       const item = current.sqlite.prepare('SELECT * FROM copyDiscoveryItems WHERE jobId = ? AND id = ?').get(id, itemId) as ItemRow | undefined
       if (!item || item.state !== 'ambiguous' || !JSON.parse(item.candidateIds).includes(mediaId)) throw sourceError('copy_not_found', 404)
       current.sqlite.transaction(() => {

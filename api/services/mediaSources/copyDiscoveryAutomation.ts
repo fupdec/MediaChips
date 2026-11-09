@@ -9,7 +9,7 @@ type AutoRoot = {id: string; connectionId: string | null; key: string; excluded:
 type AutoRequest = {rootId: string; reasons: string; generation: number; jobId: string | null; submittedGeneration: number | null; expanded: number}
 const rootInput = (root: AutoRoot): AutomaticRoot => ({key: root.key, ...(root.connectionId ? {connectionId: root.connectionId} : {}),
   ...(JSON.parse(root.excluded).length ? {excluded: JSON.parse(root.excluded)} : {})})
-const live = ['queued', 'discovering', 'verifying']
+const live = ['queued', 'discovering', 'verifying', 'paused']
 
 /** Server-owned scheduler: durable coalescing plus metadata-only reconnect probes. */
 export function createCopyDiscoveryAutomation(db: ApiDb, discovery: {
@@ -130,7 +130,7 @@ export function createCopyDiscoveryAutomation(db: ApiDb, discovery: {
                   .run(Number(!!observation), observation?.identity || null, now(), root.id)
                 if (observation && (root.available !== 1 || root.identity !== observation.identity)) {
                   const alreadyChecking = root.available === null && (current.sqlite.prepare(
-                    "SELECT roots FROM copyDiscoveryJobs WHERE mediaId IS NULL AND state IN ('queued','discovering','verifying')"
+                    "SELECT roots FROM copyDiscoveryJobs WHERE mediaId IS NULL AND state IN ('queued','discovering','verifying','paused')"
                   ).all() as {roots: string}[]).some(job => (JSON.parse(job.roots) as AutomaticRoot[])
                     .some(selected => !selected.connectionId && selected.key === root.key))
                   if (!alreadyChecking) requestAutomaticCopyDiscovery(current, [rootInput(root)], 'reconnect', {now: now()})

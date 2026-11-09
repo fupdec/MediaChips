@@ -147,6 +147,42 @@
           </v-btn>
         </div>
 
+        <div v-if="!hideFavorites" class="media-folder-browser__actions">
+          <v-btn size="small" variant="tonal" color="primary" rounded="xl" icon
+                 :disabled="loading || disabled || !currentPath || !!error || (!isFavorite && favorites.length >= 100)"
+                 :aria-label="t(isFavorite ? 'sources.remove_favorite' : 'sources.add_favorite')" :aria-pressed="isFavorite"
+                 v-tooltip:top="t(isFavorite ? 'sources.remove_favorite' : 'sources.add_favorite')" @click="toggleFavorite">
+            <v-icon size="18" :icon="isFavorite ? 'mdi-star' : 'mdi-star-outline'" />
+          </v-btn>
+          <v-menu v-if="favorites.length" location="bottom end" :offset="8"
+                  max-width="min(360px, calc(100vw - 32px))" max-height="320"
+                  content-class="media-folder-browser__places-menu media-folder-browser__favorites-menu">
+            <template #activator="{props: menuProps}">
+              <v-btn v-bind="menuProps" size="small" variant="tonal" color="primary" rounded="xl" icon
+                     :disabled="loading || disabled" :aria-label="t('sources.open_favorites')"
+                     v-tooltip:top="t('sources.open_favorites')">
+                <v-badge :content="favorites.length" color="primary" floating>
+                  <v-icon size="18" icon="mdi-bookmark-multiple-outline" />
+                </v-badge>
+              </v-btn>
+            </template>
+            <v-list density="compact" :aria-label="t('sources.favorites')">
+              <v-list-item v-for="favorite in favorites" :key="favorite.path"
+                           :title="favorite.title.replace(/^\/ \/ /, '/ ')" :active="favorite.path === currentPath"
+                           prepend-icon="mdi-folder-outline" @click="openFavorite(favorite)">
+                <template #append>
+                  <v-btn icon size="x-small" variant="text" :aria-label="t('sources.remove_favorite')"
+                         @click.stop="removeFavorite(favorite.path)">
+                    <v-icon size="16" icon="mdi-close" />
+                    <v-tooltip activator="parent" location="top" class="media-folder-browser__favorite-tooltip"
+                               :text="t('sources.remove_favorite')" />
+                  </v-btn>
+                </template>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+        </div>
+
         <v-menu
           :disabled="disabled"
           location="bottom end"
@@ -219,24 +255,6 @@
         </v-menu>
       </div>
 
-      <div v-if="!hideFavorites" class="media-folder-browser__favorites d-flex align-center flex-wrap ga-1 px-2 py-1">
-        <v-btn size="small" variant="text" :disabled="loading || disabled || !currentPath || !!error || (!isFavorite && favorites.length >= 100)"
-               :aria-label="t(isFavorite ? 'sources.remove_favorite' : 'sources.add_favorite')" :aria-pressed="isFavorite" @click="toggleFavorite">
-          <v-icon start size="16" :icon="isFavorite ? 'mdi-star' : 'mdi-star-outline'" />{{ t('sources.favorites') }}
-        </v-btn>
-        <v-menu v-if="favorites.length" location="bottom start">
-          <template #activator="{props: menuProps}">
-            <v-btn v-bind="menuProps" size="small" variant="text" :disabled="loading || disabled" :aria-label="t('sources.open_favorites')">
-              {{ favorites.length }}<v-icon end size="16" icon="mdi-chevron-down" />
-            </v-btn>
-          </template>
-          <v-list density="compact">
-            <v-list-item v-for="favorite in favorites" :key="favorite.path" :title="favorite.title" @click="openFavorite(favorite)">
-              <template #append><v-btn icon size="small" variant="text" :aria-label="t('sources.remove_favorite')" @click.stop="removeFavorite(favorite.path)"><v-icon size="16" icon="mdi-close" /></v-btn></template>
-            </v-list-item>
-          </v-list>
-        </v-menu>
-      </div>
       <v-alert
         v-if="error"
         type="error"
@@ -287,6 +305,7 @@
             </button>
             <button
               type="button"
+              v-if="!hideFileDetails"
               :disabled="loading"
               class="media-folder-browser__col media-folder-browser__col--size media-folder-browser__sort"
               :class="{'media-folder-browser__sort--active': sortKey === 'size'}"
@@ -301,6 +320,7 @@
             </button>
             <button
               type="button"
+              v-if="!hideFileDetails"
               :disabled="loading"
               class="media-folder-browser__col media-folder-browser__col--mtime media-folder-browser__sort"
               :class="{'media-folder-browser__sort--active': sortKey === 'mtime'}"
@@ -344,11 +364,11 @@
                 <span class="media-folder-browser__col media-folder-browser__col--name">
                   <span class="media-folder-browser__bone" :style="{width: `${row.nameWidth}px`, maxWidth: `${row.namePercent}%`}"/>
                 </span>
-                <span class="media-folder-browser__col media-folder-browser__col--size">
+                <span v-if="!hideFileDetails" class="media-folder-browser__col media-folder-browser__col--size">
                   <span class="media-folder-browser__bone" :class="{'media-folder-browser__bone--dash': row.isDirectory}"
                     :style="{width: row.isDirectory ? '8px' : `${row.sizeWidth}px`}"/>
                 </span>
-                <span class="media-folder-browser__col media-folder-browser__col--mtime">
+                <span v-if="!hideFileDetails" class="media-folder-browser__col media-folder-browser__col--mtime">
                   <span class="media-folder-browser__bone media-folder-browser__bone--date"/>
                 </span>
                 <span v-if="!foldersOnly && !isFilePicker" class="media-folder-browser__col media-folder-browser__col--status">
@@ -417,10 +437,10 @@
                     </v-chip>
                   </span>
                 </span>
-                <span class="media-folder-browser__col media-folder-browser__col--size text-medium-emphasis">
+                <span v-if="!hideFileDetails" class="media-folder-browser__col media-folder-browser__col--size text-medium-emphasis">
                   {{ formatEntrySize(entry) }}
                 </span>
-                <span class="media-folder-browser__col media-folder-browser__col--mtime text-medium-emphasis">
+                <span v-if="!hideFileDetails" class="media-folder-browser__col media-folder-browser__col--mtime text-medium-emphasis">
                   {{ formatEntryMtime(entry) }}
                 </span>
                 <span
@@ -515,9 +535,7 @@
     <DialogSelectedPaths v-if="showSelection" v-model="selectionEditorOpen"
                          :selected-paths="props.selectedPaths" :disabled="loading || disabled"
                          :file-picker="isFilePicker" :hint="selectionHint"
-                         @update:selected-paths="emitSelection(new Set($event))">
-      <template v-if="$slots.folderPicker" #folderPicker="picker"><slot name="folderPicker" v-bind="picker" /></template>
-    </DialogSelectedPaths>
+                         @update:selected-paths="emitSelection(new Set($event))" />
 
     <DialogFolderTagsManager
       v-if="enableFolderTags"
@@ -565,6 +583,7 @@ const props = withDefaults(defineProps<{
   activePlaceId?: string | null
   /** Folder picker mode: directories only, no media badges/filters. */
   foldersOnly?: boolean
+  hideFileDetails?: boolean
   /** Show only directories + files matching these extensions (no media badges). */
   fileExtensions?: string[]
   /** Show row checkboxes and selection toolbar actions. */
@@ -616,7 +635,8 @@ function toggleFavorite() {
   if (isFavorite.value) { removeFavorite(currentPath.value); return }
   if (favorites.value.length >= 100) return
   const crumbs = breadcrumbItems.value
-  favorites.value.push({path: currentPath.value, title: crumbs.map(item => item.title).join(' / '),
+  const title = crumbs.map(item => item.title).join(' / ').replace(/^\/ \/ /, '/ ')
+  favorites.value.push({path: currentPath.value, title,
     pathTitles: Object.fromEntries(crumbs.map(item => [item.path, item.title]))})
   saveFolderFavorites(favoritesKey.value, favorites.value)
 }
@@ -1496,6 +1516,24 @@ watch(showHidden, value => emit('showHidden', value))
 </style>
 
 <style>
+.media-folder-browser__favorites-menu {
+  border-radius: 22px;
+}
+
+.media-folder-browser__favorites-menu > .v-list {
+  min-width: min(240px, calc(100vw - 32px));
+  border: 1px solid rgba(var(--v-theme-on-surface), .1);
+  border-radius: inherit;
+}
+
+.media-folder-browser__favorites-menu .v-list-item--active > .v-list-item__overlay {
+  opacity: .08;
+}
+
+.v-overlay.media-folder-browser__favorite-tooltip {
+  z-index: 2810 !important;
+}
+
 .media-folder-browser__places-menu {
   min-width: 0 !important;
 }

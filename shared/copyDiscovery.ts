@@ -7,7 +7,7 @@ export const CopyDiscoveryInputSchema = z.object({
 }).strict()
 export type CopyDiscoveryInput = z.infer<typeof CopyDiscoveryInputSchema>
 export type CopyDiscoveryTrigger = 'import' | 'folder_update' | 'reconnect'
-export type CopyDiscoveryState = 'queued' | 'discovering' | 'verifying' | 'completed' | 'cancelled' | 'failed'
+export type CopyDiscoveryState = 'queued' | 'discovering' | 'verifying' | 'paused' | 'completed' | 'cancelled' | 'failed'
 export type CopyDiscoveryItemState = 'candidate' | 'checking' | 'attached' | 'unmatched' | 'ambiguous' | 'existing' | 'failed' | 'dismissed'
 export type CopyDiscoveryItem = {
   id: string; path: string; name: string; size: number; version: string

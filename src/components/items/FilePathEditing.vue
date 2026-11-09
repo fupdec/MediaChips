@@ -1,7 +1,19 @@
 <template>
   <div class="file-path-editing" :class="{'file-path-editing--compact': compact}">
     <template v-if="compact">
-      <div class="file-path-editing__label">{{ t('media.file_path.operations') }}</div>
+      <div class="file-path-editing__label">
+        <span>{{ t('media.file_path.operations') }}</span>
+        <v-icon
+          v-if="!is_file_exists"
+          v-tooltip:top="fileMissingAlertMessage"
+          :aria-label="fileMissingAlertMessage"
+          role="img"
+          tabindex="0"
+          color="error"
+          icon="mdi-file-alert"
+          size="14"
+        />
+      </div>
       <div class="file-path-editing__row">
         <div
           class="file-path-editing__path"
@@ -49,17 +61,6 @@
           </v-btn>
         </div>
       </div>
-      <v-alert
-        v-if="!is_file_exists"
-        type="error"
-        icon="mdi-file-alert"
-        class="file-path-editing__alert"
-        density="compact"
-        variant="tonal"
-        rounded="lg"
-      >
-        {{ fileMissingAlertMessage }}
-      </v-alert>
     </template>
 
     <v-card v-else class="rounded-xl" color="rgba(150, 150, 150, 0.09)" flat>
@@ -495,10 +496,16 @@ watch(display_path, async (filePath) => {
   min-width: 0;
 
   .file-path-editing__label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     font-size: 0.6875rem;
     line-height: 1.2;
-    opacity: 0.55;
     margin-bottom: 4px;
+
+    span {
+      opacity: 0.55;
+    }
   }
 
   .file-path-editing__row {
@@ -544,10 +551,5 @@ watch(display_path, async (filePath) => {
     }
   }
 
-  .file-path-editing__alert {
-    margin-top: 6px;
-    margin-bottom: 0;
-    font-size: 0.75rem;
-  }
 }
 </style>

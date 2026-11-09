@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3'
+import {installSourceProfiles} from '../../services/sourceProfiles'
 import {resolveBackupTarget} from '../../services/backupTarget'
 import {withLibraryRestore} from '../../services/libraryMaintenance'
 import crypto from 'node:crypto'
@@ -111,6 +112,15 @@ export default function (app: Express, db: ApiDb) {
       }
 
       await zip.close()
+      // A library may be restored before it has been opened by this version.
+      if (!target.active && db.path_databases) {
+        const filename = path.join(dbPath, 'db.sqlite')
+        if (fs.existsSync(filename)) {
+          const previous = new Database(filename, {fileMustExist: true})
+          try { installSourceProfiles(previous, db.path_databases, path.basename(dbPath)) }
+          finally { previous.close() }
+        }
+      }
       const stage = await stageLibraryBackup(backupPath, dbPath)
       await replaceLibraryFromStage(dbPath, stage, {
         close: () => { if (target.active) getDatabaseManager().closeConnection() },

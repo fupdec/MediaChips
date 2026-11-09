@@ -17,6 +17,46 @@ export function captureVideoFrame(video: HTMLVideoElement): string {
   return canvas.toDataURL('image/jpeg', 0.85)
 }
 
+export function captureVideoFrameAt(src: string, time: number, signal: AbortSignal): Promise<string> {
+  return new Promise((resolve, reject) => {
+    signal.throwIfAborted()
+    const video = document.createElement('video')
+    const timeout = window.setTimeout(() => fail(), 8000)
+
+    function cleanup() {
+      window.clearTimeout(timeout)
+      signal.removeEventListener('abort', fail)
+      video.onloadedmetadata = video.onloadeddata = video.onseeked = video.onerror = null
+      video.removeAttribute('src')
+      video.load()
+    }
+
+    function fail() {
+      cleanup()
+      reject(new Error('Could not load the video frame.'))
+    }
+
+    function capture() {
+      if (video.seeking || video.readyState < 2 || Math.abs(video.currentTime - time) > 0.05) return
+      try {
+        const frame = captureVideoFrame(video)
+        cleanup()
+        resolve(frame)
+      } catch {
+        fail()
+      }
+    }
+
+    signal.addEventListener('abort', fail, {once: true})
+    video.crossOrigin = 'anonymous'
+    video.preload = 'auto'
+    video.onloadedmetadata = () => { video.currentTime = time }
+    video.onloadeddata = video.onseeked = capture
+    video.onerror = fail
+    video.src = src
+  })
+}
+
 export async function saveWebVideoCurrentFrame({video, mediaId, markId, expectedTime, mediaPath}: {
   video: HTMLVideoElement | null; mediaId: number; markId?: number; expectedTime?: number; mediaPath?: string
 }): Promise<boolean> {

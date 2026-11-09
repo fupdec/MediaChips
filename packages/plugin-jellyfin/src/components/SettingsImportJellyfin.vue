@@ -36,6 +36,11 @@
       <section class="plugin-scraper-settings__block">
         <div class="integration-settings__connection">
           <slot name="server-selector" />
+          <v-select v-if="profiles.length" :model-value="hasSavedCredential() ? baseUrl : undefined"
+                    :items="profiles" item-title="baseUrl" item-value="baseUrl"
+                    :label="t('sources.media_servers.saved_profiles')" :disabled="active || loadingLibraries"
+                    variant="outlined" density="compact" rounded="lg" hide-details
+                    @update:model-value="selectProfile" />
           <v-text-field
             v-model="baseUrl"
             :label="t('settings_labels.database.import_jellyfin_url')"
@@ -234,6 +239,7 @@ import {useI18n} from 'vue-i18n'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {setNotification} from '@/services/notificationService'
 import {setOption} from '@/services/settingsService'
+import {useMediaServerProfiles} from '@/composable/useMediaServerProfiles'
 import {typedApi} from '@/services/typedApi'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useSettingsStore} from '@/stores/settings'
@@ -246,6 +252,11 @@ const settingsStore = useSettingsStore()
 
 const baseUrl = ref('')
 const apiKey = ref('')
+const {profiles, refresh: refreshProfiles, hasSavedCredential} = useMediaServerProfiles('jellyfin', baseUrl)
+function selectProfile(url: string) {
+  apiKey.value = ''
+  baseUrl.value = url
+}
 const createMissingMedia = ref(false)
 const libraries = ref<Array<{id: string; name: string}>>([])
 const selectedLibraryIds = ref<string[]>([])
@@ -266,7 +277,7 @@ const progress = computed(() => {
   return Math.min(100, Math.round((counters.value.processed / counters.value.total) * 100))
 })
 
-const canLoadLibraries = computed(() => Boolean(baseUrl.value.trim() && apiKey.value.trim()))
+const canLoadLibraries = computed(() => Boolean(baseUrl.value.trim() && (apiKey.value.trim() || hasSavedCredential())))
 const canStart = computed(() => canLoadLibraries.value && !active.value
   && (!embedded || (!loadingLibraries.value && selectedLibraryIds.value.length > 0)))
 
@@ -308,8 +319,6 @@ function parseLibraryIds(raw: string): string[] {
 }
 
 function saveConnection() {
-  setOption(baseUrl.value.trim(), 'jellyfinBaseUrl')
-  setOption(apiKey.value.trim(), 'jellyfinApiKey')
   setOption(JSON.stringify(selectedLibraryIds.value), 'jellyfinLibraryIds')
   setOption(createMissingMedia.value ? '1' : '0', 'jellyfinCreateMissingMedia')
   setNotification({
@@ -345,6 +354,7 @@ const loadLibraries = async () => {
       baseUrl: baseUrl.value.trim(),
       apiKey: apiKey.value.trim(),
     })
+    void refreshProfiles()
     libraries.value = data.libraries || []
     if (embedded && !libraries.value.length) lastError.value = t('sources.media_servers.no_libraries')
     if (!embedded && !selectedLibraryIds.value.length) {
@@ -502,8 +512,6 @@ const runPush = async () => {
 }
 
 onMounted(() => {
-  baseUrl.value = settingsStore.jellyfinBaseUrl || ''
-  apiKey.value = settingsStore.jellyfinApiKey || ''
   selectedLibraryIds.value = parseLibraryIds(settingsStore.jellyfinLibraryIds || '[]')
   createMissingMedia.value = embedded || settingsStore.jellyfinCreateMissingMedia === '1'
   if (embedded) return

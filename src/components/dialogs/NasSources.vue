@@ -67,15 +67,6 @@
         @show-hidden="showHidden = $event"
       >
         <template v-if="$slots['browser-footer']" #footerActions><slot name="browser-footer"/></template>
-        <template #folderPicker="{addFolder}">
-          <MediaFolderBrowser v-model:path="pickerPath" :base-url="app.localhost || ''"
-                              :favorites-scope="JSON.stringify([app.dbPath, app.localhost, selected.id])"
-                              :directory-loader="directoryLoader" :error-message="apiError"
-                              :selected-paths="[]" :show-selection="false" :enable-folder-tags="false"
-                              :disabled="busy" folders-only class="mt-3" @loading="pickerLoading = $event" />
-          <v-btn variant="tonal" color="primary" class="mt-2" :disabled="busy || pickerLoading || !pickerPath"
-                 @click="addFolder(pickerPath)">{{ t('media.adding.browser_select_folder') }}</v-btn>
-        </template>
         <template #importSettings>
           <MediaImportOptions v-model="importOptions" :disabled="busy"
                               :folder-browser="{baseUrl: app.localhost || '', path: folder, directoryLoader,
@@ -101,7 +92,8 @@
     <v-dialog v-model="editing" max-width="560" persistent scrollable>
       <v-card class="nas-source-editor" rounded="xl">
         <DialogHeader :header="t(editId ? 'nas.credentials' : 'nas.add_connection')" icon="server-network-outline"
-                      :buttons="editorButtons" compact />
+                      :buttons="editorButtons" compact closable
+                      :close-disabled="saving" :close-label="t('nas.cancel')" @close="closeEditor" />
         <v-card-text class="nas-source-editor__body">
           <v-defaults-provider :defaults="{VTextField: {density: 'compact', rounded: 'lg', hideDetails: 'auto'}, VSelect: {density: 'compact', rounded: 'lg', hideDetails: 'auto'}, VTextarea: {density: 'compact', rounded: 'lg', hideDetails: 'auto'}}">
             <div class="nas-source-editor__fields">
@@ -113,22 +105,24 @@
                 <v-text-field v-model="draft.host" :label="t('nas.host')" :disabled="saving || !!editId" variant="outlined" />
                 <v-text-field v-model.number="draft.port" :label="t('nas.port')" type="number" :disabled="saving || !!editId" variant="outlined" />
               </div>
-              <v-text-field v-model="draft.username" :label="t('nas.username')" :disabled="saving || !!editId" autocomplete="off" variant="outlined" />
               <v-text-field v-model="draft.root" :label="t('nas.root')" :disabled="saving || !!editId" :hint="t(draft.protocol === 'webdav' ? 'nas.webdav_hint' : 'nas.root_hint')" persistent-hint variant="outlined" />
               <v-select v-if="draft.protocol === 'sftp'" v-model="authMode" :items="authModes" :label="t('nas.auth')" :disabled="saving" variant="outlined" />
-              <v-text-field v-if="authMode === 'password' || draft.protocol !== 'sftp'" v-model="draft.password" :type="showPassword ? 'text' : 'password'"
-                            :label="t('nas.password')" :disabled="saving" autocomplete="new-password" variant="outlined"
-                            :placeholder="savedPassword ? t('nas.password_saved') : undefined"
-                            :hint="savedPassword ? t('nas.password_keep_hint') : undefined" :persistent-hint="savedPassword">
-                <template #append-inner>
-                  <v-btn size="small" variant="text" icon :disabled="saving || !draft.password"
-                         :aria-label="t(showPassword ? 'nas.hide_password' : 'nas.show_password')"
-                         :aria-pressed="showPassword" @click="showPassword = !showPassword">
-                    <v-icon size="18" :icon="showPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'" />
-                  </v-btn>
-                </template>
-              </v-text-field>
-              <template v-else>
+              <div class="nas-source-editor__credentials">
+                <v-text-field v-model="draft.username" :label="t('nas.username')" :disabled="saving || !!editId" autocomplete="off" variant="outlined" />
+                <v-text-field v-if="authMode === 'password' || draft.protocol !== 'sftp'" v-model="draft.password" :type="showPassword ? 'text' : 'password'"
+                              :label="t('nas.password')" :disabled="saving" autocomplete="new-password" variant="outlined"
+                              :placeholder="savedPassword ? t('nas.password_saved') : undefined"
+                              :hint="savedPassword ? t('nas.password_keep_hint') : undefined" :persistent-hint="savedPassword">
+                  <template #append-inner>
+                    <v-btn size="small" variant="text" icon :disabled="saving || !draft.password"
+                           :aria-label="t(showPassword ? 'nas.hide_password' : 'nas.show_password')"
+                           :aria-pressed="showPassword" @click="showPassword = !showPassword">
+                      <v-icon size="18" :icon="showPassword ? 'mdi-eye-off-outline' : 'mdi-eye-outline'" />
+                    </v-btn>
+                  </template>
+                </v-text-field>
+              </div>
+              <template v-if="authMode === 'key' && draft.protocol === 'sftp'">
                 <v-textarea v-model="draft.privateKey" :label="t('nas.private_key')" :disabled="saving" rows="3" variant="outlined"
                             :hint="savedPrivateKey ? t('nas.private_key_keep_hint') : undefined" :persistent-hint="savedPrivateKey" />
                 <v-text-field v-model="draft.passphrase" type="password" :label="t('nas.passphrase')" :disabled="saving" autocomplete="new-password" variant="outlined" />
@@ -217,8 +211,6 @@ function onVisibleEntries(visible: BrowseDirectoryEntry[]) {
   for (const entry of visible) if (entry.isDirectory) directories.add(entry.path)
 }
 const selectedPaths = ref<string[]>([])
-const pickerPath = ref('')
-const pickerLoading = ref(false)
 const importOptions = defineModel<RemoteImportOptions>('importOptions', {default: defaultRemoteImportOptions})
 const mediaEntries = computed(() => entries.value.filter(entry => !entry.isDirectory && entry.addable && !entry.inLibrary))
 const batchActive = ref(false)
@@ -230,7 +222,6 @@ const batchErrors = ref<Array<{path: string; message: string}>>([])
 let importController: AbortController | undefined
 let stopCurrentBatch: (() => void) | undefined
 const folder = ref('')
-watch(folder, path => { pickerPath.value = path })
 const catalogRootKey = computed(() => {
   try { return selected.value ? nasRelativePath(selected.value.root, folder.value) : null } catch { return null }
 })
@@ -266,7 +257,6 @@ const authModes = computed(() => [{title: t('nas.password'), value: 'password'},
 const initialDraft = (): NasConnectionInput => ({name: '', protocol: 'sftp', host: '', port: 22, username: '', root: '/', password: '', privateKey: '', passphrase: ''})
 const draft = ref(initialDraft())
 const editorButtons = computed(() => [
-  {text: t('nas.cancel'), icon: 'close', outlined: true, disabled: saving.value, action: closeEditor},
   {text: t(fingerprint.value ? 'nas.trust_connect' : 'nas.connect'), icon: fingerprint.value ? 'shield-check-outline' : 'check',
     color: 'primary', loading: saving.value, disabled: saving.value,
     action: fingerprint.value ? trustAndSave : saveConnection},
@@ -596,11 +586,18 @@ defineExpose({refreshConnections: loadConnections, canSubmit, busy: computed(() 
 .nas-source-editor__pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 140px;
-  gap: 10px;
+  gap: 12px;
 
   &--address {
     grid-template-columns: minmax(0, 1fr) 96px;
   }
+}
+
+.nas-source-editor__credentials {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 12px;
 }
 
 @media (max-width: 480px) {
@@ -614,6 +611,10 @@ defineExpose({refreshConnections: loadConnections, canSubmit, busy: computed(() 
 
   .nas-source-editor__body {
     padding-inline: 14px !important;
+  }
+
+  .nas-source-editor__credentials {
+    grid-auto-flow: row;
   }
 
   .nas-source-editor__pair {

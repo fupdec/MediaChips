@@ -96,19 +96,19 @@
         </v-card-text>
       </v-card>
 
-      <v-card v-if="showPlayClips && clipCount > 0" class="tag-panel tag-clips-panel mt-4" rounded="xl" variant="flat">
+      <v-card v-if="hasClipActions || showMarkerDiscovery" class="tag-panel tag-clips-panel mt-4" rounded="xl" variant="flat">
         <v-card-title class="tag-clips-panel__title d-flex align-center flex-nowrap ga-2">
           <v-icon size="20" aria-hidden="true">mdi-movie-open-play-outline</v-icon>
-          <v-tooltip location="top" :text="clipsDisabledReason" :disabled="!clipsDisabledReason">
+          <v-tooltip location="top" :text="clipsDisabledReason" :disabled="!hasClipActions || !clipsDisabledReason">
             <template #activator="{ props: hintProps }">
-              <h2 v-bind="hintProps" :tabindex="clipsDisabledReason ? 0 : undefined">
-                {{ t('tags.clips') }}<span v-if="clipCount > 1"> ({{ clipCount }})</span>
+              <h2 v-bind="hintProps" :tabindex="hasClipActions && clipsDisabledReason ? 0 : undefined">
+                {{ t(showMarkerDiscovery ? 'marker_moments.clips_title' : 'tags.clips') }}<span v-if="clipCount > 1"> ({{ clipCount }})</span>
               </h2>
             </template>
           </v-tooltip>
         </v-card-title>
         <v-card-text class="tag-play-clips d-flex align-center ga-2 flex-wrap">
-          <div class="tag-play-clips__group" :class="{ 'tag-play-clips__group--empty': clipCount === 0 }" role="group" :aria-label="t('tags.play_clips_label')">
+          <div v-if="hasClipActions" class="tag-play-clips__group" role="group" :aria-label="t('tags.play_clips_label')">
             <span
               class="tag-play-clips__action"
               :class="{ 'tag-play-clips__action--disabled': Boolean(clipsDisabledReason) }"
@@ -157,7 +157,7 @@
               </v-list>
             </v-menu>
           </div>
-          <div class="tag-play-clips__group" :class="{ 'tag-play-clips__group--empty': clipCount === 0 }" role="group" :aria-label="t('tags.export_clips_label')">
+          <div v-if="hasClipActions" class="tag-play-clips__group" role="group" :aria-label="t('tags.export_clips_label')">
             <span
               class="tag-play-clips__action"
               :class="{ 'tag-play-clips__action--disabled': Boolean(clipsDisabledReason) }"
@@ -211,6 +211,11 @@
               </v-list>
             </v-menu>
           </div>
+          <TagSimilarMoments
+            v-if="showMarkerDiscovery"
+            :key="tag.id"
+            :tag-id="Number(tag.id)"
+          />
         </v-card-text>
       </v-card>
     </v-container>
@@ -352,19 +357,19 @@
               </v-expansion-panel>
             </v-expansion-panels>
 
-            <v-card v-if="showPlayClips && clipCount > 0" class="tag-panel tag-clips-panel mt-4" rounded="xl" variant="flat">
+            <v-card v-if="hasClipActions || showMarkerDiscovery" class="tag-panel tag-clips-panel mt-4" rounded="xl" variant="flat">
               <v-card-title class="tag-clips-panel__title d-flex align-center flex-nowrap ga-2">
                 <v-icon size="20" aria-hidden="true">mdi-movie-open-play-outline</v-icon>
-                <v-tooltip location="top" :text="clipsDisabledReason" :disabled="!clipsDisabledReason">
+                <v-tooltip location="top" :text="clipsDisabledReason" :disabled="!hasClipActions || !clipsDisabledReason">
                   <template #activator="{ props: hintProps }">
-                    <h2 v-bind="hintProps" :tabindex="clipsDisabledReason ? 0 : undefined">
-                      {{ t('tags.clips') }}<span v-if="clipCount > 1"> ({{ clipCount }})</span>
+                    <h2 v-bind="hintProps" :tabindex="hasClipActions && clipsDisabledReason ? 0 : undefined">
+                      {{ t(showMarkerDiscovery ? 'marker_moments.clips_title' : 'tags.clips') }}<span v-if="clipCount > 1"> ({{ clipCount }})</span>
                     </h2>
                   </template>
                 </v-tooltip>
               </v-card-title>
               <v-card-text class="tag-play-clips d-flex align-center ga-2 flex-wrap">
-                <div class="tag-play-clips__group" :class="{ 'tag-play-clips__group--empty': clipCount === 0 }" role="group" :aria-label="t('tags.play_clips_label')">
+                <div v-if="hasClipActions" class="tag-play-clips__group" role="group" :aria-label="t('tags.play_clips_label')">
                   <span
                     class="tag-play-clips__action"
                     :class="{ 'tag-play-clips__action--disabled': Boolean(clipsDisabledReason) }"
@@ -413,7 +418,7 @@
                     </v-list>
                   </v-menu>
                 </div>
-                <div class="tag-play-clips__group" :class="{ 'tag-play-clips__group--empty': clipCount === 0 }" role="group" :aria-label="t('tags.export_clips_label')">
+                <div v-if="hasClipActions" class="tag-play-clips__group" role="group" :aria-label="t('tags.export_clips_label')">
                   <span
                     class="tag-play-clips__action"
                     :class="{ 'tag-play-clips__action--disabled': Boolean(clipsDisabledReason) }"
@@ -467,6 +472,11 @@
                     </v-list>
                   </v-menu>
                 </div>
+                <TagSimilarMoments
+                  v-if="showMarkerDiscovery"
+                  :key="tag.id"
+                  :tag-id="Number(tag.id)"
+                />
               </v-card-text>
             </v-card>
           </v-col>
@@ -568,6 +578,8 @@ import {resolveTagThumbDisplayUrl} from '@/utils/thumbSource'
 import {checkFileExists} from '@/services/fileService'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
 import TagPageGallery, {type TagPageGalleryImage} from '@/components/tags/TagPageGallery.vue'
+import TagSimilarMoments from '@/components/tags/TagSimilarMoments.vue'
+import {markerMomentsEnabled} from '@/services/markerMomentPreferences'
 import TagPageQuickFilters from '@/components/tags/TagPageQuickFilters.vue'
 import TagPageHierarchy from '@/components/tags/TagPageHierarchy.vue'
 import {registerPageTagLayoutRemount, registerPageTagRefresh} from '@/composable/pageTagLayoutRemount'
@@ -765,6 +777,8 @@ const galleryImages = computed((): TagPageGalleryImage[] => {
 })
 const hasGalleryImages = computed(() => galleryImages.value.length > 0)
 const showPlayClips = computed(() => String(meta.value?.type || '').toLowerCase() === 'array')
+const hasClipActions = computed(() => showPlayClips.value && clipCount.value > 0)
+const showMarkerDiscovery = computed(() => is_init.value && Boolean(tag.value?.id) && markerMomentsEnabled.value)
 const resolveInitialTab = () => {
   const urlMediaTypeId = getUrlParam(route, 'mediaTypeId')
 

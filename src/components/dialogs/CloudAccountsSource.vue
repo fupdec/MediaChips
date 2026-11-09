@@ -14,7 +14,8 @@
     <v-dialog v-model="editing" max-width="560" persistent scrollable>
       <v-card rounded="xl">
         <DialogHeader :header="editingId ? tr('Настройка аккаунта', 'Account settings') : tr('Новый облачный аккаунт', 'New cloud account')"
-                      :icon="providerStyle(form.provider).icon.replace('mdi-', '')" :buttons="editorButtons" compact />
+                      :icon="providerStyle(form.provider).icon.replace('mdi-', '')" :buttons="editorButtons" compact closable
+                      :close-disabled="busy" :close-label="tr('Отмена', 'Cancel')" @close="closeEditor" />
         <v-card-text class="account-editor">
           <v-alert v-if="error" type="error" variant="tonal" density="compact" rounded="lg" class="mb-4">{{ error }}</v-alert>
           <p class="account-editor__description">{{ tr('Ключи приложения хранятся только на этом компьютере.', 'App credentials stay on this computer.') }}</p>
@@ -29,7 +30,7 @@
                     </v-list-item>
                   </template>
                 </v-select>
-                <v-text-field v-model="form.name" :disabled="busy" :label="tr('Название аккаунта', 'Account name')" required maxlength="120" />
+                <v-text-field v-model="form.name" :class="{'account-editor__full-width': props.provider}" :disabled="busy" :label="tr('Название аккаунта', 'Account name')" required maxlength="120" />
                 <v-text-field v-model="form.clientId" :disabled="busy" label="OAuth Client ID / App key" required />
                 <v-text-field v-model="form.clientSecret" :disabled="busy" type="password" :label="tr('Секрет приложения (если требуется)', 'Client secret (if required)')" autocomplete="new-password" />
                 <v-text-field v-model="form.redirectUri" class="account-editor__redirect" :disabled="busy" label="OAuth Redirect URI" required />
@@ -136,7 +137,6 @@ async function refresh() {
 }
 function closeEditor() { editing.value = false; form.value.clientSecret = '' }
 const editorButtons = computed(() => [
-  {text: tr('Отмена', 'Cancel'), icon: 'close', outlined: true, disabled: busy.value, action: closeEditor},
   {text: tr('Сохранить аккаунт', 'Save account'), icon: 'check', color: 'primary', loading: busy.value, disabled: busy.value, action: create},
 ])
 function addAccount() { error.value = ''; editingId.value = ''; editing.value = true; form.value = {provider: props.provider || 'onedrive', name: '', clientId: '', clientSecret: '', redirectUri: callbackUri.value} }
@@ -322,8 +322,9 @@ defineExpose({account, editAccount, connect, logout, accounts, accountId, editin
 
 <style scoped>
 .account-editor { padding: 12px 20px 16px !important; }
-.account-editor__description { margin-bottom: 20px; font-size: 12px; color: rgba(var(--v-theme-on-surface), .65); }
-.account-editor__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }
+.account-editor__description { margin-bottom: 12px; font-size: 12px; color: rgba(var(--v-theme-on-surface), .65); }
+.account-editor__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.account-editor__full-width,
 .account-editor__redirect { grid-column: 1 / -1; }
 .account-editor__redirect :deep(input) { font-family: monospace; font-size: 12px; }
 .account-editor__help { margin-top: 14px; font-size: 12px; color: rgba(var(--v-theme-on-surface), .7); }
@@ -331,8 +332,8 @@ defineExpose({account, editAccount, connect, logout, accounts, accountId, editin
 .account-editor__help p { margin: 10px 0 6px; }
 .account-editor__help code { display: block; overflow-wrap: anywhere; user-select: all; }
 .account-toolbar :deep(.v-btn) { box-shadow: none; font-size: 12px; }
-@media (max-width: 600px) {
-  .account-editor { padding: 16px; }
+@media (max-width: 480px) {
+  .account-editor { padding-inline: 14px !important; }
   .account-editor__fields { grid-template-columns: minmax(0, 1fr); }
 }
 </style>

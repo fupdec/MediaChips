@@ -810,6 +810,14 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     ]
   },
   {
+    "key": "marker_moments",
+    "icon": "mdi-image-search-outline",
+    "elementId": "settings-marker-moments",
+    "tab": "processing",
+    "titleKey": "marker_moments.title",
+    "searchKeys": ["marker_moments.enable", "marker_moments.settings_hint", "marker_moments.auto_refresh"]
+  },
+  {
     "key": "local_ai",
     "icon": "mdi-robot-outline",
     "elementId": "settings-local-ai",

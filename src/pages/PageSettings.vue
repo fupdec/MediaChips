@@ -6,6 +6,7 @@
         <SettingsNav
           v-model="tab"
           :items="navItems"
+          class="settings-page-layout__nav"
         />
       </aside>
 
@@ -132,6 +133,27 @@
             <SettingsList>
               <SettingsGenerateAutoChapters/>
               <SettingsLocalAi v-if="LOCAL_AI_UI_ENABLED"/>
+              <SettingsSection id="settings-marker-moments">
+                <div class="mx-4 pb-4">
+                  <SettingsCategoryDivider :title="t('marker_moments.title')" icon="image-search-outline"/>
+                  <v-switch
+                    v-model="markerMomentsEnabled"
+                    :label="t('marker_moments.enable')"
+                    :hint="t('marker_moments.settings_hint')"
+                    persistent-hint
+                    color="primary"
+                    inset
+                  />
+                  <v-switch
+                    v-model="markerMomentsAutoRefresh"
+                    :label="t('marker_moments.auto_refresh')"
+                    :disabled="!markerMomentsEnabled"
+                    color="primary"
+                    inset
+                    hide-details
+                  />
+                </div>
+              </SettingsSection>
             </SettingsList>
           </div>
 
@@ -280,6 +302,7 @@ import SettingsAppearanceImageViewer
 import SettingsSfwMode
   from "@/components/settings/appearance/SettingsSfwMode.vue"
 import {usePluginsStore} from "@/stores/plugins"
+import {markerMomentsAutoRefresh, markerMomentsEnabled} from '@/services/markerMomentPreferences'
 import {LOCAL_AI_UI_ENABLED} from "@shared/features"
 import {
   FINGERPRINT_BACKFILL,
@@ -616,7 +639,7 @@ watch(() => route.fullPath, applyRouteSettings)
   min-height: 0;
   max-width: 1180px;
   margin-inline: auto;
-  padding: 12px 20px 0;
+  padding-inline: 20px;
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -625,7 +648,7 @@ watch(() => route.fullPath, applyRouteSettings)
   flex: 0 0 248px;
   min-height: 0;
   overflow-y: auto;
-  padding-top: 4px;
+  padding-top: 22px;
 }
 
 .settings-page-layout__content {
@@ -637,10 +660,16 @@ watch(() => route.fullPath, applyRouteSettings)
   overscroll-behavior: contain;
 }
 
+@media (min-width: 960px) {
+  .settings-page-layout__nav {
+    padding-top: 10px;
+  }
+}
+
 .settings-page-layout__container {
   width: 100%;
   padding-inline: 0;
-  padding-bottom: 24px;
+  padding-block: 16px 24px;
 }
 
 @media (max-width: 959px) {
@@ -667,6 +696,10 @@ watch(() => route.fullPath, applyRouteSettings)
 
   .settings-page-layout__content {
     overflow: visible;
+  }
+
+  .settings-page-layout__container {
+    padding-top: 0;
   }
 }
 </style>

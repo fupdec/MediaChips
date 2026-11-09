@@ -221,6 +221,16 @@ export const mediaApi = {
     }>(API_ROUTES.mediaSuggestTagsFromSimilar, body)
   },
 
+  similarMarkerMoments(tagId: number, rejected: string[]) {
+    return apiClient.post<{
+      markCount: number
+      seedCount: number
+      indexedCount: number
+      modelStatus: string
+      hits: Array<{id: number; time: number; markId?: number}>
+    }>(API_ROUTES.mediaSimilarMarkerMoments, {tagId, rejected})
+  },
+
   semanticSearch(body: {query: string, mediaTypeId?: number | null, limit?: number, locale?: string | null}) {
     return apiClient.post<{
       ids: number[]

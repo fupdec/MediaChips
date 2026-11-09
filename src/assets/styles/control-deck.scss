@@ -151,6 +151,12 @@
     min-height: 52px;
     min-width: 0;
 
+    background-image: linear-gradient(
+      110deg,
+      rgba(var(--v-theme-primary), 0.1),
+      rgba(var(--v-theme-primary), 0.025)
+    );
+
     @media (max-width: 959px) {
       padding: 8px 10px;
       min-height: var(--deck-control-h);

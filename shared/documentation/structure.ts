@@ -279,6 +279,13 @@ export const docs: DocumentationEntry[] = [
     "icon": "mdi-tooltip-outline",
     "selector": [
       "[href=\"/markers\"]"
+    ],
+    "children": [
+      {
+        "id": "markers.suggested_moments",
+        "name": "Find similar moments",
+        "icon": "mdi-image-search-outline"
+      }
     ]
   },
   {

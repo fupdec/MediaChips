@@ -44,6 +44,10 @@
             <strong>{{ t('copyDiscovery.states.' + job.state) }}</strong>
             <span v-if="job.triggers?.length" class="text-caption">{{ job.triggers.map(trigger => t('copyDiscovery.triggers.' + trigger)).join(' · ') }}</span>
             <span class="text-caption">{{ job.method === 'sha256' ? 'SHA-256' : 'oshash' }}</span>
+            <v-btn v-if="active(job)" size="small" variant="text" :disabled="pending"
+              @click="run(() => job.state === 'paused' ? api.resume(job.id) : api.pause(job.id))">
+              {{ t(job.state === 'paused' ? 'copyDiscovery.resume' : 'copyDiscovery.pause') }}
+            </v-btn>
             <v-btn v-if="active(job)" size="small" variant="text" :disabled="pending" @click="run(() => api.cancel(job.id))">{{ t('copyDiscovery.cancel') }}</v-btn>
             <v-btn v-else-if="job.state !== 'completed' || job.counts.failed" size="small" variant="text" :disabled="pending" @click="run(() => api.retry(job.id))">{{ t('copyDiscovery.retry') }}</v-btn>
           </div>
@@ -93,7 +97,7 @@ const pending = ref(false)
 let generation = 0
 let stopped = false
 let timer: ReturnType<typeof setTimeout> | undefined
-const active = (job: CopyDiscoveryJob) => ['queued', 'discovering', 'verifying'].includes(job.state)
+const active = (job: CopyDiscoveryJob) => ['queued', 'discovering', 'verifying', 'paused'].includes(job.state)
 const jobGroups = computed(() => props.collapseHistory
   ? [
     {id: 'current', history: false, jobs: jobs.value.filter(active)},

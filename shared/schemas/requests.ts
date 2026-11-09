@@ -489,30 +489,30 @@ export const PushToStashRequestSchema = z.object({
 
 export const ListJellyfinLibrariesRequestSchema = z.object({
   baseUrl: z.string().min(1),
-  apiKey: z.string().min(1),
+  apiKey: z.string(),
 }).passthrough()
 
 export const ImportFromJellyfinRequestSchema = z.object({
   baseUrl: z.string().min(1),
-  apiKey: z.string().min(1),
+  apiKey: z.string(),
   libraryIds: z.array(z.union([z.string(), z.number()])).optional(),
   createMissingMedia: optionalCoercedBoolean,
 }).passthrough()
 
 export const PushToJellyfinRequestSchema = z.object({
   baseUrl: z.string().min(1),
-  apiKey: z.string().min(1),
+  apiKey: z.string(),
   mediaIds: z.array(z.union([z.string(), z.number()])).optional(),
 }).passthrough()
 
 export const ListPlexLibrariesRequestSchema = z.object({
   baseUrl: z.string().min(1),
-  token: z.string().min(1),
+  token: z.string(),
 }).passthrough()
 
 export const ImportFromPlexRequestSchema = z.object({
   baseUrl: z.string().min(1),
-  token: z.string().min(1),
+  token: z.string(),
   libraryIds: z.array(z.union([z.string(), z.number()])).optional(),
   createMissingMedia: optionalCoercedBoolean,
 }).passthrough()

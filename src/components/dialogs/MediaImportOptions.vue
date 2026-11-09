@@ -27,7 +27,7 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-if="folderBrowser" v-model="exclusionsOpen" width="880" scrollable>
+    <v-dialog v-if="folderBrowser" v-model="exclusionsOpen" width="880" max-width="calc(100% - 32px)" scrollable>
       <template #activator="{props: activatorProps}">
         <v-btn v-bind="activatorProps" :disabled="disabled" icon
                :aria-label="t('media.adding.ignored_folders')" v-tooltip:top="t('media.adding.ignored_folders')"
@@ -41,9 +41,9 @@
       <v-card rounded="xl">
         <DialogHeader :header="t('media.adding.ignored_folders')" icon="folder-remove-outline" closable
                       @close="exclusionsOpen = false" />
-        <v-card-text>
+        <v-card-text class="pa-2 pa-sm-4">
           <MediaFolderBrowser v-bind="folderBrowser" v-model:path="folderPath"
-                              :selected-paths="excludedPaths" :disabled="disabled" folders-only
+                              :selected-paths="excludedPaths" :disabled="disabled" folders-only hide-file-details
                               @update:selected-paths="selectExcludedPaths"
                               :enable-folder-tags="false" hide-favorites @select-place="folderPath = $event" />
         </v-card-text>

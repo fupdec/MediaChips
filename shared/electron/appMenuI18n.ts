@@ -1,3 +1,5 @@
+import type {RecommendedPaletteId} from '../recommendedThemePalettes'
+
 export const APP_MENU_LOCALES = [
   'en',
   'ru',
@@ -596,10 +598,63 @@ export function normalizeAppMenuLocale(value: unknown): AppMenuLocale {
     : 'en'
 }
 
-export function getAppMenuLabels(locale: unknown): AppMenuLabels {
+const PALETTE_NAMES = {
+  en: {
+    ocean: 'Ocean',
+    forest: 'Forest',
+    iris: 'Iris',
+    slate: 'Slate',
+    amber: 'Amber',
+    berry: 'Berry',
+    lagoon: 'Lagoon',
+    clay: 'Terracotta',
+    olive: 'Olive',
+    indigo: 'Indigo',
+    cocoa: 'Cocoa',
+    glacier: 'Glacier',
+    plum: 'Plum',
+    moss: 'Moss',
+  },
+  ru: {
+    ocean: 'Океан',
+    forest: 'Лес',
+    iris: 'Ирис',
+    slate: 'Графит',
+    amber: 'Янтарь',
+    berry: 'Ягода',
+    lagoon: 'Лагуна',
+    clay: 'Терракота',
+    olive: 'Олива',
+    indigo: 'Индиго',
+    cocoa: 'Какао',
+    glacier: 'Ледник',
+    plum: 'Слива',
+    moss: 'Мох',
+  },
+} satisfies Record<'en' | 'ru', Record<RecommendedPaletteId, string>>
+
+const PALETTE_MENU_LABELS: Record<AppMenuLocale, string> = {
+  en: 'Recommended colors',
+  ru: 'Рекомендуемые цвета',
+  de: 'Empfohlene Farben',
+  es: 'Colores recomendados',
+  fr: 'Couleurs recommandées',
+  ja: 'おすすめの色',
+  pt: 'Cores recomendadas',
+  cn: '推荐颜色',
+}
+
+export type LocalizedAppMenuLabels = AppMenuLabels & {
+  recommendedPalettes: string
+  paletteNames: Record<RecommendedPaletteId, string>
+}
+
+export function getAppMenuLabels(locale: unknown): LocalizedAppMenuLabels {
   const code = normalizeAppMenuLocale(locale)
   return {
     ...STRINGS[code],
     ...SETTING_STRINGS[code],
+    recommendedPalettes: PALETTE_MENU_LABELS[code],
+    paletteNames: PALETTE_NAMES[code === 'ru' ? 'ru' : 'en'],
   }
 }

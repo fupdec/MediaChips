@@ -58,6 +58,7 @@ export function normalizeSearchGlobalOptions(limitOrOptions?: unknown): SearchGl
 }
 
 export function normalizeMetaId(value: unknown): number | null {
+  if (value == null || value === '') return null
   const metaId = Number(value)
   return Number.isFinite(metaId) ? metaId : null
 }

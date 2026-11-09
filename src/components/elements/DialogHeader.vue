@@ -92,8 +92,9 @@
         icon
         variant="text"
         :size="isCompact ? 'small' : undefined"
-        :aria-label="t('common.close')"
-        :title="t('common.close')"
+        :disabled="closeDisabled"
+        :aria-label="closeLabel || t('common.close')"
+        :title="closeLabel || t('common.close')"
         @click="emit('close')"
       >
         <v-icon
@@ -142,6 +143,8 @@ const props = defineProps({
     default: () => [],
   },
   closable: Boolean,
+  closeDisabled: Boolean,
+  closeLabel: String,
   compact: Boolean,
 })
 

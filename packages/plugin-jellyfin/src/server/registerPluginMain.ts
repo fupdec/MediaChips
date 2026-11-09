@@ -1,3 +1,4 @@
+import {mediaServerProfiles} from '../../../../api/services/mediaServerProfiles'
 import type {Express} from 'express'
 import express from 'express'
 import type {ApiDb} from '../../../../api/types/db'
@@ -16,6 +17,10 @@ import createImportFromJellyfinController from './ImportFromJellyfin.controller'
 export default function registerJellyfinPluginMain(app: Express, db: ApiDb): void {
   const controller = createImportFromJellyfinController(db)
   const router = express.Router()
+  router.get('/profiles', (_req, res) => {
+    res.setHeader('Cache-Control', 'private, no-store')
+    res.json(mediaServerProfiles(db, 'jellyfin')?.list() || [])
+  })
 
   router.post(
     '/listLibraries',

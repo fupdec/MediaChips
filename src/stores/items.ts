@@ -285,7 +285,7 @@ export const useItemsStore = defineStore('items', {
       return findFirstPlayableVideo(candidates, checkFileExists)
     },
 
-    async playVideo({video, time, in_system, player, videos, trustPath = false}: {
+    async playVideo({video, time, in_system, player, videos, trustPath = false, inline = false}: {
       video: PlayableMedia
       time?: number
       /** @deprecated Prefer `player`. `true` → system, `false` → builtin. */
@@ -294,6 +294,7 @@ export const useItemsStore = defineStore('items', {
       player?: 'default' | 'builtin' | 'system'
       videos?: PlayableMedia[]
       trustPath?: boolean
+      inline?: boolean
     }) {
       const {noteExternalPlayVideo} = await import('@/services/similarRadio')
       noteExternalPlayVideo()
@@ -419,7 +420,7 @@ export const useItemsStore = defineStore('items', {
       };
 
       if (
-        settingsStore.open_player_in_separate_window == '1' &&
+        !inline && settingsStore.open_player_in_separate_window == '1' &&
         canOpenSeparatePlayer()
       ) {
         if (openSeparatePlayer(data)) {

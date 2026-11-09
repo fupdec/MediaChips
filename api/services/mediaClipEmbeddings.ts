@@ -1,9 +1,11 @@
 import type {ApiDb} from '../types/db'
 import fs from 'fs'
+import {notInTrashSql} from '../../shared/entityTrash'
 import path from 'path'
 import {queryAll, queryGet, bindNamedParameters} from '../db/utils/rawQuery'
 import {chunkArray} from '../db/utils/chunk'
 import {
+  bestPairwiseCosineSimilarity,
   packFloat32Embeddings,
   unpackFloat32Embeddings,
   rankByMaxCosineSimilarityHits,
@@ -509,6 +511,7 @@ async function* iterateClipEmbeddingBackfill(
 function loadStoredEmbeddings(
   db: ApiDb,
   mediaTypeId?: number | null,
+  activeVideosOnly = false,
 ): Array<{id: number; embeddings: ClipEmbeddingVector[]}> {
   const typeClause = mediaTypeId != null && Number.isFinite(Number(mediaTypeId)) && Number(mediaTypeId) > 0
     ? 'AND m.mediaTypeId = :mediaTypeId'
@@ -523,6 +526,9 @@ function loadStoredEmbeddings(
     FROM mediaClipEmbeddings e
     INNER JOIN media m ON m.id = e.mediaId
     WHERE e.model = :model
+      ${activeVideosOnly ? `AND ${notInTrashSql('m')} AND EXISTS (
+        SELECT 1 FROM videoMetadata v WHERE v.mediaId = m.id AND v.duration > 0
+      )` : ''}
       ${typeClause}
   `, {
     model: CLIP_EMBEDDING_INDEX_KEY,
@@ -774,6 +780,113 @@ async function findSimilarByClip(
       score: hit.score,
       tileIndex: clipGridMatchTileIndex(hit.tileCount, hit.tileIndex),
     })),
+  }
+}
+
+export async function findSimilarMarkerMoments(
+  db: ApiDb,
+  tagId: number,
+  rejected: string[],
+) {
+  const marks = queryAll<{id: number; mediaId: number; time: number; end: number | null}>(db, `
+    SELECT marks.id, marks.mediaId, marks.time, marks."end"
+    FROM marks
+    JOIN media ON media.id = marks.mediaId
+    JOIN tags ON tags.id = marks.tagId
+    WHERE marks.tagId = :tagId AND marks.type = 'meta'
+      AND ${notInTrashSql('marks')} AND ${notInTrashSql('media')} AND ${notInTrashSql('tags')}
+    ORDER BY marks.id DESC
+  `, {tagId})
+
+  const modelStatus = getClipEmbeddingStatus(db).status
+  const candidates = loadStoredEmbeddings(db, null, true)
+    .filter(({embeddings}) => embeddings.length === VIDEO_GRID_TILE_COUNT)
+  const durations = loadVideoDurations(db, candidates.map(({id}) => id))
+  const candidatesById = new Map(candidates.map((candidate) => [candidate.id, candidate.embeddings]))
+
+  function indexedFrame(mediaId: number, time: number) {
+    const tiles = candidatesById.get(mediaId)
+    return tiles?.find((_, index) => gridTileSeekSeconds(durations.get(mediaId) ?? 0, index) === time)
+  }
+
+  const seeds: ClipEmbeddingVector[] = []
+  const sourceVideos = new Set<number>()
+  const markedRanges = new Map<number, typeof marks>()
+  const thumbnailRoot = ['loaded', 'loading', 'downloaded'].includes(modelStatus) ? db.path : undefined
+  for (const mark of marks) {
+    const ranges = markedRanges.get(mark.mediaId) ?? []
+    ranges.push(mark)
+    markedRanges.set(mark.mediaId, ranges)
+    if (sourceVideos.has(mark.mediaId) || seeds.length >= 12) continue
+
+    // Confirmed candidates already have a vector at their exact grid timestamp.
+    let seed = indexedFrame(mark.mediaId, mark.time)
+    if (!seed && thumbnailRoot) {
+      const image = path.join(thumbnailRoot, 'media', 'videos', 'marks', `${mark.id}.jpg`)
+      if (fs.existsSync(image)) {
+        try {
+          seed = await embedClipImageFile(db, image)
+        } catch {
+          // An unreadable thumbnail does not invalidate other examples.
+        }
+      }
+    }
+    if (!seed?.length) continue
+    seeds.push(seed)
+    sourceVideos.add(mark.mediaId)
+  }
+
+  const response = {markCount: marks.length, seedCount: seeds.length, modelStatus}
+  if (!seeds.length) return {...response, indexedCount: candidates.length, hits: []}
+
+  const excluded = new Set(rejected)
+  const negatives: ClipEmbeddingVector[] = []
+  for (const key of [...excluded].reverse()) {
+    const [mediaId, time] = key.split(':').map(Number)
+    // A currently confirmed marker overrides older negative feedback.
+    if (markedRanges.get(mediaId)?.some((mark) => time >= mark.time && time <= (mark.end ?? mark.time))) continue
+    const frame = indexedFrame(mediaId, time)
+    if (frame) negatives.push(frame)
+    if (negatives.length === 32) break
+  }
+  const ranked = candidates.flatMap(({id, embeddings}) => {
+    const duration = durations.get(id) ?? 0
+    const ranges = markedRanges.get(id) ?? []
+    let best: {id: number; time: number; score: number} | undefined
+    for (const [index, embedding] of embeddings.entries()) {
+      const time = gridTileSeekSeconds(duration, index)
+      if (time === null || excluded.has(`${id}:${time}`)) continue
+      if (ranges.some((mark) => time >= mark.time - 2 && time <= (mark.end ?? mark.time) + 2)) continue
+      const positive = bestPairwiseCosineSimilarity(seeds, [embedding]).score
+      const negative = negatives.length ? bestPairwiseCosineSimilarity(negatives, [embedding]).score : 0
+      const score = positive - Math.max(0, negative) * 0.5
+      if (!best || score > best.score) best = {id, time, score}
+    }
+    return best ? [best] : []
+  }).sort((a, b) => b.score - a.score || a.id - b.id)
+
+  const topHits = ranked.slice(0, 24)
+  const timesByMedia = new Map(topHits.map(({id, time}) => [id, time]))
+  const matchingMarks = topHits.length && db.path ? queryAll<{id: number; mediaId: number; time: number}>(db, `
+    SELECT id, mediaId, time
+    FROM marks
+    WHERE mediaId IN (:ids) AND ${notInTrashSql('marks')}
+    ORDER BY id DESC
+  `, {ids: topHits.map(({id}) => id)}) : []
+  const thumbnailMarks = new Map<number, number>()
+  for (const mark of matchingMarks) {
+    if (!db.path || timesByMedia.get(mark.mediaId) !== mark.time || thumbnailMarks.has(mark.mediaId)) continue
+    const thumb = path.join(db.path, 'media', 'videos', 'marks', `${mark.id}.jpg`)
+    if (fs.existsSync(thumb)) thumbnailMarks.set(mark.mediaId, mark.id)
+  }
+
+  return {
+    ...response,
+    indexedCount: candidates.length,
+    hits: topHits.map(({id, time}) => {
+      const markId = thumbnailMarks.get(id)
+      return markId === undefined ? {id, time} : {id, time, markId}
+    }),
   }
 }
 

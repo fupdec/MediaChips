@@ -33,6 +33,7 @@ export const media = sqliteTable('media', {
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 }, (table) => ({
+  trashOriginalPathIdx: index('media_trash_original_path_idx').on(table.trashOriginalPath),
   favoriteIdIdx: index('media_favorite_id_idx').on(table.favorite, table.id),
   mediaTypeNameIdx: index('media_media_type_id_name_idx').on(table.mediaTypeId, table.name),
   mediaTypePathIdx: index('media_media_type_id_path_idx').on(table.mediaTypeId, table.path),

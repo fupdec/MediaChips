@@ -758,6 +758,19 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
     repaired.push('media_filesize_copy_discovery_idx')
   }
 
+  ensureIndex(
+    'media',
+    'media_trash_original_path_idx',
+    'CREATE INDEX IF NOT EXISTS media_trash_original_path_idx ON media(trashOriginalPath)',
+    {requireColumns: ['trashOriginalPath']},
+  )
+  ensureIndex(
+    'verifiedMediaCopies',
+    'verified_media_copies_lookup_path_idx',
+    'CREATE INDEX IF NOT EXISTS verified_media_copies_lookup_path_idx ON verifiedMediaCopies(path)',
+    {requireColumns: ['path']},
+  )
+
   const discoveryIndexes = [
     ['copyDiscoveryAutoRequests', 'copy_discovery_auto_due_idx', 'CREATE INDEX copy_discovery_auto_due_idx ON copyDiscoveryAutoRequests(jobId, dueAt)'],
     ['copyDiscoveryItems', 'copy_discovery_item_path_idx', 'CREATE UNIQUE INDEX copy_discovery_item_path_idx ON copyDiscoveryItems(jobId, path)'],

@@ -1,3 +1,4 @@
+import {recommendedThemePalettes, type RecommendedPaletteId} from '@shared/recommendedThemePalettes'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 import {
   APP_MENU_GAP_SIZE_LABELS,
@@ -24,6 +25,7 @@ export type SystemMenuAction =
   | 'globalSearch'
   | 'commandPalette'
   | 'toggleTheme'
+  | `setPalette:${RecommendedPaletteId}`
   | 'zoomIn'
   | 'zoomOut'
   | 'resetZoom'
@@ -129,6 +131,14 @@ export const SYSTEM_MENUS: SystemMenuConfig[] = [
         icon: 'mdi-theme-light-dark',
         labelKey: 'systemBar.theme',
         submenu: THEME_ITEMS,
+      },
+      {
+        icon: 'mdi-palette-swatch',
+        labelKey: 'settings_labels.appearance.recommended_colors',
+        submenu: recommendedThemePalettes.map(({id}) => ({
+          action: `setPalette:${id}`,
+          labelKey: `settings_labels.appearance.palette_${id}`,
+        })),
       },
       {
         icon: 'mdi-translate',

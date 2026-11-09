@@ -1,3 +1,7 @@
+import {useI18n} from 'vue-i18n'
+import {recommendedThemePalettes} from '@shared/recommendedThemePalettes'
+import {useThemePalette} from '@/composable/useThemePalette'
+import {setNotification} from '@/services/notificationService'
 import {useRouter} from 'vue-router'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
@@ -32,6 +36,8 @@ function runEditCommand(command: string) {
 }
 
 export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
+  const {t} = useI18n()
+  const {applyPalette, activeTheme} = useThemePalette()
   const router = useRouter()
   const appStore = useAppStore()
   const itemsStore = useItemsStore()
@@ -78,6 +84,18 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
   }
 
   async function runSystemMenuAction(action: SystemMenuAction) {
+    if (action.startsWith('setPalette:')) {
+      const palette = recommendedThemePalettes.find(({id}) => action === `setPalette:${id}`)
+      if (palette && !(await applyPalette(palette, activeTheme()))) {
+        setNotification({
+          type: 'error',
+          title: t('settings_labels.appearance.recommended_colors'),
+          text: t('settings_labels.appearance.palette_save_failed'),
+        })
+      }
+      return
+    }
+
     const themeMode = parseThemeMenuAction(action)
     if (themeMode) {
       await setThemeMode(themeMode)

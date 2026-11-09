@@ -543,6 +543,7 @@ onUnmounted(() => {
 }
 
 .extension-tabs {
+  padding-inline: 8px;
   min-height: 28px;
   height: auto;
   width: 100%;

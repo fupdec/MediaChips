@@ -54,6 +54,10 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/thumbs', validateBody(MediaThumbsRequestSchema), Media.getThumbs)
   router.post('/similarByVisual', validateBody(MediaSimilarByVisualRequestSchema), Media.similarByVisual)
   router.post('/suggestTagsFromSimilar', validateBody(MediaSuggestTagsFromSimilarRequestSchema), Media.suggestTagsFromSimilar)
+  router.post('/similarMarkerMoments', validateBody(z.object({
+    tagId: z.number().int().positive(),
+    rejected: z.array(z.string().regex(/^\d+:\d+$/)).max(1000).default([]),
+  })), Media.similarMarkerMoments)
   router.post('/semanticSearch', validateBody(MediaSemanticSearchRequestSchema), Media.semanticSearch)
   router.post('/similarByClip', validateBody(MediaSimilarByClipRequestSchema), Media.similarByClip)
   router.post('/similarHybrid', validateBody(MediaSimilarHybridRequestSchema), Media.similarHybrid)

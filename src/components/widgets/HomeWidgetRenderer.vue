@@ -35,6 +35,8 @@
     <WidgetQuickActions/>
   </WidgetLazyMount>
 
+  <WidgetRecommendedColors v-else-if="widgetId === 'recommendedColors'" class="mb-4"/>
+
   <WidgetLazyMount
     v-else-if="widgetId === 'inbox'"
     min-height="220px"
@@ -147,6 +149,7 @@ import WidgetTotalStats from '@/components/widgets/WidgetTotalStats.vue'
 import WidgetExtendedStats from '@/components/widgets/WidgetExtendedStats.vue'
 import WidgetChartStats from '@/components/widgets/WidgetChartStats.vue'
 import WidgetCreatedCalendar from '@/components/widgets/WidgetCreatedCalendar.vue'
+import WidgetRecommendedColors from '@/components/widgets/WidgetRecommendedColors.vue'
 import WidgetQuickActions from '@/components/widgets/WidgetQuickActions.vue'
 import WidgetMediaRow from '@/components/widgets/WidgetMediaRow.vue'
 import {useHomeMedia} from '@/composable/useHomeMedia'

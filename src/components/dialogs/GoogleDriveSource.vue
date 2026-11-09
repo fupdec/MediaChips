@@ -74,7 +74,8 @@
     </div>
     <v-dialog v-model="editing" max-width="560" persistent scrollable>
       <v-card class="google-drive-source-editor" rounded="xl">
-        <DialogHeader :header="t('drive.oauth_settings')" icon="google-drive" :buttons="editorButtons" compact />
+        <DialogHeader :header="t('drive.oauth_settings')" icon="google-drive" :buttons="editorButtons" compact closable
+                      :close-disabled="saving" :close-label="t('common.cancel')" @close="closeConfiguration" />
         <v-card-text class="google-drive-source-editor__body">
           <p class="text-body-2 mb-3">{{ t('drive.setup_hint') }}</p>
           <v-defaults-provider :defaults="{VTextField: {density: 'compact', rounded: 'lg', hideDetails: 'auto'}}">
@@ -82,8 +83,8 @@
               <v-text-field v-model="draft.clientId" label="OAuth Client ID" :disabled="saving" variant="outlined" />
               <v-text-field v-model="draft.clientSecret" label="OAuth Client Secret" type="password" autocomplete="new-password" :disabled="saving"
                             :placeholder="status?.configured ? t('drive.secret_saved') : undefined" variant="outlined" />
-              <v-text-field v-model="draft.redirectUri" :label="t('drive.redirect_uri')" :disabled="saving" variant="outlined" />
-              <v-alert v-if="formError" type="error" variant="tonal" density="compact" rounded="lg" role="status">{{ formError }}</v-alert>
+              <v-text-field v-model="draft.redirectUri" :label="t('drive.redirect_uri')" class="google-drive-source-editor__full-width" :disabled="saving" variant="outlined" />
+              <v-alert v-if="formError" type="error" variant="tonal" density="compact" rounded="lg" class="google-drive-source-editor__full-width" role="status">{{ formError }}</v-alert>
             </div>
           </v-defaults-provider>
         </v-card-text>
@@ -161,7 +162,6 @@ const editing = ref(false)
 const formError = ref('')
 const draft = ref({clientId: '', clientSecret: '', redirectUri: ''})
 const editorButtons = computed(() => [
-  {text: t('common.cancel'), icon: 'close', outlined: true, disabled: saving.value, action: closeConfiguration},
   {text: t('common.save'), icon: 'check', color: 'primary', loading: saving.value,
     disabled: busy.value || waiting.value || !draft.value.clientId || !draft.value.redirectUri, action: saveConfiguration},
 ])
@@ -456,10 +456,12 @@ defineExpose({status, refresh, busy: computed(() => busy.value || waiting.value 
 }
 .google-drive-source__status--ready .google-drive-source__status-dot { background: rgb(var(--v-theme-success)); }
 .google-drive-source-editor__body { padding: 12px 20px 16px !important; }
-.google-drive-source-editor__fields { display: flex; flex-direction: column; gap: 12px; }
+.google-drive-source-editor__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.google-drive-source-editor__full-width { grid-column: 1 / -1; }
 @media (max-width: 480px) {
   .google-drive-source__status-label { display: none; }
   .google-drive-source-editor__body { padding-inline: 14px !important; }
+  .google-drive-source-editor__fields { grid-template-columns: minmax(0, 1fr); }
 }
 </style>
 

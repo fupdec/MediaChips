@@ -7,6 +7,7 @@ export type ImageViewerSource = {
   name?: string
   width?: number
   height?: number
+  loadPreview?: (signal: AbortSignal) => Promise<{src: string; name?: string}>
 }
 
 const CHROME_PREFS_KEY = 'mediachips.imageViewer.chrome'

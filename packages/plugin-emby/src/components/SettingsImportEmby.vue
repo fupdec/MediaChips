@@ -36,6 +36,11 @@
       <section class="plugin-scraper-settings__block">
         <div class="integration-settings__connection">
           <slot name="server-selector" />
+          <v-select v-if="profiles.length" :model-value="hasSavedCredential() ? baseUrl : undefined"
+                    :items="profiles" item-title="baseUrl" item-value="baseUrl"
+                    :label="t('sources.media_servers.saved_profiles')" :disabled="active || loadingLibraries"
+                    variant="outlined" density="compact" rounded="lg" hide-details
+                    @update:model-value="selectProfile" />
           <v-text-field
             v-model="baseUrl"
             :label="t('settings_labels.database.import_emby_url')"
@@ -188,6 +193,7 @@ import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {setNotification} from '@/services/notificationService'
+import {useMediaServerProfiles} from '@/composable/useMediaServerProfiles'
 import {typedApi} from '@/services/typedApi'
 
 const {embedded = false} = defineProps<{embedded?: boolean}>()
@@ -196,6 +202,11 @@ const {t} = useI18n()
 
 const baseUrl = ref('')
 const apiKey = ref('')
+const {profiles, refresh: refreshProfiles, hasSavedCredential} = useMediaServerProfiles('emby', baseUrl)
+function selectProfile(url: string) {
+  apiKey.value = ''
+  baseUrl.value = url
+}
 const createMissingMedia = ref(true)
 const libraries = ref<Array<{id: string; name: string}>>([])
 const selectedLibraryIds = ref<string[]>([])
@@ -214,7 +225,7 @@ const progress = computed(() => {
   return Math.min(100, Math.round((counters.value.processed / counters.value.total) * 100))
 })
 
-const canLoadLibraries = computed(() => Boolean(baseUrl.value.trim() && apiKey.value.trim()))
+const canLoadLibraries = computed(() => Boolean(baseUrl.value.trim() && (apiKey.value.trim() || hasSavedCredential())))
 const canStart = computed(() => canLoadLibraries.value && !active.value
   && (!embedded || (!loadingLibraries.value && selectedLibraryIds.value.length > 0)))
 
@@ -251,6 +262,7 @@ const loadLibraries = async () => {
       baseUrl: baseUrl.value.trim(),
       apiKey: apiKey.value.trim(),
     })
+    void refreshProfiles()
     libraries.value = data.libraries || []
     if (embedded && !libraries.value.length) lastError.value = t('sources.media_servers.no_libraries')
     if (!embedded) selectedLibraryIds.value = libraries.value.map((lib) => lib.id)

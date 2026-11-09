@@ -9,6 +9,7 @@ import {
   setActiveConnection,
 } from '../../api/db'
 import { bootstrapDatabase } from '../../api/db/migrationRunner'
+import {installSourceProfiles} from '../../api/services/sourceProfiles'
 import {installChangeHistory} from '../../api/db/changeHistory'
 import { scheduleLegacyTimelineCleanup } from '../../api/services/legacyTimelineCleanup'
 import { saveConfigFile } from './configFile'
@@ -60,6 +61,7 @@ export function createDatabaseManager(deps: DatabaseManagerDeps) {
     deps.db.path_databases = deps.databasesPath
 
     await bootstrapDatabase(dbFilePath)
+    installSourceProfiles(connection.sqlite, deps.databasesPath, dbConfig.id)
     installChangeHistory(connection.sqlite)
     scheduleLegacyTimelineCleanup(deps.db)
 

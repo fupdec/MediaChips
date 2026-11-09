@@ -2,6 +2,9 @@ import {apiClient} from '../apiClient'
 import type {CopyDiscoveryInput, CopyDiscoveryJob} from '@shared/copyDiscovery'
 const base = '/api/copy-discovery/jobs'
 export const copyDiscoveryApi = {
+  activity: (signal?: AbortSignal) => apiClient.get<Pick<CopyDiscoveryJob, 'id' | 'state'>[]>('/api/copy-discovery/activity', {signal}),
+  pause: (id: string) => apiClient.post<CopyDiscoveryJob>(`${base}/${id}/pause`),
+  resume: (id: string) => apiClient.post<CopyDiscoveryJob>(`${base}/${id}/resume`),
   list: () => apiClient.get<CopyDiscoveryJob[]>(base),
   clearHistory: () => apiClient.delete<CopyDiscoveryJob[]>(`${base}/history`),
   create: (input: CopyDiscoveryInput) => apiClient.post<CopyDiscoveryJob>(base, input),

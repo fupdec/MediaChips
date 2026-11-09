@@ -48,6 +48,7 @@ export const API_ROUTES = {
   mediaIds: '/api/Media/ids',
   mediaSimilarByVisual: '/api/Media/similarByVisual',
   mediaSuggestTagsFromSimilar: '/api/Media/suggestTagsFromSimilar',
+  mediaSimilarMarkerMoments: '/api/Media/similarMarkerMoments',
   mediaSemanticSearch: '/api/Media/semanticSearch',
   mediaSimilarByClip: '/api/Media/similarByClip',
   mediaSimilarHybrid: '/api/Media/similarHybrid',

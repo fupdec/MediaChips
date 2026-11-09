@@ -15,7 +15,6 @@
 
     <v-card
       class="folder-tags-menu pa-3"
-      rounded="lg"
       min-width="360"
       max-width="440"
     >
@@ -67,7 +66,6 @@
           hide-selected
           no-filter
           auto-select-first
-          rounded="pill"
           :placeholder="t('media.adding.folder_tags_autocomplete_placeholder')"
           :no-data-text="t('common.no_data')"
           :menu-props="{maxHeight: 360, contentClass: 'folder-tags-menu__dropdown'}"
@@ -386,6 +384,10 @@ watch(menuOpen, (open) => {
 </script>
 
 <style scoped>
+.folder-tags-menu.v-card {
+  border-radius: inherit !important;
+}
+
 .folder-tags-menu__category {
   display: flex;
   align-items: center;

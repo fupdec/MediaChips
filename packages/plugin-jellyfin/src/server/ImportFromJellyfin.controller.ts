@@ -1,3 +1,4 @@
+import {mediaServerProfiles} from '../../../../api/services/mediaServerProfiles'
 import type {ApiDb} from '../../../../api/types/db'
 import {apiErrorMessage} from '../../../../api/types/errors'
 import type {ApiRequest, ApiResponse} from '../../../../api/types/http'
@@ -35,9 +36,13 @@ export default function createImportFromJellyfinController(
   const listLibraries = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const baseUrl = typeof req.body?.baseUrl === 'string' ? req.body.baseUrl : ''
-      const apiKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey : ''
+      const profiles = mediaServerProfiles(db, oldIdPrefix)
+      const suppliedCredential = typeof req.body?.apiKey === 'string' ? req.body.apiKey.trim() : ''
+      const apiKey = suppliedCredential || profiles?.credential(baseUrl) || ''
       const client = createJellyfinClient({baseUrl, apiKey})
+      if (!apiKey) throw new Error('A server credential is required')
       const libraries = await client.listLibraries()
+      profiles?.save(baseUrl, suppliedCredential)
       res.json({ok: true, libraries})
     } catch (err) {
       res.status(400).json({
@@ -58,7 +63,9 @@ export default function createImportFromJellyfinController(
       res.setHeader('X-Accel-Buffering', 'no')
 
       const baseUrl = typeof req.body?.baseUrl === 'string' ? req.body.baseUrl : ''
-      const apiKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey : ''
+      const profiles = mediaServerProfiles(db, oldIdPrefix)
+      const suppliedCredential = typeof req.body?.apiKey === 'string' ? req.body.apiKey.trim() : ''
+      const apiKey = suppliedCredential || profiles?.credential(baseUrl) || ''
       if (!baseUrl.trim()) {
         writeEvent({type: 'error', message: 'Jellyfin server URL is required'})
         res.end()
@@ -94,6 +101,7 @@ export default function createImportFromJellyfinController(
         isAborted,
       )
 
+      if (!isAborted()) profiles?.save(baseUrl, suppliedCredential)
       writeEvent({
         type: 'complete',
         ...result,
@@ -119,7 +127,9 @@ export default function createImportFromJellyfinController(
       res.setHeader('X-Accel-Buffering', 'no')
 
       const baseUrl = typeof req.body?.baseUrl === 'string' ? req.body.baseUrl : ''
-      const apiKey = typeof req.body?.apiKey === 'string' ? req.body.apiKey : ''
+      const profiles = mediaServerProfiles(db, oldIdPrefix)
+      const suppliedCredential = typeof req.body?.apiKey === 'string' ? req.body.apiKey.trim() : ''
+      const apiKey = suppliedCredential || profiles?.credential(baseUrl) || ''
       if (!baseUrl.trim()) {
         writeEvent({type: 'error', message: 'Jellyfin server URL is required'})
         res.end()
@@ -155,6 +165,7 @@ export default function createImportFromJellyfinController(
         isAborted,
       )
 
+      if (!isAborted()) profiles?.save(baseUrl, suppliedCredential)
       writeEvent({
         type: 'complete',
         ...result,

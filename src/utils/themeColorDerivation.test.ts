@@ -5,7 +5,6 @@ describe('derivePaletteFromBase', () => {
   describe('light mode', () => {
     it('generates a full palette from a purple base', () => {
       const result = derivePaletteFromBase('#8A86F2', 'light')
-      // Primary is derived (saturation boosted), not the exact input
       expect(result.primary).toMatch(/^#[0-9a-f]{6}$/)
       expect(result.header).toMatch(/^#[0-9a-f]{6}$/)
       expect(result.secondary).toMatch(/^#[0-9a-f]{6}$/)
@@ -30,9 +29,7 @@ describe('derivePaletteFromBase', () => {
 
     it('returns fallback for invalid color', () => {
       const result = derivePaletteFromBase('not-color', 'light')
-      expect(result.header).toBe('#9298EB')
-      expect(result.primary).toBe('#8A86F2')
-      expect(result.secondary).toBe('#F8B31A')
+      expect(result).toEqual(derivePaletteFromBase('#8A86F2', 'light'))
     })
   })
 
@@ -49,9 +46,7 @@ describe('derivePaletteFromBase', () => {
 
     it('returns fallback for invalid color', () => {
       const result = derivePaletteFromBase('not-color', 'dark')
-      expect(result.header).toBe('#6E6AAD')
-      expect(result.primary).toBe('#887ED5')
-      expect(result.secondary).toBe('#E98700')
+      expect(result).toEqual(derivePaletteFromBase('#8A86F2', 'dark'))
     })
   })
 })

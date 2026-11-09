@@ -36,6 +36,7 @@ import {
 import {
   findSimilarByClip,
   semanticSearchMedia,
+  findSimilarMarkerMoments,
 } from '../services/mediaClipEmbeddings'
 import {findSimilarHybrid} from '../services/mediaHybridSimilarity'
 import {getClipEmbeddingStatus} from '../services/clipEmbeddingModel'
@@ -208,6 +209,15 @@ export default function (db: ApiDb) {
       sendOk(res, suggestTagsFromSimilarForMedia(db, seedId, options))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while suggesting tags from similar media.')
+    }
+  }
+
+  const similarMarkerMoments = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const {tagId, rejected} = getRequestBody<{tagId: number; rejected: string[]}>(req)
+      sendOk(res, await findSimilarMarkerMoments(db, tagId, rejected))
+    } catch (err) {
+      sendControllerError(res, err, 'Could not find similar marker moments.')
     }
   }
 
@@ -565,6 +575,7 @@ export default function (db: ApiDb) {
     similarByVisual,
     suggestTagsFromSimilar,
     semanticSearch,
+    similarMarkerMoments,
     similarByClip,
     similarHybrid,
     merge,

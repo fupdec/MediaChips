@@ -48,7 +48,8 @@
               </template>
               <v-text-field v-if="kind !== 'delete'" v-model="destination" :disabled="pending" variant="outlined" density="compact" :prepend-inner-icon="kind === 'rename' ? 'mdi-pencil-outline' : 'mdi-folder-outline'"
                 :label="t(kind === 'rename' ? 'originals.filename' : 'originals.destination')"
-                :hint="t(kind === 'download' || destinationProvider === 'local' ? 'originals.local_path' : destinationProvider === 'gdrive' ? 'originals.drive_path' : 'originals.nas_path')" persistent-hint />
+                :hint="kind === 'rename' ? undefined : t(kind === 'download' || destinationProvider === 'local' ? 'originals.local_path' : destinationProvider === 'gdrive' ? 'originals.drive_path' : 'originals.nas_path')"
+                :persistent-hint="kind !== 'rename'" />
               <v-text-field v-if="kind === 'mkdir' && source?.provider === 'gdrive'" v-model="newFolderName" :disabled="pending" variant="outlined" density="compact" :label="t('originals.folder_name')" />
               <v-file-input v-if="kind === 'upload'" v-model="files" multiple variant="outlined" density="compact" :label="t('originals.select_files')" :disabled="pending" />
               <v-select :menu-props="{contentClass: 'media-detail-select-menu', maxHeight: 260}" :list-props="{density: 'compact', slim: true}" v-if="kind !== 'delete'" v-model="conflict" :items="conflicts" :label="t('originals.conflict')" :disabled="pending" variant="outlined" density="compact" hide-details />

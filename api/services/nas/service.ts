@@ -1,3 +1,4 @@
+import {bindSourceProfile, listSourceProfiles} from '../sourceProfiles'
 import {requestAutomaticCopyDiscovery, notifyCopySourceConnected} from '../mediaSources/copyDiscoveryTriggers'
 import {offlinePlayback, sendOfflineFile} from '../mediaSources/offline'
 import {randomUUID, createHash} from 'crypto'
@@ -56,6 +57,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
       title, qualities: [], quality: null, adaptive: false}
   }
   const connectionRow = (db: ApiDb, id: string) => {
+    bindSourceProfile(db.sqlite, id, ['nas'])
     const row = db.drizzle.select().from(sourceConnections).where(eq(sourceConnections.id, id)).get()
     if (!row || row.provider !== 'nas') throw new NasError('connection_not_found', 'NAS connection is unavailable in this library.', 404)
     return row
@@ -137,11 +139,11 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
   }
 
   return {
-    connections(db: ApiDb): NasConnection[] { return db.drizzle.select().from(sourceConnections).where(eq(sourceConnections.provider, 'nas')).all().map(publicConnection) },
+    connections(db: ApiDb): NasConnection[] { return listSourceProfiles(db.sqlite, 'nas').map(publicConnection) },
     async saveConnection(db: ApiDb, raw: NasConnectionInput, id: string = randomUUID()) {
       const input = NasConnectionSchema.parse(raw)
       const library = libraryKey(db)
-      const old = db.drizzle.select().from(sourceConnections).where(eq(sourceConnections.id, id)).get()
+      const old = bindSourceProfile(db.sqlite, id, ['nas']) || db.drizzle.select().from(sourceConnections).where(eq(sourceConnections.id, id)).get()
       if (old && old.provider !== 'nas') throw new NasError('connection_identity', 'This connection belongs to another provider.', 409)
       const sqlite = db.sqlite
       const credentials: NasCredentials = {password: input.password, privateKey: input.privateKey, passphrase: input.passphrase}

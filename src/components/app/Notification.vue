@@ -6,10 +6,9 @@
     @mouseleave="resumeTimer"
     @click="onCardClick"
     class="notification"
-    :class="[swipeClass, {'notification--clickable': Boolean(notificationClick)}]"
+    :class="[swipeClass, {'notification--clickable': Boolean(notificationClick), 'notification--history': isHidden}]"
     :style="notificationSwipeStyle"
-    :elevation="isHidden ? 3 : 9"
-    rounded="lg"
+    :elevation="isHidden ? 0 : 9"
   >
     <v-btn :color="notification.color" class="notification__icon" variant="tonal" icon>
       <v-icon>mdi-{{ notification.icon }}</v-icon>
@@ -22,6 +21,15 @@
         class="notification__text"
         v-html="displayText"
       ></div>
+      <div v-if="isHidden && hasDownloadProgress" class="notification__progress">
+        <v-progress-linear
+          :model-value="downloadProgress"
+          :color="notification.color || 'primary'"
+          height="5"
+          rounded
+        />
+        <span class="notification__percent">{{ Math.round(downloadProgress) }}%</span>
+      </div>
       <div
         v-if="actions.length"
         class="notification__actions"
@@ -42,11 +50,16 @@
           {{ action.text }}
         </v-btn>
       </div>
+      <div v-if="isHidden && formattedTimestamp" class="notification__timestamp">
+        <v-icon size="12" aria-hidden="true">mdi-clock-outline</v-icon>
+        {{ formattedTimestamp }}
+      </div>
     </div>
 
     <div class="notification__manage">
       <v-btn
-        @click="closeNotification"
+        @click.stop="closeNotification"
+        :aria-label="$t('common.close')"
         class="notification__close-btn"
         icon variant="plain"
       >
@@ -64,13 +77,7 @@
     </div>
 
     <div
-      v-if="isHidden"
-      class="notification__timestamp"
-      v-html="formattedTimestamp"
-    ></div>
-
-    <div
-      v-else-if="hasDownloadProgress"
+      v-if="!isHidden && hasDownloadProgress"
       class="notification__timeout notification__timeout--download"
       aria-hidden="true"
     >
@@ -84,7 +91,7 @@
     </div>
 
     <div
-      v-else
+      v-else-if="!isHidden"
       class="notification__timeout"
       aria-hidden="true"
     >
@@ -324,16 +331,16 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
+@use "../../assets/styles/notification-card" as card;
+
 .notification {
   display: flex;
   align-items: flex-start;
-  min-height: 90px;
   height: auto;
   width: var(--toast-width, 370px);
   max-width: 100%;
   margin: 0 0 16px;
-  padding: 16px 16px 25px;
-  border-radius: 4px;
+  @include card.surface;
   position: relative;
   // Clip only the timeout bar / swipe edges; let multi-line text grow the card.
   overflow: hidden;
@@ -373,11 +380,8 @@ onUnmounted(() => {
   }
 
   &__icon {
-    width: 48px;
-    min-width: 48px;
-    height: 48px;
-    margin-right: 16px;
-    border-radius: 50px;
+    @include card.icon;
+    margin-inline-end: 10px;
     display: flex;
     justify-content: center;
     flex-shrink: 0;
@@ -389,8 +393,7 @@ onUnmounted(() => {
   }
 
   &__title {
-    font-size: 14px;
-    line-height: 1.35;
+    @include card.title;
     max-width: 100%;
     overflow-wrap: anywhere;
     word-break: break-word;
@@ -398,11 +401,8 @@ onUnmounted(() => {
   }
 
   &__text {
-    font-size: 12px;
-    line-height: 1.4;
+    @include card.text;
     max-width: 100%;
-    margin-top: 4px;
-    opacity: 0.7;
     cursor: pointer;
     transition: opacity 0.2s ease;
     overflow-wrap: anywhere;
@@ -415,14 +415,13 @@ onUnmounted(() => {
   }
 
   &__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 8px;
+    @include card.actions;
   }
 
   &__action {
     min-width: 0;
+    border-radius: 8px;
+    letter-spacing: normal;
   }
 
   &__timeout {
@@ -446,12 +445,38 @@ onUnmounted(() => {
     will-change: transform;
   }
 
+  &__progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__percent {
+    flex-shrink: 0;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(var(--v-theme-on-surface), 0.07);
+    font-weight: 600;
+  }
+
   &__timestamp {
-    position: absolute;
-    right: 10px;
-    bottom: 9px;
-    font-size: 10px;
-    opacity: 0.7;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 9px;
+    font-size: 11px;
+    opacity: 0.65;
+  }
+
+  &--history {
+    width: 100%;
+    min-height: 0;
+    margin: 0;
+    box-shadow: 0 2px 5px rgba(var(--v-theme-on-surface), 0.04);
+    z-index: auto;
   }
 
   &__manage {
@@ -464,16 +489,19 @@ onUnmounted(() => {
   }
 
   &__close-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 16px;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    font-size: 12px;
     margin-top: 4px;
   }
 }
 
 @media (max-width: 480px) {
   .notification {
-    width: min(var(--toast-width, 370px), calc(100vw - 30px));
+    &:not(.notification--history) {
+      width: min(var(--toast-width, 370px), calc(100vw - 30px));
+    }
   }
 }
 </style>

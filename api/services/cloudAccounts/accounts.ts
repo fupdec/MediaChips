@@ -1,3 +1,4 @@
+import {bindSourceProfile, listSourceProfiles} from '../sourceProfiles'
 import {randomBytes, randomUUID, createHash} from 'crypto'
 import path from 'path'
 import os from 'os'
@@ -27,6 +28,7 @@ export function createCloudAccounts(directory = path.join(process.env.MEDIA_CHIP
   }
   const save = (id: string, value: PrivateAccount) => vault.set(id, {password: JSON.stringify(value)})
   const row = (db: ApiDb, id: string) => {
+    bindSourceProfile(db.sqlite, id, ['gdrive', 'onedrive', 'dropbox'])
     const account = db.drizzle.select().from(sourceConnections).where(eq(sourceConnections.id, id)).get()
     if (!account || !['gdrive', 'onedrive', 'dropbox'].includes(account.provider) || account.credentialRef !== id) throw failure('account_not_found', 404)
     return account
@@ -54,7 +56,7 @@ export function createCloudAccounts(directory = path.join(process.env.MEDIA_CHIP
   }
   return {
     list(db: ApiDb): CloudAccount[] {
-      return db.drizzle.select().from(sourceConnections).all().filter(a => a.credentialRef === a.id && a.provider !== 'nas').map(a => {
+      return listSourceProfiles(db.sqlite).filter(a => a.credentialRef === a.id && a.provider !== 'nas').map(a => {
         let credentials: PrivateAccount | undefined
         try { credentials = get(a.id) } catch {}
         return {id: a.id, provider: a.provider as CloudProvider, name: JSON.parse(a.config).name || a.provider,

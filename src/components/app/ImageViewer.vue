@@ -546,7 +546,7 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
-import {useImageViewerStore} from '@/stores/imageViewer'
+import {useImageViewerStore, type ImageViewerSource} from '@/stores/imageViewer'
 import {useEventBus} from '@/utils/eventBus'
 import {useImageViewerFullscreen} from '@/composable/useImageViewerFullscreen'
 import {
@@ -658,6 +658,7 @@ const WHEEL_NAV_COOLDOWN_MS = 380
 let objectUrl: string | null = null
 let ownsObjectUrl = false
 let loadToken = 0
+let sourcePreviewController: AbortController | undefined
 let playlistExtendPromise: Promise<boolean> | null = null
 let slideshowTimer: ReturnType<typeof setInterval> | null = null
 let chromeHideTimer: ReturnType<typeof setTimeout> | null = null
@@ -1121,6 +1122,8 @@ const prefetchNeighbors = () => {
 
 const loadCurrentImage = async () => {
   const token = ++loadToken
+  sourcePreviewController?.abort()
+  sourcePreviewController = undefined
   loadFailed.value = false
   showingViewerSized.value = false
   originalUpgradeToken += 1
@@ -1136,6 +1139,22 @@ const loadCurrentImage = async () => {
     }
     setDisplaySrc(source.src, {owned: false, key: transitionKey})
     viewer.setFileExists(true)
+    if (source.loadPreview) {
+      const controller = new AbortController()
+      sourcePreviewController = controller
+      viewer.setLoading(true)
+      try {
+        const preview = await source.loadPreview(controller.signal)
+        if (token !== loadToken) return
+        Object.assign(source, preview)
+        setDisplaySrc(source.src, {owned: false, key: transitionKey})
+      } catch {
+        // Keep the source thumbnail if the frame could not be captured.
+      }
+      if (token !== loadToken) return
+      source.loadPreview = undefined
+      sourcePreviewController = undefined
+    }
     viewer.setLoading(false)
     filmstripNetworkAllowed.value = true
     void ensureFilmstripThumbs()
@@ -1342,6 +1361,8 @@ const closeViewer = () => {
   if (!viewer.active) return
 
   loadToken += 1
+  sourcePreviewController?.abort()
+  sourcePreviewController = undefined
   loadFailed.value = false
   playlistExtendPromise = null
   viewer.setLoadingPlaylist(false)
@@ -2206,7 +2227,7 @@ interface ViewImagePayload {
   index?: number
   fallbackImage?: MediaItem | null
   previewSrc?: string | null
-  sources?: Array<{src: string; name?: string; width?: number; height?: number}>
+  sources?: ImageViewerSource[]
 }
 
 const openFromEvent = (payload: unknown) => {
@@ -2256,6 +2277,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  loadToken += 1
+  sourcePreviewController?.abort()
   window.removeEventListener('keydown', onKeyDown)
   document.removeEventListener('fullscreenchange', syncFullscreenFromDocument)
   document.removeEventListener('webkitfullscreenchange', syncFullscreenFromDocument)

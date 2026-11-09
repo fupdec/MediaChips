@@ -1,27 +1,4 @@
-function parseHexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const raw = hex.trim()
-  if (!raw.startsWith('#')) return null
-  const h = raw.slice(1)
-  if (!/^[0-9a-fA-F]+$/.test(h)) return null
-
-  if (h.length === 3) {
-    return {
-      r: parseInt(h[0] + h[0], 16),
-      g: parseInt(h[1] + h[1], 16),
-      b: parseInt(h[2] + h[2], 16),
-    }
-  }
-
-  if (h.length === 6 || h.length === 4 || h.length === 8) {
-    return {
-      r: parseInt(h.slice(0, 2), 16),
-      g: parseInt(h.slice(2, 4), 16),
-      b: parseInt(h.slice(4, 6), 16),
-    }
-  }
-
-  return null
-}
+import {parseHexRgb} from './headerColorUtils'
 
 function rgbToHex(r: number, g: number, b: number): string {
   const toHex = (c: number) =>
@@ -87,82 +64,24 @@ function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: n
   }
 }
 
-/**
- * Generates a harmonious theme palette from a single base color.
- *
- * For light mode:
- *  - primary: the base color (saturation boosted slightly if too dull)
- *  - secondary: hue rotated by ~45° with adjusted saturation/lightness
- *  - header: primary with slightly adjusted lightness
- *
- * For dark mode:
- *  - primary: base color lightened for readability on dark bg
- *  - secondary: hue rotated by ~45°, lightened for dark bg
- *  - header: primary, slightly brighter for dark header bars
- */
-export function derivePaletteFromBase(
-  baseHex: string,
-  mode: 'light' | 'dark',
-): { header: string; primary: string; secondary: string } {
-  const rgb = parseHexToRgb(baseHex)
-  if (!rgb) {
-    // Return fallback defaults
-    return mode === 'light'
-      ? { header: '#9298EB', primary: '#8A86F2', secondary: '#F8B31A' }
-      : { header: '#6E6AAD', primary: '#887ED5', secondary: '#E98700' }
+/** Keep the input hue, but constrain lightness for readable accents and toolbar text. */
+export function derivePaletteFromBase(baseHex: string, mode: 'light' | 'dark') {
+  const normalized = baseHex.trim().replace(/^#?/, '#')
+  const rgb = parseHexRgb(normalized) ?? {r: 138, g: 134, b: 242}
+  const {h, s} = rgbToHsl(rgb.r, rgb.g, rgb.b)
+  const dark = mode === 'dark'
+  const accentSaturation = Math.min(s, 72)
+  const secondaryHue = (h + 35) % 360
+  const color = (hue: number, saturation: number, lightness: number) => {
+    const {r, g, b} = hslToRgb(hue, saturation, lightness)
+    return rgbToHex(r, g, b)
   }
-
-  const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b)
-
-  if (mode === 'light') {
-    // Primary: boost saturation for vibrancy, keep lightness
-    const primaryH = hsl.h
-    const primaryS = Math.min(100, Math.max(40, hsl.s + 15))
-    const primaryL = hsl.l
-
-    // Header: light and airy — lighter than primary, gentle tint
-    const headerL = Math.min(92, Math.max(70, primaryL + 30))
-    const headerS = Math.max(5, Math.round(primaryS * 0.35))
-
-    // Secondary: hue shifted ~45°, adjusted saturation, slightly warmer/lighter
-    const secondaryH = (primaryH + 45) % 360
-    const secondaryS = Math.min(85, Math.max(35, hsl.s + 10))
-    const secondaryL = Math.min(80, Math.max(45, primaryL + 5))
-
-    const primaryRgb = hslToRgb(primaryH, primaryS, primaryL)
-    const headerRgb = hslToRgb(primaryH, headerS, headerL)
-    const secondaryRgb = hslToRgb(secondaryH, secondaryS, secondaryL)
-
-    return {
-      header: rgbToHex(headerRgb.r, headerRgb.g, headerRgb.b),
-      primary: rgbToHex(primaryRgb.r, primaryRgb.g, primaryRgb.b),
-      secondary: rgbToHex(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b),
-    }
-  }
-
-  // Dark mode
-  // Primary: lighten the base for readability on dark bg
-  const primaryH = hsl.h
-  const primaryS = Math.min(90, Math.max(30, hsl.s))
-  const primaryL = Math.min(75, Math.max(40, hsl.l + 20))
-
-  // Header: moody and deep — darker than primary, subtle presence
-  const headerL = Math.min(65, Math.max(35, primaryL - 5))
-  const headerS = Math.max(6, Math.round(primaryS * 0.55))
-
-  // Secondary: hue shifted ~45°, lightened for dark bg
-  const secondaryH = (primaryH + 45) % 360
-  const secondaryS = Math.min(80, Math.max(30, hsl.s))
-  const secondaryL = Math.min(80, Math.max(45, primaryL + 10))
-
-  const primaryRgb = hslToRgb(primaryH, primaryS, primaryL)
-  const headerRgb = hslToRgb(primaryH, headerS, headerL)
-  const secondaryRgb = hslToRgb(secondaryH, secondaryS, secondaryL)
 
   return {
-    header: rgbToHex(headerRgb.r, headerRgb.g, headerRgb.b),
-    primary: rgbToHex(primaryRgb.r, primaryRgb.g, primaryRgb.b),
-    secondary: rgbToHex(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b),
+    header: color(h % 360, Math.min(s, 32), dark ? 17 : 92),
+    headerEnd: color(secondaryHue, Math.min(s, 32), dark ? 21 : 88),
+    primary: color(h % 360, accentSaturation, dark ? 89 : 23),
+    secondary: color(secondaryHue, accentSaturation, dark ? 84 : 23),
   }
 }
 

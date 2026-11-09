@@ -43,6 +43,26 @@ describe('background copy discovery', () => {
     closeTestDb(fixture); fs.rmSync(directory, {recursive: true, force: true})
   })
 
+  it('keeps paused jobs out of the worker queue across restarts until resumed or stopped', async () => {
+    const service = worker()
+    const key = file('paused.mp4')
+    const job = service.create({roots: [{key}]})
+    expect(service.pause(job.id).state).toBe('paused')
+    service.dispose()
+
+    const restarted = worker()
+    await restarted.tick()
+    expect(restarted.activity()).toEqual([{id: job.id, state: 'paused'}])
+    expect(restarted.resume(job.id).state).toBe('queued')
+    await restarted.tick()
+    expect(restarted.job(job.id).state).toBe('completed')
+
+    const stopped = restarted.create({roots: [{key}]})
+    restarted.pause(stopped.id)
+    expect(restarted.cancel(stopped.id).state).toBe('cancelled')
+    expect(restarted.activity()).toEqual([])
+  })
+
   it('finds one renamed file by size without a stored fingerprint and links it without changing metadata', async () => {
     const original = card('original.mp4'), copy = file('renamed.mp4')
     const before = createMediaRepository(db.drizzle).findById(original.id)

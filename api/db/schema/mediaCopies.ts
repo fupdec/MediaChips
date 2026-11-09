@@ -1,4 +1,4 @@
-import {sqliteTable, text, integer, uniqueIndex} from 'drizzle-orm/sqlite-core'
+import {sqliteTable, text, integer, index, uniqueIndex} from 'drizzle-orm/sqlite-core'
 import {media} from './media'
 import type {CopyVerificationMethod} from '../../../shared/copyVerification'
 import type {SourceAvailability} from '../../../shared/mediaSources'
@@ -17,7 +17,10 @@ export const verifiedMediaCopies = sqliteTable('verifiedMediaCopies', {
   contentType: text('contentType').notNull(),
   availability: text('availability').$type<SourceAvailability>().notNull().default('unknown'),
   verifiedAt: text('verifiedAt').notNull(),
-}, t => ({pathIdx: uniqueIndex('verified_media_copies_path_idx').on(t.mediaId, t.path)}))
+}, t => ({
+  pathIdx: uniqueIndex('verified_media_copies_path_idx').on(t.mediaId, t.path),
+  lookupPathIdx: index('verified_media_copies_lookup_path_idx').on(t.path),
+}))
 
 export const mediaCopyPreferences = sqliteTable('mediaCopyPreferences', {
   mediaId: integer('mediaId').primaryKey().references(() => media.id, {onDelete: 'cascade'}),
