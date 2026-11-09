@@ -377,6 +377,11 @@ export const GlobalSearchMediaResponseSchema = z.object({
   items: z.array(GlobalSearchMediaItemSchema),
 })
 
+export const GlobalSearchMediaPageSchema = GlobalSearchMediaResponseSchema.extend({
+  nextOffset: z.number().int().nonnegative().nullable(),
+  total: z.number().int().nonnegative().optional(),
+})
+
 export const GlobalSearchTagsResponseSchema = z.object({
   items: z.array(GlobalSearchTagItemSchema),
 })

@@ -10,7 +10,7 @@ import { getHomeChartStats } from '../services/homeChartStats'
 import { getHomeSimilar } from '../services/homeSimilar'
 import { getHomeTagSpotlight } from '../services/homeTagSpotlight'
 import { getCreatedCalendarMonth } from '../services/homeCreatedCalendar'
-import { searchMediaByName, searchTagsByName, searchGlobal } from '../services/globalSearch'
+import { searchMediaByName, searchTagsByName, searchGlobal, searchGlobalMediaPage } from '../services/globalSearch'
 import { parseClampedLimit, parseOptionalInt } from '../utils/parseRequestNumber'
 
 function parseHomeMediaLimit(value: unknown, fallbackWhenMissing: number, max = 24): number {
@@ -149,6 +149,16 @@ export default (db: ApiDb) => {
   const searchMedia = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const q = req.body?.q ?? req.body?.query
+      const mediaTypeId = req.body?.mediaTypeId
+      if (mediaTypeId != null) {
+        const page = await searchGlobalMediaPage(db, String(q || ''), mediaTypeId, req.body?.offset ?? 0, {
+          limit: req.body?.limit,
+          tagIds: req.body?.tagIds,
+          countOnly: req.body?.countOnly === true,
+        })
+        sendOk(res, page)
+        return
+      }
       const items = await searchMediaByName(db, String(q || ''), req.body?.limit)
       sendOk(res, {items})
     } catch (err) {

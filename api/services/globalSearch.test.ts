@@ -11,6 +11,7 @@ import {
   searchTagsByName,
   searchTagsByBookmark,
   searchGlobal,
+  searchGlobalMediaPage,
 } from './globalSearch'
 
 function createSearchTestDb() {
@@ -51,6 +52,53 @@ describe('globalSearch FTS', () => {
       const results = await searchMediaByName(db, 'act', 10) as Array<{ name?: string }>
       expect(results).toHaveLength(1)
       expect(results[0].name).toBe('Action Hero')
+    } finally {
+      closeTestDb({sqlite, dbPath})
+    }
+  })
+
+  it('includes video hits when images dominate the global name ranking', async () => {
+    const {sqlite, db, dbPath} = createSearchTestDb()
+
+    try {
+      sqlite.exec(`
+        INSERT INTO media (path, name, mediaTypeId, createdAt, updatedAt) VALUES
+          ('/one.jpg', 'Orchard', 2, '2024-01-01', '2024-01-01'),
+          ('/two.jpg', 'Orchard', 2, '2024-01-01', '2024-01-01'),
+          ('/orchard.mp4', 'Orchard documentary chapter one', 1, '2024-01-01', '2024-01-01');
+      `)
+
+      const byName = await searchMediaByName(db, 'orchard', 2)
+      expect(byName.map((row) => row.mediaTypeId)).toEqual([2, 2])
+
+      const global = await searchGlobal(db, 'orchard', {limit: 2})
+      expect(global.media.map((row) => (row as {mediaTypeId?: number}).mediaTypeId)).toEqual([2, 1])
+    } finally {
+      closeTestDb({sqlite, dbPath})
+    }
+  })
+
+  it('paginates one media type through name, substring and tag matches', async () => {
+    const {sqlite, db, dbPath} = createSearchTestDb()
+    try {
+      sqlite.exec(`
+        INSERT INTO media (path, name, mediaTypeId, createdAt, updatedAt) VALUES
+          ('/actor.jpg', 'Actor', 2, '2024-01-01', '2024-01-01'),
+          ('/actor.mp4', 'Actor interview', 1, '2024-01-01', '2024-01-01'),
+          ('/reactor.mp4', 'Reactor', 1, '2024-01-01', '2024-01-01'),
+          ('/discarded.mp4', 'Actor archive', 1, '2024-01-01', '2024-01-01');
+        UPDATE media SET deletedAt = '2024-01-01' WHERE path = '/discarded.mp4';
+      `)
+      const first = await searchGlobalMediaPage(db, 'actor', 1, 0, {limit: 2})
+      expect(first.items.map((row) => row.name)).toEqual(['Actor interview', 'Action Hero'])
+      expect(first.nextOffset).toBe(2)
+
+      const second = await searchGlobalMediaPage(db, 'actor', 1, first.nextOffset!, {limit: 2})
+      expect(second.items.map((row) => row.name)).toEqual(['Drama Night', 'Reactor'])
+      expect(second.nextOffset).toBeNull()
+      const count = await searchGlobalMediaPage(db, 'actor', 1, 0, {limit: 2, countOnly: true})
+      expect(count.total).toBe(first.items.length + second.items.length)
+      expect(count.items).toEqual([])
     } finally {
       closeTestDb({sqlite, dbPath})
     }

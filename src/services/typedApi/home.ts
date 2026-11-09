@@ -1,3 +1,4 @@
+import { GlobalSearchMediaPageSchema } from '@shared/schemas/home'
 import { apiClient } from '../apiClient'
 import { API_ROUTES } from '@shared/api/routes'
 import type { HomeMediaResponse } from '@shared/api/responses'
@@ -122,6 +123,16 @@ export const homeApi = {
     return apiClient.post(API_ROUTES.globalSearch, body, config).then((res) => ({
       ...res,
       data: validated(parseGlobalSearchResponse, res.data),
+    }))
+  },
+
+  searchGlobalMediaPage(
+    body: {q: string; limit: number; mediaTypeId: number; offset: number; tagIds: number[]; countOnly?: boolean},
+    config?: AxiosRequestConfig,
+  ) {
+    return apiClient.post(API_ROUTES.globalSearchMedia, body, config).then((res) => ({
+      ...res,
+      data: validated(GlobalSearchMediaPageSchema.parse, res.data),
     }))
   },
 

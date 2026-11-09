@@ -802,6 +802,7 @@ const ru = {
     example_rain: 'кто-то бежит под дождём',
     example_portrait: 'крупный портрет',
     example_neon: 'неоновый город ночью',
+    loadMoreMatches: 'Загрузить ещё',
     showMore: 'Показать ещё ({count})',
     resultsCount: 'Найдено: {count}',
     viaSynonym: 'син.',

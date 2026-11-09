@@ -802,6 +802,7 @@ const en = {
     example_rain: 'someone running in the rain',
     example_portrait: 'close-up portrait',
     example_neon: 'neon city at night',
+    loadMoreMatches: 'Load more',
     showMore: 'Show more ({count})',
     resultsCount: '{count} found',
     viaSynonym: 'syn.',

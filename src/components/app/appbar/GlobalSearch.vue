@@ -91,6 +91,9 @@ interface SearchGroup {
   metaId?: number
   is_media: boolean
   group_id: string
+  nextOffset?: number | null
+  totalMatches?: number
+  loadingMore?: boolean
 }
 
 type FlatResultRow =
@@ -202,6 +205,12 @@ const totalResults = computed(() =>
   results.value.reduce((sum, group) => sum + group.data.length, 0) + settingsMatches.value.length + documentationMatches.value.length,
 )
 
+function visibleGroupCount(group: SearchGroup) {
+  return expandedGroupIds.value.has(group.group_id)
+    ? group.data.length
+    : Math.min(group.data.length, GROUP_PREVIEW_LIMIT)
+}
+
 const flatResults = computed((): FlatResultRow[] => {
   const flat: FlatResultRow[] = []
   const showSections = pinnedTags.value.length > 0
@@ -214,10 +223,8 @@ const flatResults = computed((): FlatResultRow[] => {
   const appendGroup = (group: SearchGroup) => {
     flat.push({kind: 'header', group, id: `h-${group.group_id}`})
 
-    const isExpanded = expandedGroupIds.value.has(group.group_id)
-    const visibleItems = isExpanded || group.data.length <= GROUP_PREVIEW_LIMIT
-      ? group.data
-      : group.data.slice(0, GROUP_PREVIEW_LIMIT)
+    const visibleCount = visibleGroupCount(group)
+    const visibleItems = group.data.slice(0, visibleCount)
 
     for (const item of visibleItems) {
       flat.push({
@@ -228,11 +235,12 @@ const flatResults = computed((): FlatResultRow[] => {
       })
     }
 
-    if (!isExpanded && group.data.length > GROUP_PREVIEW_LIMIT) {
+    const hiddenCount = group.data.length - visibleCount
+    if (hiddenCount || group.nextOffset != null) {
       flat.push({
         kind: 'show-more',
         group,
-        hiddenCount: group.data.length - GROUP_PREVIEW_LIMIT,
+        hiddenCount,
         id: `more-${group.group_id}`,
       })
     }
@@ -579,6 +587,43 @@ function expandGroup(groupId: string) {
   if (expandedGroupIds.value.has(groupId)) return
   expandedGroupIds.value.add(groupId)
   triggerRef(expandedGroupIds)
+}
+
+async function showMoreResults(row: Extract<FlatResultRow, {kind: 'show-more'}>) {
+  const {group, hiddenCount} = row
+  if (hiddenCount) {
+    expandGroup(group.group_id)
+    return
+  }
+
+  const {mediaTypeId} = group
+  const signal = abortController?.signal
+  if (mediaTypeId == null || group.nextOffset == null || group.loadingMore || !signal || signal.aborted || loading.value) return
+
+  const q = query.value.trim()
+  const tagIds = pinnedTags.value.map((tag) => tag.id)
+  const seen = new Set(group.data.map((item) => item.id))
+  group.loadingMore = true
+  try {
+    while (group.nextOffset != null) {
+      const {data} = await typedApi.searchGlobalMediaPage({
+        q, mediaTypeId, offset: group.nextOffset, limit: RESULT_LIMIT, tagIds,
+      }, {signal})
+      if (signal.aborted || q !== query.value.trim()) return
+
+      group.nextOffset = data.nextOffset
+      const newItems = normalizeSearchMedia(data.items).filter((item) => !seen.has(item.id))
+      if (newItems.length) {
+        expandGroup(group.group_id)
+        group.data.push(...newItems)
+        return
+      }
+    }
+  } catch (error) {
+    if (!signal.aborted) console.error(error)
+  } finally {
+    group.loadingMore = false
+  }
 }
 
 function resetState() {
@@ -1048,6 +1093,23 @@ function formatSceneSeekTime(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+async function loadGroupMatchCounts(q: string, tagIds: number[], signal: AbortSignal) {
+  await Promise.all(results.value.map(async (group) => {
+    if (group.nextOffset === undefined || group.mediaTypeId == null) return
+    try {
+      const {data} = await typedApi.searchGlobalMediaPage({
+        q, tagIds, mediaTypeId: group.mediaTypeId, offset: 0, limit: RESULT_LIMIT, countOnly: true,
+      }, {signal})
+      if (!signal.aborted && q === query.value.trim() && data.total != null) {
+        group.totalMatches = data.total
+        if (group.data.length === data.total) group.nextOffset = null
+      }
+    } catch (error) {
+      if (!signal.aborted) console.error(error)
+    }
+  }))
+}
+
 async function search() {
   const q = query.value.trim()
   const tagIds = pinnedTags.value.map((tag) => tag.id)
@@ -1084,8 +1146,10 @@ async function search() {
     if (signal.aborted) return
 
     const mediaGroups = buildMediaGroups(normalizeSearchMedia(searchRes.data.media || []))
+    for (const group of mediaGroups) group.nextOffset = 0
     const tagGroups = buildTagGroups(normalizeSearchTags(searchRes.data.tags || []))
     results.value = sortGroups([...mediaGroups, ...tagGroups])
+    void loadGroupMatchCounts(q, tagIds, signal)
   } catch (e: unknown) {
     const err = e as { code?: string; name?: string }
     if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') return
@@ -1249,7 +1313,7 @@ function openSelectedResult() {
   }
 
   if (row.kind === 'show-more') {
-    expandGroup(row.group.group_id)
+    void showMoreResults(row)
     return
   }
 
@@ -1974,7 +2038,8 @@ function getNameHighlighted(text: string) {
                   variant="tonal"
                   color="primary"
                 >
-                  {{ row.group.data.length }}
+                  {{ visibleGroupCount(row.group) }}<template v-if="row.group.nextOffset !== undefined && row.group.totalMatches !== visibleGroupCount(row.group)"> / {{ row.group.totalMatches ?? '…' }}</template>
+                  <template v-else-if="!row.group.is_media && visibleGroupCount(row.group) < row.group.data.length"> / {{ row.group.data.length }}</template>
                 </v-chip>
                 <v-spacer/>
                 <v-icon
@@ -1991,10 +2056,11 @@ function getNameHighlighted(text: string) {
               class="global-search__show-more d-flex align-center px-3 text-caption"
               :class="{'global-search__item--active': index === selectedIndex}"
               @mouseenter="onItemMouseenter(row, index)"
-              @click.stop="expandGroup(row.group.group_id)"
+              @click.stop="showMoreResults(row)"
             >
               <v-icon size="14" class="text-medium-emphasis mr-2">mdi-dots-horizontal</v-icon>
-              <span>{{ t('globalSearch.showMore', {count: row.hiddenCount}) }}</span>
+              <v-progress-circular v-if="row.group.loadingMore" indeterminate size="14" width="2"/>
+              <span v-else>{{ t('globalSearch.loadMoreMatches') }}</span>
             </div>
 
             <div
@@ -2139,7 +2205,9 @@ function getNameHighlighted(text: string) {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: rgb(var(--v-theme-surface));
+  background:
+    linear-gradient(135deg, rgba(var(--v-theme-primary), 0.14), transparent 75%),
+    rgb(var(--v-theme-surface));
 }
 
 .global-search__mode-toggle {

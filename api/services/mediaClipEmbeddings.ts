@@ -166,23 +166,22 @@ function loadMediaPreviewRow(db: ApiDb, mediaId: number): MediaPreviewRow | null
   `, {mediaId}) || null
 }
 
+function readPreviewFiles(dbPath: string, directory: string): string[] {
+  const dir = path.join(dbPath, directory)
+  return fs.existsSync(dir) ? fs.readdirSync(dir) : []
+}
+
 function listPreviewCandidateIds(db: ApiDb): number[] {
   const dbPath = String(db.path || '')
   if (!dbPath) return []
 
   const onDisk = new Set<number>()
-
-  const collect = (dir: string) => {
-    if (!fs.existsSync(dir)) return
-    for (const name of fs.readdirSync(dir)) {
+  for (const directory of ['media/videos/grids', 'media/videos/thumbs', 'media/images/thumbs']) {
+    for (const name of readPreviewFiles(dbPath, directory)) {
       const match = /^(\d+)\.jpg$/i.exec(name)
       if (match) onDisk.add(Number(match[1]))
     }
   }
-
-  collect(path.join(dbPath, 'media/videos/grids'))
-  collect(path.join(dbPath, 'media/videos/thumbs'))
-  collect(path.join(dbPath, 'media/images/thumbs'))
 
   if (!onDisk.size) return []
 
@@ -196,19 +195,43 @@ function listPreviewCandidateIds(db: ApiDb): number[] {
   return rows.map((row) => Number(row.id)).filter((id) => onDisk.has(id))
 }
 
-function countEmbedded(db: ApiDb, candidateIds: number[]) {
-  if (!candidateIds.length) return 0
-  let count = 0
-  for (const id of candidateIds) {
-    if (!needsClipEmbeddingUpgrade(db, id)) count += 1
-  }
-  return count
-}
-
 async function getClipEmbeddingBackfillStatus(db: ApiDb) {
-  const candidateIds = listPreviewCandidateIds(db)
-  const total = candidateIds.length
-  const embedded = countEmbedded(db, candidateIds)
+  const dbPath = String(db.path || '')
+  let total = 0
+  let embedded = 0
+  if (dbPath) {
+    const grids = new Set(readPreviewFiles(dbPath, 'media/videos/grids'))
+    const videoThumbs = new Set(readPreviewFiles(dbPath, 'media/videos/thumbs'))
+    const imageThumbs = new Set(readPreviewFiles(dbPath, 'media/images/thumbs'))
+    const candidates = new Set<number>()
+    for (const files of [grids, videoThumbs, imageThumbs]) {
+      for (const name of files) {
+        const match = /^(\d+)\.jpg$/i.exec(name)
+        if (match) candidates.add(Number(match[1]))
+      }
+    }
+
+    if (candidates.size) {
+      const rows = queryAll<{id: number; type: string; bytes: number | null; dims: number | null}>(db, `
+        SELECT m.id, mt.type, length(e.embedding) AS bytes, e.dims
+        FROM media m
+        INNER JOIN mediaTypes mt ON m.mediaTypeId = mt.id
+        LEFT JOIN mediaClipEmbeddings e ON e.mediaId = m.id AND e.model = :model
+        WHERE mt.type IN ('video', 'image')
+      `, {model: CLIP_EMBEDDING_INDEX_KEY})
+      for (const row of rows) {
+        if (!candidates.has(row.id)) continue
+        total += 1
+        const filename = `${row.id}.jpg`
+        const expected = row.type === 'image'
+          ? Number(imageThumbs.has(filename))
+          : grids.has(filename) ? VIDEO_GRID_TILE_COUNT : Number(videoThumbs.has(filename))
+        if (packedClipTileCountFromBytes(row.bytes ?? 0, Number(row.dims)) >= expected) {
+          embedded += 1
+        }
+      }
+    }
+  }
   const model = getClipEmbeddingStatus(db)
   return {
     total,
@@ -220,7 +243,10 @@ async function getClipEmbeddingBackfillStatus(db: ApiDb) {
 }
 
 function packedClipTileCount(embedding: Buffer | Uint8Array | null | undefined, dims: number): number {
-  const bytes = embedding?.byteLength || 0
+  return packedClipTileCountFromBytes(embedding?.byteLength || 0, dims)
+}
+
+function packedClipTileCountFromBytes(bytes: number, dims: number): number {
   const perVector = Math.floor(Number(dims)) * 4
   if (!bytes || !Number.isFinite(perVector) || perVector <= 0) return 0
   return Math.floor(bytes / perVector)
