@@ -120,6 +120,7 @@ export type SettingsState = {
   headerGradientLight: string
   headerGradientDark: string
   darkMode: string
+  neutralTheme: string
   headerGradient: string
   colorScroll: string
   textFont: string
@@ -314,6 +315,7 @@ export const defaultSettingsState = (): SettingsState => ({
   headerGradientLight: 'linear-gradient(to right,#ffb458,#6868eb)',
   headerGradientDark: 'linear-gradient(to right,#a9743d,#4a3c81)',
   darkMode: '0',
+  neutralTheme: '0',
   headerGradient: '1',
   colorScroll: '0',
   textFont: 'Roboto',

@@ -131,6 +131,14 @@ async function applyGeneratedTheme(mode: 'light' | 'dark' | 'both') {
   <div>
     <SettingsCategoryDivider :title="t('settings_labels.appearance.colors')" icon="brush-variant"></SettingsCategoryDivider>
 
+    <settings-switch
+      class="mb-4"
+      :title="t('settings_labels.appearance.neutral_theme')"
+      :hint="t('settings_labels.appearance.neutral_theme_hint')"
+      option="neutralTheme"
+      @update="applyTheme"
+    />
+
     <WidgetRecommendedColors class="mb-4"/>
 
     <section class="theme-settings-group mb-4">

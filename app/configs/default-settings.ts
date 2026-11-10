@@ -77,6 +77,10 @@ const Settings = [
     "value": 0
   },
   {
+    "option": "neutralTheme",
+    "value": "0"
+  },
+  {
     "option": "headerGradient",
     "value": 1
   },

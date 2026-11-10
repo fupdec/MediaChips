@@ -2894,6 +2894,8 @@ const en = {
       palette_indigo: 'Indigo',
       palette_cocoa: 'Cocoa',
       palette_save_failed: 'Some colors could not be saved. Select the palette again to retry.',
+      neutral_theme: 'Neutral theme',
+      neutral_theme_hint: 'Use neutral backgrounds and keep the primary accent on controls.',
       generate_theme: 'Generate theme from color',
       generate_theme_hint: 'Choose a hue and preview both versions before applying.',
       generate_theme_preview: 'Sample card',

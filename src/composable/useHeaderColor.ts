@@ -8,6 +8,8 @@ export function useHeaderColor(): ComputedRef<string> {
   const settingsStore = useSettingsStore()
 
   return computed(() => {
+    if (settingsStore.neutralTheme === '1') return theme.global.current.value.colors.surface
+
     const c = theme.global.current.value.dark
       ? settingsStore.appColorDarkHeader
       : settingsStore.appColorLightHeader

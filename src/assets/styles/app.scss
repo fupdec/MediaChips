@@ -1866,3 +1866,20 @@ header {
     transition: none;
   }
 }
+
+.theme-neutral {
+  .dialog-header,
+  .items-control-deck__header,
+  .global-search__header,
+  .notifications-header,
+  .shortcut-section--player,
+  .relink-dialog__body,
+  .settings-history,
+  .settings-page--styled-sections .settings-section,
+  .settings-page--styled-sections .health-task,
+  .settings-page--styled-sections .health-guide__hero,
+  .settings-page--styled-sections .settings-meta-assignment,
+  .settings-page--styled-sections .settings-list > .settings-switch {
+    background-image: none !important;
+  }
+}

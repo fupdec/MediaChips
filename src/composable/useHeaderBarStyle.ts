@@ -23,7 +23,7 @@ export function useHeaderBarStyle(_variant: 'app' | 'system' = 'app') {
   })
 
   const gradient = computed(() => {
-    if (SETTINGS.value.headerGradient == '0') return ''
+    if (SETTINGS.value.neutralTheme === '1' || SETTINGS.value.headerGradient == '0') return ''
 
     const g = theme.global.current.value.dark
       ? SETTINGS.value.headerGradientDark
