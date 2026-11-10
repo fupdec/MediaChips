@@ -55,6 +55,9 @@
           v-if="browsePath || places.length || (pathInput && folderPath.trim())"
           :base-url="appStore.localhost || ''"
           :path="browsePath"
+          :directory-loader="directoryLoader"
+          :path-titles="pathTitles"
+          :hide-favorites="!!directoryLoader"
           :selected-paths="pathInput ? [] : selectedPaths"
           :places="places"
           :active-place-id="activePlaceId"
@@ -118,7 +121,7 @@ import MediaFolderBrowser from '@/components/dialogs/MediaFolderBrowser.vue'
 import {checkFileExists} from '@/services/fileService'
 import {normalizePastedFilePath} from '@/utils/filePathInput'
 import {typedApi} from '@/services/typedApi'
-import type {BrowsePlace} from '@/services/typedApi/browse'
+import type {BrowseDirectoryLoader, BrowsePlace} from '@/services/typedApi/browse'
 
 const props = withDefaults(defineProps<{
   modelValue: boolean
@@ -126,6 +129,8 @@ const props = withDefaults(defineProps<{
   header?: string
   confirmText?: string
   initialPath?: string
+  directoryLoader?: BrowseDirectoryLoader
+  pathTitles?: Record<string, string>
   /** When set, picker shows matching files (e.g. zip backups) instead of folders-only. */
   fileExtensions?: string[]
   /** Show editable path field + optional existence check (move-files mode). */
@@ -257,6 +262,7 @@ async function chooseDirNative() {
 }
 
 async function loadPlaces() {
+  if (props.directoryLoader) return
   try {
     const {data} = await typedApi.listBrowsePlaces()
     places.value = data.places

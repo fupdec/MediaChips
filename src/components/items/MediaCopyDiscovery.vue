@@ -3,9 +3,22 @@
     <h3 v-if="showHeading" class="text-subtitle-2 mb-2">{{ t('copyDiscovery.title') }}</h3>
     <p v-if="showHeading" class="text-caption mb-3">{{ t('copyDiscovery.hint') }}</p>
     <div class="copy-discovery__input">
+      <div class="copy-discovery__sources mb-3">
+        <v-autocomplete v-model="selectedSource" :items="sourceItems" item-value="id"
+          :label="t('copyDiscovery.saved_sources')" :loading="loadingSources"
+          :disabled="pending" clearable variant="outlined" density="compact" rounded="lg" hide-details />
+        <v-btn :disabled="pending || !activeSource" variant="tonal" prepend-icon="mdi-plus" @click="insertSource">
+          {{ t('copyDiscovery.insert_path') }}
+        </v-btn>
+        <v-btn :disabled="pending" variant="tonal" prepend-icon="mdi-folder-open-outline" @click="openBrowser">
+          {{ t('settings_labels.database.select_folder') }}
+        </v-btn>
+      </div>
+      <DialogBrowseFolder v-if="browserOpen" v-model="browserOpen" :initial-path="browserPath"
+        :directory-loader="browserLoader" :path-titles="browserTitles" @confirm="insertBrowsedFolders" />
       <label class="copy-discovery__label" :for="pathsId">{{ t('copyDiscovery.folders') }}</label>
       <v-textarea :id="pathsId" v-model="rootsText"
-        :rows="compact ? 2 : 3" auto-grow variant="solo-filled" flat :density="compact ? 'compact' : 'comfortable'" rounded="lg"
+        :rows="compact ? 2 : 3" auto-grow variant="outlined" :density="compact ? 'compact' : 'comfortable'" rounded="lg"
         hide-details :disabled="pending" />
       <p class="copy-discovery__hint"><v-icon size="16" aria-hidden="true">mdi-information-outline</v-icon>{{ t('copyDiscovery.folders_hint') }}</p>
       <div class="copy-discovery__actions">
@@ -79,6 +92,18 @@
 import {computed, ref, onMounted, onBeforeUnmount, watch, useId} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
+import {useWatcherStore} from '@/stores/watcher'
+import {apiClient} from '@/services/apiClient'
+import {sourceCatalogApi} from '@/services/typedApi/sourceCatalog'
+import type {NasConnection} from '@shared/nas'
+import {cloudMediaPath, parseCloudMediaPath, type CloudAccount, type CloudProvider} from '@shared/cloudAccounts'
+import {nasMediaPath} from '@shared/remoteMedia'
+import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
+import {listNasDirectory, nasBrowserPath, nasRelativePath} from '@/services/nasBrowse'
+import {driveBrowserRoot, driveFileIdFromPath, listDriveDirectory} from '@/services/driveBrowse'
+import {listCloudFolders} from '@/services/cloudFolderBrowse'
+import type {BrowseDirectoryLoader} from '@/services/typedApi/browse'
+import type {DriveStatus} from '@shared/cloudDrive'
 import {copyDiscoveryApi as api} from '@/services/typedApi/copyDiscovery'
 import type {CopyDiscoveryJob, CopyDiscoveryInput} from '@shared/copyDiscovery'
 const props = withDefaults(defineProps<{mediaId?: number; compact?: boolean; showHeading?: boolean; showResults?: boolean; collapseHistory?: boolean}>(), {
@@ -91,6 +116,110 @@ const {t, te} = useI18n()
 const app = useAppStore()
 const pathsId = useId()
 const rootsText = ref('')
+type Root = CopyDiscoveryInput['roots'][number]
+const rootId = (root: Root) => JSON.stringify([root.connectionId ?? null, root.key])
+const sourceItem = (title: string, root: Root, connection?: NasConnection | CloudAccount) =>
+  ({id: rootId(root), title, root, connection})
+const watcher = useWatcherStore()
+const remoteSources = ref<ReturnType<typeof sourceItem>[]>([])
+const selectedSource = ref<string | null>(null)
+const loadingSources = ref(false)
+const sourceItems = computed(() => [
+  ...watcher.folders.map(folder => sourceItem(folder.name || folder.path, {key: folder.path, excluded: folder.excludedPaths})),
+  ...remoteSources.value,
+])
+
+const activeSource = computed(() => sourceItems.value.find(item => item.id === selectedSource.value))
+const browserOpen = ref(false)
+const browserPath = ref('')
+const browserLoader = ref<BrowseDirectoryLoader>()
+const browserTitles = ref<Record<string, string>>({})
+let pathFromBrowser = (path: string) => path
+
+function appendPaths(paths: string[]) {
+  const existing = new Set(rootsText.value.split('\n').map(line => line.trim()))
+  const additions = [...new Set(paths)].filter(path => !existing.has(path))
+  if (!additions.length) return
+  const separator = rootsText.value && !rootsText.value.endsWith('\n') ? '\n' : ''
+  rootsText.value += separator + additions.join('\n')
+}
+
+function sourcePath(root: Root, provider?: CloudProvider) {
+  if (!root.connectionId) return root.key
+  if (root.connectionId === 'google-drive') return `gdrive://${root.key}`
+  return provider ? cloudMediaPath(provider, root.connectionId, root.key) : nasMediaPath(root.connectionId, root.key)
+}
+
+function insertSource() {
+  const source = activeSource.value
+  if (source) appendPaths([sourcePath(source.root, source.connection && 'provider' in source.connection ? source.connection.provider : undefined)])
+}
+
+function openBrowser() {
+  const source = activeSource.value
+  const connection = source?.connection
+  const key = source?.root.key ?? ''
+  browserPath.value = key
+  browserLoader.value = undefined
+  pathFromBrowser = path => path
+  if (connection && 'provider' in connection) {
+    const root = '/' + connection.name.replaceAll('/', '／')
+    const folderKey = (path: string) => path === root ? 'root' : decodeURIComponent(path.slice(path.lastIndexOf('/') + 1))
+    browserPath.value = key === 'root' ? root : `${root}/${encodeURIComponent(key)}`
+    browserLoader.value = input => listCloudFolders(connection.id, root, input)
+    pathFromBrowser = path => cloudMediaPath(connection.provider, connection.id, folderKey(path))
+  } else if (connection) {
+    browserPath.value = nasBrowserPath(connection.root, key)
+    browserLoader.value = input => listNasDirectory(connection, input)
+    pathFromBrowser = path => nasMediaPath(connection.id, nasRelativePath(connection.root, path))
+  } else if (source?.root.connectionId === 'google-drive') {
+    browserPath.value = key === 'root' ? driveBrowserRoot : `${driveBrowserRoot}/${key}`
+    browserLoader.value = listDriveDirectory
+    pathFromBrowser = path => `gdrive://${driveFileIdFromPath(path)}`
+  }
+  browserTitles.value = source && browserPath.value ? {[browserPath.value]: source.title} : {}
+  const loadDirectory = browserLoader.value
+  if (loadDirectory) {
+    const titles = browserTitles.value
+    browserLoader.value = async input => {
+      const result = await loadDirectory(input)
+      for (const entry of result.entries) titles[entry.path] = entry.name
+      return result
+    }
+  }
+  browserOpen.value = true
+}
+
+function insertBrowsedFolders(paths: string[]) {
+  appendPaths(paths.map(pathFromBrowser))
+}
+
+async function loadSources() {
+  loadingSources.value = true
+  const current = generation
+  const [nas, cloud, drive, catalog] = await Promise.allSettled([
+    apiClient.get<NasConnection[]>('/api/nas/connections'),
+    apiClient.get<CloudAccount[]>('/api/cloud-accounts'),
+    apiClient.get<DriveStatus>('/api/drive/status'),
+    sourceCatalogApi.roots(),
+  ])
+  if (current !== generation || stopped) return
+
+  const connections = [
+    ...(nas.status === 'fulfilled' ? nas.value.data.map(item => ({id: item.id, name: item.name, key: '', connection: item})) : []),
+    ...(cloud.status === 'fulfilled' ? cloud.value.data.filter(item => item.authenticated)
+      .map(item => ({id: item.id, name: item.name, key: 'root', connection: item})) : []),
+    ...(drive.status === 'fulfilled' && drive.value.data.authenticated
+      ? [{id: 'google-drive', name: t('drive.title'), key: 'root', connection: undefined}] : []),
+  ]
+  const folders = catalog.status === 'fulfilled' ? catalog.value.data : []
+  remoteSources.value = connections.flatMap(({id, name, key, connection}) => [
+    sourceItem(name, {connectionId: id, key}, connection),
+    ...folders.filter(folder => folder.connectionId === id && folder.rootKey !== key)
+      .map(folder => sourceItem(`${name} · ${folder.name || folder.rootKey}`, {connectionId: id, key: folder.rootKey}, connection)),
+  ])
+  loadingSources.value = false
+}
 const jobs = ref<CopyDiscoveryJob[]>([])
 const error = ref('')
 const pending = ref(false)
@@ -171,29 +300,38 @@ async function run(action: () => ReturnType<typeof api.job>) {
 }
 function start() {
   void run(() => {
-  const roots: CopyDiscoveryInput['roots'] = rootsText.value.split('\n').map(value => value.trim()).filter(Boolean).map(key => {
-    const nas = /^nas:\/\/([0-9a-f-]{36})\/(.*)$/i.exec(key)
-    if (nas) return {connectionId: nas[1], key: nas[2].split('/').map(decodeURIComponent).join('/')}
-    if (key.startsWith('gdrive://')) return {connectionId: 'google-drive', key: key.slice(9)}
-    return {key}
-  })
-  return api.create({roots, ...(props.mediaId ? {mediaId: props.mediaId} : {})})
+    const manualRoots: Root[] = rootsText.value.split('\n').map(value => value.trim()).filter(Boolean).map(key => {
+      const nas = /^nas:\/\/([0-9a-f-]{36})\/(.*)$/i.exec(key)
+      if (nas) return {connectionId: nas[1], key: nas[2].split('/').map(decodeURIComponent).join('/')}
+      const cloud = parseCloudMediaPath(key)
+      if (cloud) return {connectionId: cloud.connectionId, key: cloud.resourceKey}
+      const dropbox = /^dropbox:\/\/([0-9a-f-]{36})\/(.*)$/i.exec(key)
+      if (dropbox) {
+        const folder = decodeURIComponent(dropbox[2])
+        return {connectionId: dropbox[1], key: folder.startsWith('root/') ? folder.slice(4) : folder}
+      }
+      if (key.startsWith('gdrive://')) return {connectionId: 'google-drive', key: key.slice(9)}
+      return {key, excluded: watcher.folders.find(folder => folder.path === key)?.excludedPaths}
+    })
+    const roots = [...new Map(manualRoots.map(root => [rootId(root), root])).values()]
+    return api.create({roots, ...(props.mediaId ? {mediaId: props.mediaId} : {})})
   })
 }
-onMounted(() => { void load() })
+onMounted(() => { void load(); void loadSources() })
 onBeforeUnmount(() => { stopped = true; generation++; clearTimeout(timer) })
 watch([() => app.dbPath, () => app.localhost, () => props.mediaId], () => {
   generation++; clearTimeout(timer); jobs.value = []; pending.value = false; error.value = ''; rootsText.value = ''
-  void load()
+  selectedSource.value = null; remoteSources.value = []; browserOpen.value = false
+  void load(); void loadSources()
 })
 </script>
 
 <style scoped>
 .copy-discovery { margin-block: 16px; min-width: 0; }
 .copy-discovery__input { padding: 16px; border-radius: 14px; background: rgba(var(--v-theme-primary), .035); border: 1px solid rgba(var(--v-theme-primary), .09); margin-bottom: 20px; }
+.copy-discovery__sources { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.copy-discovery__sources > .v-autocomplete { flex: 1 1 200px; min-width: 0; }
 .copy-discovery__label { display: block; margin-bottom: 6px; font-size: .75rem; }
-.copy-discovery__input :deep(.v-field) { border: 1px solid rgba(var(--v-theme-on-surface), .22); }
-.copy-discovery__input :deep(.v-field--focused) { border-color: rgb(var(--v-theme-primary)); }
 .copy-discovery__input :deep(textarea) { font-family: monospace; font-size: .8125rem; line-height: 1.7; overflow-wrap: anywhere; }
 .copy-discovery__hint { display: flex; align-items: flex-start; gap: 7px; font-size: .75rem; line-height: 1.6; color: rgba(var(--v-theme-on-surface), .6); margin: 10px 0 16px; overflow-wrap: anywhere; }
 .copy-discovery__hint .v-icon { margin-top: 2px; flex-shrink: 0; }

@@ -252,58 +252,6 @@ async function controlCopyJob(job: CopyActivity, action: 'pause' | 'resume' | 'c
 }
 
 watch(() => app.dbPath, () => { copyJobs.value = []; copyError.value = false })
-if (import.meta.env.DEV) {
-  onMounted(() => {
-    if (notificationsStore.notifications.some(notification => notification.designSample)) return
-
-    const sample = {hidden: true, desktop: false, designSample: true}
-    notificationsStore.setNotification({
-      ...sample,
-      type: 'success',
-      title: 'Импорт завершён',
-      text: 'В библиотеку добавлено 24 файла.',
-    })
-    notificationsStore.setNotification({
-      ...sample,
-      type: 'error',
-      title: 'Не удалось открыть файл',
-      text: 'Сетевое хранилище недоступно. Проверьте подключение и попробуйте ещё раз.',
-      filePath: '/Volumes/Archive/Media/2026/Съёмка на побережье.mp4',
-    })
-    notificationsStore.setNotification({
-      ...sample,
-      type: 'warning',
-      title: 'Мало места на диске',
-      text: 'На диске осталось 1,2 ГБ. Для создания превью может понадобиться больше места.',
-    })
-    notificationsStore.setNotification({
-      ...sample,
-      type: 'info',
-      title: 'Найдены копии файлов',
-      text: 'Три файла уже есть в библиотеке.',
-      actions: [
-        {
-          id: 'review',
-          text: 'Посмотреть',
-          icon: 'file-find-outline',
-          action: ({id}: {id: number}) => notificationsStore.updateNotification(id, {
-            text: 'Совпадения проверены. Все три файла уже привязаны к библиотеке.',
-            actions: [],
-          }),
-        },
-        {id: 'dismiss', text: 'Закрыть', close: true},
-      ],
-    })
-    tasksStore.setTask({
-      title: 'Создание превью',
-      subtitle: 'Готово 23 из 60 файлов',
-      icon: 'image-multiple-outline',
-      color: 'primary',
-      progress: 38,
-      action: () => {},
-    })
-  })
-}
 
 onMounted(pollCopyJobs)
 onBeforeUnmount(() => {

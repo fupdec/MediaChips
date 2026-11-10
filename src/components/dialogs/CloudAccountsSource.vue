@@ -80,7 +80,7 @@
 import {remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 import {computed, onMounted, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {collectRemoteDirectoryPages} from '@/services/remoteDirectoryPages'
+import {listCloudFolders} from '@/services/cloudFolderBrowse'
 import type {BrowseDirectoryLoader} from '@/services/typedApi/browse'
 import {apiClient, buildApiUrl} from '@/services/apiClient'
 import {getAuthToken} from '@/services/authSession'
@@ -204,31 +204,10 @@ async function back() { folder.value = history.value.pop() || 'root'; selected.v
 // Include the account and folder ancestry so identical names in different trees stay independent.
 const exclusionRoot = computed(() => `/cloud-folders/${encodeURIComponent(accountId.value)}`)
 const folderTitles = ref<Record<string, string>>({})
-const loadExclusionDirectory: BrowseDirectoryLoader = async ({path, showHidden}) => {
-  const rootPath = exclusionRoot.value
-  if (path !== rootPath && !path.startsWith(`${rootPath}/`)) throw new Error('Folder belongs to a different cloud account')
-  const accountBase = base()
-  const parentPath = path === rootPath ? null : path.slice(0, path.lastIndexOf('/'))
-  const key = parentPath === null ? 'root' : decodeURIComponent(path.slice(path.lastIndexOf('/') + 1))
-  const {entries: children, truncated} = await collectRemoteDirectoryPages({
-    load: async pageToken => {
-      const {data} = await apiClient.get<{entries: Entry[]; nextPageToken?: string}>(`${accountBase}/files`, {params: {key, pageToken}})
-      return data
-    },
-  })
-  const folders = children.filter(entry => entry.isDirectory && (showHidden || !entry.name.startsWith('.'))).map(entry => ({
-    path: `${path}/${encodeURIComponent(entry.resourceKey)}`,
-    name: entry.name,
-    isDirectory: true,
-    size: null,
-    mtimeMs: null,
-    extension: null,
-    inLibrary: false,
-    mediaId: null,
-    addable: false,
-  }))
-  for (const entry of folders) folderTitles.value[entry.path] = entry.name
-  return {currentPath: path, rootPath, parentPath, entries: folders, truncated, platform: 'linux'}
+const loadExclusionDirectory: BrowseDirectoryLoader = async input => {
+  const result = await listCloudFolders(accountId.value, exclusionRoot.value, input)
+  for (const entry of result.entries) folderTitles.value[entry.path] = entry.name
+  return result
 }
 const exclusionBrowser = computed(() => ({
   baseUrl: app.localhost || '',

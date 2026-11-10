@@ -6,7 +6,7 @@
         icon="delete-sweep"
         :hint="t('settings_labels.database.clear_generated_images_hint')"
         status="error"
-        :status-label="t('settings_labels.database.health_guide_optional')"
+        :show-status="false"
         compact
       />
 

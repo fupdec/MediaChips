@@ -9,6 +9,7 @@ import {CopyDiscoveryInputSchema, type CopyDiscoveryInput, type CopyDiscoveryJob
 import {mediaFileKind, mediaFileContentType} from '../../../shared/mediaFormats'
 import {nasMediaPath, parseNasMediaPath} from '../../../shared/remoteMedia'
 import {driveMediaPath, parseDriveMediaPath, DriveFileIdSchema} from '../../../shared/cloudDrive'
+import {bindSourceProfile, isSourceProfileRemoved} from '../sourceProfiles'
 import {normalizeNasRelativePath} from '../nas/transport'
 import {invalidateMediaDerivedCaches} from '../mediaCacheInvalidation'
 import {copyVerificationMethod} from './copyVerification'
@@ -122,7 +123,7 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
           const existing = existingPath.get(filePath, filePath, filePath)
           insert.run(randomUUID(), job.id, filePath, file.name, file.size, file.version, existing ? 'existing' : ids.length ? 'candidate' : 'unmatched', JSON.stringify(ids))
         }
-        const first = root.connectionId && root.key === '' ? null
+        const first = root.connectionId && (root.key === '' || (adapter.provider === 'dropbox' && root.key === 'root')) ? null
           : await adapter.stat(root.key, AbortSignal.any([signal, AbortSignal.timeout(30_000)]))
         if (first && !first.isDirectory) { add(first); continue }
         const pending = [root.key]
@@ -265,17 +266,19 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
     create(raw: CopyDiscoveryInput, triggers: CopyDiscoveryTrigger[] = []) {
       const input = CopyDiscoveryInputSchema.parse(raw)
       const current = pinSourceDb(db).db
-      for (const root of input.roots) {
-        if (!root.connectionId) root.key = localOriginalKey(root.key)
-        else {
-          const connection = current.sqlite.prepare('SELECT provider FROM sourceConnections WHERE id = ?').get(root.connectionId) as {provider: string} | undefined
-          if (!connection) throw sourceError('connection_not_found', 404)
-          root.key = connection.provider === 'nas' ? normalizeNasRelativePath(root.key) : root.connectionId === 'google-drive' ? DriveFileIdSchema.parse(root.key) : CloudKeySchema.parse(root.key || 'root')
-        }
-      }
       if (input.mediaId && !current.sqlite.prepare('SELECT 1 FROM media WHERE id = ? AND deletedAt IS NULL').get(input.mediaId)) throw sourceError('media_not_found', 404)
       const id = randomUUID(), date = now()
       current.sqlite.transaction(() => {
+        for (const root of input.roots) {
+          if (!root.connectionId) root.key = localOriginalKey(root.key)
+          else {
+            if (isSourceProfileRemoved(current.sqlite, root.connectionId)) throw sourceError('connection_not_found', 404)
+            bindSourceProfile(current.sqlite, root.connectionId, ['nas', 'gdrive', 'onedrive', 'dropbox'])
+            const connection = current.sqlite.prepare('SELECT provider FROM sourceConnections WHERE id = ?').get(root.connectionId) as {provider: string} | undefined
+            if (!connection) throw sourceError('connection_not_found', 404)
+            root.key = connection.provider === 'nas' ? normalizeNasRelativePath(root.key) : root.connectionId === 'google-drive' ? DriveFileIdSchema.parse(root.key) : CloudKeySchema.parse(root.key || 'root')
+          }
+        }
         current.sqlite.prepare('INSERT INTO copyDiscoveryJobs (id,state,method,roots,mediaId,createdAt,updatedAt,triggers) VALUES (?,?,?,?,?,?,?,?)')
           .run(id, 'queued', copyVerificationMethod(current), JSON.stringify(input.roots), input.mediaId || null, date, date, JSON.stringify(triggers))
         if (!triggers.length) for (const root of input.roots) rememberCopyDiscoveryRoot(current, root, 'manual')

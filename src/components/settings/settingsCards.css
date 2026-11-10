@@ -407,6 +407,11 @@
   margin: 0;
 }
 
+.settings-page--styled-sections .health-section-header--error .health-section-header__icon {
+  background: rgba(var(--v-theme-error), .09) !important;
+  color: rgb(var(--v-theme-error)) !important;
+}
+
 .settings-page--styled-sections .health-section-header__icon > .v-icon,
 .settings-page--styled-sections .settings-category-divider > .v-icon {
   font-size: 20px !important;

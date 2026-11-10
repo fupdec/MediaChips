@@ -175,6 +175,8 @@ const en = {
 },
 
   copyDiscovery: {
+    insert_path: 'Insert path',
+    saved_sources: 'Saved sources',
     pause: 'Pause',
     resume: 'Resume',
     configure: 'Configure',
@@ -192,7 +194,7 @@ const en = {
     title: 'Find and link file copies',
     hint: 'Find files by size, compare their contents in the background, and link unambiguous matches to existing cards. Files and existing cards are kept. The library SHA-256 setting selects the comparison method.',
     folders: 'Folders or files to check',
-    folders_hint: 'One server path per line. NAS: nas://connection-id/folder · Drive: gdrive://folder-id. Checking continues after closing this panel.',
+    folders_hint: 'Enter one path per line. Insert a source path or pick a folder in the browser. You can edit the paths. Checking continues after closing this panel.',
     start: 'Find copies in the background', cancel: 'Stop', retry: 'Continue / retry', undo: 'Unlink and ignore this match',
     choose: 'Link to {name}',
     progress: '{total} files · {attached} linked · {pending} pending · {ambiguous} need a choice · {failed} errors',

@@ -6,7 +6,7 @@
         icon="database-remove-outline"
         :hint="t('settings_labels.database.library_reset_hint')"
         status="error"
-        :status-label="t('settings_labels.database.library_reset_not_trash')"
+        :show-status="false"
         compact
       />
 
