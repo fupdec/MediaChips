@@ -134,7 +134,7 @@
               <SettingsGenerateAutoChapters/>
               <SettingsLocalAi v-if="LOCAL_AI_UI_ENABLED"/>
               <SettingsSection id="settings-marker-moments">
-                <div class="mx-4 pb-4">
+                <div class="mx-4">
                   <SettingsCategoryDivider :title="t('marker_moments.title')" icon="image-search-outline"/>
                   <v-switch
                     v-model="markerMomentsEnabled"

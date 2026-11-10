@@ -230,7 +230,8 @@ async function pollCopyJobs() {
   } catch {
     // The backend can be briefly unavailable while switching libraries.
   } finally {
-    if (!copyPolling.signal.aborted) copyTimer = setTimeout(pollCopyJobs, 3000)
+    const busy = copyJobs.value.some(job => job.state !== 'paused')
+    if (!copyPolling.signal.aborted) copyTimer = setTimeout(pollCopyJobs, busy ? 3000 : 30000)
   }
 }
 

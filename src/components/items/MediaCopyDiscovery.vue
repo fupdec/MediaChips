@@ -98,6 +98,7 @@ let generation = 0
 let stopped = false
 let timer: ReturnType<typeof setTimeout> | undefined
 const active = (job: CopyDiscoveryJob) => ['queued', 'discovering', 'verifying', 'paused'].includes(job.state)
+const pollingDelay = () => jobs.value.some(job => active(job) && job.state !== 'paused') ? 2000 : 30000
 const jobGroups = computed(() => props.collapseHistory
   ? [
     {id: 'current', history: false, jobs: jobs.value.filter(active)},
@@ -130,7 +131,7 @@ async function load() {
     if (previous !== JSON.stringify(jobs.value.map(job => job.counts.attached || 0))) emit('changed')
   } catch (err) { if (current === generation && !stopped) showError(err) }
   finally {
-    if (current === generation && !stopped) timer = setTimeout(() => { void load() }, 2000)
+    if (current === generation && !stopped) timer = setTimeout(() => { void load() }, pollingDelay())
   }
 }
 async function clearHistory() {
@@ -152,7 +153,8 @@ async function clearHistory() {
 }
 async function run(action: () => ReturnType<typeof api.job>) {
   if (pending.value) return
-  const current = generation
+  const current = ++generation
+  clearTimeout(timer)
   pending.value = true; error.value = ''
   try {
     const result = await action()
@@ -160,7 +162,12 @@ async function run(action: () => ReturnType<typeof api.job>) {
     jobs.value = [result.data, ...jobs.value.filter(job => job.id !== result.data.id)]
     emit('changed')
   } catch (err) { if (current === generation && !stopped) showError(err) }
-  finally { if (current === generation) pending.value = false }
+  finally {
+    if (current === generation && !stopped) {
+      pending.value = false
+      timer = setTimeout(() => { void load() }, pollingDelay())
+    }
+  }
 }
 function start() {
   void run(() => {

@@ -1,6 +1,6 @@
 <template>
   <SettingsSection id="settings-local-ai">
-    <div class="mx-4 pb-4">
+    <div class="mx-4">
       <settings-category-divider
         :title="t('settings_labels.local_ai.title')"
         icon="robot-outline"

@@ -1,5 +1,5 @@
 <template>
-  <SettingsHealthTask id="settings-find-duplicates" status="idle" class="duplicates-section">
+  <section id="settings-find-duplicates" class="duplicates-section">
     <SettingsGroupLabel
       :title="t('settings_labels.database.find_duplicates')"
       icon="content-duplicate"
@@ -80,7 +80,7 @@
       </div>
       <MediaCopyDiscovery :show-heading="false" :show-results="false" collapse-history />
     </section>
-  </SettingsHealthTask>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -91,7 +91,6 @@ import MediaCopyDiscovery from '@/components/items/MediaCopyDiscovery.vue'
 import {computed, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import SettingsGroupLabel from '@/components/settings/SettingsGroupLabel.vue'
-import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {
@@ -151,13 +150,11 @@ async function openReview() {
 </script>
 
 <style scoped>
-.duplicates-section { background: transparent; border: 0; border-radius: 0; }
-.duplicates-section :deep(.health-task__rail) { display: none; }
-.duplicates-section :deep(.health-task__body) { padding: 0; }
-.duplicates-section__hint { margin: 8px 0 22px; font-size: .8125rem; line-height: 1.5; color: rgba(var(--v-theme-on-surface), .65); }
-.duplicates-panel { padding: 20px; margin-bottom: 16px; border: 1px solid rgba(var(--v-theme-on-surface), .09); border-radius: 18px; background: rgb(var(--v-theme-surface)); }
-.duplicates-panel:last-child { margin-bottom: 0; }
-.duplicates-panel__heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+.duplicates-section { display: grid; gap: var(--settings-block-gap, 16px); }
+.duplicates-section > :deep(.settings-group-label) { margin: 0; }
+.duplicates-section__hint { margin: 0; font-size: .8125rem; line-height: 1.5; color: rgba(var(--v-theme-on-surface), .65); }
+.duplicates-panel { padding: var(--settings-card-padding, 20px); border: 1px solid rgba(var(--v-theme-on-surface), .09); border-radius: 18px; background: rgb(var(--v-theme-surface)); }
+.duplicates-panel__heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: var(--settings-heading-gap, 12px); }
 .duplicates-panel__icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .08); }
 .duplicates-panel__heading h3 { font-size: .9375rem; font-weight: 600; line-height: 1.5; }
 .duplicates-panel__heading p { margin: 3px 0 0; font-size: .8125rem; line-height: 1.5; color: rgba(var(--v-theme-on-surface), .6); }
@@ -168,11 +165,11 @@ async function openReview() {
 .duplicates-setting :deep(.v-label) { margin-left: 8px !important; }
 .duplicates-setting :deep(.v-input__details) { display: none; }
 .duplicates-automation > :not(:last-child) { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), .06); }
-.duplicates-folders :deep(.copy-discovery) { margin: 0; }
+.duplicates-folders :deep(.copy-discovery),
+.duplicates-folders :deep(.copy-discovery > :last-child) { margin-block: 0; }
 .duplicates-folders :deep(.v-textarea textarea) { font-family: monospace; font-size: .8125rem; line-height: 1.6; }
 .duplicates-folders :deep(.copy-discovery__job) { border-color: rgba(var(--v-theme-on-surface), .07); }
 @media (max-width: 600px) {
-  .duplicates-panel { padding: 16px; }
   .duplicates-search__controls { grid-template-columns: minmax(0, 1fr); }
   .duplicates-search__actions > .v-btn:not(.button-documentation--dense) { flex: 1; }
 }

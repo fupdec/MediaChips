@@ -8,7 +8,7 @@
 .settings-list {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--settings-block-gap, 24px);
 }
 
 .settings-list > :slotted(*) {

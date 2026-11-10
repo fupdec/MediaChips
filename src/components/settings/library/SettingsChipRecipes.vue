@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-4 pb-4">
+  <div class="mx-4">
     <SettingsCategoryDivider
       :title="t('settings_labels.library.chip_recipes')"
       icon="puzzle-outline"

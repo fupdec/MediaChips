@@ -2,6 +2,7 @@
 .settings-page--styled-sections {
   --settings-card-radius: 24px;
   --settings-card-padding: 20px;
+  --settings-heading-gap: 12px;
 }
 
 .settings-page--styled-sections .settings-section,
@@ -30,11 +31,6 @@
   display: none;
 }
 
-.settings-page--styled-sections:not(.settings-page--maintenance) .health-task__body,
-.settings-page--styled-sections:not(.settings-page--maintenance) .health-task--compact .health-task__body {
-  padding: var(--settings-card-padding);
-}
-
 .settings-page--styled-sections:not(.settings-page--maintenance) .health-task--optional {
   border-style: solid;
 }
@@ -42,7 +38,7 @@
 .settings-page--styled-sections .settings-category-divider {
   gap: 12px;
   min-width: 0;
-  margin-bottom: 16px !important;
+  margin-bottom: var(--settings-heading-gap) !important;
 }
 
 .settings-page--styled-sections .settings-category-divider > .v-icon,
@@ -71,7 +67,7 @@
 .settings-page--styled-sections .health-section-header {
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: var(--settings-heading-gap);
 }
 
 .settings-page--styled-sections .health-section-header__icon > .v-icon {
@@ -87,14 +83,15 @@
 /* The section supplies the frame; inner groups only organize their content. */
 .settings-page--styled-sections .settings-section .settings-group-panel {
   padding: 0;
+  margin-bottom: 0;
   border: 0;
   background: transparent;
   border-radius: 0;
 }
 
 .settings-page--styled-sections .settings-section .settings-group-panel + .settings-group-panel {
-  margin-top: 24px;
-  padding-top: 24px;
+  margin-top: var(--settings-card-padding);
+  padding-top: var(--settings-card-padding);
   border-top: 1px solid rgba(var(--v-theme-on-surface), .08);
 }
 
@@ -174,6 +171,10 @@
 }
 
 /* Maintenance keeps its status treatments and hierarchy with the shared spacing. */
+.settings-page--maintenance {
+  --settings-block-gap: 16px;
+}
+
 .settings-page--maintenance .health-task__rail {
   display: none;
 }
@@ -184,8 +185,6 @@
   box-shadow: none;
 }
 
-.settings-page--maintenance .health-task__body,
-.settings-page--maintenance .health-task--compact .health-task__body,
 .settings-page--maintenance .health-guide__hero {
   padding: var(--settings-card-padding);
 }
@@ -393,7 +392,6 @@
 .settings-page--styled-sections .health-section-header {
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
 }
 
 .settings-page--styled-sections .settings-category-divider > .v-icon,
@@ -428,14 +426,6 @@
   font-size: .8125rem;
   line-height: 1.5;
   color: rgba(var(--v-theme-on-surface), .65);
-}
-
-.settings-page--maintenance .maintenance-task--compact .health-task__body {
-  padding: 14px 16px;
-}
-
-.settings-page--maintenance .maintenance-task--compact .health-section-header {
-  margin-bottom: 8px;
 }
 
 .settings-page--maintenance .maintenance-task--compact .health-progress {
