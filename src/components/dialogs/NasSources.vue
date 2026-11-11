@@ -29,8 +29,14 @@
                :aria-label="t('nas.disconnect')" v-tooltip:top="t('nas.disconnect')" :disabled="busy" @click="disconnect">
           <v-icon size="18" icon="mdi-link-off" />
         </v-btn>
+        <v-btn v-if="selected" size="small" variant="text" rounded="lg" icon="mdi-delete-outline"
+               :aria-label="t('sources.remove_connection')" v-tooltip:top="t('sources.remove_connection')"
+               :disabled="busy || saving || editing" @click="confirmRemoval = true" />
       </div>
     </div>
+    <DialogConfirm v-model:dialog="confirmRemoval" variant="delete" @confirm="removeConnection">
+      {{ t('sources.remove_connection_confirm', {name: selected?.name || ''}) }}
+    </DialogConfirm>
     <SourceHealth v-if="selected" :state="!selected.hasCredentials ? 'disconnected' : health[selected.id]?.state || 'unchecked'"
                   :disabled="busy || saving || editing" @reconnect="editConnection">
       <template #retry>
@@ -142,6 +148,7 @@
 </template>
 
 <script setup lang="ts">
+import DialogConfirm from './DialogConfirm.vue'
 import {sourceRateLimited, sourceFailure, type SourceFailure} from '@shared/sourceErrors'
 import SourceCatalogControls from './SourceCatalogControls.vue'
 import DialogOriginalOperations from './DialogOriginalOperations.vue'
@@ -326,6 +333,22 @@ async function saveConnection() {
     const response = (err as {response?: {data?: {fingerprint?: string}}})?.response?.data
     fingerprint.value = response?.fingerprint || ''; formError.value = apiError(err)
   } finally { if (current === generation) saving.value = false }
+}
+const confirmRemoval = ref(false)
+async function removeConnection() {
+  const connection = selected.value
+  if (!connection || busy.value || saving.value) return
+  const current = generation
+  busy.value = true
+  try {
+    await apiClient.delete(`/api/nas/connections/${connection.id}`)
+    if (current !== generation) return
+    connections.value = connections.value.filter(item => item.id !== connection.id)
+    entries.value = []; selectedPaths.value = []; message.value = ''
+    delete health.value[connection.id]
+    selectedId.value = connections.value[0]?.id
+  } catch (err) { if (current === generation) { error.value = true; message.value = apiError(err) } }
+  finally { if (current === generation) busy.value = false }
 }
 async function disconnect() {
   if (!selectedId.value || busy.value) return

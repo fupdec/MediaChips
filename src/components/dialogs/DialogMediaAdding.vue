@@ -82,11 +82,6 @@
                                   hide-details class="mt-0" density="compact" @update:model-value="onFastImportToggle" />
                       <p class="import-option__hint">{{ t('media.adding.fast_import_hint') }}</p>
                     </div>
-                    <div class="import-option">
-                      <v-checkbox v-model="mediaAddingState.is_check_duplicates"
-                                  :disabled="sourceBusy || mediaAddingState.is_fast_import" color="primary"
-                                  :label="t('media.adding.check_duplicates')" class="mt-0" hide-details density="compact" />
-                    </div>
                     <div v-if="isImageAdding" class="import-option__note">
                       <v-icon icon="mdi-check-circle-outline" size="16" />
                       <span>{{ t('media.adding.images_skip_by_path_hint') }}</span>
@@ -347,7 +342,6 @@ const onFastImportToggle = (value: boolean | null) => {
   tasksStore.mediaAdding.is_fast_import = enabled
   if (enabled) {
     tasksStore.mediaAdding.is_parsing = false
-    tasksStore.mediaAdding.is_check_duplicates = false
   }
 }
 
@@ -391,12 +385,6 @@ function openBrowsePlace(nextPath: string) {
 function onBrowserSelection(paths: string[]) {
   selectedBrowserPaths.value = paths
   onPathsInput(paths.join('\n'))
-  // Folder picks are the large-library case — prefer server-side roots walk.
-  if (paths.length && !tasksStore.mediaAdding.fast_import_locked) {
-    tasksStore.mediaAdding.is_fast_import = true
-    tasksStore.mediaAdding.is_parsing = false
-    tasksStore.mediaAdding.is_check_duplicates = false
-  }
 }
 
 const selectMultipleFiles = async () => {
@@ -414,11 +402,6 @@ const selectMultipleDirectories = async () => {
   const paths = await showOpenDialog(['openDirectory', 'multiSelections'])
   if (!paths?.length) return
   appendLocalPaths(paths)
-  if (!tasksStore.mediaAdding.fast_import_locked) {
-    tasksStore.mediaAdding.is_fast_import = true
-    tasksStore.mediaAdding.is_parsing = false
-    tasksStore.mediaAdding.is_check_duplicates = false
-  }
 }
 
 const handleAddMedia = async () => {
@@ -455,6 +438,7 @@ const resetDialogState = () => {
   syncMediaTypeFromContext()
   tasksStore.mediaAdding.paths = props.initialPaths || ''
   tasksStore.mediaAdding.skipFileScan = Boolean(props.initialPaths)
+  tasksStore.mediaAdding.is_fast_import = false
   tasksStore.mediaAdding.fast_import_locked = false
   tasksStore.mediaAdding.directFiles = props.initialPaths
     ? props.initialPaths.split('\n').map((row) => row.trim()).filter(Boolean)

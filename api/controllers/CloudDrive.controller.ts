@@ -1,4 +1,4 @@
-import {callbackReachesApi} from '../services/cloudOAuthCallback'
+import {callbackReachesApi, localCloudCallback} from '../services/cloudOAuthCallback'
 import {notifyCopySourceConnected} from '../services/mediaSources/copyDiscoveryTriggers'
 import {pinSourceDb} from '../services/mediaSources/context'
 import {offlinePlayback, sendOfflineFile} from '../services/mediaSources/offline'
@@ -7,7 +7,7 @@ import {driveMediaPath} from '../../shared/cloudDrive'
 import type {Request, Response} from 'express'
 import {sourceRetryAfter, sourceFailure, sourceRateLimited} from '../../shared/sourceErrors'
 import {getCloudDriveService, resetCloudDriveService} from '../services/cloudDrive'
-import {saveDriveConfiguration} from '../services/cloudDrive/config'
+import {hasSavedDriveConfiguration, removeDriveConfiguration, saveDriveConfiguration} from '../services/cloudDrive/config'
 import {listDriveFolder, importDriveFile, driveLibraryFile} from '../services/cloudDrive/library'
 import {DriveImportSchema, DriveFileIdSchema, isDriveMediaPath} from '../../shared/cloudDrive'
 import {WebVideoFrameSchema} from '../../shared/webVideo'
@@ -35,12 +35,15 @@ function createCloudDriveController(db: ApiDb) {
     res.status(status === 401 ? 409 : status).json({code: driveOAuthErrorCode(err), message: err instanceof z.ZodError ? 'Invalid Google Drive request.' : err instanceof Error ? err.message : 'Google Drive request failed.'})
   }
   const callbackPage = (res: Response, ok: boolean, code: DriveOAuthErrorCode = 'unknown') => res.status(ok ? 200 : 400).type('html').send(`<!doctype html><html><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>MediaChips · Google Drive</title><body><p>${ok ? 'Google Drive connected. You can close this window. / Google Drive подключён. Можно закрыть это окно.' : driveOAuthErrorMessages[code]}</p><script>window.close()</script></body></html>`)
-  return {
+  const controller = {
     async status(req: Request, res: Response) {
       res.setHeader('Cache-Control', 'no-store')
       const service = getCloudDriveService()
       res.json({
         ...service.status(),
+        hasSavedConfiguration: hasSavedDriveConfiguration(),
+        suggestedRedirectUri: localCloudCallback(req.socket.localPort!, 'drive'),
+        redirectUriMismatch: !callbackReachesApi(service.config.redirectUri, req.socket.localPort),
         oauthResult: typeof req.query.oauthState === 'string' ? service.oauthResult(req.query.oauthState) : undefined,
         oauthError: typeof req.query.oauthState === 'string' ? service.oauthError(req.query.oauthState) : undefined,
         approach: 'server-side-range-proxy',
@@ -54,6 +57,7 @@ function createCloudDriveController(db: ApiDb) {
         const service = getCloudDriveService()
         if (!callbackReachesApi(service.config.redirectUri, _req.socket.localPort)) throw new DriveOAuthError('redirect_uri_mismatch')
         if (!service.config.mock) await validateOAuthClient(service.config)
+        if (service !== getCloudDriveService()) throw new DriveOAuthError('cancelled')
         const url = service.getAuthUrl()
         playback.invalidate()
         res.json({url, oauthState: new URL(url).searchParams.get('state'), redirectUri: service.config.redirectUri, scopes: service.config.scopes})
@@ -95,7 +99,7 @@ function createCloudDriveController(db: ApiDb) {
         await saveDriveConfiguration(req.body, req.socket.localPort)
         playback.invalidate()
         resetCloudDriveService()
-        res.json(getCloudDriveService().status())
+        await controller.status(req, res)
       } catch (err) { failure(res, err) }
     },
 
@@ -128,6 +132,17 @@ function createCloudDriveController(db: ApiDb) {
         const state = z.object({oauthState: z.string().regex(/^[a-f0-9]{64}$/)}).strict().parse(req.body).oauthState
         getCloudDriveService().cancelOAuthState(state)
         res.json({ok: true})
+      } catch (err) { failure(res, err) }
+    },
+
+    async removeConfiguration(req: Request, res: Response) {
+      try {
+        getCloudDriveService().logout()
+        removeDriveConfiguration()
+        resetCloudDriveService()
+        playback.invalidate()
+        markCatalogSourceDisconnected(db, DEFAULT_DRIVE_CONNECTION_ID)
+        await controller.status(req, res)
       } catch (err) { failure(res, err) }
     },
 
@@ -174,6 +189,7 @@ function createCloudDriveController(db: ApiDb) {
       }
     },
   }
+  return controller
 }
 
 export default createCloudDriveController

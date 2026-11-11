@@ -9,7 +9,7 @@ import {z} from 'zod'
 import type {ApiDb} from '../types/db'
 import {getCloudAccounts} from '../services/cloudAccounts/accounts'
 import {importCloudFile} from '../services/cloudAccounts/library'
-import {CloudKeySchema, isCloudMediaPath} from '../../shared/cloudAccounts'
+import {CloudAccountInputSchema, CloudProviderSchema, CloudKeySchema, isCloudMediaPath} from '../../shared/cloudAccounts'
 import {resolveMediaLocation} from '../services/mediaSources/locations'
 import {pinSourceDb} from '../services/mediaSources/context'
 import {offlinePlayback} from '../services/mediaSources/offline'
@@ -60,7 +60,26 @@ export default function registerCloudAccounts(app: Express, db: ApiDb) {
       .filter(item => item && isCloudMetadataPath(item.path))
     res.json({items})
   }))
-  router.get('/configuration', route((req, res) => { res.json({redirectUri: localCloudCallback(req.socket.localPort!, 'cloud-accounts'), mode: 'local-credentials'}) }))
+  const managedProviders = {gdrive: ['GOOGLE', 'Google Drive'], onedrive: ['ONEDRIVE', 'OneDrive'], dropbox: ['DROPBOX', 'Dropbox']} as const
+  function managedInput(provider: keyof typeof managedProviders, port: number | undefined) {
+    const [prefix, name] = managedProviders[provider]
+    const clientId = process.env[`MEDIA_CHIPS_CLOUD_${prefix}_CLIENT_ID`]?.trim()
+    const clientSecret = process.env[`MEDIA_CHIPS_CLOUD_${prefix}_CLIENT_SECRET`]?.trim()
+    const redirectUri = process.env.MEDIA_CHIPS_CLOUD_REDIRECT_URI?.trim()
+    if (!clientId || !clientSecret || !redirectUri) return
+    const parsed = CloudAccountInputSchema.safeParse({provider, name, clientId, clientSecret, redirectUri})
+    if (parsed.success && callbackReachesApi(redirectUri, port)) return parsed.data
+  }
+  router.get('/configuration', route((req, res) => {
+    const managed = CloudProviderSchema.options.filter(provider => managedInput(provider, req.socket.localPort))
+    res.json({redirectUri: localCloudCallback(req.socket.localPort!, 'cloud-accounts'), mode: 'local-credentials', managed})
+  }))
+  router.post('/managed', route((req, res) => {
+    const {provider} = z.object({provider: CloudProviderSchema}).strict().parse(req.body)
+    const input = managedInput(provider, req.socket.localPort)
+    if (!input) throw Object.assign(new Error('Cloud provider is not configured on this server.'), {code: 'managed_oauth_unavailable', status: 409})
+    res.status(201).json(accounts.create(db, input))
+  }))
   router.get('/', route((_req, res) => { res.json(accounts.list(db)) }))
   router.post('/', route((req, res) => { res.status(201).json(accounts.create(db, req.body)) }))
   router.put('/:id/configuration', route((req, res) => { const account = accounts.configure(db, id(req), req.body); playback.invalidate(id(req)); res.json(account) }))
@@ -77,6 +96,13 @@ export default function registerCloudAccounts(app: Express, db: ApiDb) {
       res.type('html').send('<!doctype html><meta charset="utf-8"><meta name="referrer" content="no-referrer"><p>Облачный аккаунт подключён. Cloud account connected. Можно закрыть окно.</p>')
     } catch { res.status(400).type('text').send('Authorization failed or expired. Start sign-in again in MediaChips.') }
   })
+  router.delete('/:id', route((req, res) => {
+    const accountId = id(req)
+    accounts.remove(db, accountId)
+    playback.invalidate(accountId)
+    markCatalogSourceDisconnected(db, accountId)
+    res.json({ok: true})
+  }))
   router.post('/:id/logout', route((req, res) => { accounts.logout(db, id(req)); playback.invalidate(id(req)); markCatalogSourceDisconnected(db, id(req)); res.json({ok: true}) }))
   router.get('/:id/files', route(async (req, res) => {
     const pinned = pinSourceDb(db), adapter = accounts.adapter(pinned.db, id(req))

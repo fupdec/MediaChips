@@ -1,4 +1,4 @@
-import {bindSourceProfile, listSourceProfiles} from '../sourceProfiles'
+import {bindSourceProfile, isSourceProfileRemoved, listSourceProfiles, removeSourceProfile} from '../sourceProfiles'
 import {randomBytes, randomUUID, createHash} from 'crypto'
 import path from 'path'
 import os from 'os'
@@ -30,7 +30,7 @@ export function createCloudAccounts(directory = path.join(process.env.MEDIA_CHIP
   const row = (db: ApiDb, id: string) => {
     bindSourceProfile(db.sqlite, id, ['gdrive', 'onedrive', 'dropbox'])
     const account = db.drizzle.select().from(sourceConnections).where(eq(sourceConnections.id, id)).get()
-    if (!account || !['gdrive', 'onedrive', 'dropbox'].includes(account.provider) || account.credentialRef !== id) throw failure('account_not_found', 404)
+    if (!account || isSourceProfileRemoved(db.sqlite, id) || !['gdrive', 'onedrive', 'dropbox'].includes(account.provider) || account.credentialRef !== id) throw failure('account_not_found', 404)
     return account
   }
   const exchange = async (id: string, value: PrivateAccount, fields: Record<string, string>, signal?: AbortSignal) => {
@@ -132,6 +132,14 @@ export function createCloudAccounts(directory = path.join(process.env.MEDIA_CHIP
       const value = get(id)
       save(id, {...value, accessToken: undefined, refreshToken: undefined, expiresAt: undefined, generation: randomUUID()})
       for (const [state, entry] of pending) if (entry.id === id) pending.delete(state)
+    },
+    remove(db: ApiDb, id: string) {
+      if (isSourceProfileRemoved(db.sqlite, id)) return
+      row(db, id)
+      vault.delete(id)
+      for (const [state, entry] of pending) if (entry.id === id) pending.delete(state)
+      for (const [state, outcome] of outcomes) if (outcome.id === id) outcomes.delete(state)
+      removeSourceProfile(db.sqlite, id)
     },
     adapter(db: ApiDb, id: string) {
       const account = row(db, id)

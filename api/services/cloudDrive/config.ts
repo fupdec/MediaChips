@@ -73,4 +73,7 @@ async function saveDriveConfiguration(raw: unknown, apiPort?: number) {
   // Credentials changed: the previous account authorization cannot be reused.
   createTokenStore(previous.tokenStorePath).clear()
 }
+export function hasSavedDriveConfiguration() { return driveConfigVault().has(CONFIG_ID) }
+export function removeDriveConfiguration() { driveConfigVault().delete(CONFIG_ID) }
+
 export {getDriveConfig, resolveTokenStorePath, saveDriveConfiguration}

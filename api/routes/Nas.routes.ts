@@ -26,6 +26,7 @@ export default function registerNas(app: Express, db: ApiDb, service: NasService
   router.get('/connections', handle((_req, res) => res.json(service.connections(db))))
   router.post('/connections', validateBody(NasConnectionSchema), handle(async (req, res) => res.json(await service.saveConnection(db, req.body))))
   router.put('/connections/:id', validateBody(NasConnectionSchema), handle(async (req, res) => res.json(await service.saveConnection(db, req.body, connectionId(req)))))
+  router.delete('/connections/:id', handle((req, res) => { service.removeConnection(db, connectionId(req)); res.json({ok: true}) }))
   router.post('/connections/:id/disconnect', handle((req, res) => { service.disconnect(db, connectionId(req)); res.json({ok: true}) }))
   router.get('/connections/:id/files', handle(async (req, res) => {
     const query = NasListSchema.parse(req.query)

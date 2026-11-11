@@ -1,4 +1,4 @@
-import {bindSourceProfile, listSourceProfiles} from '../sourceProfiles'
+import {bindSourceProfile, isSourceProfileRemoved, listSourceProfiles, removeSourceProfile} from '../sourceProfiles'
 import {requestAutomaticCopyDiscovery, notifyCopySourceConnected} from '../mediaSources/copyDiscoveryTriggers'
 import {offlinePlayback, sendOfflineFile} from '../mediaSources/offline'
 import {randomUUID, createHash} from 'crypto'
@@ -18,6 +18,7 @@ import {NAS_SOURCE_CAPABILITIES} from '../../../shared/mediaSources'
 import {createNasSourceAdapter} from '../mediaSources/nasAdapter'
 import {nasFileVersion, type SourceReadAdapter} from '../mediaSources/adapter'
 import {resolveMediaLocation, nasVersionMatches} from '../mediaSources/locations'
+import {computeSourceOshash} from '../mediaSources/oshash'
 import {parseSourceRange} from '../mediaSources/range'
 import {createNasCredentialStore, type NasCredentialStore, type NasCredentials} from './credentials'
 import {connectNas, normalizeNasRelativePath, type NasTransport, type NasFile} from './transport'
@@ -59,7 +60,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
   const connectionRow = (db: ApiDb, id: string) => {
     bindSourceProfile(db.sqlite, id, ['nas'])
     const row = db.drizzle.select().from(sourceConnections).where(eq(sourceConnections.id, id)).get()
-    if (!row || row.provider !== 'nas') throw new NasError('connection_not_found', 'NAS connection is unavailable in this library.', 404)
+    if (!row || row.provider !== 'nas' || isSourceProfileRemoved(db.sqlite, id)) throw new NasError('connection_not_found', 'NAS connection is unavailable in this library.', 404)
     return row
   }
   const publicConnection = (row: typeof sourceConnections.$inferSelect): NasConnection => {
@@ -72,7 +73,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     const hasPrivateKey = Boolean(credentials.privateKey)
     return {...config, id: row.id, hasCredentials: hasPassword || hasPrivateKey, hasPassword, hasPrivateKey, capabilities: NAS_SOURCE_CAPABILITIES}
   }
-  const withTransport = async <T>(db: ApiDb, id: string, action: (transport: SourceReadAdapter, assertCurrent: () => void) => Promise<T>, signal?: AbortSignal) => {
+  const withTransport = async <T>(db: ApiDb, id: string, action: (transport: SourceReadAdapter, assertCurrent: () => void, signal: AbortSignal) => Promise<T>, signal?: AbortSignal) => {
     const library = libraryKey(db)
     const sqlite = db.sqlite
     const row = connectionRow(db, id)
@@ -91,7 +92,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     try {
       transport = await connect(NasConnectionSchema.parse(JSON.parse(row.config)), secrets.get(row.credentialRef), controller.signal)
       assertCurrent()
-      const result = await action(createNasSourceAdapter(transport), assertCurrent)
+      const result = await action(createNasSourceAdapter(transport), assertCurrent, controller.signal)
       assertCurrent()
       return result
     } finally { clearTimeout(timer); signal?.removeEventListener('abort', abort); untrack(); transport?.close() }
@@ -104,13 +105,14 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     if (!kind) throw new NasError('unsupported_format', 'Select a supported video, audio or image file.', 415)
     return {resourceKey, ext, kind}
   }
-  const storeFile = (db: ApiDb, connectionId: string, input: string, file: NasFile) => {
+  const storeFile = async (db: ApiDb, connectionId: string, input: string, file: NasFile,
+    assertCurrent: () => void, signal: AbortSignal) => {
     const {resourceKey, ext, kind} = importPath(input)
     if (file.isDirectory || !Number.isSafeInteger(file.size) || file.size <= 0) throw new NasError('invalid_file', 'Select a non-empty media file.')
     const repo = createMediaRepository(db.drizzle)
     const version = fileVersion(file)
-    const existingLocation = db.drizzle.select().from(mediaLocations).where(and(eq(mediaLocations.connectionId, connectionId), eq(mediaLocations.resourceKey, resourceKey))).all()
-      .find(location => nasVersionMatches(location.version, version))
+    const locationsAtPath = db.drizzle.select().from(mediaLocations).where(and(eq(mediaLocations.connectionId, connectionId), eq(mediaLocations.resourceKey, resourceKey))).all()
+    const existingLocation = locationsAtPath.find(location => nasVersionMatches(location.version, version))
     if (existingLocation) {
       const existing = repo.findById(existingLocation.mediaId)
       if (existing?.deletedAt) throw new NasError('in_trash', 'Restore this file from Trash before importing it again.', 409)
@@ -123,6 +125,23 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     }
     const type = createMediaTypesRepository(db.drizzle).findByType(kind)
     if (!type) throw new NasError('media_type', 'This media type is not configured.')
+    let oshash: string | undefined
+    if (file.size > 8) {
+      const row = connectionRow(db, connectionId)
+      const config = NasConnectionSchema.parse(JSON.parse(row.config))
+      const credentials = secrets.get(row.credentialRef)
+      const sampled = await computeSourceOshash(async sampleSignal => {
+        return createNasSourceAdapter(await connect(config, credentials, sampleSignal))
+      }, resourceKey, {
+        signal, assertCurrent,
+        validate(current) {
+          if (current.version !== version) throw new NasError('file_changed', 'NAS file changed during import.', 409)
+        },
+      })
+      oshash = sampled.value
+    }
+
+    assertCurrent()
     const result = db.drizzle.transaction(tx => {
       const txRepo = createMediaRepository(tx)
       const item = txRepo.findOrCreateByPath(nasMediaPath(connectionId, resourceKey, createHash('sha256').update(version).digest('hex')), {
@@ -131,6 +150,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
       })
       if (item.row.deletedAt) throw new NasError('in_trash', 'Restore this file from Trash before importing it again.', 409)
       tx.insert(mediaLocations).values({id: randomUUID(), mediaId: item.row.id, connectionId, resourceKey, version: fileVersion(file), availability: 'available', lastVerifiedAt: new Date().toISOString()}).onConflictDoNothing().run()
+      if (item.created && oshash) txRepo.updateById(item.row.id, {oshash})
       if (item.created && kind !== 'image') createVideoMetadataRepository(tx).create({mediaId: item.row.id, duration: 0})
       return {id: item.row.id, title: item.row.name || path.posix.basename(resourceKey), created: item.created}
     })
@@ -142,6 +162,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     connections(db: ApiDb): NasConnection[] { return listSourceProfiles(db.sqlite, 'nas').map(publicConnection) },
     async saveConnection(db: ApiDb, raw: NasConnectionInput, id: string = randomUUID()) {
       const input = NasConnectionSchema.parse(raw)
+      if (isSourceProfileRemoved(db.sqlite, id)) throw new NasError('connection_not_found', 'NAS connection was removed.', 404)
       const library = libraryKey(db)
       const old = bindSourceProfile(db.sqlite, id, ['nas']) || db.drizzle.select().from(sourceConnections).where(eq(sourceConnections.id, id)).get()
       if (old && old.provider !== 'nas') throw new NasError('connection_identity', 'This connection belongs to another provider.', 409)
@@ -158,6 +179,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
         transport = await connect(input, secret, controller.signal)
         await transport.list('')
         if (libraryKey(db) !== library || db.sqlite !== sqlite) throw new NasError('library_changed', 'The active library changed. Try again.', 409)
+        if (isSourceProfileRemoved(sqlite, id)) throw new NasError('connection_not_found', 'NAS connection was removed.', 404)
         if (old) {
           const previous = NasConnectionSchema.parse(JSON.parse(old.config))
           if (['protocol', 'host', 'port', 'username', 'root'].some(k => previous[k as keyof NasConnectionInput] !== input[k as keyof NasConnectionInput])) {
@@ -183,6 +205,11 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
       markCatalogSourceDisconnected(db, id)
       // Keep connection metadata and media locations so re-authentication preserves identity.
     },
+    removeConnection(db: ApiDb, id: string) {
+      if (isSourceProfileRemoved(db.sqlite, id)) return
+      this.disconnect(db, id)
+      removeSourceProfile(db.sqlite, id)
+    },
     async list(db: ApiDb, id: string, relative: string, pageToken?: string) {
       const normalized = normalizeNasRelativePath(relative)
       const page = await withTransport(db, id, transport => transport.list(normalized, pageToken))
@@ -192,7 +219,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
         eq(mediaLocations.connectionId, id), inArray(mediaLocations.resourceKey, filePaths),
       )).all() : []
       const imported = new Map(locations.map(location => [JSON.stringify([location.resourceKey, location.version]), location.mediaId]))
-      if (!pageToken) requestAutomaticCopyDiscovery(db, [{connectionId: id, key: normalized}], 'folder_update')
+      // Browsing a folder is not a folder update; copy discovery runs only after reconciliation or watched-folder changes.
       return {path: normalized, entries: visible.map(entry => ({...entry,
         mediaId: entry.isDirectory ? null : imported.get(JSON.stringify([entry.path, fileVersion(entry)])) ?? null,
       })),
@@ -200,23 +227,26 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     },
     async importFile(db: ApiDb, connectionId: string, input: string) {
       const {resourceKey} = importPath(input)
-      const file = await withTransport(db, connectionId, transport => transport.stat(resourceKey))
-      const result = storeFile(db, connectionId, resourceKey, file)
+      const result = await withTransport(db, connectionId, async (transport, assertCurrent, signal) => {
+        const file = await transport.stat(resourceKey, signal)
+        assertCurrent()
+        return storeFile(db, connectionId, resourceKey, file, assertCurrent, signal)
+      })
       invalidateMediaDerivedCaches()
       return result
     },
     async importFiles(db: ApiDb, connectionId: string, inputs: string[], signal?: AbortSignal): Promise<{results: NasImportResult[]}> {
       if (!inputs.length || inputs.length > 20) throw new NasError('invalid_request', 'Select between 1 and 20 files per request.', 400)
       try {
-        return await withTransport(db, connectionId, async (transport, assertCurrent) => {
+        return await withTransport(db, connectionId, async (transport, assertCurrent, importSignal) => {
           const results: NasImportResult[] = []
           for (const input of new Set(inputs)) {
             assertCurrent()
             try {
               const {resourceKey} = importPath(input)
-              const file = await transport.stat(resourceKey)
+              const file = await transport.stat(resourceKey, importSignal)
               assertCurrent()
-              results.push({path: input, ok: true, ...storeFile(db, connectionId, resourceKey, file)})
+              results.push({path: input, ok: true, ...await storeFile(db, connectionId, resourceKey, file, assertCurrent, importSignal)})
             } catch (err) {
               assertCurrent()
               const error = normalizeNasError(err)

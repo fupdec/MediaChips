@@ -61,7 +61,7 @@ describe('Google Drive library import', () => {
     expect(createNasService().connections(db)).toEqual([])
     const listed = await listDriveFolder(db, service, 'root')
     expect(listed.files.find(file => file.id === fileId)?.mediaId).toBe(added.id)
-    expect(fixture.sqlite.prepare("SELECT q.reasons FROM copyDiscoveryAutoRequests q JOIN copyDiscoveryAutoRoots r ON r.id = q.rootId WHERE r.key = 'root'").get()).toEqual({reasons: JSON.stringify(['folder_update'])})
+    expect(fixture.sqlite.prepare("SELECT q.reasons FROM copyDiscoveryAutoRequests q JOIN copyDiscoveryAutoRoots r ON r.id = q.rootId WHERE r.key = 'root'").get()).toBeUndefined()
     expect(await collectMissingMediaByPathExist([{id: row.id, path: row.path}], {pathExists: async () => false})).toEqual([])
   })
   it('deduplicates overlapping imports and isolates invalid files without reading originals', async () => {

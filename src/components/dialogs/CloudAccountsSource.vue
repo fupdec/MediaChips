@@ -2,15 +2,19 @@
   <div class="cloud-accounts-source">
     <v-alert v-if="error" type="error" closable @click:close="error = ''" class="mb-3">{{ error }}</v-alert>
     <v-alert v-if="authMessage" type="info" class="mb-3">{{ authMessage }}</v-alert>
-    <v-btn v-if="authAttempt" @click="cancelSignIn">{{ tr('Отменить вход', 'Cancel sign-in') }}</v-btn>
+    <v-btn v-if="authAttempt" variant="flat" color="primary" rounded="lg" @click="cancelSignIn">{{ tr('Отменить вход', 'Cancel sign-in') }}</v-btn>
     <v-select v-if="!unified" v-model="accountId" :items="visibleAccounts" item-title="name" item-value="id" :label="tr('Облачный аккаунт', 'Cloud account')" :disabled="busy" variant="outlined" density="compact" hide-details class="mb-3" @update:model-value="resetFolder" />
     <div v-if="!unified" class="d-flex flex-wrap ga-2 mb-4 account-toolbar">
       <v-btn v-if="!unified" @click="addAccount" :disabled="busy" prepend-icon="mdi-plus">{{ tr('Добавить аккаунт', 'Add account') }}</v-btn>
       <v-btn v-if="account" :disabled="busy" @click="editAccount">{{ tr('Настроить аккаунт', 'Configure account') }}</v-btn>
-      <v-btn v-if="account" :disabled="busy" @click="connect">{{ tr('Подключить / сменить вход', 'Connect / sign in again') }}</v-btn>
+      <v-btn v-if="account" :disabled="busy" @click="connect()">{{ tr('Подключить / сменить вход', 'Connect / sign in again') }}</v-btn>
+      <v-btn v-if="account" :disabled="busy" @click="removeAccount">{{ t('sources.remove_connection') }}</v-btn>
       <v-btn v-if="account?.authenticated" :disabled="busy" @click="logout">{{ tr('Отключить', 'Disconnect') }}</v-btn>
       <v-btn v-if="!unified" icon="mdi-refresh" variant="tonal" color="primary" rounded="lg" :disabled="busy" :aria-label="tr('Обновить', 'Refresh')" :title="tr('Обновить', 'Refresh')" @click="refresh" />
     </div>
+    <DialogConfirm v-model:dialog="confirmRemoval" variant="delete" @confirm="deleteAccount">
+      {{ t('sources.remove_connection_confirm', {name: account?.name || ''}) }}
+    </DialogConfirm>
     <v-dialog v-model="editing" max-width="560" persistent scrollable>
       <v-card rounded="xl">
         <DialogHeader :header="editingId ? tr('Настройка аккаунта', 'Account settings') : tr('Новый облачный аккаунт', 'New cloud account')"
@@ -18,35 +22,39 @@
                       :close-disabled="busy" :close-label="tr('Отмена', 'Cancel')" @close="closeEditor" />
         <v-card-text class="account-editor">
           <v-alert v-if="error" type="error" variant="tonal" density="compact" rounded="lg" class="mb-4">{{ error }}</v-alert>
-          <p class="account-editor__description">{{ tr('Ключи приложения хранятся только на этом компьютере.', 'App credentials stay on this computer.') }}</p>
-          <v-form @submit.prevent="create">
-            <v-defaults-provider :defaults="{VTextField: {variant: 'outlined', density: 'compact', rounded: 'lg', hideDetails: 'auto'}, VSelect: {variant: 'outlined', density: 'compact', rounded: 'lg', hideDetails: 'auto'}}">
-              <div class="account-editor__fields">
-                <v-select v-if="!props.provider" v-model="form.provider" :disabled="busy || !!editingId" :items="providers" item-title="title" item-value="value" :label="tr('Провайдер', 'Provider')">
-                  <template #prepend-inner><v-icon :icon="providerStyle(form.provider).icon" color="primary" /></template>
-                  <template #item="{props: itemProps, item}">
-                    <v-list-item v-bind="itemProps">
-                      <template #prepend><v-icon :icon="providerStyle(item.raw.value).icon" color="primary" /></template>
-                    </v-list-item>
-                  </template>
-                </v-select>
-                <v-text-field v-model="form.name" :class="{'account-editor__full-width': props.provider}" :disabled="busy" :label="tr('Название аккаунта', 'Account name')" required maxlength="120" />
-                <v-text-field v-model="form.clientId" :disabled="busy" label="OAuth Client ID / App key" required />
-                <v-text-field v-model="form.clientSecret" :disabled="busy" type="password" :label="tr('Секрет приложения (если требуется)', 'Client secret (if required)')" autocomplete="new-password" />
-                <v-text-field v-model="form.redirectUri" class="account-editor__redirect" :disabled="busy" label="OAuth Redirect URI" required />
-              </div>
-            </v-defaults-provider>
-            <details class="account-editor__help">
-              <summary>{{ tr('Как настроить OAuth', 'OAuth setup help') }}</summary>
-              <p>{{ tr('Создайте OAuth-приложение у провайдера и зарегистрируйте callback API (не dev-сервера):', 'Create an OAuth app with your provider and register the API callback (not the dev server):') }}</p>
-              <code>{{ callbackUri }}</code>
-              <p v-if="form.provider === 'gdrive'">{{ tr('Google Drive подключается отдельно, только для чтения. Существующее подключение сохраняется.', 'Google Drive connects as a separate read-only account. Your existing connection is retained.') }}</p>
-            </details>
-          </v-form>
+          <template v-if="!editingId">
+            <v-select v-if="!props.provider" v-model="form.provider" :disabled="busy" :items="providers"
+                      :label="tr('Провайдер', 'Provider')" variant="outlined" density="compact" />
+            <p v-if="!managedAvailable" class="text-body-2 mb-3">{{ t('sources.managed_oauth_unavailable') }}</p>
+          </template>
+          <details :open="!!editingId" class="account-editor__help">
+            <summary>{{ t('sources.advanced_oauth') }}</summary>
+            <p class="account-editor__description">{{ tr('Ключи приложения хранятся только на этом компьютере.', 'App credentials stay on this computer.') }}</p>
+            <v-form @submit.prevent="create()">
+              <v-defaults-provider :defaults="{VTextField: {variant: 'outlined', density: 'compact', rounded: 'lg', hideDetails: 'auto'}, VSelect: {variant: 'outlined', density: 'compact', rounded: 'lg', hideDetails: 'auto'}}">
+                <div class="account-editor__fields">
+                  <v-text-field v-model="form.name" :class="{'account-editor__full-width': props.provider}" :disabled="busy" :label="tr('Название аккаунта', 'Account name')" :placeholder="providerName(form.provider)" maxlength="120" />
+                  <v-text-field v-model="form.clientId" :disabled="busy" label="OAuth Client ID / App key" required />
+                  <v-text-field v-model="form.clientSecret" :disabled="busy" type="password" :label="tr('Секрет приложения (если требуется)', 'Client secret (if required)')" autocomplete="new-password" />
+                  <v-text-field v-model="form.redirectUri" class="account-editor__redirect" :disabled="busy" label="OAuth Redirect URI" required />
+                </div>
+              </v-defaults-provider>
+              <details class="account-editor__help">
+                <summary>{{ tr('Как настроить OAuth', 'OAuth setup help') }}</summary>
+                <p>{{ tr('Создайте OAuth-приложение у провайдера и зарегистрируйте callback API (не dev-сервера):', 'Create an OAuth app with your provider and register the API callback (not the dev server):') }}</p>
+                <code>{{ callbackUri }}</code>
+                <p v-if="form.provider === 'gdrive'">{{ tr('Google Drive подключается отдельно, только для чтения. Существующее подключение сохраняется.', 'Google Drive connects as a separate read-only account. Your existing connection is retained.') }}</p>
+              </details>
+              <v-btn type="submit" variant="tonal" color="primary" class="mt-3" :disabled="!canSaveManual">
+                {{ t('sources.save_and_connect') }}
+              </v-btn>
+              <v-btn v-if="editingId" variant="text" class="mt-3" :disabled="!canSaveManual" @click="create(false)">{{ t('common.save') }}</v-btn>
+            </v-form>
+          </details>
         </v-card-text>
       </v-card>
     </v-dialog>
-    <v-alert v-if="account && !account.authenticated" type="info" class="mb-3">{{ tr('Подключите аккаунт. После входа нажмите «Обновить».', 'Connect the account. After signing in, click Refresh.') }}</v-alert>
+    <v-alert v-if="account && !account.authenticated" type="info" class="mb-3">{{ tr('Подключите аккаунт, чтобы открыть файлы.', 'Connect the account to browse files.') }}</v-alert>
     <template v-if="account?.authenticated">
       <div class="d-flex ga-2 mb-2">
         <v-btn :disabled="busy || !history.length" @click="back" icon="mdi-arrow-up" :aria-label="tr('Назад', 'Back')" />
@@ -77,6 +85,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import DialogConfirm from './DialogConfirm.vue'
 import {remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 import {computed, onMounted, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
@@ -88,7 +97,7 @@ import {openExternal} from '@/services/shellService'
 import {useAppStore} from '@/stores/app'
 import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
 import {useRemoteMediaAddingProcess} from '@/composable/useRemoteMediaAddingProcess'
-import {type CloudAccount, type CloudAccountInput} from '@shared/cloudAccounts'
+import {type CloudAccount, type CloudAccountInput, type CloudProvider} from '@shared/cloudAccounts'
 import {mediaFileKind} from '@shared/mediaFormats'
 import {importExtensionMatcher, remotePathExcluder, type RemoteImportOptions} from '@/services/remoteImportOptions'
 import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
@@ -110,6 +119,7 @@ const busy = ref(false), stopping = ref(false), editing = ref(false), error = re
 const entries = ref<Entry[]>([]), selected = ref<string[]>([]), folder = ref('root'), history = ref<string[]>([]), nextPageToken = ref<string>()
 const imported = ref<Array<{id: number; title: string}>>([]), processingId = ref<number>()
 const callbackUri = ref('')
+const managedProviders = ref<CloudProvider[]>([])
 const authMessage = ref('')
 const authAttempt = ref<{id: string; state: string; deadline: number}>()
 let authPoll: ReturnType<typeof setTimeout> | undefined
@@ -120,6 +130,7 @@ const providerStyle = (provider: string) => provider === 'onedrive'
     ? {icon: 'mdi-dropbox'}
     : {icon: 'mdi-google-drive'}
 const providers = [{title: 'OneDrive', value: 'onedrive'}, {title: 'Dropbox', value: 'dropbox'}, {title: 'Google Drive', value: 'gdrive'}]
+const providerName = (provider: string) => providers.find(item => item.value === provider)?.title || provider
 let controller: AbortController | undefined
 let reloadRequested = false
 const guarded = async (action: () => Promise<void>) => {
@@ -130,23 +141,43 @@ const guarded = async (action: () => Promise<void>) => {
 }
 const base = () => `/api/cloud-accounts/${accountId.value}`
 async function refresh() {
-  await guarded(async () => { callbackUri.value = (await apiClient.get<{redirectUri: string}>('/api/cloud-accounts/configuration', {signal: controller?.signal})).data.redirectUri
+  await guarded(async () => {
+    const {data: config} = await apiClient.get<{redirectUri: string; managed?: CloudProvider[]}>('/api/cloud-accounts/configuration', {signal: controller?.signal})
+    callbackUri.value = config.redirectUri
+    managedProviders.value = config.managed || []
     accounts.value = (await apiClient.get<CloudAccount[]>('/api/cloud-accounts', {signal: controller?.signal})).data
     if (!visibleAccounts.value.some(a => a.id === accountId.value)) accountId.value = visibleAccounts.value[0]?.id || '' })
   if (account.value?.authenticated) await load()
 }
 function closeEditor() { editing.value = false; form.value.clientSecret = '' }
-const editorButtons = computed(() => [
-  {text: tr('Сохранить аккаунт', 'Save account'), icon: 'check', color: 'primary', loading: busy.value, disabled: busy.value, action: create},
+const managedAvailable = computed(() => managedProviders.value.includes(form.value.provider))
+const canSaveManual = computed(() => !busy.value && !!form.value.clientId.trim() && !!form.value.redirectUri.trim())
+const editorButtons = computed(() => editingId.value ? [] : [
+  {text: t('sources.connect_account'), color: 'primary', loading: busy.value, disabled: busy.value || !managedAvailable.value, action: () => create(true, true)},
 ])
 function addAccount() { error.value = ''; editingId.value = ''; editing.value = true; form.value = {provider: props.provider || 'onedrive', name: '', clientId: '', clientSecret: '', redirectUri: callbackUri.value} }
 function editAccount() { if (!account.value) return; editingId.value = account.value.id; editing.value = true; form.value = {provider: account.value.provider, name: account.value.name, clientId: '', clientSecret: '', redirectUri: account.value.redirectUri || callbackUri.value} }
-async function create() { await guarded(async () => {
-  const response = editingId.value ? await apiClient.put<CloudAccount>(`/api/cloud-accounts/${editingId.value}/configuration`, form.value, {signal: controller?.signal}) : await apiClient.post<CloudAccount>('/api/cloud-accounts', form.value, {signal: controller?.signal})
-  accountId.value = response.data.id; form.value.clientSecret = ''; editing.value = false
-  entries.value = []; selected.value = []; history.value = []; folder.value = 'root'
-  accounts.value = [...accounts.value.filter(a => a.id !== response.data.id), response.data]
-}) }
+async function create(signIn = true, managed = false) {
+  if (busy.value) return
+  const input = {...form.value, name: form.value.name.trim() || providerName(form.value.provider)}
+  if (managed ? !managedAvailable.value : !canSaveManual.value) return
+  const popup = signIn ? openSignInWindow() : null
+  let saved = false
+  await guarded(async () => {
+    const response = managed
+      ? await apiClient.post<CloudAccount>('/api/cloud-accounts/managed', {provider: input.provider}, {signal: controller?.signal})
+      : editingId.value
+      ? await apiClient.put<CloudAccount>(`/api/cloud-accounts/${editingId.value}/configuration`, input, {signal: controller?.signal})
+      : await apiClient.post<CloudAccount>('/api/cloud-accounts', input, {signal: controller?.signal})
+    if (controller?.signal.aborted) return
+    accountId.value = response.data.id; form.value.clientSecret = ''; editing.value = false
+    entries.value = []; selected.value = []; history.value = []; folder.value = 'root'; nextPageToken.value = undefined
+    accounts.value = [...accounts.value.filter(a => a.id !== response.data.id), response.data]
+    saved = true
+  })
+  if (saved && signIn) await connect(popup)
+  else popup?.close()
+}
 function stopAuthPoll() { if (authPoll) clearTimeout(authPoll); authPoll = undefined }
 async function cancelSignIn() {
   const attempt = authAttempt.value
@@ -177,10 +208,12 @@ async function pollSignIn() {
   }
   if (authAttempt.value === attempt) authPoll = setTimeout(pollSignIn, 1500)
 }
-async function connect() {
-  if (busy.value) return
-  // Open synchronously so browsers retain the user's popup permission.
-  const popup = useAppStore().isElectron ? null : window.open('about:blank', '_blank', 'popup,width=600,height=760')
+function openSignInWindow() {
+  return useAppStore().isElectron ? null : window.open('about:blank', '_blank', 'popup,width=600,height=760')
+}
+async function connect(signInWindow?: Window | null) {
+  if (busy.value) { signInWindow?.close(); return }
+  const popup = signInWindow === undefined ? openSignInWindow() : signInWindow
   await guarded(async () => {
     try {
       await cancelSignIn()
@@ -191,6 +224,24 @@ async function connect() {
       if (popup) { popup.opener = null; popup.location.href = data.url } else await openExternal(data.url)
     } catch (err) { popup?.close(); await cancelSignIn(); throw err }
   })
+}
+function removeAccount() {
+  if (account.value && !busy.value) confirmRemoval.value = true
+}
+const confirmRemoval = ref(false)
+async function deleteAccount() {
+  const removed = account.value
+  if (!removed || busy.value) return
+  await guarded(async () => {
+    await apiClient.delete(`/api/cloud-accounts/${removed.id}`, {signal: controller?.signal})
+    if (controller?.signal.aborted) return
+    if (authAttempt.value?.id === removed.id) { stopAuthPoll(); authAttempt.value = undefined }
+    authMessage.value = ''
+    accounts.value = accounts.value.filter(item => item.id !== removed.id)
+    accountId.value = visibleAccounts.value[0]?.id || ''
+    entries.value = []; selected.value = []; history.value = []; folder.value = 'root'; nextPageToken.value = undefined
+  })
+  if (accountId.value !== removed.id) await load()
 }
 async function logout() { await guarded(async () => { await apiClient.post(`${base()}/logout`); entries.value = []; selected.value = [] }); await refresh() }
 async function load(more = false) { if (!account.value?.authenticated) return; await guarded(async () => {
@@ -282,7 +333,7 @@ async function submit() {
 function stop() { stopping.value = true; if (!importing.value) controller?.abort() }
 watch([() => app.dbPath, () => app.localhost], () => {
   stopAuthPoll(); authAttempt.value = undefined; authMessage.value = ''
-  controller?.abort(); accounts.value = []; accountId.value = ''; entries.value = []; selected.value = []; imported.value = []; processingId.value = undefined
+  controller?.abort(); managedProviders.value = []; callbackUri.value = ''; accounts.value = []; accountId.value = ''; entries.value = []; selected.value = []; imported.value = []; processingId.value = undefined
   if (busy.value) reloadRequested = true; else void refresh()
 })
 
@@ -296,7 +347,7 @@ async function selectAccount(id: string) {
   editing.value = false; form.value.clientSecret = ''; accountId.value = id
   await resetFolder()
 }
-defineExpose({account, editAccount, connect, logout, accounts, accountId, editing, addAccount, selectAccount, refresh, busy, canSubmit: computed(() => !!selected.value.length && !busy.value), selectionCount: computed(() => selected.value.length), submit, stop, stopping, canStop: importing})
+defineExpose({account, editAccount, connect, logout, removeAccount, accounts, accountId, editing, addAccount, selectAccount, refresh, busy, canSubmit: computed(() => !!selected.value.length && !busy.value), selectionCount: computed(() => selected.value.length), submit, stop, stopping, canStop: importing})
 </script>
 
 <style scoped>

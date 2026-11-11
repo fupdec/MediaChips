@@ -20,7 +20,7 @@
           :model-value="task.progress"
           :indeterminate="progressIndeterminate"
           :striped="task.active && !task.stopped"
-          height="20"
+          height="26"
           color="primary"
           rounded
         >
@@ -101,23 +101,14 @@
           <v-tabs-window-item value="existing">
             <section class="process-dialog-section process-dialog-section--lists">
               <div
-                v-if="!duplicates_by_path.length && !moved_files.length && !duplicates_by_content_hash.length"
+                v-if="existingTotal === 0"
                 class="text-body-2 text-medium-emphasis"
               >
-                {{ task.remoteImport?.inLibrary ? t('media.adding.existing_count', {count: existingTotal}) : t('common.no_results') }}
+                {{ t('common.no_results') }}
               </div>
               <!-- Existing files (by path) -->
               <div v-if="duplicates_by_path.length" class="process-list-item">
-                <div class="process-list-row">
-                  <v-chip
-                    @click="is_show_duplicates_by_path = !is_show_duplicates_by_path"
-                    :text="t('media.adding.existing_count', {count: duplicates_by_path.length})"
-                    :prepend-icon="duplicateMarkers.inLibrary.icon"
-                    color="info"
-                    size="small"
-                  />
-                </div>
-                <v-card v-if="is_show_duplicates_by_path" variant="outlined" class="pa-2 mt-2">
+                <v-card variant="outlined" class="pa-2">
                   <v-virtual-scroll
                     :height="duplicates_by_path.length > 10 ? 150 : duplicates_by_path.length * 22"
                     :items="duplicates_by_path"
@@ -263,7 +254,7 @@
 
           <v-tabs-window-item v-if="task.remoteImport" value="skipped">
             <div class="text-body-2 text-medium-emphasis">
-              {{ t('media.adding.skipped_count', {count: task.remoteImport.skipped}) }}
+              {{ task.remoteImport.skipped ? t('media.adding.skipped_count', {count: task.remoteImport.skipped}) : t('common.no_results') }}
             </div>
           </v-tabs-window-item>
 
@@ -839,7 +830,6 @@ const buttons = ref<DialogHeaderButton[]>([])
 const activeResult = ref('added')
 const is_show_duplicates_by_content_hash = ref(false)
 const is_show_moved_files = ref(false)
-const is_show_duplicates_by_path = ref(true)
 const {
   clipModelStatus,
   clipModelDownloading,

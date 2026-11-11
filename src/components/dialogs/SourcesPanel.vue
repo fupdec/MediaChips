@@ -36,6 +36,8 @@
           <v-btn v-if="cloud?.account" size="small" variant="text" rounded="lg" icon="mdi-login" :disabled="busy" :aria-label="tr('Подключить / сменить вход', 'Connect / sign in again')" v-tooltip:top="tr('Подключить / сменить вход', 'Connect / sign in again')" @click="cloud?.connect()" />
           <v-btn size="small" variant="text" rounded="lg" icon="mdi-refresh" :disabled="busy" :aria-label="tr('Обновить', 'Refresh')" v-tooltip:top="tr('Обновить', 'Refresh')" @click="cloud?.refresh()" />
           <v-btn v-if="cloud?.account?.authenticated" size="small" variant="text" rounded="lg" class="connection-action--disconnect" icon="mdi-link-off" :disabled="busy" :aria-label="tr('Отключить', 'Disconnect')" v-tooltip:top="tr('Отключить', 'Disconnect')" @click="cloud?.logout()" />
+          <v-btn v-if="cloud?.account" size="small" variant="text" rounded="lg" icon="mdi-delete-outline" :disabled="busy"
+                 :aria-label="t('sources.remove_connection')" v-tooltip:top="t('sources.remove_connection')" @click="cloud?.removeAccount()" />
         </template>
       </div>
     </div>
@@ -121,6 +123,7 @@ async function selectAccount(id: string) {
   driveSelected.value = id === 'drive'
   if (!driveSelected.value) await cloud.value?.selectAccount(id)
 }
+watch(() => cloud.value?.accountId, id => { if (!id && !cloud.value?.busy) driveSelected.value = true }, {flush: 'post'})
 function addAccount() { cloud.value?.addAccount() }
 let accountBeforeEditing: string | undefined
 watch(() => cloud.value?.editing, (editing, wasEditing) => {

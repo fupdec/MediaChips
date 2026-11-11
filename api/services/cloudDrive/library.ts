@@ -33,10 +33,8 @@ export async function listDriveFolder(db: ApiDb, service: CloudDriveService, fol
   const paths = result.files.filter(file => !file.isFolder).map(file => driveMediaPath(file.id))
   const rows = paths.length ? db.drizzle.select({id: media.id, path: media.path, deletedAt: media.deletedAt}).from(media).where(inArray(media.path, paths)).all() : []
   const imported = new Map(rows.filter(row => !row.deletedAt).map(row => [row.path, row.id]))
-  if (!pageToken) {
-    ensureDriveConnection(db)
-    requestAutomaticCopyDiscovery(db, [{connectionId: DEFAULT_DRIVE_CONNECTION_ID, key: folderId}], 'folder_update')
-  }
+  // Browsing a folder must not queue copy discovery.
+  if (!pageToken) ensureDriveConnection(db)
   return {...result, files: result.files.map(file => ({...file, mediaId: imported.get(driveMediaPath(file.id)) ?? null}))}
 }
 export async function importDriveFile(db: ApiDb, service: CloudDriveService, fileId: string) {

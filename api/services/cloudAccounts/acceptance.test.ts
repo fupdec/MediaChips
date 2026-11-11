@@ -58,6 +58,26 @@ describe.each(['gdrive', 'onedrive', 'dropbox'] as const)('%s shared acceptance 
     expect((await fetch(`${origin}/oauth/callback?state=${oauthState}&code=replayed`)).status).toBe(400)
     return account
   }
+  it('starts managed sign-in with server credentials and exposes no secret', async () => {
+    const prefix = {gdrive: 'GOOGLE', onedrive: 'ONEDRIVE', dropbox: 'DROPBOX'}[provider]
+    vi.stubEnv(`MEDIA_CHIPS_CLOUD_${prefix}_CLIENT_ID`, 'managed-client')
+    vi.stubEnv(`MEDIA_CHIPS_CLOUD_${prefix}_CLIENT_SECRET`, 'managed-private-secret')
+    vi.stubEnv('MEDIA_CHIPS_CLOUD_REDIRECT_URI', `${origin}/oauth/callback`)
+    try {
+      expect((await json('/configuration')).managed).toContain(provider)
+      const account = await json('/managed', {provider})
+      expect(account).toMatchObject({provider, authenticated: false})
+      expect(account).not.toHaveProperty('clientSecret')
+      const {url, state: oauthState} = await json(`/${account.id}/oauth/start`, {})
+      const params = new URL(url).searchParams
+      expect(params.get('client_id')).toBe('managed-client')
+      expect(params.get('redirect_uri')).toBe(`${origin}/oauth/callback`)
+      expect(url).not.toContain('managed-private-secret')
+      expect((await fetch(`${origin}/oauth/callback?state=${oauthState}&code=test`)).status).toBe(200)
+      expect(await json('')).toMatchObject([{id: account.id, authenticated: true}])
+      expect(String(vi.mocked(axios.post).mock.lastCall?.[1])).toContain('client_secret=managed-private-secret')
+    } finally { vi.unstubAllEnvs() }
+  })
   const replaceFile = () => Object.assign(transport.file, {modifiedTime: '2026-10-02T12:00:00Z', cTag: 'v2', rev: 'v2'})
   async function playback() {
     const account = await connect('Playback')

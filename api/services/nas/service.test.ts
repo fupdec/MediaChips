@@ -117,6 +117,13 @@ describe('NAS library and HTTP playback', () => {
   it.each(['sftp', 'ftp', 'ftps', 'webdav'] as const)('imports expanded formats into their own media types over %s', async protocol => {
     const connection = await service.saveConnection(db, {...config, protocol})
     const files = ['clip.MKV', 'clip.WMV', 'clip.AVI', 'clip.M2TS', 'clip.3GP', 'song.FLAC', 'photo.AVIF']
+    const payload = (input: string) => Buffer.concat([bytes, Buffer.from(input)])
+    connect.mockImplementation(async () => ({
+      list: vi.fn(),
+      async stat(input) { return {size: payload(input).length, modifiedAt, isDirectory: false} },
+      async read(input, start, end) { return Readable.from([payload(input).subarray(start, end + 1)]) },
+      close: vi.fn(),
+    }))
     const {results} = await service.importFiles(db, connection.id, files)
     expect(results.every(result => result.ok && result.created)).toBe(true)
     const repo = createMediaRepository(fixture.drizzle)
@@ -333,6 +340,18 @@ describe('NAS library and HTTP playback', () => {
     expect(exists).not.toHaveBeenCalled()
     expect(createMediaRepository(fixture.drizzle).findById(local.id)?.path).toBe('/local/video.mp4')
   })
+  it('keeps a NAS copy in the library with the same OSHash as its original', async () => {
+    const {connection, item} = await add(db, service)
+    const repo = createMediaRepository(fixture.drizzle)
+    const original = repo.findById(item.id)!
+    const copy = await service.importFile(db, connection.id, 'renamed.mp4')
+    expect(copy.created).toBe(true)
+    expect(copy.id).not.toBe(item.id)
+    expect(original.oshash).toMatch(/^[a-f0-9]{16}$/)
+    expect(repo.findById(copy.id)?.oshash).toBe(original.oshash)
+    expect(await service.importFile(db, connection.id, 'renamed.mp4')).toMatchObject({id: copy.id, created: false})
+    expect(fixture.drizzle.select().from(mediaLocations).all()).toHaveLength(2)
+  })
   it('imports a batch over one connection and keeps duplicates and file failures independent', async () => {
     const {connection, item} = await add(db, service)
     connect.mockClear()
@@ -340,7 +359,7 @@ describe('NAS library and HTTP playback', () => {
     connect.mockImplementationOnce(async () => ({
       async stat(input) {
         if (input === 'missing.mp4') throw new Error('Permission denied with internal server details')
-        return {size: bytes.length, modifiedAt, isDirectory: false}
+        return {size: input === 'second.mp4' ? 8 : bytes.length, modifiedAt, isDirectory: false}
       }, list: vi.fn(), read, close: vi.fn(),
     }))
     const response = await fetch(base + '/api/nas/import-batch', {method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -363,7 +382,7 @@ describe('NAS library and HTTP playback', () => {
     connect.mockImplementationOnce(async () => ({
       async stat(input) {
         if (input === 'late.mp4') db.path = '/other-library'
-        return {size: bytes.length, modifiedAt, isDirectory: false}
+        return {size: input === 'first.mp4' ? 8 : bytes.length, modifiedAt, isDirectory: false}
       }, list: vi.fn(), read: vi.fn(), close: vi.fn(),
     }))
     await expect(service.importFiles(db, connection.id, ['first.mp4', 'late.mp4', 'last.mp4'])).rejects.toMatchObject({code: 'library_changed'})
@@ -422,6 +441,18 @@ describe('NAS library and HTTP playback', () => {
     await service.prepare(db, item.id)
     expect(fixture.drizzle.select().from(mediaLocations).all()[0].availability).toBe('available')
     expect((await service.importFile(db, connection.id, 'video.mp4')).id).toBe(item.id)
+  })
+  it('deletes a connection while preserving imported media and invalidating playback', async () => {
+    const {connection, item} = await add(db, service)
+    const plan = await service.prepare(db, item.id)
+    const url = base + '/api/nas/connections/' + connection.id
+    expect((await fetch(url, {method: 'DELETE'})).status).toBe(200)
+    expect((await fetch(url, {method: 'DELETE'})).status).toBe(200)
+    expect(service.connections(db)).toEqual([])
+    expect(createMediaRepository(fixture.drizzle).findById(item.id)).toBeTruthy()
+    expect(fixture.drizzle.select().from(mediaLocations).all()[0].availability).toBe('unavailable')
+    expect((await fetch(base + plan.url)).status).toBe(410)
+    await expect(service.saveConnection(db, config, connection.id)).rejects.toMatchObject({code: 'connection_not_found'})
   })
   it('rejects playback tickets after the card is retargeted and malformed request IDs', async () => {
     const {item} = await add(db, service)

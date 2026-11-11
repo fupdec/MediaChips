@@ -7,6 +7,7 @@ import {afterEach, beforeEach, expect, it, vi} from 'vitest'
 import {createTestDb, closeTestDb, type TestDb} from '../../db/testUtils/createTestDb'
 import type {ApiDb} from '../../types/db'
 import {createCloudAccounts} from './accounts'
+import {installSourceProfiles} from '../sourceProfiles'
 let directory: string, fixture: TestDb, db: ApiDb
 beforeEach(() => { directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-oauth-')); fixture = createTestDb('oauth-accounts'); db = {...fixture, path: directory} })
 afterEach(() => { vi.restoreAllMocks(); closeTestDb(fixture); fs.rmSync(directory, {force: true, recursive: true}) })
@@ -99,4 +100,28 @@ it.each(['onedrive', 'dropbox'] as const)('%s refreshes once after restart and i
     await expect(old.stat('file')).rejects.toThrow('auth_required')
     await expect(restarted.adapter(db, first.id).stat('file')).resolves.toMatchObject({name: '文件.mp4'})
   } finally { axios.defaults.adapter = previousAdapter }
+})
+
+it('removes a shared account without restoring it from a library binding or an in-flight OAuth exchange', async () => {
+  const vault = path.join(directory, 'vault'), manager = createCloudAccounts(vault)
+  installSourceProfiles(db.sqlite, directory, 'test-library')
+  const account = manager.create(db, input)
+  let complete!: (result: {data: {access_token: string}}) => void
+  vi.spyOn(axios, 'post').mockImplementation(() => new Promise(resolve => { complete = resolve }))
+  const callback = manager.callback(manager.start(db, account.id).state, 'code')
+  manager.remove(db, account.id)
+  manager.remove(db, account.id)
+  const rejected = expect(callback).rejects.toThrow('auth_required')
+  complete({data: {access_token: 'late'}})
+  await rejected
+
+  expect(createCloudAccounts(vault).list(db)).toEqual([])
+  expect(() => manager.configure(db, account.id, input)).toThrow('account_not_found')
+  expect(db.sqlite.prepare('SELECT id FROM sourceConnections WHERE id = ?').get(account.id)).toEqual({id: account.id})
+  const other = createTestDb('restored-source-profile')
+  try {
+    other.sqlite.prepare('INSERT INTO sourceConnections (id, provider, config, credentialRef, createdAt) VALUES (?, ?, ?, ?, ?)').run(account.id, 'onedrive', '{}', account.id, '2026-01-01')
+    installSourceProfiles(other.sqlite, directory, 'restored-library')
+    expect(manager.list({...db, sqlite: other.sqlite, drizzle: other.drizzle})).toEqual([])
+  } finally { closeTestDb(other) }
 })

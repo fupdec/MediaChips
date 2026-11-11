@@ -13,6 +13,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
 
   router.get('/status', controller.status)
   router.put('/configuration', controller.configure)
+  router.delete('/configuration', controller.removeConfiguration)
   router.post('/import', controller.importFile)
   router.get('/media/:id/playable', controller.playable)
   router.post('/media/:id/frame', controller.frame)

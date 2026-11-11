@@ -18,7 +18,7 @@ export const DriveConfigurationSchema = z.object({
       && url.pathname === '/api/drive/oauth/callback' && !url.search && !url.hash
   }),
 }).strict()
-export type DriveStatus = {capabilities?: SourceCapabilities; configured: boolean; authenticated: boolean; mock: boolean; redirectUri: string; clientId?: string; hasClientId: boolean; oauthResult?: 'waiting' | 'connected' | 'failed' | 'expired'; oauthError?: 'cancelled' | 'expired' | 'access_denied' | 'invalid_client' | 'invalid_grant' | 'redirect_uri_mismatch' | 'network_error' | 'token_storage_error' | 'unknown'}
+export type DriveStatus = {hasSavedConfiguration?: boolean; suggestedRedirectUri?: string; redirectUriMismatch?: boolean; capabilities?: SourceCapabilities; configured: boolean; authenticated: boolean; mock: boolean; redirectUri: string; clientId?: string; hasClientId: boolean; oauthResult?: 'waiting' | 'connected' | 'failed' | 'expired'; oauthError?: 'cancelled' | 'expired' | 'access_denied' | 'invalid_client' | 'invalid_grant' | 'redirect_uri_mismatch' | 'network_error' | 'token_storage_error' | 'unknown'}
 export type DriveEntry = {id: string; name: string; mimeType: string; size?: number; modifiedTime?: string; isFolder: boolean; mediaId?: number | null}
 export type DriveFolder = {folderId: string; files: DriveEntry[]; nextPageToken?: string; mock: boolean}
 export type DriveImportResult = {id: number; title: string; created: boolean}

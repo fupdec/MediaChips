@@ -14,7 +14,11 @@
         </template>
       </v-text-field>
       <div class="google-drive-source__connection-actions">
-        <v-btn v-if="status && !status.mock" size="small" :variant="status.configured ? 'text' : 'tonal'" color="primary" rounded="lg" :class="{'connection-action--primary': !status.configured}" icon
+        <v-btn v-if="status?.configured && !status.authenticated && !status.mock" size="small" variant="text" rounded="lg" icon
+               :aria-label="t('drive.connect')" v-tooltip:top="t('drive.connect')" :loading="waiting" :disabled="busy || waiting" @click="connect()">
+          <v-icon size="18" icon="mdi-login" />
+        </v-btn>
+        <v-btn v-if="status && !status.mock" size="small" :variant="status.configured ? 'text' : 'tonal'" :color="status.configured ? undefined : 'primary'" rounded="lg" :class="{'connection-action--primary': !status.configured}" icon
                :aria-label="t('drive.oauth_settings')" v-tooltip:top="t('drive.oauth_settings')" :disabled="busy || waiting" @click="openConfiguration">
           <v-icon size="18" :icon="status.configured ? 'mdi-key-outline' : 'mdi-plus'" />
         </v-btn>
@@ -30,26 +34,40 @@
                :aria-label="t('nas.disconnect')" v-tooltip:top="t('nas.disconnect')" :disabled="busy || waiting" @click="disconnect">
           <v-icon size="18" icon="mdi-link-off" />
         </v-btn>
-        <v-btn v-else-if="status?.configured && !status.mock" size="small" color="primary" variant="tonal" rounded="lg" class="connection-action--primary" icon
-               :aria-label="t('drive.connect')" v-tooltip:top="t('drive.connect')" :loading="waiting" :disabled="busy || waiting" @click="connect">
-          <v-icon size="18" icon="mdi-login" />
-        </v-btn>
+        <v-btn v-if="status?.hasSavedConfiguration && !status.mock" size="small" variant="text" rounded="lg" icon="mdi-delete-outline"
+               :aria-label="t('sources.remove_connection')" v-tooltip:top="t('sources.remove_connection')"
+               :disabled="busy || waiting || editing" @click="confirmRemoval = true" />
       </div>
     </div>
     </Teleport>
+    <DialogConfirm v-model:dialog="confirmRemoval" variant="delete" @confirm="removeConfiguration">
+      {{ t('sources.remove_connection_confirm', {name: t('drive.title')}) }}
+    </DialogConfirm>
     <SourceHealth v-if="status && (!unified || (health && !['ready', 'unchecked', 'disconnected'].includes(health)))" :state="health || (status.authenticated ? 'unchecked' : 'disconnected')"
                   :disabled="busy || waiting || editing" @reconnect="status?.configured ? connect() : openConfiguration()" />
+    <v-alert v-if="status?.redirectUriMismatch && !status.mock" type="warning" variant="tonal" density="compact" rounded="lg"
+             class="google-drive-source__notice">
+      <div>{{ t('sources.drive_callback_hint') }}</div>
+      <code class="google-drive-source__callback-url">{{ status.suggestedRedirectUri }}</code>
+      <template #append>
+        <v-btn variant="tonal" color="primary" size="small" rounded="lg" prepend-icon="mdi-key-outline"
+               :disabled="busy || waiting || editing" @click="openConfiguration">{{ t('nas.credentials') }}</v-btn>
+      </template>
+    </v-alert>
     <v-alert v-if="status?.mock" type="info" variant="tonal" density="compact" class="mb-3">{{ t('drive.mock') }}</v-alert>
     <v-alert v-if="message" :type="error ? 'error' : 'success'" variant="tonal" density="compact" rounded="lg" class="google-drive-source__notice" role="status">{{ message }}</v-alert>
-    <div v-if="waiting" class="d-flex align-center ga-2 mb-3 text-body-2">
-      <v-progress-circular indeterminate size="18" width="2" />{{ t('drive.waiting') }}
-      <v-btn size="small" variant="text" @click="cancelOAuth">{{ t('common.cancel') }}</v-btn>
+    <div v-if="waiting" class="google-drive-source__waiting">
+      <div class="google-drive-source__waiting-status" role="status">
+        <v-progress-circular indeterminate color="primary" size="14" width="2" aria-hidden="true" />
+        <span>{{ t('drive.waiting') }}</span>
+      </div>
+      <v-btn size="default" variant="flat" color="primary" rounded="lg" @click="cancelOAuth">{{ t('common.cancel') }}</v-btn>
     </div>
     <div v-if="!connectionsOnly && status?.authenticated">
       <v-alert v-if="status.capabilities?.move === false && !status.mock" type="info" variant="tonal" density="compact" rounded="lg" class="google-drive-source__authorization">
         <span>{{ t('originals.drive_authorization') }}</span>
         <v-btn size="small" variant="flat" color="primary" rounded="lg" prepend-icon="mdi-google-drive"
-               class="google-drive-source__reconnect" :loading="waiting" :disabled="busy || waiting || editing" @click="connect">{{ t('sources.reconnect') }}</v-btn>
+               class="google-drive-source__reconnect" :loading="waiting" :disabled="busy || waiting || editing" @click="connect()">{{ t('sources.reconnect') }}</v-btn>
       </v-alert>
       <v-btn variant="tonal" size="small" prepend-icon="mdi-file-cog-outline" class="mb-1" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
       <DialogOriginalOperations v-model="originalsOpen" :media-ids="[]" :scope="{connectionId: 'google-drive', key: driveFileIdFromPath(folder)}" :scope-writable="status.capabilities?.move === true" @changed="browser?.refresh()" />
@@ -94,6 +112,7 @@
 </template>
 
 <script setup lang="ts">
+import DialogConfirm from './DialogConfirm.vue'
 import {sourceRateLimited, sourceFailure, type SourceFailure} from '@shared/sourceErrors'
 import SourceCatalogControls from './SourceCatalogControls.vue'
 import DialogOriginalOperations from './DialogOriginalOperations.vue'
@@ -162,8 +181,10 @@ const editing = ref(false)
 const formError = ref('')
 const draft = ref({clientId: '', clientSecret: '', redirectUri: ''})
 const editorButtons = computed(() => [
-  {text: t('common.save'), icon: 'check', color: 'primary', loading: saving.value,
-    disabled: busy.value || waiting.value || !draft.value.clientId || !draft.value.redirectUri, action: saveConfiguration},
+  {text: t('common.save'), icon: 'check', color: 'secondary',
+    disabled: busy.value || waiting.value || !draft.value.clientId || !draft.value.redirectUri, action: () => saveConfiguration()},
+  {text: t('sources.save_and_connect'), icon: 'login', color: 'primary', loading: saving.value,
+    disabled: busy.value || waiting.value || !draft.value.clientId || !draft.value.redirectUri, action: () => saveConfiguration(true)},
 ])
 const browserPrefsScope = () => JSON.stringify([app.dbPath || app.config?.id || 'default', app.localhost || ''])
 const initialLocation = loadDriveBrowserLocation(browserPrefsScope())
@@ -237,7 +258,8 @@ async function refresh() {
     status.value = data
     if (!wasConnected) { health.value = undefined; checkedAt.value = undefined }
     if (!data.authenticated && wasConnected) { health.value = 'auth_required'; checkedAt.value = Date.now() }
-    if (data.authenticated && (waiting.value || wasConnected === false)) { stopPoll(); popup?.close(); popup = null; message.value = t('drive.connected'); error.value = false }
+    const finished = requestedState ? requestedState === oauthState && data.oauthResult === 'connected' : !wasConnected
+    if (data.authenticated && (waiting.value ? finished : wasConnected === false)) { stopPoll(); popup?.close(); popup = null; message.value = t('drive.connected'); error.value = false }
     if (waiting.value && requestedState === oauthState && (data.oauthResult === 'failed' || data.oauthResult === 'expired')) {
       stopPoll(); popup?.close(); popup = null
       message.value = t(`drive.oauth_errors.${data.oauthResult === 'expired' ? 'expired' : data.oauthError || 'unknown'}`); error.value = true
@@ -246,9 +268,13 @@ async function refresh() {
   } catch (err) { if (current === generation) { message.value = apiError(err); error.value = true } }
   finally { if (refreshGeneration === current) refreshGeneration = undefined }
 }
-async function connect() {
-  if (waiting.value || busy.value) return
-  popup = app.isElectron ? null : window.open('about:blank', 'mediachips-google-drive', 'popup,width=560,height=720')
+function openSignInWindow() {
+  return app.isElectron ? null : window.open('about:blank', 'mediachips-google-drive', 'popup,width=560,height=720')
+}
+async function connect(signInWindow?: Window | null) {
+  if (waiting.value || busy.value) { signInWindow?.close(); return }
+  if (status.value?.redirectUriMismatch) { signInWindow?.close(); openConfiguration(); return }
+  popup = signInWindow === undefined ? openSignInWindow() : signInWindow
   if (!app.isElectron && !popup) { message.value = t('drive.popup_blocked'); error.value = true; return }
   waiting.value = true; message.value = ''; error.value = false
   const current = generation
@@ -270,17 +296,19 @@ async function connect() {
 }
 function openConfiguration() {
   if (!status.value || status.value.mock || busy.value || waiting.value) return
-  draft.value = {clientId: status.value.clientId || '', clientSecret: '', redirectUri: status.value.redirectUri}
+  draft.value = {clientId: status.value.clientId || '', clientSecret: '', redirectUri: (status.value.redirectUriMismatch && status.value.suggestedRedirectUri) || status.value.redirectUri}
   formError.value = ''; editing.value = true
 }
 function closeConfiguration() {
   if (saving.value) return
   editing.value = false; draft.value.clientSecret = ''; formError.value = ''
 }
-async function saveConfiguration() {
+async function saveConfiguration(signIn = false) {
   if (busy.value || waiting.value) return
   const parsed = DriveConfigurationSchema.safeParse({...draft.value, clientSecret: draft.value.clientSecret || undefined})
   if (!parsed.success) { formError.value = t('drive.invalid_config'); return }
+  const signInWindow = signIn ? openSignInWindow() : null
+  let saved = false
   saving.value = true; formError.value = ''
   const current = generation
   try {
@@ -289,7 +317,24 @@ async function saveConfiguration() {
     health.value = undefined; checkedAt.value = undefined
     status.value = data; draft.value.clientSecret = ''; selectedPaths.value = []; editing.value = false
     message.value = t('drive.config_saved'); error.value = false
+    saved = true
   } catch (err) { if (current === generation) formError.value = apiError(err) }
+  finally {
+    if (current === generation) saving.value = false
+    if (!saved) signInWindow?.close()
+  }
+  if (saved && signIn) await connect(signInWindow)
+}
+const confirmRemoval = ref(false)
+async function removeConfiguration() {
+  if (busy.value || waiting.value || !status.value?.hasSavedConfiguration) return
+  saving.value = true
+  const current = ++generation
+  try {
+    const {data} = await apiClient.delete<DriveStatus>('/api/drive/configuration')
+    if (current !== generation) return
+    status.value = data; selectedPaths.value = []; health.value = undefined; checkedAt.value = undefined; message.value = ''
+  } catch (err) { if (current === generation) { message.value = apiError(err); error.value = true } }
   finally { if (current === generation) saving.value = false }
 }
 async function disconnect() {
@@ -410,6 +455,11 @@ defineExpose({status, refresh, busy: computed(() => busy.value || waiting.value 
 
 <style scoped>
 .google-drive-source { min-width: 0; }
+.google-drive-source__waiting,
+.google-drive-source__waiting-status { display: flex; align-items: center; gap: 8px; }
+.google-drive-source__waiting { justify-content: space-between; min-height: 56px; padding: 8px 12px; border-radius: 8px; background: rgba(var(--v-theme-primary), .06); }
+.google-drive-source__waiting-status { min-width: 0; font-size: .75rem; line-height: 1.4; }
+.google-drive-source__waiting-status .v-progress-circular { flex-shrink: 0; }
 .google-drive-source__notice,
 .google-drive-source__authorization {
   margin-bottom: 6px;
@@ -422,6 +472,7 @@ defineExpose({status, refresh, busy: computed(() => busy.value || waiting.value 
 .google-drive-source__notice :deep(.v-alert__prepend .v-icon),
 .google-drive-source__authorization :deep(.v-alert__prepend .v-icon) { font-size: 16px; width: 16px; height: 16px; }
 .google-drive-source__notice :deep(.v-alert__content) { padding-block: 0; }
+.google-drive-source__callback-url { display: block; overflow-wrap: anywhere; font-size: inherit; }
 .google-drive-source__authorization :deep(.v-alert__content) { padding-block: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
 .google-drive-source__authorization span { flex: 1 1 240px; min-width: 0; }
 .google-drive-source__authorization .v-btn { min-height: 36px; padding-inline: 14px; flex-shrink: 0; font-weight: 600; font-size: .75rem; letter-spacing: 0; text-transform: none; }

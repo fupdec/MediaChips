@@ -31,7 +31,6 @@ import {
 import {ensureStarterMeta} from '@/services/ensureStarterMeta'
 import {getApiErrorMessage} from '@/types/vue'
 import {
-  FAST_IMPORT_AUTO_THRESHOLD,
   MEDIA_BULK_LITE_ADDED_CAP,
   MEDIA_BULK_LITE_HTTP_CHUNK,
 } from '@shared/mediaBulkImport'
@@ -326,7 +325,6 @@ export const useMediaAdding = () => {
     try {
       if (useRootsFastImport) {
         task.value.is_parsing = false
-        task.value.is_check_duplicates = false
         task.value.fast_import_locked = true
         task.value.status = t('media.adding.fast_import_roots_status', {
           count: paths.length,
@@ -593,13 +591,6 @@ export const useMediaAdding = () => {
         typedEntries.push({mediaType: primaryType, files})
       }
 
-      if (allTypedFiles.length > FAST_IMPORT_AUTO_THRESHOLD) {
-        task.value.is_fast_import = true
-        task.value.fast_import_locked = true
-        task.value.is_parsing = false
-        task.value.is_check_duplicates = false
-      }
-
       const useFastImport = Boolean(task.value.is_fast_import)
       if (useFastImport) {
         task.value.is_parsing = false
@@ -697,7 +688,7 @@ export const useMediaAdding = () => {
             const response = await typedApi.addMedia({
               path: filePath,
               type: mediaType,
-              is_check_duplicates: task.value.is_check_duplicates,
+              is_check_duplicates: true,
             })
 
             if (response.status === 202) {

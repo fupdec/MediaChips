@@ -20,6 +20,7 @@ export function installSourceProfiles(sqlite: Database.Database, databasesPath: 
           id TEXT PRIMARY KEY, provider TEXT NOT NULL, config TEXT NOT NULL,
           credentialRef TEXT NOT NULL, createdAt TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS source_profiles.removedRemoteProfiles (id TEXT PRIMARY KEY);
         CREATE TABLE IF NOT EXISTS source_profiles.libraryProfiles (
           libraryId TEXT NOT NULL, profileId TEXT NOT NULL,
           PRIMARY KEY (libraryId, profileId)
@@ -37,7 +38,8 @@ export function installSourceProfiles(sqlite: Database.Database, databasesPath: 
       sqlite.exec(`
         INSERT OR IGNORE INTO source_profiles.remoteProfiles
           SELECT id, ${hasProvider ? 'provider' : "'nas'"}, config, credentialRef, createdAt
-          FROM main.sourceConnections;
+          FROM main.sourceConnections
+          WHERE id NOT IN (SELECT id FROM source_profiles.removedRemoteProfiles);
       `)
       sqlite.prepare(`INSERT OR IGNORE INTO source_profiles.libraryProfiles
         SELECT ?, id FROM main.sourceConnections`).run(libraryId)
@@ -104,7 +106,10 @@ export function listSourceProfiles(sqlite: Database.Database, provider?: SourceP
     ? 'source_profiles.remoteProfiles p LEFT JOIN main.sourceConnections b ON b.id = p.id'
     : 'main.sourceConnections p'
   const order = attached ? 'b.id IS NULL, p.createdAt, p.id' : 'p.createdAt, p.id'
-  const query = `SELECT p.* FROM ${from} ${provider ? 'WHERE p.provider = ?' : ''} ORDER BY ${order}`
+  const registry = attached ? 'source_profiles' : 'main'
+  const conditions = [provider ? 'p.provider = ?' : '', removedProfilesExist(sqlite, registry)
+    ? `p.id NOT IN (SELECT id FROM ${registry}.removedRemoteProfiles)` : ''].filter(Boolean)
+  const query = `SELECT p.* FROM ${from} ${conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''} ORDER BY ${order}`
   return sqlite.prepare(query).all(...(provider ? [provider] : [])) as SourceProfile[]
 }
 
@@ -121,4 +126,28 @@ export function bindSourceProfile(sqlite: Database.Database, id: string, provide
         AND (sourceConnections.config <> excluded.config OR sourceConnections.credentialRef <> excluded.credentialRef)
   `).run(profile)
   return profile
+}
+
+function removedProfilesExist(sqlite: Database.Database, registry: 'main' | 'source_profiles') {
+  return sqlite.prepare(`SELECT 1 FROM ${registry}.sqlite_master WHERE type = 'table' AND name = 'removedRemoteProfiles'`).get()
+}
+
+export function isSourceProfileRemoved(sqlite: Database.Database, id: string): boolean {
+  const registry = hasSourceProfiles(sqlite) ? 'source_profiles' : 'main'
+  return !!(removedProfilesExist(sqlite, registry) &&
+    sqlite.prepare(`SELECT 1 FROM ${registry}.removedRemoteProfiles WHERE id = ?`).get(id))
+}
+
+/** Retain local foreign-key targets for imported media and offline copies. */
+export function removeSourceProfile(sqlite: Database.Database, id: string) {
+  const attached = hasSourceProfiles(sqlite)
+  const registry = attached ? 'source_profiles' : 'main'
+  sqlite.transaction(() => {
+    sqlite.exec(`CREATE TABLE IF NOT EXISTS ${registry}.removedRemoteProfiles (id TEXT PRIMARY KEY)`)
+    sqlite.prepare(`INSERT OR IGNORE INTO ${registry}.removedRemoteProfiles VALUES (?)`).run(id)
+    if (attached) {
+      sqlite.prepare('DELETE FROM source_profiles.libraryProfiles WHERE profileId = ?').run(id)
+      sqlite.prepare('DELETE FROM source_profiles.remoteProfiles WHERE id = ?').run(id)
+    }
+  })()
 }

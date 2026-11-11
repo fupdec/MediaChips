@@ -3,7 +3,8 @@ export function localCloudCallback(port: number, kind: 'drive' | 'cloud-accounts
   return `http://127.0.0.1:${port}/api/${kind}/oauth/callback`
 }
 export function callbackReachesApi(uri: string, apiPort: number | undefined) {
-  const callback = new URL(uri)
+  let callback: URL
+  try { callback = new URL(uri) } catch { return false }
   if (!['localhost', '127.0.0.1', '[::1]'].includes(callback.hostname)) return true
   return Number(callback.port || (callback.protocol === 'https:' ? 443 : 80)) === apiPort
 }
