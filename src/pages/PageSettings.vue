@@ -112,19 +112,15 @@
                 <SourcesPanel/>
               </SettingsSection>
               <SettingsSection id="settings-metadata-transfer">
-                <SettingsCategoryDivider :title="t('metadata_transfer.title')" icon="file-export-outline"/>
+                <SettingsCategoryDivider :title="t('metadata_transfer.title')" icon="swap-horizontal"/>
                 <div class="d-flex align-center flex-wrap ga-2">
                   <DialogMetadataTransfer>
                     <template #activator="{open}">
-                      <v-btn prepend-icon="mdi-file-import-outline" variant="tonal" @click="open">{{ t('metadata_transfer.title') }}</v-btn>
+                      <v-btn prepend-icon="mdi-swap-horizontal" variant="tonal" @click="open">{{ t('metadata_transfer.open') }}</v-btn>
                     </template>
                   </DialogMetadataTransfer>
                   <ButtonDocumentation id="settings.files.metadata_transfer"/>
                 </div>
-              </SettingsSection>
-              <SettingsGroupLabel :title="t('settingsLayout.recovery')" icon="folder-search-outline" accent/>
-              <SettingsSection id="settings-bulk-paths">
-                <SettingsBulkPathEditing/>
               </SettingsSection>
             </SettingsList>
           </div>
@@ -157,53 +153,11 @@
             </SettingsList>
           </div>
 
-          <div v-else-if="tab === 'maintenance'">
-            <SettingsList>
-              <SettingsLibraryHealthGuide/>
-
-              <SettingsGroupLabel
-                :title="t('settings_labels.appearance.cards')"
-                icon="view-grid-outline"
-                accent
-              />
-              <SettingsGenerateVideoImages/>
-              <SettingsTagImageAiUpscale/>
-
-              <SettingsGroupLabel
-                :title="t('settingsLayout.maintenance_media_data')"
-                icon="file-document-outline"
-                accent
-              />
-              <SettingsBackfillTask :config="VIDEO_CODEC_BACKFILL"/>
-              <SettingsBackfillTask :config="MEDIA_CREATED_BACKFILL"/>
-
-              <SettingsGroupLabel
-                :title="t('settingsLayout.maintenance_recognition')"
-                icon="magnify-scan"
-                accent
-              />
-              <SettingsBackfillTask :config="CLIP_EMBEDDING_BACKFILL"/>
-              <SettingsDetectFaces/>
-
-              <SettingsGroupLabel
-                :title="t('settingsLayout.maintenance_duplicates')"
-                icon="content-duplicate"
-                accent
-              />
-              <SettingsSwitch
-                option="remoteOshashBackground"
-                :title="t('settings_labels.database.remote_oshash_background')"
-                :hint="t('settings_labels.database.remote_oshash_background_hint')"
-                data-testid="remote-oshash-background"
-              />
-              <SettingsBackfillTask :config="FINGERPRINT_BACKFILL"/>
-              <SettingsBackfillTask :config="VISUAL_HASH_BACKFILL"/>
-              <SettingsFindDuplicates/>
-
-              <SettingsFindMissingMedia/>
-
-            </SettingsList>
-          </div>
+          <SettingsMaintenance
+            v-else-if="tab === 'maintenance'"
+            :section-id="maintenanceSection"
+            @navigate="scrollSettingsToTop"
+          />
 
           <div v-else-if="tab === 'database'">
             <SettingsList>
@@ -231,8 +185,6 @@
                   <span>{{ t('change_history.protection_hint') }}</span>
                 </div>
               </SettingsSection>
-              <SettingsClearGeneratedImages/>
-              <SettingsLibraryReset/>
             </SettingsList>
           </div>
 
@@ -304,21 +256,14 @@ import SettingsSfwMode
 import {usePluginsStore} from "@/stores/plugins"
 import {markerMomentsAutoRefresh, markerMomentsEnabled} from '@/services/markerMomentPreferences'
 import {LOCAL_AI_UI_ENABLED} from "@shared/features"
-import {
-  FINGERPRINT_BACKFILL,
-  VISUAL_HASH_BACKFILL,
-  CLIP_EMBEDDING_BACKFILL,
-  VIDEO_CODEC_BACKFILL,
-  MEDIA_CREATED_BACKFILL,
-} from "@/composable/useSettingsBackfillStream"
 
+const SettingsMaintenance = defineAsyncComponent(() =>
+  import("@/components/settings/database/SettingsMaintenance.vue")
+)
 const SettingsWatchedFolders = defineAsyncComponent(() =>
   import("@/components/settings/tools/SettingsWatchedFolders.vue")
 )
 const DialogMetadataTransfer = defineAsyncComponent(() => import('@/components/dialogs/DialogMetadataTransfer.vue'))
-const SettingsBulkPathEditing = defineAsyncComponent(() =>
-  import("@/components/settings/files/SettingsBulkPathEditing.vue")
-)
 const SettingsFolderTags = defineAsyncComponent(() =>
   import("@/components/settings/files/SettingsFolderTags.vue")
 )
@@ -358,40 +303,12 @@ const SettingsOpenDataFolder = defineAsyncComponent(() =>
 const SettingsDatabases = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsDatabases.vue")
 )
-const SettingsLibraryHealthGuide = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsLibraryHealthGuide.vue")
-)
-const SettingsSwitch = defineAsyncComponent(() => import("@/components/ui/SettingsSwitch.vue"))
-const SettingsBackfillTask = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsBackfillTask.vue")
-)
-const SettingsFindMissingMedia = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsFindMissingMedia.vue")
-)
 const SourcesPanel = defineAsyncComponent(() => import("@/components/dialogs/SourcesPanel.vue"))
-const SettingsFindDuplicates = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsFindDuplicates.vue")
-)
-const SettingsGenerateVideoImages = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsGenerateVideoImages.vue")
-)
 const SettingsGenerateAutoChapters = defineAsyncComponent(() =>
   import("@/components/settings/database/SettingsGenerateAutoChapters.vue")
 )
-const SettingsTagImageAiUpscale = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsTagImageAiUpscale.vue")
-)
 const SettingsLocalAi = defineAsyncComponent(() =>
   import("@/components/settings/general/SettingsLocalAi.vue")
-)
-const SettingsDetectFaces = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsDetectFaces.vue")
-)
-const SettingsClearGeneratedImages = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsClearGeneratedImages.vue")
-)
-const SettingsLibraryReset = defineAsyncComponent(() =>
-  import("@/components/settings/database/SettingsLibraryReset.vue")
 )
 const SettingsGeneral = defineAsyncComponent(() =>
   import("@/components/settings/general/SettingsGeneral.vue")
@@ -410,6 +327,7 @@ const About = defineAsyncComponent(() =>
 )
 
 const tab = ref("general")
+const maintenanceSection = ref<string>()
 const contentRef = ref<HTMLElement | null>(null)
 const applyingRoute = ref(false)
 const route = useRoute()
@@ -479,6 +397,8 @@ function scheduleScrollToSection(sectionId: string) {
     if (request !== scrollRequest) return
     const container = getScrollContainer()
     const element = document.getElementById(sectionId)
+    const details = tab.value === 'maintenance' ? element?.closest('details') : null
+    if (details && !details.open) details.open = true
     if (container && element && element.getClientRects().length) {
       const top = element.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop
       stable = previousTop !== undefined && Math.abs(top - previousTop) < 1 ? stable + 1 : 0
@@ -505,10 +425,16 @@ function applyRouteSettings() {
     pluginsStore.settingsPanels,
   )
   tab.value = navItems.value.some(item => item.value === location.tab) ? location.tab : 'general'
+  maintenanceSection.value = location.tab === 'maintenance' ? location.elementId : undefined
   nextTick(() => {
     if (location.elementId) scheduleScrollToSection(location.elementId)
     applyingRoute.value = false
   })
+}
+
+function scrollSettingsToTop() {
+  const container = getScrollContainer()
+  if (container) container.scrollTop = 0
 }
 
 function syncTabToRoute(nextTab: string) {
@@ -526,10 +452,7 @@ onBeforeUnmount(() => { ++scrollRequest })
 watch(tab, (nextTab) => {
   if (!applyingRoute.value) {
     ++scrollRequest
-    const scrollContainer = getScrollContainer()
-    if (scrollContainer) {
-      scrollContainer.scrollTop = 0
-    }
+    scrollSettingsToTop()
     syncTabToRoute(nextTab)
     return
   }

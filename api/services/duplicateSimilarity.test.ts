@@ -39,7 +39,7 @@ describe('similarity search and merging', () => {
     const a = await card('a.mp4'), b = await card('b.mp4')
     const result = listMediaDuplicateGroups(db, {duplicatesBy: 'similarity', mediaTypeId: 1})
     expect(result.groups).toHaveLength(1)
-    expect(result.groups[0]).toMatchObject({originalId: a.id, itemIds: [a.id, b.id], similarity: [{score: 75}]})
+    expect(result.groups[0]).toMatchObject({originalId: a.id, itemIds: [a.id, b.id], similarity: [{score: 100}]})
     await mergeMediaItems(db, {survivorId: a.id, sourceIds: [b.id], similarity: true})
     expect(fixture.sqlite.prepare('SELECT COUNT(*) AS n FROM media').get()).toEqual({n: 1})
     expect(listMediaCopies(db, a.id).copies.map(copy => copy.relationship)).toEqual(['copy', 'copy'])

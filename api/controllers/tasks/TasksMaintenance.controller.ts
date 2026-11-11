@@ -314,10 +314,12 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
 
   const streamFindMissingMedia = async (req: ApiRequest, res: ApiResponse) => {
     const folders = Array.isArray(req.body?.folders) ? req.body.folders : []
+    const originalFolder = req.body?.originalFolder
     await runNdjsonAsyncGenerator(req, res, {
       errorMessage: 'Some error occurred while searching for missing media.',
       iterate: (shouldStop) => iterateMissingMediaSearch(db, {
         folders,
+        originalFolder: originalFolder === undefined || typeof originalFolder === 'string' ? originalFolder : '',
         shouldStop,
       }),
     })

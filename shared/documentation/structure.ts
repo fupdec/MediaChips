@@ -721,10 +721,10 @@ export const docs: DocumentationEntry[] = [
             "name": "Clear generated images",
             "icon": "mdi-trash-can-outline",
             "selector": [
-              "#settings-doc-tab-database",
+              "#settings-doc-tab-maintenance",
               "#settings-clear-generated-images"
             ],
-            "navigate": "/settings?tab=database&section=clear_generated"
+            "navigate": "/settings?tab=maintenance&section=clear_generated"
           },
           {
             "id": "settings.library.parse_tags",
@@ -821,10 +821,10 @@ export const docs: DocumentationEntry[] = [
             "name": "Bulk path editing",
             "icon": "mdi-cog-outline",
             "selector": [
-              "#settings-doc-tab-connections",
+              "#settings-doc-tab-maintenance",
               "#settings-bulk-paths"
             ],
-            "navigate": "/settings?tab=connections&section=bulk_paths"
+            "navigate": "/settings?tab=maintenance&section=bulk_paths"
           }
         ]
       },
@@ -894,10 +894,10 @@ export const docs: DocumentationEntry[] = [
             "name": "Library reset",
             "icon": "mdi-database-remove-outline",
             "selector": [
-              "#settings-doc-tab-database",
+              "#settings-doc-tab-maintenance",
               "#settings-library-reset"
             ],
-            "navigate": "/settings?tab=database&section=library_reset"
+            "navigate": "/settings?tab=maintenance&section=library_reset"
           },
           {
             "id": "settings.history",

@@ -791,7 +791,7 @@ export const tasksApi = {
   },
 
   streamFindMissingMedia(
-    body: {folders: string[]},
+    body: {folders: string[]; originalFolder: string},
     options: {signal?: AbortSignal},
     onEvent: (event: GenerationStreamEvent) => void,
   ) {

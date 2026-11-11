@@ -1106,27 +1106,27 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     },
     "settings.duplicates": {
       "name": "Duplicates and copies",
-      "content": "<p>Open Processing & maintenance → Find duplicates. Choose the media type and comparison method, then open the review. Configure similarity, verification and automatic copy discovery here. Review the primary file and file actions before merging.</p>"
+      "content": "<p>Open Maintenance → Find duplicates. Choose the media type and comparison method, then open the review. Configure similarity, verification and automatic copy discovery here. Review the primary file and file actions before merging.</p>"
     },
     "settings.visual_hash": {
       "name": "Similar file index",
-      "content": "<p>Build visual fingerprints under Processing & maintenance to compare preview frames. Technical reliability and matching thresholds are described in the duplicate settings.</p>"
+      "content": "<p>Build visual fingerprints under Maintenance to compare preview frames. Technical reliability and matching thresholds are described in the duplicate settings.</p>"
     },
     "settings.semantic_index": {
       "name": "Semantic search index",
-      "content": "<p>Build the CLIP index under Processing & maintenance to enable semantic search. Download the model when requested and monitor the progress in this section.</p>"
+      "content": "<p>Build the CLIP index under Maintenance to enable semantic search. Download the model when requested and monitor the progress in this section.</p>"
     },
     "settings.auto_chapters": {
       "name": "Automatic chapters",
-      "content": "<p>Generate automatic chapters under Processing & maintenance. This is a library processing task, separate from player preferences.</p>"
+      "content": "<p>Generate automatic chapters under Media processing. This is a library processing task, separate from player preferences.</p>"
     },
     "settings.media_created": {
       "name": "Media creation dates",
-      "content": "<p>Fill missing media creation dates under Processing & maintenance.</p>"
+      "content": "<p>Fill missing media creation dates under Maintenance.</p>"
     },
     "settings.tag_upscale": {
       "name": "Upscale tag images",
-      "content": "<p>Process tag images with AI under Processing & maintenance. Existing model download and task controls remain in this section.</p>"
+      "content": "<p>Process tag images with AI under Maintenance. Existing model download and task controls remain in this section.</p>"
     },
     "settings.history": {
       "name": "Change history",
@@ -1220,27 +1220,27 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     },
     "settings.duplicates": {
       "name": "Дубликаты и копии",
-      "content": "<p>Откройте Обработка и обслуживание → Поиск дубликатов. Выберите тип медиа и способ сравнения, затем откройте просмотр результатов. Здесь же настраиваются сходство, проверка файлов и автоматическое обнаружение копий. Перед объединением проверьте основной файл и действия с остальными файлами.</p>"
+      "content": "<p>Откройте Обслуживание → Поиск дубликатов. Выберите тип медиа и способ сравнения, затем откройте просмотр результатов. Здесь же настраиваются сходство, проверка файлов и автоматическое обнаружение копий. Перед объединением проверьте основной файл и действия с остальными файлами.</p>"
     },
     "settings.visual_hash": {
       "name": "Индекс похожих файлов",
-      "content": "<p>Подготовьте визуальные отпечатки в разделе Обработка и обслуживание для сравнения кадров превью. Надёжность признаков и пороги сходства настраиваются в поиске дубликатов.</p>"
+      "content": "<p>Подготовьте визуальные отпечатки в разделе Обслуживание для сравнения кадров превью. Надёжность признаков и пороги сходства настраиваются в поиске дубликатов.</p>"
     },
     "settings.semantic_index": {
       "name": "Индекс семантического поиска",
-      "content": "<p>Подготовьте индекс CLIP в разделе Обработка и обслуживание. При необходимости загрузите модель и следите за прогрессом задачи в этой секции.</p>"
+      "content": "<p>Подготовьте индекс CLIP в разделе Обслуживание. При необходимости загрузите модель и следите за прогрессом задачи в этой секции.</p>"
     },
     "settings.auto_chapters": {
       "name": "Автоматические главы",
-      "content": "<p>Генерация автоматических глав находится в разделе Обработка и обслуживание. Это обработка библиотеки, отдельная от параметров плеера.</p>"
+      "content": "<p>Генерация автоматических глав находится в разделе Обработка медиа. Это обработка библиотеки, отдельная от параметров плеера.</p>"
     },
     "settings.media_created": {
       "name": "Даты создания медиа",
-      "content": "<p>Заполните отсутствующие даты создания файлов в разделе Обработка и обслуживание.</p>"
+      "content": "<p>Заполните отсутствующие даты создания файлов в разделе Обслуживание.</p>"
     },
     "settings.tag_upscale": {
       "name": "Увеличение изображений тегов",
-      "content": "<p>AI-обработка изображений тегов находится в разделе Обработка и обслуживание. В этой секции доступны загрузка модели и управление задачей.</p>"
+      "content": "<p>AI-обработка изображений тегов находится в разделе Обслуживание. В этой секции доступны загрузка модели и управление задачей.</p>"
     },
     "settings.history": {
       "name": "История изменений",
@@ -1299,7 +1299,79 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     "settings.about": {
       "name": "Über",
       "content": "<p>Lizenz und Anwendungsinformationen.</p>"
-    }
+    },
+    "markers.suggested_moments": {
+      name: "Ähnliche Szenen finden",
+      content: "<p>Markieren Sie einige Beispielszenen mit einem Tag. Über <b>Ähnliche Momente finden</b> auf der Tag-Seite finden Sie visuell ähnliche Szenen in der Bibliothek, ohne jedes Video manuell zu durchsuchen. Die Suche verwendet das CLIP-Modell und indexierte Videovorschauen.</p><p>Öffnen Sie ein Vorschaubild, um das Einzelbild zu prüfen, oder klicken Sie auf den Zeitpunkt, um die Szene abzuspielen. Die Uhr mit Häkchen kennzeichnet das Einzelbild am exakten Zeitpunkt. Das Bildsymbol steht für ein Video-Vorschaubild, dessen Zeitpunkt abweichen kann.</p><p>Bestätigen Sie einen Treffer, um einen Marker mit demselben Tag zu erstellen. Bestätigte Marker dienen als Beispiele für spätere Suchen. Abgelehnte Treffer verschwinden aus der Liste und stufen ähnliche Einzelbilder in künftigen Ergebnissen herab.</p>",
+    },
+    "settings.search": {
+      name: "Sucheinstellungen",
+      content: "<p>Suchen Sie nach Namen oder Beschreibung einer Einstellung. Auch abhängige Bedienelemente werden gefunden, wenn ihr Bereich geschlossen ist. Wählen Sie ein Ergebnis oder drücken Sie Enter, um den Bereich zu öffnen. Esc leert die Suche. Es erscheinen nur verfügbare Plugin-Bereiche.</p>",
+    },
+    "settings.security": {
+      name: "Zugriff und Sicherheit",
+      content: "<p>Unter Allgemein → Sicherheit finden Sie LAN- und Browserzugriff, Passwortschutz, Passworthinweise, automatische Sperre bei Inaktivität und den SFW-Modus.</p>",
+    },
+    "settings.navigation": {
+      name: "Navigation",
+      content: "<p>Unter Darstellung → Navigation legen Sie die Position der Navigationsleiste fest und ob Wiedergabelisten, Marker und Papierkorb angezeigt werden.</p>",
+    },
+    "settings.slideshow": {
+      name: "Bild-Diashow",
+      content: "<p>Unter Wiedergabe legen Sie das Diashow-Intervall und die Wiederholung fest. Die virtualisierte Darstellung des Bildrasters konfigurieren Sie unter Darstellung.</p>",
+    },
+    "settings.tag_categories": {
+      name: "Tag-Kategorien",
+      content: "<p>Unter Katalog & Tags erstellen und verwalten Sie Tag-Kategorien und wählen die Standardkategorie.</p>",
+    },
+    "settings.chip_recipes": {
+      name: "Chip-Rezepte",
+      content: "<p>Unter Katalog & Tags können Sie wiederverwendbare Katalogstrukturen importieren, in der Vorschau prüfen und exportieren.</p>",
+    },
+    "settings.sources.accounts": {
+      name: "Cloud und NAS",
+      content: "<p>Quellen & Import umfasst überwachte Ordner, Cloud-Konten, NAS-Zugriff und Importoptionen. Aktivierte Import-Plugins erscheinen ebenfalls hier.</p>",
+    },
+    "settings.metadata_transfer": {
+      name: "Übertragung von Metadaten",
+      content: "<p>Unter Quellen & Import → Metadaten importieren und exportieren importieren und exportieren Sie Metadaten. Prüfen Sie die Angaben im Dialog, bevor Sie Änderungen anwenden.</p>",
+    },
+    "settings.duplicates": {
+      name: "Duplikate und Kopien",
+      content: "<p>Öffnen Sie Verarbeitung & Wartung → Finden Sie Duplikate. Wählen Sie Medientyp und Vergleichsmethode und prüfen Sie die Treffer. Hier konfigurieren Sie Ähnlichkeit, Dateiprüfung und automatische Kopiensuche. Prüfen Sie vor dem Zusammenführen die Hauptdatei und den Umgang mit den übrigen Dateien.</p>",
+    },
+    "settings.visual_hash": {
+      name: "Index für ähnliche Dateien",
+      content: "<p>Erstellen Sie unter Verarbeitung & Wartung visuelle Fingerabdrücke zum Vergleichen von Vorschaubildern. Hinweise zur Zuverlässigkeit und zu den Schwellenwerten finden Sie in den Einstellungen der Duplikatsuche.</p>",
+    },
+    "settings.semantic_index": {
+      name: "Index für die semantische Suche",
+      content: "<p>Erstellen Sie unter Verarbeitung & Wartung den CLIP-Index für die semantische Suche. Laden Sie das Modell herunter, wenn Sie dazu aufgefordert werden. Den Fortschritt sehen Sie in diesem Bereich.</p>",
+    },
+    "settings.auto_chapters": {
+      name: "Automatische Kapitel",
+      content: "<p>Erstellen Sie automatische Kapitel unter Medienverarbeitung. Dies ist ein Verarbeitungsvorgang für die Bibliothek. Die Player-Einstellungen werden separat konfiguriert.</p>",
+    },
+    "settings.media_created": {
+      name: "Erstellungsdatum von Medien",
+      content: "<p>Ergänzen Sie fehlende Erstellungsdaten der Medien unter Verarbeitung & Wartung.</p>",
+    },
+    "settings.tag_upscale": {
+      name: "Tag-Bilder hochskalieren",
+      content: "<p>Bearbeiten Sie Tag-Bilder mit KI unter Verarbeitung & Wartung. Dort finden Sie auch den Modell-Download und die Steuerung des Vorgangs.</p>",
+    },
+    "settings.history": {
+      name: "Änderungsverlauf",
+      content: "<p>Öffnen Sie Daten & Sicherungen → Änderungsverlauf und Rückgängig, um erfasste Änderungen und verfügbare Wiederherstellungsoptionen zu prüfen.</p>",
+    },
+    "settings.license": {
+      name: "Lizenz",
+      content: "<p>Unter Über finden Sie Aktivierungsstatus, Aktivierungsschlüssel und Geräteverwaltung. Versionen aus einem App-Store zeigen stattdessen die Store-Lizenz.</p>",
+    },
+    "settings.conversion": {
+      name: "Dauerhafte Konvertierung",
+      content: "<p>Unter Wiedergabe → Videoplayer legen Sie Konvertierungsqualität und maximale Ausgabeauflösung fest. „Sparsam“ erzeugt kleinere Dateien, „Ausgewogen“ ist die empfohlene Voreinstellung und „Hohe Qualität“ erzeugt größere Dateien. Kleinere Quellen werden nicht hochskaliert. Diese Optionen gelten für dauerhafte Konvertierungen. Die automatische Transcodierung bei der Wiedergabe hat einen eigenen Schalter. Hier können Sie auch den Transcodierungs-Cache leeren.</p>",
+    },
   },
   "es": {
     "sets": {
@@ -1345,7 +1417,79 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     "settings.about": {
       "name": "Acerca de",
       "content": "<p>Licencia e información de la aplicación.</p>"
-    }
+    },
+    "markers.suggested_moments": {
+      name: "Buscar momentos similares",
+      content: "<p>Marca algunos momentos con una misma etiqueta y usa <b>Encontrar momentos similares</b> en su página para buscar escenas visualmente parecidas en la biblioteca. Así evitas recorrer cada vídeo manualmente. La búsqueda usa el modelo CLIP y las vistas previas indexadas.</p><p>Abre una miniatura para revisar el fotograma o pulsa un instante para reproducir la escena. El reloj con una marca de verificación identifica un fotograma en el instante exacto. El icono de imagen indica una miniatura del vídeo que puede corresponder a otro instante.</p><p>Confirma una coincidencia para crear un marcador con la misma etiqueta. Los marcadores confirmados sirven como ejemplos para búsquedas posteriores. Rechazar una escena la quita de la lista y reduce la prioridad de fotogramas similares en futuros resultados.</p>",
+    },
+    "settings.search": {
+      name: "Ajustes de búsqueda",
+      content: "<p>Busca por el nombre o la descripción de un ajuste. Los resultados incluyen controles dependientes aunque su sección esté cerrada. Selecciona un resultado o pulsa Enter para abrir la sección. Esc borra la búsqueda. Solo aparecen los paneles de plugins disponibles.</p>",
+    },
+    "settings.security": {
+      name: "Acceso y seguridad",
+      content: "<p>En General → Seguridad se configuran el acceso por LAN y navegador, la protección y las pistas de contraseña, el bloqueo por inactividad y el modo SFW.</p>",
+    },
+    "settings.navigation": {
+      name: "Navegación",
+      content: "<p>En Apariencia → Navegación puedes configurar la posición de la barra de navegación y la visibilidad de las listas de reproducción, los marcadores y la papelera.</p>",
+    },
+    "settings.slideshow": {
+      name: "Presentación de imágenes",
+      content: "<p>En Visualización se configuran el intervalo y la repetición de la presentación de imágenes. La renderización virtualizada de la cuadrícula se configura en Apariencia.</p>",
+    },
+    "settings.tag_categories": {
+      name: "Categorías de etiquetas",
+      content: "<p>Crea y gestiona categorías de etiquetas en Catálogo y etiquetas. Aquí también puedes elegir la categoría predeterminada.</p>",
+    },
+    "settings.chip_recipes": {
+      name: "Recetas de campos",
+      content: "<p>Importa, revisa y exporta estructuras de catálogo reutilizables en Catálogo y etiquetas.</p>",
+    },
+    "settings.sources.accounts": {
+      name: "Nube y NAS",
+      content: "<p>Fuentes e importación reúne carpetas supervisadas, cuentas en la nube, exploración del NAS y opciones de importación. Los plugins de importación aparecen aquí cuando están activados.</p>",
+    },
+    "settings.metadata_transfer": {
+      name: "Transferencia de metadatos",
+      content: "<p>Usa Fuentes e importación → Importar y exportar metadatos para importar o exportar metadatos. Revisa el diálogo antes de aplicar cambios.</p>",
+    },
+    "settings.duplicates": {
+      name: "Duplicados y copias",
+      content: "<p>Abre Mantenimiento → encontrar duplicados. Elige el tipo de contenido y el método de comparación y revisa los resultados. Aquí configuras la similitud, la verificación y la búsqueda automática de copias. Antes de fusionar, revisa el archivo principal y qué se hará con cada archivo.</p>",
+    },
+    "settings.visual_hash": {
+      name: "Índice de archivos similares",
+      content: "<p>Genera huellas visuales en Mantenimiento para comparar fotogramas de vista previa. La fiabilidad y los umbrales se explican en los ajustes de búsqueda de duplicados.</p>",
+    },
+    "settings.semantic_index": {
+      name: "Índice de búsqueda semántica",
+      content: "<p>Crea el índice CLIP en Mantenimiento para activar la búsqueda semántica. Descarga el modelo cuando se solicite y consulta el progreso en esta sección.</p>",
+    },
+    "settings.auto_chapters": {
+      name: "Capítulos automáticos",
+      content: "<p>Genera capítulos automáticos en Procesamiento multimedia. Es una tarea de procesamiento de la biblioteca. Las preferencias del reproductor se configuran por separado.</p>",
+    },
+    "settings.media_created": {
+      name: "Fechas de creación de archivos multimedia",
+      content: "<p>Completa las fechas de creación que falten en Mantenimiento.</p>",
+    },
+    "settings.tag_upscale": {
+      name: "Aumentar la resolución de las imágenes de etiquetas",
+      content: "<p>Procesa las imágenes de etiquetas con IA en Mantenimiento. La descarga del modelo y los controles de la tarea están en esta sección.</p>",
+    },
+    "settings.history": {
+      name: "Historial de cambios",
+      content: "<p>Abre Datos y copias de seguridad → Historial de cambios y deshacer para revisar las ediciones registradas y las opciones de restauración disponibles.</p>",
+    },
+    "settings.license": {
+      name: "Licencia",
+      content: "<p>Acerca de muestra el estado de activación, la clave y la gestión de dispositivos. Las versiones de tienda muestran la licencia de la tienda.</p>",
+    },
+    "settings.conversion": {
+      name: "Conversión permanente",
+      content: "<p>En Visualización → Reproductor de video se configuran la calidad de conversión y la resolución máxima. El modo económico genera archivos más pequeños, el equilibrado es el recomendado y el de alta calidad genera archivos más grandes. El límite de resolución no amplía vídeos más pequeños. Estas opciones se aplican a conversiones permanentes. La transcodificación automática al reproducir tiene su propio interruptor. En esta sección también puedes borrar la caché de transcodificación.</p>",
+    },
   },
   "fr": {
     "sets": {
@@ -1391,7 +1535,79 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     "settings.about": {
       "name": "À propos",
       "content": "<p>Licence et informations sur l’application.</p>"
-    }
+    },
+    "markers.suggested_moments": {
+      name: "Rechercher des moments similaires",
+      content: "<p>Marquez quelques moments avec un même tag, puis utilisez <b>Trouver des moments similaires</b> sur sa page pour chercher des scènes visuellement proches dans la bibliothèque. Cela évite de parcourir chaque vidéo manuellement. La recherche utilise le modèle CLIP et les aperçus vidéo indexés.</p><p>Ouvrez une vignette pour examiner l’image ou cliquez sur un instant pour lire la scène. L’horloge avec une coche désigne une image à l’instant exact. L’icône d’image désigne une vignette vidéo pouvant correspondre à un autre instant.</p><p>Confirmez une correspondance pour créer un marqueur avec le même tag. Les marqueurs confirmés servent d’exemples pour les recherches suivantes. Rejeter une scène la retire de la liste et fait reculer les images similaires dans les futurs résultats.</p>",
+    },
+    "settings.search": {
+      name: "Paramètres de recherche",
+      content: "<p>Recherchez un paramètre par son nom ou sa description. Les résultats incluent les commandes dépendantes, même si leur section est fermée. Sélectionnez un résultat ou appuyez sur Entrée pour l’ouvrir. Échap efface la recherche. Seuls les panneaux de plugins disponibles sont affichés.</p>",
+    },
+    "settings.security": {
+      name: "Accès et sécurité",
+      content: "<p>La section Général → Sécurité regroupe l’accès par réseau local et navigateur, la protection et les indices de mot de passe, le verrouillage en cas d’inactivité et le mode SFW.</p>",
+    },
+    "settings.navigation": {
+      name: "Navigation",
+      content: "<p>Dans Apparence → Navigation, configurez la position de la barre de navigation et l’affichage des listes de lecture, des marqueurs et de la corbeille.</p>",
+    },
+    "settings.slideshow": {
+      name: "Diaporama d’images",
+      content: "<p>La section Lecture contient l’intervalle et la lecture en boucle du diaporama. Le rendu virtualisé de la grille d’images se configure dans Apparence.</p>",
+    },
+    "settings.tag_categories": {
+      name: "Catégories de tags",
+      content: "<p>Créez et gérez les catégories de tags dans Catalogue et tags. Vous pouvez aussi y choisir la catégorie par défaut.</p>",
+    },
+    "settings.chip_recipes": {
+      name: "Recettes de champs",
+      content: "<p>Importez, prévisualisez et exportez des structures de catalogue réutilisables dans Catalogue et tags.</p>",
+    },
+    "settings.sources.accounts": {
+      name: "Cloud et NAS",
+      content: "<p>Sources et importation regroupe les dossiers surveillés, les comptes cloud, l’exploration NAS et les options d’importation. Les plugins d’importation activés y apparaissent également.</p>",
+    },
+    "settings.metadata_transfer": {
+      name: "Transfert de métadonnées",
+      content: "<p>Utilisez Sources et importation → Importer et exporter les métadonnées pour importer ou exporter des métadonnées. Vérifiez le contenu de la fenêtre avant d’appliquer les modifications.</p>",
+    },
+    "settings.duplicates": {
+      name: "Doublons et copies",
+      content: "<p>Ouvrez Traitement et maintenance → Rechercher des doublons. Choisissez le type de média et la méthode de comparaison, puis examinez les résultats. Configurez ici la similarité, la vérification et la recherche automatique de copies. Avant de fusionner, vérifiez le fichier principal et les actions prévues pour chaque fichier.</p>",
+    },
+    "settings.visual_hash": {
+      name: "Index des fichiers similaires",
+      content: "<p>Créez les empreintes visuelles dans Traitement et maintenance pour comparer les images d’aperçu. La fiabilité et les seuils sont décrits dans les paramètres de recherche de doublons.</p>",
+    },
+    "settings.semantic_index": {
+      name: "Index de recherche sémantique",
+      content: "<p>Créez l’index CLIP dans Traitement et maintenance pour activer la recherche sémantique. Téléchargez le modèle lorsque l’application le demande et suivez la progression dans cette section.</p>",
+    },
+    "settings.auto_chapters": {
+      name: "Chapitres automatiques",
+      content: "<p>Générez des chapitres automatiques dans Traitement des médias. Il s’agit d’un traitement de la bibliothèque. Les préférences du lecteur se règlent séparément.</p>",
+    },
+    "settings.media_created": {
+      name: "Dates de création des médias",
+      content: "<p>Complétez les dates de création manquantes dans Traitement et maintenance.</p>",
+    },
+    "settings.tag_upscale": {
+      name: "Augmenter la résolution des images de tags",
+      content: "<p>Traitez les images des tags avec l’IA dans Traitement et maintenance. Le téléchargement du modèle et les commandes de la tâche se trouvent dans cette section.</p>",
+    },
+    "settings.history": {
+      name: "Historique des modifications",
+      content: "<p>Ouvrez Données et sauvegardes → Historique des modifications et annulation pour consulter les modifications enregistrées et les options de restauration disponibles.</p>",
+    },
+    "settings.license": {
+      name: "Licence",
+      content: "<p>À propos affiche l’état d’activation, la clé et la gestion des appareils. Les versions distribuées en boutique affichent la licence de celle-ci.</p>",
+    },
+    "settings.conversion": {
+      name: "Conversion permanente",
+      content: "<p>Dans Lecture → Lecteur vidéo, réglez la qualité de conversion et la résolution maximale. Le mode économique produit des fichiers plus petits, le mode équilibré est recommandé et la haute qualité produit des fichiers plus volumineux. La résolution maximale n’agrandit pas les vidéos plus petites. Ces options concernent les conversions permanentes. Le transcodage automatique pendant la lecture dispose de son propre réglage. Vous pouvez aussi vider le cache de transcodage ici.</p>",
+    },
   },
   "pt": {
     "sets": {
@@ -1437,7 +1653,79 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     "settings.about": {
       "name": "Sobre",
       "content": "<p>Licença e informações do aplicativo.</p>"
-    }
+    },
+    "markers.suggested_moments": {
+      name: "Encontrar momentos semelhantes",
+      content: "<p>Marque alguns momentos com a mesma tag e use <b>Encontrar momentos semelhantes</b> na página dela para buscar cenas visualmente parecidas na biblioteca. Assim você evita percorrer cada vídeo manualmente. A busca usa o modelo CLIP e as prévias de vídeo indexadas.</p><p>Abra uma miniatura para conferir o quadro ou clique em um instante para reproduzir a cena. O relógio com marca de seleção indica um quadro no instante exato. O ícone de imagem indica uma miniatura do vídeo que pode corresponder a outro instante.</p><p>Confirme uma correspondência para criar um marcador com a mesma tag. Os marcadores confirmados servem de exemplo para buscas futuras. Rejeitar uma cena a remove da lista e reduz a prioridade de quadros semelhantes nos próximos resultados.</p>",
+    },
+    "settings.search": {
+      name: "Configurações de pesquisa",
+      content: "<p>Busque pelo nome ou pela descrição de uma configuração. Os resultados incluem controles dependentes mesmo com a seção fechada. Selecione um resultado ou pressione Enter para abri-la. Esc limpa a busca. Apenas painéis de plugins disponíveis são exibidos.</p>",
+    },
+    "settings.security": {
+      name: "Acesso e segurança",
+      content: "<p>Em Geral → Segurança, configure o acesso pela rede local e pelo navegador, a proteção e as dicas de senha, o bloqueio por inatividade e o modo SFW.</p>",
+    },
+    "settings.navigation": {
+      name: "Navegação",
+      content: "<p>Em Aparência → Navegação, configure a posição da barra de navegação e a exibição de listas de reprodução, marcadores e lixeira.</p>",
+    },
+    "settings.slideshow": {
+      name: "Apresentação de imagens",
+      content: "<p>Em Visualização, configure o intervalo e a repetição da apresentação de imagens. A renderização virtualizada da grade de imagens fica em Aparência.</p>",
+    },
+    "settings.tag_categories": {
+      name: "Categorias de tags",
+      content: "<p>Crie e gerencie categorias de tags em Catálogo e tags. Aqui também é possível escolher a categoria padrão.</p>",
+    },
+    "settings.chip_recipes": {
+      name: "Receitas de campos",
+      content: "<p>Importe, visualize e exporte estruturas de catálogo reutilizáveis em Catálogo e tags.</p>",
+    },
+    "settings.sources.accounts": {
+      name: "Nuvem e NAS",
+      content: "<p>Fontes e importação reúne pastas monitoradas, contas na nuvem, navegação no NAS e opções de importação. Plugins de importação aparecem aqui quando ativados.</p>",
+    },
+    "settings.metadata_transfer": {
+      name: "Transferência de metadados",
+      content: "<p>Use Fontes e importação → Importar e exportar metadados para importar ou exportar metadados. Revise a janela antes de aplicar as alterações.</p>",
+    },
+    "settings.duplicates": {
+      name: "Duplicatas e cópias",
+      content: "<p>Abra Processamento e manutenção → Encontre duplicatas. Escolha o tipo de mídia e o método de comparação e revise os resultados. Configure aqui a semelhança, a verificação e a busca automática de cópias. Antes de mesclar, confira o arquivo principal e o tratamento de cada arquivo.</p>",
+    },
+    "settings.visual_hash": {
+      name: "Índice de arquivos semelhantes",
+      content: "<p>Gere impressões digitais visuais em Processamento e manutenção para comparar quadros de prévia. A confiabilidade e os limites são explicados nas configurações de busca de duplicatas.</p>",
+    },
+    "settings.semantic_index": {
+      name: "Índice de pesquisa semântica",
+      content: "<p>Crie o índice CLIP em Processamento e manutenção para ativar a busca semântica. Baixe o modelo quando solicitado e acompanhe o progresso nesta seção.</p>",
+    },
+    "settings.auto_chapters": {
+      name: "Capítulos automáticos",
+      content: "<p>Gere capítulos automáticos em Processamento de mídia. Esta é uma tarefa de processamento da biblioteca. As preferências do reprodutor são configuradas separadamente.</p>",
+    },
+    "settings.media_created": {
+      name: "Datas de criação de mídia",
+      content: "<p>Preencha as datas de criação ausentes em Processamento e manutenção.</p>",
+    },
+    "settings.tag_upscale": {
+      name: "Aumentar a resolução das imagens de tags",
+      content: "<p>Processe imagens de tags com IA em Processamento e manutenção. O download do modelo e os controles da tarefa ficam nesta seção.</p>",
+    },
+    "settings.history": {
+      name: "Histórico de alterações",
+      content: "<p>Abra Dados e backups → Histórico de alterações e desfazer para conferir as edições registradas e as opções de restauração disponíveis.</p>",
+    },
+    "settings.license": {
+      name: "Licença",
+      content: "<p>Sobre mostra o status de ativação, a chave e o gerenciamento de dispositivos. Versões de loja exibem a licença da loja.</p>",
+    },
+    "settings.conversion": {
+      name: "Conversão permanente",
+      content: "<p>Em Visualização → Reprodutor de vídeo, configure a qualidade de conversão e a resolução máxima. O modo econômico gera arquivos menores, o equilibrado é o recomendado e a alta qualidade gera arquivos maiores. O limite de resolução não amplia vídeos menores. Essas opções se aplicam às conversões permanentes. A transcodificação automática durante a reprodução tem seu próprio controle. O cache de transcodificação também pode ser limpo nesta seção.</p>",
+    },
   },
   "ja": {
     "sets": {
@@ -1483,7 +1771,79 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     "settings.about": {
       "name": "このアプリについて",
       "content": "<p>ライセンスとアプリ情報.</p>"
-    }
+    },
+    "markers.suggested_moments": {
+      name: "似た場面を探す",
+      content: "<p>いくつかの場面に同じタグを付け、そのタグのページで<b>同様の瞬間を見つける</b>を使うと、ライブラリ内の見た目が似た場面を検索できます。動画を一つずつ手動で探す手間を省けます。検索には CLIP モデルとインデックス済みの動画プレビューを使用します。</p><p>サムネイルを開くとフレームを確認でき、時刻をクリックすると場面を再生できます。チェック付きの時計アイコンは指定時刻の正確なフレームを示します。画像アイコンは動画のサムネイルを示し、指定時刻と異なる場合があります。</p><p>候補を確定すると、同じタグ付きのマーカーを作成します。確定したマーカーは次回以降の検索の手本になります。不一致の候補を却下すると一覧から消え、以後の検索で似たフレームの順位が下がります。</p>",
+    },
+    "settings.search": {
+      name: "検索設定",
+      content: "<p>設定の名前や説明で検索できます。関連する設定項目は、そのセクションが閉じていても検索結果に含まれます。結果を選ぶか Enter を押すと該当セクションが開きます。Esc で検索をクリアできます。プラグインの設定は利用可能なものだけ表示されます。</p>",
+    },
+    "settings.security": {
+      name: "アクセスとセキュリティ",
+      content: "<p>「一般 → 安全」では、LAN やブラウザーからのアクセス、パスワード保護、ヒント、未操作時の自動ロック、SFW モードを設定できます。</p>",
+    },
+    "settings.navigation": {
+      name: "ナビゲーション",
+      content: "<p>「外観 → ナビゲーション」で、ナビゲーションバーの位置と、プレイリスト、マーカー、ゴミ箱の表示を設定できます。</p>",
+    },
+    "settings.slideshow": {
+      name: "画像のスライドショー",
+      content: "<p>「表示と再生」でスライドショーの間隔と繰り返しを設定できます。画像グリッドの仮想化描画は「外観」で設定します。</p>",
+    },
+    "settings.tag_categories": {
+      name: "タグのカテゴリ",
+      content: "<p>「カタログとタグ」でタグのカテゴリを作成、管理できます。既定のカテゴリもここで選択します。</p>",
+    },
+    "settings.chip_recipes": {
+      name: "チップのレシピ",
+      content: "<p>「カタログとタグ」で、再利用可能なカタログ構造をインポート、プレビュー、エクスポートできます。</p>",
+    },
+    "settings.sources.accounts": {
+      name: "クラウドと NAS",
+      content: "<p>「ソースとインポート」には、監視フォルダー、クラウドアカウント、NAS の参照、インポート設定がまとまっています。有効にしたインポート用プラグインもここに表示されます。</p>",
+    },
+    "settings.metadata_transfer": {
+      name: "メタデータ転送",
+      content: "<p>「ソースとインポート → メタデータのインポートとエクスポート」でメタデータをインポート、エクスポートできます。変更を適用する前にダイアログの内容を確認してください。</p>",
+    },
+    "settings.duplicates": {
+      name: "重複とコピー",
+      content: "<p>「処理とメンテナンス → 重複の検索」を開き、メディアの種類と比較方法を選んで結果を確認します。類似度、検証方法、コピーの自動検索もここで設定できます。結合前にメインファイルと各ファイルの処理方法を確認してください。</p>",
+    },
+    "settings.visual_hash": {
+      name: "類似ファイルのインデックス",
+      content: "<p>「処理とメンテナンス」でビジュアルフィンガープリントを作成し、プレビューのフレームを比較できます。判定の信頼性としきい値は、重複検索の設定に説明があります。</p>",
+    },
+    "settings.semantic_index": {
+      name: "セマンティック検索インデックス",
+      content: "<p>「処理とメンテナンス」で CLIP インデックスを作成すると、セマンティック検索を使えます。必要に応じてモデルをダウンロードし、このセクションで進行状況を確認してください。</p>",
+    },
+    "settings.auto_chapters": {
+      name: "自動チャプター",
+      content: "<p>「メディア処理」でチャプターを自動生成します。ライブラリの処理タスクで、プレーヤーの設定とは別に実行します。</p>",
+    },
+    "settings.media_created": {
+      name: "メディアの作成日",
+      content: "<p>「処理とメンテナンス」でメディアの未設定の作成日を補完できます。</p>",
+    },
+    "settings.tag_upscale": {
+      name: "タグ画像の高解像度化",
+      content: "<p>「処理とメンテナンス」でタグ画像を AI 処理できます。モデルのダウンロードやタスクの操作もこのセクションで行います。</p>",
+    },
+    "settings.history": {
+      name: "変更履歴",
+      content: "<p>「データとバックアップ → 変更履歴と取り消し」で記録された編集と、利用可能な復元操作を確認できます。</p>",
+    },
+    "settings.license": {
+      name: "ライセンス",
+      content: "<p>「このアプリについて」でライセンス認証の状態、認証キー、デバイス管理を確認できます。ストア版ではストアのライセンスが表示されます。</p>",
+    },
+    "settings.conversion": {
+      name: "恒久的な変換",
+      content: "<p>「表示と再生 → ビデオプレーヤー」で変換品質と最大出力解像度を設定できます。エコノミーはファイルを小さくし、バランスは推奨設定、高品質はファイルが大きくなります。元の動画が小さい場合、解像度の上限まで拡大することはありません。これらは保存する動画の変換に適用されます。再生時の自動トランスコードには別のスイッチがあります。トランスコードキャッシュもここで削除できます。</p>",
+    },
   },
   "cn": {
     "sets": {
@@ -1529,7 +1889,79 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     "settings.about": {
       "name": "关于",
       "content": "<p>许可证和应用信息.</p>"
-    }
+    },
+    "markers.suggested_moments": {
+      name: "查找相似片段",
+      content: "<p>先为几个示例片段添加同一标签，再在该标签页面点击<b>查找类似的时刻</b>，即可在资料库中寻找画面相似的场景，无需逐个视频手动查找。搜索使用 CLIP 模型和已建立索引的视频预览。</p><p>打开缩略图可查看画面，点击时间点可播放场景。带勾选标记的时钟图标表示精确时间点的画面，图片图标表示视频缩略图，其画面时间可能与标记不同。</p><p>确认匹配会创建带有同一标签的标记，并为后续搜索提供示例。排除不匹配的片段会将其移出列表，并降低相似画面在后续结果中的排序。</p>",
+    },
+    "settings.search": {
+      name: "搜索设置",
+      content: "<p>按设置名称或说明搜索。即使相关区域尚未打开，结果也会包含有依赖条件的控件。选择结果或按 Enter 可打开对应区域，按 Esc 可清空搜索。结果中只显示当前可用的插件面板。</p>",
+    },
+    "settings.security": {
+      name: "访问与安全",
+      content: "<p>在“常规 → 安全”中可设置局域网和浏览器访问、密码保护、密码提示、闲置自动锁定和 SFW 模式。</p>",
+    },
+    "settings.navigation": {
+      name: "导航",
+      content: "<p>在“外观 → 导航”中可设置导航栏位置，以及是否显示播放列表、标记和回收站。</p>",
+    },
+    "settings.slideshow": {
+      name: "图片幻灯片",
+      content: "<p>在“查看与播放”中可设置幻灯片间隔和循环播放。图片网格的虚拟化渲染在“外观”中设置。</p>",
+    },
+    "settings.tag_categories": {
+      name: "标签类别",
+      content: "<p>在“目录与标签”中创建和管理标签类别，也可在此选择默认类别。</p>",
+    },
+    "settings.chip_recipes": {
+      name: "字段配方",
+      content: "<p>在“目录与标签”中导入、预览和导出可重复使用的目录结构。</p>",
+    },
+    "settings.sources.accounts": {
+      name: "云端与 NAS",
+      content: "<p>“来源与导入”集中管理监视文件夹、云端账号、NAS 浏览和导入选项。启用后的导入插件也会出现在此处。</p>",
+    },
+    "settings.metadata_transfer": {
+      name: "元数据传输",
+      content: "<p>在“来源与导入 → 导入与导出元数据”中可导入或导出元数据。应用更改前，请先检查对话框中的内容。</p>",
+    },
+    "settings.duplicates": {
+      name: "重复项与副本",
+      content: "<p>打开“处理与维护 → 查找重复项”，选择媒体类型和比较方式，再查看匹配结果。可在此设置相似度、验证方式和自动副本搜索。合并前，请检查主文件及各文件的处理方式。</p>",
+    },
+    "settings.visual_hash": {
+      name: "相似文件索引",
+      content: "<p>在“处理与维护”中建立视觉指纹，以比较预览画面。可靠性和匹配阈值的说明见重复文件搜索设置。</p>",
+    },
+    "settings.semantic_index": {
+      name: "语义搜索索引",
+      content: "<p>在“处理与维护”中建立 CLIP 索引，以启用语义搜索。出现提示时下载模型，并在此处查看进度。</p>",
+    },
+    "settings.auto_chapters": {
+      name: "自动章节",
+      content: "<p>在“媒体处理”中生成自动章节。这是资料库处理任务，播放器偏好需另行设置。</p>",
+    },
+    "settings.media_created": {
+      name: "媒体创建日期",
+      content: "<p>在“处理与维护”中补全缺失的媒体创建日期。</p>",
+    },
+    "settings.tag_upscale": {
+      name: "提高标签图片分辨率",
+      content: "<p>在“处理与维护”中使用 AI 处理标签图片。模型下载和任务控制也位于此处。</p>",
+    },
+    "settings.history": {
+      name: "更改历史",
+      content: "<p>打开“数据与备份 → 更改历史与撤销”，查看已记录的编辑和可用的恢复操作。</p>",
+    },
+    "settings.license": {
+      name: "许可证",
+      content: "<p>“关于”中显示激活状态、激活密钥和设备管理。商店版本则显示相应商店的许可证。</p>",
+    },
+    "settings.conversion": {
+      name: "永久转换",
+      content: "<p>“查看与播放 → 视频播放器”中可设置转换质量和最大输出分辨率。“经济”生成较小文件，“均衡”为推荐预设，“高质量”生成较大文件。分辨率上限不会放大较小的原视频。这些选项用于永久转换，播放时自动转码有单独开关。转码缓存也可在此清除。</p>",
+    },
   }
 }
 for (const [locale, articles] of Object.entries(settingsDocumentationUpdates)) {
@@ -1538,20 +1970,44 @@ for (const [locale, articles] of Object.entries(settingsDocumentationUpdates)) {
 
 const metadataTransferDocumentation = {
   en: {
-    name: 'Export and transfer metadata',
+    name: 'Import and export metadata',
     content: `<p>Use this dialog to move metadata between MediaChips libraries or computers, or save it beside your media files. It transfers card data, fields (chips), tags, ratings, relationships and timeline marks. It does not copy original media, thumbnails, application settings or source connections, and does not replace a full library backup.</p>
-      <h2>Export selected</h2><ol><li>Select media cards in the media list and open <b>Export and transfer metadata</b> from the selection actions.</li><li>On <b>Export selected</b>, download the JSON file with the <code>.mediachips.json</code> extension.</li><li>Open the destination library and import this file.</li></ol>
-      <h2>Import JSON</h2><ol><li>Open <b>Settings → Sources and import → Export and transfer metadata</b> and choose a MediaChips JSON file (up to 50 MB) in the built-in file browser. It shows folders accessible to the MediaChips server. Import also works in an empty library.</li><li>Review the preview; it does not change the library. For every conflict, choose whether to keep current data or replace it with incoming data. Incompatible field types block import until the definitions are aligned.</li><li>Apply the import after resolving all conflicts. If relevant library data changes after the preview, refresh the preview and review the choices again.</li></ol><p>Matches use media paths and field/tag names, rather than IDs from the other library. Importing the same document again does not create duplicates. Original paths are preserved; if you move the media files, update their paths or relink them in the library.</p>
+      <h2>Export selected</h2><ol><li>Select media cards in the media list and open <b>Import and export metadata</b> from the selection actions.</li><li>On <b>Export selected</b>, download the JSON file with the <code>.mediachips.json</code> extension.</li><li>Open the destination library and import this file.</li></ol>
+      <h2>Import JSON</h2><ol><li>Open <b>Settings → Sources and import → Import and export metadata</b> and choose a MediaChips JSON file (up to 50 MB) in the built-in file browser. It shows folders accessible to the MediaChips server. Import also works in an empty library.</li><li>Review the preview; it does not change the library. For every conflict, choose whether to keep current data or replace it with incoming data. Incompatible field types block import until the definitions are aligned.</li><li>Apply the import after resolving all conflicts. If relevant library data changes after the preview, refresh the preview and review the choices again.</li></ol><p>Matches use media paths and field/tag names, rather than IDs from the other library. Importing the same document again does not create duplicates. Original paths are preserved; if you move the media files, update their paths or relink them in the library.</p>
       <h2>Files beside originals</h2><p>Select media cards, open the dialog and choose JSON, XMP or NFO. Preview the paths, then write the checked files. This requires existing local originals on the server computer; cloud, NAS, HTTP and ZIP entries are unsupported. Original media stays unchanged, and existing sidecar files block writing.</p><p>JSON preserves the full MediaChips metadata. XMP and NFO expose some standard fields for other apps and include the full JSON as an extension that other apps may ignore. Import back into MediaChips uses JSON, not arbitrary XMP/NFO files.</p>
       <h2>Why are export tabs disabled?</h2><p>Opening the dialog from Settings supplies no selected cards, so only import is available. To export or write files beside originals, select cards in the media list and open the dialog there.</p>`,
   },
   ru: {
-    name: 'Экспорт и перенос метаданных',
+    name: 'Импорт и экспорт метаданных',
     content: `<p>Диалог позволяет перенести метаданные между библиотеками MediaChips или компьютерами, а также сохранить их рядом с медиафайлами. Переносятся данные карточек, поля (chips), теги, оценки, связи и временные метки. Оригиналы медиа, миниатюры, настройки приложения и подключения источников не копируются. Экспорт метаданных не заменяет полную резервную копию библиотеки.</p>
-      <h2>Экспорт выбранного</h2><ol><li>Выберите карточки в списке медиа и откройте «Экспорт и перенос метаданных» в действиях для выбранных элементов.</li><li>На вкладке «Экспорт выбранного» скачайте JSON с расширением <code>.mediachips.json</code>.</li><li>Откройте другую библиотеку и импортируйте этот файл.</li></ol>
-      <h2>Импорт JSON</h2><ol><li>Откройте «Настройки → Источники и импорт → Экспорт и перенос метаданных» и выберите JSON MediaChips размером до 50 МБ во встроенном проводнике. Он показывает папки, доступные серверу MediaChips. Импорт доступен и в пустой библиотеке.</li><li>Проверьте предварительный просмотр: он не меняет библиотеку. Для каждого конфликта выберите сохранение текущих данных или замену входящими. Несовместимые типы полей блокируют импорт, пока определения не будут согласованы.</li><li>После разрешения всех конфликтов примените импорт. Если данные библиотеки изменились после просмотра, обновите просмотр и повторно проверьте решения.</li></ol><p>Сопоставление использует пути медиа и имена полей и тегов, а не ID другой библиотеки. Повторный импорт того же документа не создаёт дубликатов. Пути оригиналов сохраняются: если вы перенесли медиафайлы, обновите пути или перепривяжите оригиналы в библиотеке.</p>
+      <h2>Экспорт выбранного</h2><ol><li>Выберите карточки в списке медиа и откройте «Импорт и экспорт метаданных» в действиях для выбранных элементов.</li><li>На вкладке «Экспорт выбранного» скачайте JSON с расширением <code>.mediachips.json</code>.</li><li>Откройте другую библиотеку и импортируйте этот файл.</li></ol>
+      <h2>Импорт JSON</h2><ol><li>Откройте «Настройки → Источники и импорт → Импорт и экспорт метаданных» и выберите JSON MediaChips размером до 50 МБ во встроенном проводнике. Он показывает папки, доступные серверу MediaChips. Импорт доступен и в пустой библиотеке.</li><li>Проверьте предварительный просмотр: он не меняет библиотеку. Для каждого конфликта выберите сохранение текущих данных или замену входящими. Несовместимые типы полей блокируют импорт, пока определения не будут согласованы.</li><li>После разрешения всех конфликтов примените импорт. Если данные библиотеки изменились после просмотра, обновите просмотр и повторно проверьте решения.</li></ol><p>Сопоставление использует пути медиа и имена полей и тегов, а не ID другой библиотеки. Повторный импорт того же документа не создаёт дубликатов. Пути оригиналов сохраняются: если вы перенесли медиафайлы, обновите пути или перепривяжите оригиналы в библиотеке.</p>
       <h2>Файлы рядом с оригиналами</h2><p>Выберите карточки медиа, откройте диалог и отметьте JSON, XMP или NFO. Просмотрите пути, затем нажмите «Записать проверенные файлы». Нужны существующие локальные оригиналы на компьютере сервера; облачные, NAS, HTTP и ZIP-источники не поддерживаются. Оригиналы не изменяются, а уже существующие файлы метаданных блокируют запись.</p><p>JSON сохраняет полные метаданные MediaChips. XMP и NFO содержат стандартные поля для других приложений и полный JSON в расширении, которое другие программы могут игнорировать. Обратный импорт в MediaChips выполняется из JSON, а не из произвольных XMP/NFO.</p>
       <h2>Почему вкладки экспорта недоступны?</h2><p>При открытии из настроек карточки не выбраны, поэтому доступен только импорт. Для экспорта или записи файлов рядом с оригиналами выберите карточки в списке медиа и откройте диалог оттуда.</p>`,
+  },
+  cn: {
+    name: "导入与导出元数据",
+    content: "<p>此对话框可在 MediaChips 资料库或计算机之间迁移元数据，也可将元数据保存在媒体文件旁。它会传输卡片数据、字段、标签、评分、关联和时间轴标记。完整备份仍需单独执行，迁移范围不包括原始媒体、缩略图、应用设置或来源连接。</p>\n      <h2>导出所选项目</h2><ol><li>在媒体列表中选中卡片，然后从所选项目的操作中打开 <b>导入与导出元数据</b>。</li><li>在 <b>导出所选项目</b> 中下载扩展名为 <code>.mediachips.json</code> 的 JSON 文件。</li><li>打开目标资料库并导入该文件。</li></ol>\n      <h2>导入 JSON</h2><ol><li>打开 <b>设置 → 来源与导入 → 导入与导出元数据</b>，在内置文件浏览器中选择不超过 50 MB 的 MediaChips JSON 文件。浏览器会显示 MediaChips 服务器可以访问的文件夹。空资料库也支持导入。</li><li>预览不会修改资料库。逐一选择保留现有数据还是用导入数据替换。字段类型不兼容时，需先统一字段定义才能导入。</li><li>解决全部冲突后执行导入。如果预览后相关数据发生变化，请刷新预览并重新检查所做选择。</li></ol><p>系统根据媒体路径和字段、标签名称匹配项目。再次导入同一文件不会生成重复项。原路径会保留。如果已移动媒体文件，请更新路径或在资料库中重新关联。</p>\n      <h2>与原文件同目录的文件</h2><p>选中媒体卡片，打开对话框并选择 JSON、XMP 或 NFO。预览路径后写入勾选的文件。服务器上必须已有本地原文件。云端、NAS、HTTP 和 ZIP 项目不支持此操作。媒体原文件会保留，已有的元数据文件会阻止写入。</p><p>JSON 保留完整的 MediaChips 元数据。XMP 和 NFO 会公开部分标准字段，并在扩展中包含完整 JSON。其他应用可能会忽略该扩展。导回 MediaChips 时，请使用 JSON 文件。</p>\n      <h2>为什么导出选项卡不可用？</h2><p>从设置打开对话框时没有选中卡片，因此只能导入。要导出或在原文件旁写入元数据，请从媒体列表选中卡片后打开对话框。</p>",
+  },
+  de: {
+    name: "Metadaten importieren und exportieren",
+    content: "<p>In diesem Dialog können Sie Metadaten zwischen MediaChips-Bibliotheken oder Computern übertragen oder neben Ihren Mediendateien speichern. Übertragen werden Kartendaten, Felder (Chips), Tags, Bewertungen, Beziehungen und Zeitmarken. Originalmedien, Vorschaubilder, App-Einstellungen und Quellverbindungen bleiben von der Übertragung ausgenommen. Für eine vollständige Sicherung verwenden Sie die Bibliotheks-Backups.</p>\n      <h2>Auswahl exportieren</h2><ol><li>Markieren Sie Karten in der Medienliste und öffnen Sie <b>Metadaten importieren und exportieren</b> über die Aktionen für die Auswahl.</li><li>Laden Sie unter <b>Auswahl exportieren</b> die JSON-Datei mit der Endung <code>.mediachips.json</code> herunter.</li><li>Öffnen Sie die Zielbibliothek und importieren Sie die Datei.</li></ol>\n      <h2>JSON importieren</h2><ol><li>Öffnen Sie <b>Einstellungen → Quellen & Import → Metadaten importieren und exportieren</b> und wählen Sie im integrierten Dateibrowser eine MediaChips-JSON-Datei mit bis zu 50 MB. Der Browser zeigt Ordner, auf die der MediaChips-Server zugreifen kann. Der Import funktioniert auch in einer leeren Bibliothek.</li><li>Prüfen Sie die Vorschau. Sie ändert die Bibliothek nicht. Wählen Sie für jeden Konflikt, ob die vorhandenen Daten beibehalten oder durch die eingehenden Daten ersetzt werden. Bei inkompatiblen Feldtypen müssen Sie vor dem Import die Felddefinitionen abgleichen.</li><li>Starten Sie den Import, sobald alle Konflikte gelöst sind. Wenn sich seit der Vorschau relevante Bibliotheksdaten geändert haben, aktualisieren Sie die Vorschau und prüfen Sie Ihre Auswahl erneut.</li></ol><p>Für den Abgleich verwendet MediaChips Medienpfade sowie Feld- und Tag-Namen. Ein erneuter Import derselben Datei erzeugt keine Duplikate. Die Pfade der Originale bleiben erhalten. Wenn Sie Dateien verschieben, aktualisieren Sie die Pfade oder verknüpfen Sie die Dateien neu.</p>\n      <h2>Dateien neben den Originalen</h2><p>Markieren Sie Medienkarten, öffnen Sie den Dialog und wählen Sie JSON, XMP oder NFO. Prüfen Sie die Pfade in der Vorschau und schreiben Sie anschließend die ausgewählten Dateien. Die Originale müssen lokal auf dem Server vorliegen. Cloud-, NAS-, HTTP- und ZIP-Einträge werden dabei nicht unterstützt. Die Originale bleiben erhalten. Bereits vorhandene Begleitdateien verhindern das Schreiben.</p><p>JSON bewahrt alle MediaChips-Metadaten. XMP und NFO stellen einige Standardfelder bereit und enthalten das vollständige JSON als Erweiterung, die andere Apps ignorieren können. Für den Import in MediaChips benötigen Sie die JSON-Datei.</p>\n      <h2>Warum sind die Exportregisterkarten deaktiviert?</h2><p>Beim Öffnen aus den Einstellungen sind keine Karten ausgewählt, daher steht nur der Import zur Verfügung. Wählen Sie zum Exportieren oder Schreiben neben den Originalen zuerst Karten in der Medienliste und öffnen Sie den Dialog von dort.</p>",
+  },
+  es: {
+    name: "Importar y exportar metadatos",
+    content: "<p>Usa este cuadro de diálogo para transferir metadatos entre bibliotecas de MediaChips o entre equipos, o para guardarlos junto a los archivos multimedia. La transferencia incluye datos de las fichas, campos, etiquetas, valoraciones, relaciones y marcas de tiempo. Quedan fuera los archivos originales, las miniaturas, los ajustes de la aplicación y las conexiones. Haz una copia de seguridad de la biblioteca si necesitas conservarla completa.</p>\n      <h2>Exportar selección</h2><ol><li>Selecciona fichas en la lista multimedia y abre <b>Importar y exportar metadatos</b> desde las acciones de la selección.</li><li>En <b>Exportar selección</b>, descarga el archivo JSON con la extensión <code>.mediachips.json</code>.</li><li>Abre la biblioteca de destino e importa ese archivo.</li></ol>\n      <h2>Importar JSON</h2><ol><li>Abre <b>Ajustes → Fuentes e importación → Importar y exportar metadatos</b> y elige un archivo JSON de MediaChips de hasta 50 MB en el explorador integrado. El explorador muestra las carpetas a las que tiene acceso el servidor de MediaChips. También puedes importar a una biblioteca vacía.</li><li>Revisa la vista previa, que no modifica la biblioteca. Para cada conflicto, elige si quieres conservar los datos actuales o sustituirlos por los importados. Si los tipos de campo no son compatibles, unifica sus definiciones antes de importar.</li><li>Aplica la importación después de resolver todos los conflictos. Si los datos de la biblioteca cambian después de abrir la vista previa, actualízala y revisa tus decisiones.</li></ol><p>La coincidencia se determina por las rutas de los archivos y los nombres de campos y etiquetas. Importar el mismo documento de nuevo no crea duplicados. Se conservan las rutas de los originales. Si has movido los archivos, actualiza sus rutas o vuelve a vincularlos en la biblioteca.</p>\n      <h2>Archivos junto a los originales</h2><p>Selecciona fichas, abre el cuadro de diálogo y elige JSON, XMP o NFO. Revisa las rutas en la vista previa y escribe los archivos seleccionados. Los originales deben existir en el servidor. Esta opción solo admite archivos locales. Si ya existe un archivo de metadatos, se bloquea la escritura. Los originales se conservan.</p><p>JSON conserva todos los metadatos de MediaChips. XMP y NFO ofrecen campos estándar para otras aplicaciones e incluyen el JSON completo como extensión, que otros programas pueden ignorar. Para importar de nuevo en MediaChips, usa el JSON.</p>\n      <h2>¿Por qué están desactivadas las pestañas de exportación?</h2><p>Al abrir el cuadro de diálogo desde Ajustes no hay fichas seleccionadas, por lo que solo puedes importar. Para exportar o escribir archivos junto a los originales, selecciona fichas en la lista multimedia y abre el cuadro de diálogo desde allí.</p>",
+  },
+  fr: {
+    name: "Importer et exporter les métadonnées",
+    content: "<p>Utilisez cette boîte de dialogue pour transférer des métadonnées entre bibliothèques MediaChips ou ordinateurs, ou pour les enregistrer à côté de vos fichiers multimédias. Le transfert porte sur les fiches, les champs, les tags, les notes, les relations et les marqueurs temporels. Les médias originaux, les vignettes, les paramètres de l’application et les connexions aux sources sont exclus. Pour sauvegarder toute la bibliothèque, utilisez la fonction de sauvegarde.</p>\n      <h2>Exporter la sélection</h2><ol><li>Sélectionnez des fiches dans la liste des médias et ouvrez <b>Importer et exporter les métadonnées</b> depuis les actions de la sélection.</li><li>Dans <b>Exporter la sélection</b>, téléchargez le fichier JSON portant l’extension <code>.mediachips.json</code>.</li><li>Ouvrez la bibliothèque de destination et importez le fichier.</li></ol>\n      <h2>Importer un JSON</h2><ol><li>Ouvrez <b>Paramètres → Sources et importation → Importer et exporter les métadonnées</b> et choisissez un fichier JSON MediaChips de 50 Mo maximum dans le navigateur intégré. Celui-ci affiche les dossiers accessibles au serveur MediaChips. L’importation fonctionne aussi dans une bibliothèque vide.</li><li>Examinez l’aperçu, qui ne modifie pas la bibliothèque. Pour chaque conflit, choisissez de conserver les données actuelles ou de les remplacer par celles à importer. En cas de types de champs incompatibles, alignez leurs définitions avant l’importation.</li><li>Lancez l’importation après avoir résolu tous les conflits. Si les données de la bibliothèque ont changé depuis l’aperçu, actualisez-le et vérifiez à nouveau vos choix.</li></ol><p>Les correspondances reposent sur les chemins des médias et les noms des champs et des tags. Réimporter le même document ne crée aucun doublon. Les chemins d’origine sont conservés. Si vous déplacez des médias, actualisez leurs chemins ou associez-les à nouveau dans la bibliothèque.</p>\n      <h2>Fichiers à côté des originaux</h2><p>Sélectionnez des fiches, ouvrez la boîte de dialogue et choisissez JSON, XMP ou NFO. Vérifiez les chemins dans l’aperçu, puis écrivez les fichiers sélectionnés. Les originaux doivent exister en local sur le serveur. Les entrées cloud, NAS, HTTP et ZIP sont exclues. Les médias d’origine sont conservés et la présence d’un fichier annexe empêche son écrasement.</p><p>JSON conserve toutes les métadonnées MediaChips. XMP et NFO exposent certains champs standard et intègrent le JSON complet dans une extension que d’autres applications peuvent ignorer. Pour réimporter dans MediaChips, utilisez le fichier JSON.</p>\n      <h2>Pourquoi les onglets d’exportation sont-ils désactivés ?</h2><p>Si vous ouvrez la boîte de dialogue depuis les paramètres, aucune fiche n’est sélectionnée et seule l’importation est disponible. Pour exporter ou écrire des fichiers à côté des originaux, sélectionnez d’abord des fiches dans la liste des médias.</p>",
+  },
+  ja: {
+    name: "メタデータのインポートとエクスポート",
+    content: "<p>このダイアログでは、MediaChips のライブラリ間やコンピューター間でメタデータを転送したり、メディアファイルと同じ場所に保存したりできます。カード情報、フィールド、タグ、評価、関連付け、タイムラインのマーカーが対象です。元のメディア、サムネイル、アプリの設定、ソースへの接続は転送されません。ライブラリ全体を保護するにはバックアップを作成してください。</p>\n      <h2>選択項目をエクスポート</h2><ol><li>メディア一覧でカードを選択し、選択項目の操作メニューから <b>メタデータのインポートとエクスポート</b> を開きます。</li><li><b>選択項目をエクスポート</b> で、拡張子が <code>.mediachips.json</code> の JSON ファイルをダウンロードします。</li><li>転送先のライブラリを開いて、このファイルをインポートします。</li></ol>\n      <h2>JSON をインポート</h2><ol><li><b>設定 → ソースとインポート → メタデータのインポートとエクスポート</b> を開き、内蔵ファイルブラウザーで 50 MB 以下の MediaChips JSON ファイルを選択します。ブラウザーには MediaChips サーバーがアクセスできるフォルダーが表示されます。空のライブラリにもインポートできます。</li><li>プレビューを確認します。この段階ではライブラリは変更されません。競合ごとに、既存のデータを保持するか、取り込むデータに置き換えるかを選択します。フィールドの種類に互換性がない場合は、定義を揃えてからインポートしてください。</li><li>すべての競合を解消してからインポートを実行します。プレビュー後に対象のデータが変更された場合は、プレビューを更新し、選択内容を再確認します。</li></ol><p>メディアのパス、フィールド名、タグ名で項目を照合します。同じファイルを再度インポートしても重複は作成されません。元ファイルのパスは保持されます。ファイルを移動した場合は、ライブラリでパスを更新するか、ファイルを再リンクします。</p>\n      <h2>元ファイルと同じ場所に保存</h2><p>カードを選択してダイアログを開き、JSON、XMP、NFO のいずれかを選びます。プレビューでパスを確認し、選択したファイルを書き込みます。サーバーにローカルの元ファイルが必要です。クラウド、NAS、HTTP、ZIP の項目には対応していません。元ファイルは保持され、既存のメタデータファイルには上書きできません。</p><p>JSON には MediaChips のメタデータがすべて保存されます。XMP と NFO は一部の標準フィールドを公開し、完全な JSON を拡張データとして含めます。他のアプリではこの拡張データが無視されることがあります。MediaChips に取り込む場合は JSON を使用します。</p>\n      <h2>エクスポートのタブが無効なのはなぜですか？</h2><p>設定から開くとカードが選択されていないため、インポートだけが利用できます。エクスポートや元ファイルと同じ場所への保存を行うには、メディア一覧でカードを選び、そこからダイアログを開いてください。</p>",
+  },
+  pt: {
+    name: "Importar e exportar metadados",
+    content: "<p>Use esta janela para transferir metadados entre bibliotecas do MediaChips ou entre computadores, ou para salvá-los ao lado dos arquivos de mídia. A transferência inclui dados dos cartões, campos, tags, avaliações, relações e marcadores da linha do tempo. Os arquivos originais, as miniaturas, as configurações do aplicativo e as conexões com as fontes ficam de fora. Use o backup para preservar a biblioteca inteira.</p>\n      <h2>Exportar seleção</h2><ol><li>Selecione cartões na lista de mídia e abra <b>Importar e exportar metadados</b> nas ações da seleção.</li><li>Em <b>Exportar seleção</b>, baixe o arquivo JSON com a extensão <code>.mediachips.json</code>.</li><li>Abra a biblioteca de destino e importe o arquivo.</li></ol>\n      <h2>Importar JSON</h2><ol><li>Abra <b>Configurações → Fontes e importação → Importar e exportar metadados</b> e selecione um arquivo JSON do MediaChips de até 50 MB no navegador integrado. Ele mostra as pastas que o servidor do MediaChips consegue acessar. Também é possível importar para uma biblioteca vazia.</li><li>Revise a prévia, que não altera a biblioteca. Para cada conflito, escolha entre manter os dados atuais ou substituí-los pelos dados a importar. Se houver campos de tipos incompatíveis, ajuste as definições antes de importar.</li><li>Aplique a importação depois de resolver todos os conflitos. Se os dados da biblioteca mudarem após a prévia, atualize-a e revise as escolhas.</li></ol><p>A correspondência usa os caminhos dos arquivos e os nomes dos campos e das tags. Importar o mesmo documento novamente não cria duplicatas. Os caminhos originais são preservados. Se você mover os arquivos, atualize os caminhos ou vincule os arquivos novamente na biblioteca.</p>\n      <h2>Arquivos ao lado dos originais</h2><p>Selecione cartões, abra a janela e escolha JSON, XMP ou NFO. Confira os caminhos na prévia e grave os arquivos selecionados. Os originais precisam existir no servidor como arquivos locais. Entradas de nuvem, NAS, HTTP e ZIP não são compatíveis. Os arquivos de mídia são preservados e arquivos de metadados existentes impedem a gravação.</p><p>JSON preserva todos os metadados do MediaChips. XMP e NFO expõem alguns campos padrão e incluem o JSON completo em uma extensão que outros aplicativos podem ignorar. Para importar de volta para o MediaChips, use o arquivo JSON.</p>\n      <h2>Por que as abas de exportação estão desativadas?</h2><p>Ao abrir a janela pelas configurações, nenhum cartão está selecionado e só é possível importar. Para exportar ou gravar arquivos ao lado dos originais, selecione cartões na lista de mídia e abra a janela por lá.</p>",
   },
 }
 for (const [locale, article] of Object.entries(metadataTransferDocumentation)) {

@@ -36,7 +36,7 @@
             v-bind="props"
             color="primary"
             rounded
-            variant="flat"
+            variant="tonal"
             @click="dialog = true"
           >
             <v-icon icon="mdi-find-replace" start/>

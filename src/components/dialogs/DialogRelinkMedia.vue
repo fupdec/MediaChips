@@ -11,7 +11,13 @@
         </v-alert>
         <div class="relink-dialog__paths" :class="{'relink-dialog__paths--single': media}">
           <v-text-field v-if="!media" v-model="oldRoot" :label="t('media.relink.old_root')"
-            :disabled="busy" variant="outlined" density="comfortable" rounded="lg" />
+            :disabled="busy" variant="outlined" density="comfortable" rounded="lg"
+          >
+            <template #append-inner>
+              <v-btn icon="mdi-folder-open" variant="text" size="small" :disabled="busy"
+                :title="t('common.select')" @click="browseOld = true" />
+            </template>
+          </v-text-field>
           <div v-else class="text-caption mb-4 relink-path">{{ media.path }}</div>
           <v-text-field v-model="destination"
             :label="t(media ? 'media.relink.new_path' : 'media.relink.new_root')"
@@ -48,6 +54,7 @@
     </v-card>
     <DialogBrowseFolder v-model="browse" :file-extensions="media ? fileExtensions : []"
       :initial-path="destination" @confirm="onBrowse" />
+    <DialogBrowseFolder v-model="browseOld" :initial-path="oldRoot" @confirm="onBrowseOld" />
   </v-dialog>
 </template>
 
@@ -78,6 +85,7 @@ const destination = ref('')
 const busy = ref(false)
 const saving = ref(false)
 const browse = ref(false)
+const browseOld = ref(false)
 const checked = ref(false)
 const error = ref('')
 const candidates = ref<MediaRelinkCandidate[]>([])
@@ -112,6 +120,7 @@ const headerButtons = computed(() => [
 const selectable = (item: MediaRelinkCandidate) => item.status === 'same' || (item.status === 'unknown' && confirmed.value[item.id])
 const normalizeDestination = (value: string) => { destination.value = String(normalizePastedFilePath(value) || '') }
 const onBrowse = (paths: string[]) => { if (paths[0]) destination.value = paths[0] }
+const onBrowseOld = (paths: string[]) => { if (paths[0]) oldRoot.value = paths[0] }
 function resetPreview() {
   candidates.value = []
   selected.value = []

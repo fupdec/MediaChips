@@ -32,6 +32,7 @@ export type MissingMediaSummary = {
 }
 
 export type MissingMediaSearchEvent =
+  | {type: 'phase'; phase: string}
   | {
     type: 'progress'
     phase?: string
@@ -239,6 +240,7 @@ export type SettingsState = {
   conversionCompatibilityTest: string
   ratingAndFavoriteInCard: string
   group_chips_in_card_description: string
+  mute_card_tag_colors: string
   show_preset_metadata_in_card: string
   /** '1' shows the bookmark icon overlay on media cards. */
   show_bookmark_on_card: string
@@ -402,6 +404,7 @@ export const defaultSettingsState = (): SettingsState => ({
   conversionCompatibilityTest: '',
   ratingAndFavoriteInCard: '1',
   group_chips_in_card_description: '1',
+  mute_card_tag_colors: '1',
   show_preset_metadata_in_card: '1',
   show_bookmark_on_card: '1',
   show_thumb_resolution: '1',

@@ -9,6 +9,8 @@ import { buildExtensionRegexFromMediaTypes } from '../utils/mediaExtensions'
 import { buildMissingIndexes, findWeakCandidates } from './missingMediaMatch'
 import {walkMatchedMediaFiles} from './mediaFileWalk'
 import {collectMissingMediaByPathExist} from './missingMediaExistScan'
+import {remapMediaRoot} from '../../shared/mediaRelink'
+import {normalizeUserPath} from '../utils/normalizeUserPath'
 
 async function loadMissingMedia(db: ApiDb, options: MissingMediaSearchOptions = {}) {
   const mediaRepo = createMediaRepository(db.drizzle)
@@ -67,7 +69,19 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
 
   yield {type: 'phase', phase: 'loading_missing'}
 
-  const allMedia = mediaRepo.findAllForMissingScanOrderedById()
+  const originalFolder = normalizeUserPath(options.originalFolder)
+  if (options.originalFolder !== undefined && (
+    typeof originalFolder !== 'string' || !originalFolder ||
+    (!path.posix.isAbsolute(originalFolder) && !path.win32.isAbsolute(originalFolder)) ||
+    /^[\\/]+$/.test(originalFolder)
+  )) {
+    yield {type: 'error', message: 'Enter the absolute original folder path stored in the library'}
+    return
+  }
+  const scopedFolder = typeof originalFolder === 'string' ? originalFolder : undefined
+  const allMedia = mediaRepo.findAllForMissingScanOrderedById(scopedFolder)
+    // LIKE is only a prefilter: verify the literal directory boundary before any disk access.
+    .filter(item => !scopedFolder || remapMediaRoot(item.path || '', scopedFolder, '/candidate') !== null)
   const missingMedia = []
   // Chunked concurrent existence checks so the UI still gets progress events.
   const existChunkSize = 200

@@ -13,9 +13,10 @@ export type DuplicatePolicy = {
   priority: OriginalPriority
   files: DuplicateFileAction
   autoMerge: boolean
+  searchSimilarVideos?: boolean
 }
 export const defaultDuplicatePolicy = (): DuplicatePolicy => ({
-  weights: {path: 0, name: 5, size: 10, oshash: 65, visual: 20},
+  weights: {path: 0, name: 0, size: 0, oshash: 100, visual: 0},
   required: [], threshold: 75, visualMinimum: 85, minimumFrames: 6,
   priority: 'quality', files: 'keep', autoMerge: false,
 })
@@ -37,6 +38,7 @@ export function parseDuplicatePolicy(raw: unknown): DuplicatePolicy {
       priority: ['quality', 'largest', 'smallest', 'oldest', 'newest'].includes(value.priority) ? value.priority : fallback.priority,
       files: value.files === 'delete' ? 'delete' : 'keep',
       autoMerge: value.autoMerge === true,
+      searchSimilarVideos: typeof value.searchSimilarVideos === 'boolean' ? value.searchSimilarVideos : undefined,
     }
   } catch { return fallback }
 }
@@ -64,7 +66,15 @@ export function hashSimilarity(a?: string | null, b?: string | null): number | n
 }
 const filename = (item: SimilarityItem) => (item.basename || item.path.split(/[\\/]/).pop() || '')
   .replace(/\.[^.]+$/, '').normalize('NFC').toLocaleLowerCase()
-export function compareSimilarity(a: SimilarityItem, b: SimilarityItem, policy: DuplicatePolicy): SimilarityEvidence {
+type SimilarityExplanation = {
+  contributions: Record<SimilaritySignal, number>
+  requiredFailures: SimilaritySignal[]
+  noWeights: boolean
+  noStrongMatch: boolean
+}
+export function compareSimilarity(a: SimilarityItem, b: SimilarityItem, policy: DuplicatePolicy, explain: true): SimilarityEvidence & SimilarityExplanation
+export function compareSimilarity(a: SimilarityItem, b: SimilarityItem, policy: DuplicatePolicy): SimilarityEvidence
+export function compareSimilarity(a: SimilarityItem, b: SimilarityItem, policy: DuplicatePolicy, explain = false) {
   const grid = hashSimilarity(a.visualHash, b.visualHash)
   const tilesA = (a.visualHashTiles || '').split(':')
   const tilesB = (b.visualHashTiles || '').split(':')
@@ -82,15 +92,34 @@ export function compareSimilarity(a: SimilarityItem, b: SimilarityItem, policy: 
     oshash: a.oshash && b.oshash ? Number(a.oshash === b.oshash && a.filesize === b.filesize) * 100 : null,
     visual,
   }
-  const total = SIMILARITY_SIGNALS.reduce((sum, key) => sum + policy.weights[key], 0)
-  // Keep the denominator fixed: unavailable evidence contributes zero, never inflates the score.
-  const score = total ? SIMILARITY_SIGNALS.reduce((sum, key) => sum + policy.weights[key] * (signals[key] ?? 0), 0) / total : 0
   const passed = (key: SimilaritySignal) => key === 'visual'
     ? (grid != null && grid >= policy.visualMinimum) || (availableFrames.length === 9 && matchingFrames >= policy.minimumFrames)
     : signals[key] === 100
-  const strong = (policy.weights.oshash > 0 && passed('oshash')) || (policy.weights.visual > 0 && passed('visual')) || (policy.weights.path > 0 && passed('path'))
-  return {ids: [a.id, b.id], score: Math.round(score * 10) / 10, signals, matchingFrames,
-    eligible: (a.mediaTypeId == null || b.mediaTypeId == null || a.mediaTypeId === b.mediaTypeId) && total > 0 && score >= policy.threshold && strong && policy.required.every(passed)}
+  const weights = {...policy.weights}
+  if (policy.searchSimilarVideos === false) weights.visual = 0
+  const total = SIMILARITY_SIGNALS.reduce((sum, key) => sum + weights[key], 0)
+  // Keep the denominator fixed: unavailable evidence contributes zero, never inflates the score.
+  const weightedScore = total ? SIMILARITY_SIGNALS.reduce((sum, key) => sum + weights[key] * (signals[key] ?? 0), 0) / total : 0
+  const weightedMatch = (weights.oshash > 0 && passed('oshash')) || (weights.visual > 0 && passed('visual')) || (weights.path > 0 && passed('path'))
+  const visualMatch = policy.searchSimilarVideos === true && passed('visual')
+  const useVisualScore = visualMatch && (!weightedMatch || (visual ?? 0) > weightedScore)
+  const score = useVisualScore ? visual ?? 0 : weightedScore
+  const strong = weightedMatch || visualMatch
+  const requiredFailures = policy.required.filter(key => !(key === 'visual' && policy.searchSimilarVideos === false) && !passed(key))
+  const differentTypes = a.mediaTypeId != null && b.mediaTypeId != null && a.mediaTypeId !== b.mediaTypeId
+  const evidence: SimilarityEvidence = {
+    ids: [a.id, b.id], score: Math.round(score * 10) / 10, signals, matchingFrames,
+    eligible: !differentTypes && score >= policy.threshold && strong && requiredFailures.length === 0,
+  }
+  if (!explain) return evidence
+
+  const contributions = {...weights}
+  for (const key of SIMILARITY_SIGNALS) {
+    contributions[key] = useVisualScore ? (key === 'visual' ? score : 0)
+      : total ? weights[key] * (signals[key] ?? 0) / total : 0
+  }
+  return {...evidence, contributions, requiredFailures,
+    noWeights: total === 0 && policy.searchSimilarVideos !== true, noStrongMatch: !strong}
 }
 function compareOriginal(a: SimilarityItem, b: SimilarityItem, priority: OriginalPriority): number {
   const area = (x: SimilarityItem) => Number(x.width || 0) * Number(x.height || 0)
@@ -106,7 +135,7 @@ export function pickSimilarityOriginal(items: SimilarityItem[], priority: Origin
 function couldMatch(a: SimilarityItem, b: SimilarityItem, policy: DuplicatePolicy): boolean {
   return (policy.weights.path > 0 && a.path === b.path)
     || (policy.weights.oshash > 0 && Boolean(a.oshash && a.oshash === b.oshash && a.filesize === b.filesize))
-    || (policy.weights.visual > 0 && Boolean(a.visualHash && b.visualHash || a.visualHashTiles && b.visualHashTiles))
+    || ((policy.searchSimilarVideos ?? (policy.weights.visual > 0)) && Boolean(a.visualHash && b.visualHash || a.visualHashTiles && b.visualHashTiles))
 }
 /** Every member passes against its selected original. No transitive similarity chains. */
 export function groupSimilarityItems(items: SimilarityItem[], policy: DuplicatePolicy) {

@@ -152,7 +152,9 @@ export function createMediaRepository(db: DrizzleClient) {
     },
 
     /** Ordered missing-media scan rows (path existence + size/oshash match). */
-    findAllForMissingScanOrderedById(): MediaMissingScanRow[] {
+    findAllForMissingScanOrderedById(folder?: string): MediaMissingScanRow[] {
+      const patterns = folder ? buildFolderPathLikePatterns(folder) : []
+      const inFolder = patterns.length ? or(...patterns.map(pattern => like(media.path, pattern))) : undefined
       return db.select({
         id: media.id,
         path: media.path,
@@ -160,7 +162,7 @@ export function createMediaRepository(db: DrizzleClient) {
         oshash: media.oshash,
       })
         .from(media)
-        .where(isActiveMedia)
+        .where(and(isActiveMedia, inFolder))
         .orderBy(asc(media.id))
         .all()
     },
@@ -340,6 +342,15 @@ export function createMediaRepository(db: DrizzleClient) {
           eq(media.mediaTypeId, Number(mediaTypeId)),
         ))
         .get()
+    },
+
+    findWithoutOshashBySizeAndMediaType(filesize: number, mediaTypeId: number): MediaRow[] {
+      return db.select().from(media).where(and(
+        eq(media.filesize, filesize),
+        eq(media.mediaTypeId, mediaTypeId),
+        isNull(media.deletedAt),
+        or(isNull(media.oshash), eq(media.oshash, '')),
+      )).all()
     },
 
     findLegacyHashCandidates(

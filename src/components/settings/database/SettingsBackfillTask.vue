@@ -88,6 +88,10 @@
           {{ t('common.stop') }}
         </v-btn>
       </div>
+
+      <div v-if="$slots.default" class="backfill-task__extra">
+        <slot/>
+      </div>
     </div>
   </SettingsHealthTask>
 </template>
@@ -185,6 +189,12 @@ void refreshStatus()
 </script>
 
 <style scoped>
+.backfill-task__extra {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), .06);
+}
+
 .selectable {
   user-select: text;
   word-break: break-all;

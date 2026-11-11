@@ -25,7 +25,7 @@
           type="error"
           variant="tonal"
           density="compact"
-          class="mb-3"
+          class="mb-3 text-caption"
         >
           {{ error }}
         </v-alert>

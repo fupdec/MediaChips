@@ -4,7 +4,21 @@ const item = (id: number, patch: Partial<SimilarityItem> = {}): SimilarityItem =
 describe('configurable file similarity', () => {
   it('does not inflate scores when visuals are missing', () => {
     const a = item(1, {oshash: '0123456789abcdef'}), b = item(2, {oshash: a.oshash})
-    expect(compareSimilarity(a, b, defaultDuplicatePolicy())).toMatchObject({score: 75, eligible: true, signals: {visual: null}})
+    expect(compareSimilarity(a, b, defaultDuplicatePolicy())).toMatchObject({score: 100, eligible: true, signals: {visual: null}})
+  })
+  it('adds visual matches only when enabled and retains fingerprint matches', () => {
+    const original = item(1, {oshash: 'original', visualHash: '0000000000000000'})
+    const similar = item(2, {oshash: 'other', visualHash: '0000000000000001'})
+    const copy = item(3, {oshash: 'original'})
+    const policy = defaultDuplicatePolicy()
+
+    expect(groupSimilarityItems([original, similar], policy)).toEqual([])
+    const enabled = parseDuplicatePolicy(JSON.stringify({...policy, searchSimilarVideos: true}))
+    expect(groupSimilarityItems([original, similar, copy], enabled)[0].itemIds).toEqual([1, 2, 3])
+    expect(compareSimilarity(original, similar, enabled, true)).toMatchObject({
+      eligible: true, contributions: {oshash: 0, visual: 98.4375},
+    })
+    expect(groupSimilarityItems([original, similar], {...enabled, searchSimilarVideos: false})).toEqual([])
   })
   it('does not merge by filename and size alone even at a low threshold', () => {
     const policy = defaultDuplicatePolicy(); policy.weights = {path: 0, name: 80, size: 20, oshash: 0, visual: 0}; policy.threshold = 1

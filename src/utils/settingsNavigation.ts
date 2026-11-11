@@ -506,7 +506,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     "key": "bulk_paths",
     "icon": "mdi-find-replace",
     "elementId": "settings-bulk-paths",
-    "tab": "connections",
+    "tab": "maintenance",
     "titleKey": "settings_labels.tools.bulk_edit_paths",
     "searchKeys": [
       "settings_labels.tools.bulk_edit_paths",
@@ -694,7 +694,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     "key": "library_reset",
     "icon": "mdi-database-remove-outline",
     "elementId": "settings-library-reset",
-    "tab": "database",
+    "tab": "maintenance",
     "titleKey": "settings_labels.database.library_reset",
     "searchKeys": [
       "settings_labels.database.library_reset",
@@ -724,7 +724,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
   },
   {
     "key": "library_health_guide",
-    "icon": "mdi-auto-fix",
+    "icon": "mdi-clipboard-pulse-outline",
     "elementId": "settings-library-health-guide",
     "tab": "maintenance",
     "titleKey": "settings.groups.maintenance_health",
@@ -961,6 +961,34 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     "tab": "maintenance",
     "titleKey": "settings_labels.database.find_duplicates",
     "searchKeys": [
+      "duplicateSimilarity.searchHint",
+      "duplicateSimilarity.searchTitle",
+      "duplicateSimilarity.sectionHint",
+      "settings_labels.database.find_duplicates",
+      "settings_labels.database.find_duplicates_media_type",
+      "settings_labels.database.find_duplicates_mode",
+      "settings_labels.database.find_duplicates_open"
+    ]
+  },
+  {
+    "key": "copy_discovery",
+    "icon": "mdi-folder-search-outline",
+    "elementId": "settings-copy-discovery",
+    "tab": "maintenance",
+    "titleKey": "duplicateSimilarity.foldersTitle",
+    "searchKeys": [
+      "copyDiscovery.title",
+      "duplicateSimilarity.foldersHint",
+      "duplicateSimilarity.foldersTitle"
+    ]
+  },
+  {
+    "key": "duplicate_options",
+    "icon": "mdi-tune-variant",
+    "elementId": "settings-duplicate-options",
+    "tab": "maintenance",
+    "titleKey": "maintenanceView.duplicateOptions",
+    "searchKeys": [
       "copies.full_verification",
       "duplicateSimilarity.afterMerge",
       "duplicateSimilarity.autoHint",
@@ -968,8 +996,6 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
       "duplicateSimilarity.custom",
       "duplicateSimilarity.discoveryHint",
       "duplicateSimilarity.discoveryTitle",
-      "duplicateSimilarity.foldersHint",
-      "duplicateSimilarity.foldersTitle",
       "duplicateSimilarity.guarantee",
       "duplicateSimilarity.invalid",
       "duplicateSimilarity.minimumFrames",
@@ -989,9 +1015,6 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
       "duplicateSimilarity.save",
       "duplicateSimilarity.saveFailed",
       "duplicateSimilarity.scoreHint",
-      "duplicateSimilarity.searchHint",
-      "duplicateSimilarity.searchTitle",
-      "duplicateSimilarity.sectionHint",
       "duplicateSimilarity.shaHint",
       "duplicateSimilarity.signals",
       "duplicateSimilarity.stricter",
@@ -1003,18 +1026,14 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
       "duplicateSimilarity.verificationTitle",
       "duplicateSimilarity.visualMinimum",
       "duplicateSimilarity.weight",
-      "duplicateSimilarity.weightHint",
-      "settings_labels.database.find_duplicates",
-      "settings_labels.database.find_duplicates_media_type",
-      "settings_labels.database.find_duplicates_mode",
-      "settings_labels.database.find_duplicates_open"
+      "duplicateSimilarity.weightHint"
     ]
   },
   {
     "key": "clear_generated",
     "icon": "mdi-delete-sweep",
     "elementId": "settings-clear-generated-images",
-    "tab": "database",
+    "tab": "maintenance",
     "titleKey": "settings_labels.database.clear_generated_images",
     "searchKeys": [
       "settings_labels.database.calculate_sizes",

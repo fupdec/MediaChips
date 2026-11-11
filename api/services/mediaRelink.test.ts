@@ -168,4 +168,23 @@ describe('restoring original media links', () => {
     for await (const event of iterateMissingMediaSearch(db, {folders: [path.join(folder, 'new')]})) events.push(event)
     expect(events.reverse().find((event) => event.type === 'complete')?.matches).toEqual([])
   })
+
+  it('checks only active catalog paths in the requested original folder', async () => {
+    const input = await addOriginal()
+    await rename(input.oldPath, input.newPath)
+    const repo = createMediaRepository(db.drizzle)
+    repo.create({path: path.join(folder, 'old-sibling', 'original.mp4'), filesize: bytes.length})
+    repo.create({path: path.join(folder, 'elsewhere', 'original.mp4'), filesize: bytes.length})
+    const events = []
+    for await (const event of iterateMissingMediaSearch(db, {
+      originalFolder: path.join(folder, 'old'),
+      folders: [path.join(folder, 'new')],
+    })) events.push(event)
+    expect(events.find(event => event.type === 'progress' && event.phase === 'loading_missing'))
+      .toMatchObject({total: 1, processed: 1, missing: 1})
+    expect(events.find(event => event.type === 'complete')).toMatchObject({
+      missing: 1,
+      matches: [{...input, ambiguous: false}],
+    })
+  })
 })

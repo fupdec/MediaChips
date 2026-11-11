@@ -11,20 +11,20 @@ describe('settings navigation compatibility', () => {
     ['maintenance', 'generate_video_images', 'maintenance', 'settings-generate-video-images'],
     ['maintenance', 'detect_faces', 'maintenance', 'settings-detect-faces'],
     ['maintenance', 'clip_embedding_backfill', 'maintenance', 'settings-clip-embedding-backfill'],
-    ['maintenance', 'clear_generated', 'database', 'settings-clear-generated-images'],
+    ['database', 'clear_generated', 'maintenance', 'settings-clear-generated-images'],
     ['general', 'video_player', 'viewing', 'settings-video-player'],
     ['general', 'video_preview', 'viewing', 'video_preview'],
     ['general', 'local_ai', 'processing', 'settings-local-ai'],
     ['appearance', 'appearance_image_viewer', 'viewing', 'settings-appearance-image-viewer'],
     ['appearance', 'appearance_sfw', 'general', 'settings-appearance-sfw'],
     ['library', 'parse_library_tags', 'library', 'settings-parse-library-tags'],
-    ['files', 'bulk_paths', 'connections', 'settings-bulk-paths'],
+    ['files', 'bulk_paths', 'maintenance', 'settings-bulk-paths'],
     ['files', 'folder_tags', 'library', 'settings-folder-tags'],
     ['files', 'watched_folders', 'connections', 'settings-watched-folders'],
     ['database', 'find_duplicates', 'maintenance', 'settings-find-duplicates'],
     ['database', 'find_missing', 'maintenance', 'settings-find-missing-media'],
     ['database', 'backups', 'database', 'database_backups'],
-    ['database', 'library_reset', 'database', 'settings-library-reset'],
+    ['database', 'library_reset', 'maintenance', 'settings-library-reset'],
     ['database', 'oshash_backfill', 'maintenance', 'settings-fingerprint-backfill'],
     ['database', 'content_hash_backfill', 'maintenance', 'settings-fingerprint-backfill'],
     ['connections', 'nas', 'connections', 'settings-nas'],
@@ -46,7 +46,7 @@ describe('settings navigation compatibility', () => {
     for (const section of [
       'generate_video_images', 'generate_image_thumbs', 'oshash_backfill',
       'video_codec_backfill', 'clip_embedding_backfill', 'detect_faces',
-      'find_duplicates', 'tag_image_ai_upscale', 'find_missing',
+      'find_duplicates', 'tag_image_ai_upscale', 'find_missing', 'clear_generated', 'library_reset',
     ]) {
       expect(resolveSettingsLocation('database', section).tab, section).toBe('maintenance')
     }
