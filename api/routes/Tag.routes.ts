@@ -12,6 +12,7 @@ import {
   MergeTagsRequestSchema,
   MoveTagsToCategoryRequestSchema,
   TagItemsRequestSchema,
+  TagSortedIdsRequestSchema,
   TagThumbsRequestSchema,
 } from '../../shared/schemas/requests'
 import createTagController from '../controllers/Tag.controller'
@@ -35,6 +36,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.get('/:id', Tag.findOne)
   router.get('/', Tag.getAll)
   router.post('/items', validateBody(TagItemsRequestSchema), Tag.getAllForItems)
+  router.post('/sortedIds', validateBody(TagSortedIdsRequestSchema), Tag.getSortedIds)
   router.put('/:id', validateBody(EntityUpdateRequestSchema), Tag.update)
   router.post('/deleteOne', validateBody(DeleteEntityOneRequestSchema), Tag.deleteOne)
 

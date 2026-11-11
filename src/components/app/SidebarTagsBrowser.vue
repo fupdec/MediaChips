@@ -302,6 +302,7 @@ import {useI18n} from 'vue-i18n'
 import DialogMetaManager from '@/components/dialogs/DialogMetaManager.vue'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
+import {useItemsStore} from '@/stores/items'
 import {metaPath, useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import {useBrowserTagFilter} from '@/composable/useBrowserTagFilter'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
@@ -475,13 +476,92 @@ watch(metaArray, (metas) => {
   syncCategoryRows(metas)
 }, {immediate: true})
 
+/* ---------- Category page sort mirroring ----------
+ * Tags in the tree follow the sort chosen on each category's page. The order
+ * comes from the server (sorts can use media counts, pinned meta, etc. that the
+ * cached catalog lacks); only ids are fetched, tags still render from the cache.
+ * `null` = no custom sort saved → alphabetical.
+ */
+const itemsStore = useItemsStore()
+const categoryOrder = reactive<Record<number, number[] | null>>({})
+const categoryOrderRequest: Record<number, number> = {}
+
+type CategorySort = {sortBy: string; sortDir: 'asc' | 'desc'}
+
+async function fetchCategorySort(metaId: number): Promise<CategorySort | null> {
+  try {
+    // Lookup only — never create default page settings rows.
+    const res = await typedApi.findPageSettings({
+      metaId,
+      tagId: null,
+      mediaTypeId: null,
+      tabId: null,
+    })
+    const sortBy = String(res.data?.sortBy || '')
+    if (!sortBy) return null
+    return {sortBy, sortDir: res.data?.sortDir === 'desc' ? 'desc' : 'asc'}
+  } catch {
+    return null
+  }
+}
+
+async function loadCategoryOrder(
+  metaId: number,
+  options: {force?: boolean; sort?: CategorySort | null} = {},
+): Promise<void> {
+  if (!options.force && metaId in categoryOrder) return
+  const token = (categoryOrderRequest[metaId] || 0) + 1
+  categoryOrderRequest[metaId] = token
+
+  const sort = options.sort !== undefined ? options.sort : await fetchCategorySort(metaId)
+  if (categoryOrderRequest[metaId] !== token) return
+
+  // Shuffle on the page is random per load — keep the tree stable instead.
+  if (!sort || sort.sortBy === 'shuffle') {
+    categoryOrder[metaId] = null
+    return
+  }
+
+  try {
+    const res = await typedApi.postTagSortedIds({
+      metaId,
+      sortBy: sort.sortBy,
+      direction: sort.sortDir,
+    })
+    if (categoryOrderRequest[metaId] !== token) return
+    categoryOrder[metaId] = res.data.ids
+  } catch {
+    if (categoryOrderRequest[metaId] !== token) return
+    categoryOrder[metaId] = null
+  }
+}
+
+function sortTagsForCategory(metaId: number, tags: Tag[]): Tag[] {
+  const byName = (a: Tag, b: Tag) => String(a.name || '').localeCompare(String(b.name || ''))
+  const order = categoryOrder[metaId]
+  if (!order?.length) return tags.sort(byName)
+
+  const rank = new Map<number, number>()
+  order.forEach((id, index) => rank.set(id, index))
+  return tags.sort((a, b) => {
+    const ra = rank.get(Number(a.id))
+    const rb = rank.get(Number(b.id))
+    // Tags created after the order was fetched go last, alphabetically.
+    if (ra == null && rb == null) return byName(a, b)
+    if (ra == null) return 1
+    if (rb == null) return -1
+    return ra - rb
+  })
+}
+
 const tagsByMetaId = computed(() => {
   const query = search.value.trim().toLowerCase()
   const map = new Map<number, Tag[]>()
 
   for (const category of categoryRows.value) {
-    let tags = [...(appStore.getTagsByMetaId(category.id) as Tag[])].sort((a, b) =>
-      String(a.name || '').localeCompare(String(b.name || '')),
+    let tags = sortTagsForCategory(
+      category.id,
+      [...(appStore.getTagsByMetaId(category.id) as Tag[])],
     )
     if (query) {
       tags = tags.filter((tag) => {
@@ -671,6 +751,55 @@ watch(
   },
   {immediate: true},
 )
+
+// Lazily mirror the page sort for every expanded category.
+watch(
+  () => categoryRows.value.filter((category) => isExpanded(category.id)).map((category) => category.id),
+  (ids) => {
+    for (const id of ids) void loadCategoryOrder(id)
+  },
+  {immediate: true},
+)
+
+// Sort changed on the open category page → follow it right away. Only react
+// when the meta stays the same so page switches don't apply a stale sort.
+watch(
+  () => (itemsStore.type === 'tag'
+    ? [Number(itemsStore.environment?.meta_id) || 0, String(itemsStore.sortBy || ''), String(itemsStore.sortDir || '')]
+    : null),
+  (next, prev) => {
+    if (!next || !prev) return
+    const [metaId, sortBy, sortDir] = next
+    if (!metaId || metaId !== prev[0]) return
+    if (sortBy === prev[1] && sortDir === prev[2]) return
+    void loadCategoryOrder(metaId, {
+      force: true,
+      sort: sortBy ? {sortBy, sortDir: sortDir === 'desc' ? 'desc' : 'asc'} : null,
+    })
+  },
+)
+
+// Catalog reloads (new tags, counts, ratings…) can shift server-side order.
+let catalogRefreshTimer: ReturnType<typeof setTimeout> | null = null
+watch(
+  () => appStore.tags,
+  () => {
+    if (catalogRefreshTimer != null) clearTimeout(catalogRefreshTimer)
+    catalogRefreshTimer = setTimeout(() => {
+      catalogRefreshTimer = null
+      for (const key of Object.keys(categoryOrder)) {
+        const metaId = Number(key)
+        if (categoryOrder[metaId] && isExpanded(metaId)) {
+          void loadCategoryOrder(metaId, {force: true})
+        }
+      }
+    }, 800)
+  },
+)
+
+onBeforeUnmount(() => {
+  if (catalogRefreshTimer != null) clearTimeout(catalogRefreshTimer)
+})
 
 defineExpose({
   allCategoriesExpanded,
@@ -1035,6 +1164,11 @@ async function onMetaCreated(): Promise<void> {
   &--active {
     background: rgba(var(--v-theme-primary), 0.12);
     color: rgb(var(--v-theme-primary));
+    font-weight: 600;
+
+    .sidebar-tags-browser__category-icon {
+      opacity: 1;
+    }
 
     .sidebar-tags-browser__category-count {
       background: rgba(var(--v-theme-primary), 0.16);

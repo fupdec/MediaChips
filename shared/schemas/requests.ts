@@ -943,6 +943,12 @@ export const TagItemsRequestSchema = ItemsListRequestSchema.extend({
   find_duplicates: optionalCoercedBoolean,
 })
 
+export const TagSortedIdsRequestSchema = z.object({
+  metaId: coercedId,
+  sortBy: z.string().optional(),
+  direction: z.enum(['asc', 'desc']).optional(),
+}).passthrough()
+
 export const EntityUpdateRequestSchema = z.object({
   name: z.string().nullable().optional(),
   color: z.string().nullable().optional(),

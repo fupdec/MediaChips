@@ -125,6 +125,7 @@ export const API_ROUTES = {
   homeChartStats: '/api/home/chart-stats',
   mediaGetStats: '/api/Media/get-stats',
   tagCount: '/api/Tag/count',
+  tagSortedIds: '/api/Tag/sortedIds',
   homeMarkers: '/api/home/markers',
   homeHealth: '/api/home/health',
   homeHealthLite: '/api/home/health-lite',
