@@ -12,6 +12,7 @@
         :header="t('media.dialogs.merge_media_title')"
         :subheader="t('media.dialogs.merge_media_hint', {count: Math.max(items.length - 1, 0)})"
         icon="set-merge"
+        tone="warning"
         :buttons="headerButtons"
         closable
         @close="close"

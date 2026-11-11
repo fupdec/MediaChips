@@ -12,6 +12,7 @@
         :header="t('meta.dialogs.merge_categories_title')"
         :subheader="t('settings.tabs.meta')"
         icon="set-merge"
+        tone="warning"
         closable
         :buttons="headerButtons"
         @close="close"

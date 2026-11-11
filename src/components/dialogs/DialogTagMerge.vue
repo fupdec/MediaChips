@@ -12,6 +12,7 @@
         :header="t('meta.dialogs.merge_tags_title')"
         :subheader="meta?.name"
         icon="set-merge"
+        tone="warning"
         closable
         @close="close"
       />

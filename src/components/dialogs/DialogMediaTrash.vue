@@ -12,6 +12,7 @@
         :header="t('media_trash.title')"
         :subheader="t('media_trash.subtitle', {days: retentionDays})"
         icon="delete-outline"
+        tone="error"
         closable
         @close="close"
       />

@@ -1,19 +1,28 @@
 <template>
   <div
+    ref="headerEl"
     class="dialog-header"
     @pointerdown="startDrag"
     @pointermove="moveDrag"
     @lostpointercapture="endDrag"
-    :class="{'dialog-header--compact': isCompact}"
+    :class="{
+      'dialog-header--compact': isCompact,
+      'dialog-header--scrolled': scrolled,
+    }"
+    :style="{'--dh-tone': `var(--v-theme-${tone})`}"
   >
     <div class="content">
       <div class="headline">
-        <v-icon
+        <span
           v-if="icon"
           class="headline__icon"
-          size="small"
-          :icon="`mdi-${icon}`"
-        />
+          aria-hidden="true"
+        >
+          <v-icon
+            :size="isCompact ? 18 : 20"
+            :icon="`mdi-${icon}`"
+          />
+        </span>
 
         <div
           v-if="subheader"
@@ -64,13 +73,16 @@
           v-for="(btn, index) in buttonsOrdered"
           :key="index"
           :color="btn.color"
-          :variant="btn.outlined ? 'outlined' : 'flat'"
+          :variant="variantOf(btn)"
           :size="isCompact ? 'small' : undefined"
           :disabled="btn.disabled"
           :loading="btn.loading"
           :title="btn.title || btn.text"
           :aria-label="btn.title || btn.text"
-          :class="{'dialog-header__action--icon-only': !!btn.icon}"
+          :class="{
+            'dialog-header__action--icon-only': !!btn.icon,
+            'dialog-header__action--quiet': kindOf(btn) === 'quiet' && !!btn.icon,
+          }"
           @click="run(btn)"
         >
           <v-icon
@@ -85,6 +97,12 @@
           >{{ btn.text }}</span>
         </v-btn>
       </div>
+
+      <span
+        v-if="closable && buttonsOrdered.length"
+        class="dialog-header__sep"
+        aria-hidden="true"
+      />
 
       <v-btn
         v-if="closable"
@@ -107,14 +125,19 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount} from 'vue'
+import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
 import type { PropType } from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useDisplay} from 'vuetify'
 import sortBy from 'lodash/sortBy'
 import {copyToClipboard} from '@/utils/copyToClipboard'
 
+type DialogHeaderButtonKind = 'primary' | 'tonal' | 'quiet'
+type DialogHeaderTone = 'primary' | 'error' | 'warning' | 'success' | 'info'
+
 interface DialogHeaderButton {
+  /** Visual weight. Auto when omitted: see kindOf(). */
+  kind?: DialogHeaderButtonKind
   icon?: string
   text?: string
   title?: string
@@ -146,6 +169,11 @@ const props = defineProps({
   closeDisabled: Boolean,
   closeLabel: String,
   compact: Boolean,
+  /** Accent for background tint and icon tile: error for destructive dialogs, warning for risky ones. */
+  tone: {
+    type: String as PropType<DialogHeaderTone>,
+    default: 'primary',
+  },
 })
 
 const {t} = useI18n()
@@ -155,6 +183,55 @@ const isCompact = computed(() => props.compact && xs.value)
 const buttonsOrdered = computed(() =>
   sortBy(props.buttons, 'order'),
 )
+
+/*
+ * Auto hierarchy when several buttons share the header: only one stays filled
+ * (the last non-destructive one, usually Save), destructive ones go quiet,
+ * everything else becomes tonal. An explicit `kind` always wins.
+ */
+const mainButton = computed(() => {
+  const candidates = buttonsOrdered.value.filter(b => !b.kind && b.color !== 'error')
+  return candidates.filter(b => !b.outlined).at(-1) ?? candidates.at(-1)
+})
+
+const kindOf = (btn: DialogHeaderButton): DialogHeaderButtonKind => {
+  if (btn.kind) return btn.kind
+  if (props.buttons.length < 2) return btn.outlined ? 'tonal' : 'primary'
+  if (btn.color === 'error') return 'quiet'
+  return btn === mainButton.value ? 'primary' : 'tonal'
+}
+
+const variantOf = (btn: DialogHeaderButton) => {
+  const kind = kindOf(btn)
+  if (kind === 'quiet') return 'text'
+  if (kind === 'tonal') return 'tonal'
+  return 'flat'
+}
+
+/* Shadow only once content has scrolled under the header. */
+const headerEl = ref<HTMLElement | null>(null)
+const scrolled = ref(false)
+const scrolledEls = new Set<Element>()
+let scrollRoot: HTMLElement | null = null
+
+function onContentScroll(event: Event) {
+  const target = event.target
+  if (!(target instanceof Element) || headerEl.value?.contains(target)) return
+  if (target.scrollTop > 2) scrolledEls.add(target)
+  else scrolledEls.delete(target)
+  scrolled.value = scrolledEls.size > 0
+}
+
+onMounted(() => {
+  scrollRoot = headerEl.value?.parentElement ?? null
+  scrollRoot?.addEventListener('scroll', onContentScroll, {capture: true, passive: true})
+})
+
+onBeforeUnmount(() => {
+  scrollRoot?.removeEventListener('scroll', onContentScroll, {capture: true})
+  scrollRoot = null
+  scrolledEls.clear()
+})
 
 const run = (btn: DialogHeaderButton) => {
   btn.function ? btn.function() : btn.action?.()
@@ -252,13 +329,21 @@ onBeforeUnmount(resetPosition)
   cursor: grab;
   touch-action: none;
   z-index: 1;
+  --dh-tone: var(--v-theme-primary);
   background: linear-gradient(
     110deg,
-    rgba(var(--v-theme-primary), 0.1),
-    rgba(var(--v-theme-primary), 0.025)
+    rgba(var(--dh-tone), 0.1),
+    rgba(var(--dh-tone), 0.025)
   );
-  box-shadow: 0 2px 10px #0000002b;
+  box-shadow: 0 0 0 transparent;
+  border-bottom: 1px solid transparent;
+  transition: box-shadow .2s ease, border-color .2s ease;
   user-select: none;
+
+  &--scrolled {
+    box-shadow: 0 2px 10px #0000002b;
+    border-bottom-color: rgba(var(--v-border-color), var(--v-border-opacity));
+  }
 
   &:active {
     cursor: grabbing;
@@ -283,7 +368,14 @@ onBeforeUnmount(resetPosition)
 
     &__icon {
       flex-shrink: 0;
-      opacity: 0.72;
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 11px;
+      color: rgb(var(--dh-tone));
+      background: rgba(var(--dh-tone), 0.14);
+      box-shadow: inset 0 0 0 1px rgba(var(--dh-tone), 0.18);
     }
 
     &__text {
@@ -329,8 +421,37 @@ onBeforeUnmount(resetPosition)
     min-width: 0;
   }
 
+  &__sep {
+    flex: 0 0 auto;
+    width: 1px;
+    height: 24px;
+    margin-inline: -2px;
+    background: rgba(var(--v-border-color), var(--v-border-opacity));
+  }
+
+  &__action--quiet {
+    min-width: 40px;
+    padding-inline: 10px;
+
+    :deep(.v-btn__content) {
+      gap: 0;
+    }
+
+    :deep(.v-icon) {
+      margin-inline: 0 !important;
+    }
+
+    .dialog-header__action-text {
+      display: none;
+    }
+  }
+
   &__close {
     flex: 0 0 auto;
+
+    &:hover {
+      color: rgb(var(--v-theme-error));
+    }
   }
 
   &--compact {
@@ -342,6 +463,12 @@ onBeforeUnmount(resetPosition)
 
     .headline {
       gap: 6px;
+
+      &__icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+      }
 
       &__title {
         font-size: 1.125rem;
@@ -376,6 +503,12 @@ onBeforeUnmount(resetPosition)
 }
 
 /* Narrow phones: title + close on first row, actions wrap on the second. */
+@media (prefers-reduced-motion: reduce) {
+  .dialog-header {
+    transition: none;
+  }
+}
+
 @media (max-width: 600px) {
   .dialog-header .content {
     flex-wrap: wrap;
@@ -392,6 +525,10 @@ onBeforeUnmount(resetPosition)
 
   .dialog-header__close {
     order: 2;
+  }
+
+  .dialog-header__sep {
+    display: none;
   }
 
   .dialog-header .actions {
