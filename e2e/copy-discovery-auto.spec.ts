@@ -28,14 +28,50 @@ test('persists automatic trigger switches and identifies why a job started', asy
   }]}))
   await page.goto('/settings?tab=database&section=find_duplicates')
   await waitForAppShell(page); await dismissOnboardingIfVisible(page)
+  await expect(page.getByTestId('copy-auto-import')).toBeVisible()
   for (const name of ['copy-auto-reconnect', 'copy-auto-import', 'copy-auto-folders']) await expect(page.getByTestId(name).locator('input[type="checkbox"]')).toBeChecked()
   await page.getByTestId('copy-auto-import').locator('input[type="checkbox"]').press('Space')
   await expect.poll(() => writes).toEqual(['copyDiscoveryOnImport'])
   await page.reload(); await waitForAppShell(page)
+  await expect(page.getByTestId('copy-auto-import')).toBeVisible()
   await expect(page.getByTestId('copy-auto-import').locator('input[type="checkbox"]')).not.toBeChecked()
   await expect(page.getByTestId('copy-auto-reconnect').locator('input[type="checkbox"]')).toBeChecked()
   await page.getByTestId('copy-discovery').locator('.copy-discovery__group > summary').click()
   await expect(page.getByTestId('copy-discovery').getByText(/^(After import|После импорта)$/)).toBeVisible()
+})
+
+test('scrolls through a long check history without rendering every job', async ({page}) => {
+  await disableFeatureHints(page)
+  const jobs: CopyDiscoveryJob[] = Array.from({length: 20}, (_, index) => ({
+    id: `check-${index}`,
+    state: index % 2 ? 'failed' : 'completed',
+    method: 'oshash',
+    roots: [{key: `/Archive/Check ${index + 1}`}],
+    mediaId: null,
+    createdAt: '2026-10-19',
+    updatedAt: '2026-10-19',
+    error: index % 2 ? 'failed' : null,
+    counts: {},
+    total: 0,
+    items: [],
+    truncated: false,
+  }))
+  await page.route('**/api/copy-discovery/jobs', route => route.fulfill({json: jobs}))
+  await page.goto('/settings?tab=maintenance&maintenanceView=duplicates')
+  await waitForAppShell(page)
+  await dismissOnboardingIfVisible(page)
+  await page.getByTestId('copy-discovery').locator('.copy-discovery__group > summary').click()
+
+  const history = page.getByTestId('copy-discovery').getByRole('region', {name: /20/})
+  const lastJob = history.getByText('/Archive/Check 20', {exact: true})
+  await expect(history.getByText('/Archive/Check 1', {exact: true})).toBeVisible()
+  await expect(lastJob).toHaveCount(0)
+  await history.scrollIntoViewIfNeeded()
+  await history.press('End')
+  // The last rows are measured once Vuetify renders them.
+  await expect(lastJob).toBeAttached()
+  await history.press('End')
+  await expect(lastJob).toBeInViewport()
 })
 
 test('a real bulk import schedules discovery and attaches a copy in a previously selected folder', async ({request}) => {

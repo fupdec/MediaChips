@@ -51,21 +51,48 @@
         <v-icon size="18" aria-hidden="true">mdi-history</v-icon>
         <span>{{ t('copyDiscovery.history', {count: group.jobs.length}) }}</span>
       </summary>
-      <div :class="{'copy-discovery__history': group.history}">
-        <div v-for="job in group.jobs" :key="job.id" class="copy-discovery__job">
-          <div class="d-flex align-center flex-wrap ga-2">
-            <strong>{{ t('copyDiscovery.states.' + job.state) }}</strong>
-            <span v-if="job.triggers?.length" class="text-caption">{{ job.triggers.map(trigger => t('copyDiscovery.triggers.' + trigger)).join(' · ') }}</span>
-            <span class="text-caption">{{ job.method === 'sha256' ? 'SHA-256' : 'oshash' }}</span>
-            <v-btn v-if="active(job)" size="small" variant="text" :disabled="pending"
-              @click="run(() => job.state === 'paused' ? api.resume(job.id) : api.pause(job.id))">
-              {{ t(job.state === 'paused' ? 'copyDiscovery.resume' : 'copyDiscovery.pause') }}
-            </v-btn>
-            <v-btn v-if="active(job)" size="small" variant="text" :disabled="pending" @click="run(() => api.cancel(job.id))">{{ t('copyDiscovery.cancel') }}</v-btn>
-            <v-btn v-else-if="job.state !== 'completed' || job.counts.failed" size="small" variant="text" :disabled="pending" @click="run(() => api.retry(job.id))">{{ t('copyDiscovery.retry') }}</v-btn>
+      <MediaCopyDiscoveryJobList
+        :jobs="group.jobs"
+        :history="group.history"
+        :history-label="group.history ? t('copyDiscovery.history', {count: group.jobs.length}) : undefined"
+        v-slot="{job}"
+      >
+        <div class="copy-discovery__job" :class="'copy-discovery__job--' + job.state">
+          <div class="copy-discovery__job-head">
+            <span class="copy-discovery__job-icon" aria-hidden="true">
+              <v-progress-circular v-if="running(job)" indeterminate size="18" width="2" />
+              <v-icon v-else size="18" :icon="stateIcon(job.state)" />
+            </span>
+            <div class="copy-discovery__job-title">
+              <strong>{{ t('copyDiscovery.states.' + job.state) }}</strong>
+              <div class="copy-discovery__job-meta">
+                <span v-for="trigger in job.triggers || []" :key="trigger" class="copy-discovery__tag">{{ t('copyDiscovery.triggers.' + trigger) }}</span>
+                <span class="copy-discovery__tag copy-discovery__tag--mono">{{ job.method === 'sha256' ? 'SHA-256' : 'oshash' }}</span>
+              </div>
+            </div>
+            <div class="copy-discovery__job-actions">
+              <v-btn v-if="active(job)" size="small" variant="tonal" color="primary" rounded="lg" :disabled="pending"
+                :prepend-icon="job.state === 'paused' ? 'mdi-play' : 'mdi-pause'"
+                @click="run(() => job.state === 'paused' ? api.resume(job.id) : api.pause(job.id))">
+                {{ t(job.state === 'paused' ? 'copyDiscovery.resume' : 'copyDiscovery.pause') }}
+              </v-btn>
+              <v-btn v-if="active(job)" size="small" variant="text" color="error" rounded="lg" :disabled="pending" prepend-icon="mdi-stop" @click="run(() => api.cancel(job.id))">{{ t('copyDiscovery.cancel') }}</v-btn>
+              <v-btn v-else-if="job.state !== 'completed' || job.counts.failed" size="small" variant="tonal" rounded="lg" :disabled="pending" prepend-icon="mdi-refresh" @click="run(() => api.retry(job.id))">{{ t('copyDiscovery.retry') }}</v-btn>
+            </div>
           </div>
-          <p class="text-caption copy-discovery__roots">{{ job.roots.map(root => root.key).join(' · ') }}</p>
-          <p class="text-caption my-1" role="status">{{ t('copyDiscovery.progress', {total: job.total, attached: job.counts.attached || 0, pending: (job.counts.candidate || 0) + (job.counts.checking || 0), ambiguous: job.counts.ambiguous || 0, failed: job.counts.failed || 0}) }}</p>
+          <div class="copy-discovery__roots">
+            <v-icon size="14" aria-hidden="true">mdi-folder-outline</v-icon>
+            <span :title="job.roots.map(root => root.key).join('\n')">{{ job.roots.map(root => root.key).join(' · ') }}</span>
+          </div>
+          <div class="copy-discovery__bar" role="progressbar" :aria-valuenow="job.total - jobStats(job).pending" aria-valuemin="0" :aria-valuemax="job.total">
+            <span v-for="segment in jobSegments(job)" :key="segment.key" :class="'copy-discovery__bar--' + segment.key" :style="{width: segment.width}" />
+          </div>
+          <div class="copy-discovery__chips" role="status" :aria-label="t('copyDiscovery.progress', jobStats(job))">
+            <span class="copy-discovery__chip"><strong>{{ job.total }}</strong> {{ t('copyDiscovery.stats.total').toLowerCase() }}</span>
+            <span v-for="stat in jobChips(job)" :key="stat.key" class="copy-discovery__chip" :class="['copy-discovery__chip--' + stat.key, {'copy-discovery__chip--zero': !stat.value}]">
+              <i aria-hidden="true" /><strong>{{ stat.value }}</strong> {{ t('copyDiscovery.stats.' + stat.key).toLowerCase() }}
+            </span>
+          </div>
           <p v-if="job.error" class="text-caption text-error">{{ message(job.error) }}</p>
           <details v-if="showResults && job.items.length">
             <summary class="text-caption">{{ t('copyDiscovery.results') }}</summary>
@@ -83,7 +110,7 @@
             <p v-if="job.truncated" class="text-caption">{{ t('copyDiscovery.truncated') }}</p>
           </details>
         </div>
-      </div>
+      </MediaCopyDiscoveryJobList>
     </component>
   </section>
 </template>
@@ -99,6 +126,7 @@ import type {NasConnection} from '@shared/nas'
 import {cloudMediaPath, parseCloudMediaPath, type CloudAccount, type CloudProvider} from '@shared/cloudAccounts'
 import {nasMediaPath} from '@shared/remoteMedia'
 import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
+import MediaCopyDiscoveryJobList from './MediaCopyDiscoveryJobList.vue'
 import {listNasDirectory, nasBrowserPath, nasRelativePath} from '@/services/nasBrowse'
 import {driveBrowserRoot, driveFileIdFromPath, listDriveDirectory} from '@/services/driveBrowse'
 import {listCloudFolders} from '@/services/cloudFolderBrowse'
@@ -248,6 +276,32 @@ const summaryStats = computed(() => [
   {key: 'ambiguous', value: totals.value.ambiguous, icon: 'mdi-call-split'},
   {key: 'failed', value: totals.value.failed, icon: 'mdi-alert-circle-outline'},
 ])
+const running = (job: CopyDiscoveryJob) => job.state === 'discovering' || job.state === 'verifying'
+const stateIcons: Record<string, string> = {
+  paused: 'mdi-pause-circle-outline', queued: 'mdi-clock-outline', completed: 'mdi-check-circle-outline',
+  cancelled: 'mdi-stop-circle-outline', failed: 'mdi-alert-circle-outline',
+}
+const stateIcon = (state: string) => stateIcons[state] || 'mdi-progress-clock'
+const jobStats = (job: CopyDiscoveryJob) => ({
+  total: job.total,
+  attached: job.counts.attached || 0,
+  pending: (job.counts.candidate || 0) + (job.counts.checking || 0),
+  ambiguous: job.counts.ambiguous || 0,
+  failed: job.counts.failed || 0,
+})
+const jobChips = (job: CopyDiscoveryJob) => {
+  const stats = jobStats(job)
+  return (['attached', 'pending', 'ambiguous', 'failed'] as const).map(key => ({key, value: stats[key]}))
+}
+const jobSegments = (job: CopyDiscoveryJob) => {
+  const stats = jobStats(job)
+  const total = Math.max(job.total, 1)
+  const other = Math.max(job.total - stats.attached - stats.pending - stats.ambiguous - stats.failed, 0)
+  return [
+    {key: 'attached', value: stats.attached}, {key: 'other', value: other},
+    {key: 'ambiguous', value: stats.ambiguous}, {key: 'failed', value: stats.failed},
+  ].filter(segment => segment.value > 0).map(segment => ({key: segment.key, width: `${segment.value / total * 100}%`}))
+}
 const message = (code: string) => te('copyDiscovery.errors.' + code) ? t('copyDiscovery.errors.' + code) : t('copyDiscovery.errors.failed')
 const showError = (err: unknown) => { error.value = message((err as {response?: {data?: {code?: string}}}).response?.data?.code || 'failed') }
 async function load() {
@@ -358,14 +412,43 @@ details[open] > .copy-discovery__history-toggle .copy-discovery__chevron { trans
   .copy-discovery__input { padding: 12px; }
   .copy-discovery__actions > .v-btn { width: 100%; height: auto; min-height: 40px; }
   .copy-discovery__actions :deep(.v-btn__content) { white-space: normal; }
+  .copy-discovery__job { padding: 12px; }
+  .copy-discovery__job-actions { margin-left: 0; width: 100%; }
 }
-.copy-discovery__history { max-height: 320px; overflow: auto; }
 .copy-discovery__group > summary { cursor: pointer; }
-.copy-discovery__job { padding-block: 12px; border-top: 1px solid rgba(var(--v-theme-on-surface), .12); }
+.copy-discovery__job { --job-accent: var(--v-theme-primary); display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; margin-bottom: 10px; border-radius: 14px; border: 1px solid rgba(var(--v-theme-on-surface), .08); background: rgba(var(--v-theme-on-surface), .02); }
+.copy-discovery__job--completed { --job-accent: var(--v-theme-success); }
+.copy-discovery__job--failed { --job-accent: var(--v-theme-error); }
+.copy-discovery__job--paused, .copy-discovery__job--queued, .copy-discovery__job--cancelled { --job-accent: var(--v-theme-on-surface); }
+.copy-discovery__job-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.copy-discovery__job-icon { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; color: rgb(var(--job-accent)); background: rgba(var(--job-accent), .1); }
+.copy-discovery__job-title { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.copy-discovery__job-title strong { font-size: .875rem; line-height: 1.3; }
+.copy-discovery__job-meta { display: flex; flex-wrap: wrap; gap: 4px; }
+.copy-discovery__tag { padding: 1px 8px; border-radius: 999px; font-size: .6875rem; line-height: 1.6; color: rgba(var(--v-theme-on-surface), .7); background: rgba(var(--v-theme-on-surface), .06); }
+.copy-discovery__tag--mono { font-family: monospace; }
+.copy-discovery__job-actions { display: flex; gap: 4px; margin-left: auto; }
+.copy-discovery__roots { display: flex; align-items: center; gap: 6px; min-width: 0; font-family: monospace; font-size: .75rem; color: rgba(var(--v-theme-on-surface), .7); }
+.copy-discovery__roots .v-icon { flex-shrink: 0; opacity: .7; }
+.copy-discovery__roots span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copy-discovery__bar { display: flex; height: 6px; border-radius: 999px; overflow: hidden; background: rgba(var(--v-theme-on-surface), .08); }
+.copy-discovery__bar > span { transition: width .3s ease; }
+.copy-discovery__bar--attached, .copy-discovery__chip--attached i { background: rgb(var(--v-theme-success)); }
+.copy-discovery__bar--other { background: rgba(var(--v-theme-on-surface), .28); }
+.copy-discovery__bar--ambiguous, .copy-discovery__chip--ambiguous i { background: rgb(var(--v-theme-warning)); }
+.copy-discovery__bar--failed, .copy-discovery__chip--failed i { background: rgb(var(--v-theme-error)); }
+.copy-discovery__chip--pending i { background: rgba(var(--v-theme-on-surface), .25); }
+.copy-discovery__chips { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .75rem; color: rgba(var(--v-theme-on-surface), .65); }
+.copy-discovery__chip { display: inline-flex; align-items: center; gap: 5px; }
+.copy-discovery__chip i { width: 8px; height: 8px; border-radius: 50%; }
+.copy-discovery__chip strong { color: rgb(var(--v-theme-on-surface)); font-variant-numeric: tabular-nums; }
+.copy-discovery__chip--zero { opacity: .5; }
+.copy-discovery__chip--failed:not(.copy-discovery__chip--zero) strong { color: rgb(var(--v-theme-error)); }
+.copy-discovery__chip--ambiguous:not(.copy-discovery__chip--zero) strong { color: rgb(var(--v-theme-warning)); }
+.copy-discovery__job details > summary { cursor: pointer; }
 .copy-discovery__results { list-style: none; padding: 0; max-height: 320px; overflow: auto; }
 .copy-discovery__results li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-block: 6px; }
 .copy-discovery__path { flex: 1 1 240px; overflow-wrap: anywhere; font-size: 12px; }
-.copy-discovery__roots { overflow-wrap: anywhere; opacity: .7; }
 .copy-discovery--compact { margin-block: 8px 0; }
 .copy-discovery--compact .copy-discovery__input { padding: 10px; margin-bottom: 8px; border-radius: 10px; }
 .copy-discovery--compact .copy-discovery__hint { margin: 6px 0 8px; font-size: .6875rem; line-height: 1.5; }

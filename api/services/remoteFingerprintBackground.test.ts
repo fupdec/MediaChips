@@ -1,4 +1,8 @@
 // @vitest-environment node
+import {writeFileSync} from 'node:fs'
+import {dirname, join} from 'node:path'
+import {computeOshashForPath} from './oshash'
+import {listMediaDuplicateGroups} from './mediaDuplicateGroups'
 import {afterEach, beforeEach, expect, it, vi} from 'vitest'
 import {createTestDb, closeTestDb, type TestDb} from '../db/testUtils/createTestDb'
 import {createMediaRepository} from '../db/repositories/media'
@@ -21,14 +25,15 @@ function add(path: string, extra = {}) {
   repo.updateById(row.id, extra)
   return row
 }
-it('selects only live remote files without hashes, including legacy Drive', async () => {
+it('selects live remote files and eligible local candidates without hashes', async () => {
   for (const prefix of ['nas', 'gdrive', 'onedrive', 'dropbox']) add(`${prefix}://file`)
   add('/local/video.mp4'); add('https://example.com/video')
   add('nas://hashed', {oshash: 'abc'}); add('nas://deleted', {deletedAt: '2026'})
   await worker.tick()
   expect(backfill).toHaveBeenCalledTimes(4)
   await worker.tick(); await worker.tick()
-  expect(backfill).toHaveBeenCalledTimes(4)
+  expect(backfill).toHaveBeenCalledTimes(5)
+  expect(backfill).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({path: '/local/video.mp4'}), expect.anything())
 })
 it('honors the persisted switch and picks up later imports', async () => {
   add('nas://first')
@@ -54,4 +59,17 @@ it('revisits files whose size becomes known after metadata processing', async ()
   await worker.tick(); await worker.tick()
   createMediaRepository(db.drizzle).updateById(unknown.id, {filesize: 100})
   await worker.tick(); expect(backfill).toHaveBeenCalledTimes(2)
+})
+
+it.each(['nas', 'gdrive'])('groups a %s import with an older local card by fingerprint', async provider => {
+  worker.dispose()
+  worker = createRemoteFingerprintBackground(db)
+  const path = join(dirname(fixture.dbPath), 'original.mp4')
+  writeFileSync(path, Buffer.alloc(100, 42))
+  const local = add(path)
+  const remote = add(`${provider}://renamed`, {oshash: await computeOshashForPath(path)})
+  await worker.tick()
+  const {groups} = listMediaDuplicateGroups(db, {duplicatesBy: 'oshash', mediaTypeId: 1})
+  expect(groups).toHaveLength(1)
+  expect(groups[0].itemIds).toEqual(expect.arrayContaining([local.id, remote.id]))
 })
