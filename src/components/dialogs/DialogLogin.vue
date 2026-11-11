@@ -8,6 +8,7 @@
   >
     <v-card rounded="xl">
       <DialogHeader
+        icon="account-circle-outline"
         @close="close"
         :header="t('login.welcome')"
         :buttons="buttons"

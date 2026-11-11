@@ -91,10 +91,10 @@
       small
       dark
     >
-      <div v-if="!player.timeRemain">{{ msToTime(player.currentTime) }}</div>
-      <div v-else>- {{ msToTime(player.duration - player.currentTime) }}</div>
+      <span v-if="!player.timeRemain">{{ msToTime(player.currentTime) }}</span>
+      <span v-else>- {{ msToTime(player.duration - player.currentTime) }}</span>
       <span class="mx-1">/</span>
-      <div>{{ msToTime(player.duration) }}</div>
+      <span>{{ msToTime(player.duration) }}</span>
       <div
         v-html="t('player.controls.switch_time')"
         class="tip body-2"

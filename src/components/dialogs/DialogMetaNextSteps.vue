@@ -8,6 +8,7 @@
   >
     <v-card rounded="xl">
       <DialogHeader
+        icon="arrow-right-circle-outline"
         :header="t('meta.dialogs.next_steps_title', {name: metaName})"
         closable
         @close="close"

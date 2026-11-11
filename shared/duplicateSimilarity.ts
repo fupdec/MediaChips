@@ -15,11 +15,22 @@ export type DuplicatePolicy = {
   autoMerge: boolean
   searchSimilarVideos?: boolean
 }
-export const defaultDuplicatePolicy = (): DuplicatePolicy => ({
+/** Exact copies only: same fingerprint and size. */
+export const fingerprintDuplicatePolicy = (): DuplicatePolicy => ({
   weights: {path: 0, name: 0, size: 0, oshash: 100, visual: 0},
   required: [], threshold: 75, visualMinimum: 85, minimumFrames: 6,
   priority: 'quality', files: 'keep', autoMerge: false,
 })
+/**
+ * Recommended preset and the default: exact copies score 100, re-encoded versions pass a strict
+ * standalone frame check, filename/size alone never pass. Visual weight stays 0 so libraries
+ * without a visual index are not penalised by the fixed denominator.
+ */
+export const recommendedDuplicatePolicy = (): DuplicatePolicy => ({
+  ...fingerprintDuplicatePolicy(),
+  threshold: 85, visualMinimum: 90, minimumFrames: 7, searchSimilarVideos: true,
+})
+export const defaultDuplicatePolicy = recommendedDuplicatePolicy
 export function parseDuplicatePolicy(raw: unknown): DuplicatePolicy {
   const fallback = defaultDuplicatePolicy()
   try {

@@ -7,6 +7,7 @@
   >
     <v-card rounded="xl">
       <DialogHeader
+        icon="folder-move-outline"
         @close="operationsStore.create_folder_move_media.dialog =false"
         :header="t('media.organize.title')"
         :buttons="buttons"

@@ -15,6 +15,7 @@
         <v-select v-model="duplicatesBy" :items="modeItems" item-title="title" item-value="value"
           :label="t('settings_labels.database.find_duplicates_mode')"
           variant="outlined" density="compact" rounded="lg" hide-details />
+        <div id="duplicates-search-option" class="duplicates-search__option" />
         <div class="duplicates-search__actions">
           <v-btn color="primary" rounded="lg" variant="flat" height="40" append-icon="mdi-arrow-right" :disabled="!mediaTypeId || !duplicatesBy" @click="openReview">
             {{ t('settings_labels.database.find_duplicates_open') }}
@@ -35,7 +36,7 @@
       <MediaCopyDiscovery :show-heading="false" :show-results="false" collapse-history />
     </section>
 
-    <section id="settings-duplicate-index" class="duplicates-group" aria-labelledby="settings-duplicate-index-title">
+    <section id="settings-duplicate-index" data-duplicate-target="index" class="duplicates-group" aria-labelledby="settings-duplicate-index-title">
       <SettingsGroupLabel
         id="settings-duplicate-index-title"
         :title="t('maintenanceView.duplicateIndex')"
@@ -46,7 +47,7 @@
     </section>
 
     <section id="settings-duplicate-options" class="duplicates-group" :aria-label="t('maintenanceView.duplicateOptions')">
-      <SettingsDuplicateSimilarity ref="similaritySettings" />
+      <SettingsDuplicateSimilarity ref="similaritySettings" :similarity-mode="duplicatesBy === 'similarity'" />
 
       <SettingsGroupLabel
         id="settings-duplicate-reliability-title"
@@ -164,6 +165,8 @@ async function openReview() {
 .duplicates-panel__heading :is(h3, h4) { font-size: .9375rem; font-weight: 600; line-height: 1.5; }
 .duplicates-panel__heading p { margin: 3px 0 0; font-size: .8125rem; line-height: 1.5; color: rgba(var(--v-theme-on-surface), .6); }
 .duplicates-search__controls { display: grid; grid-template-columns: 1fr 1.15fr; gap: 12px; align-items: center; }
+.duplicates-search__option { grid-column: 1 / -1; }
+.duplicates-search__option:empty { display: none; }
 .duplicates-search__actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .duplicates-setting :deep(.v-selection-control) { align-items: flex-start; }
 .duplicates-automation .duplicates-setting :deep(.v-selection-control) { align-items: center; }

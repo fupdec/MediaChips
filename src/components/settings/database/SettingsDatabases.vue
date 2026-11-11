@@ -164,6 +164,7 @@
     <v-dialog v-model="dialogDb" max-width="600">
       <v-card rounded="xl">
         <DialogHeader
+          icon="database-edit-outline"
           :header="headerText"
           :buttons="buttons"
           closable

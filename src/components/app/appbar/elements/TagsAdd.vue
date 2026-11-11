@@ -12,6 +12,7 @@
   <v-dialog v-model="dialogNames" scrollable :width="reviewMode ? 720 : 600" @after-leave="resetForm">
     <v-card rounded="lg">
       <DialogHeader
+        icon="tag-plus-outline"
         @close="closeDialog"
         :header="dialogTitle"
         :subheader="dialogSubheader"

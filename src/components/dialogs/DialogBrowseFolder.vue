@@ -11,6 +11,7 @@
   >
     <v-card rounded="xl">
       <DialogHeader
+        icon="folder-open-outline"
         @close="dialogLocal = false"
         :header="header || t('settings_labels.database.select_folder')"
         closable

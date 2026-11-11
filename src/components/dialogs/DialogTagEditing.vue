@@ -1,92 +1,78 @@
 <template>
-  <v-dialog
-    :model-value="dialogsStore.tagEditing.show"
-    :fullscreen="xs"
-    :width="xl ? 1400 : 1000"
-    scrollable
-    @update:model-value="onDialogVisibilityChange"
+  <EditDialogShell
+    :show="dialogsStore.tagEditing.show"
+    :header="'Editing'"
+    :subheader="tag?.name"
+    :buttons="buttons"
+    v-model:unsaved-confirm="unsavedConfirm"
+    @visibility-change="onDialogVisibilityChange"
+    @request-close="requestClose"
+    @discard="forceClose"
   >
-    <v-card class="edit-dialog-card">
-      <DialogHeader
-        @close="requestClose"
-        :header="'Editing'"
-        :subheader="tag?.name"
-        :subheader-copy-text="tag?.name"
-        :buttons="buttons"
-        icon="pencil"
-        compact
-        closable
+    <EditPinnedMetaValues
+      v-if="tag && meta"
+      :key="`${tag.id}-${editReloadKey}`"
+      layout="hero"
+      v-model:hide-media-panel="mediaPanelHidden"
+      @close="requestClose"
+      @dirty-change="formDirty = $event"
+      :tag="tag"
+      :meta="meta"
+      ref="editingComponent"
+    >
+      <template v-if="images[currentIndex]" #rail-media>
+        <EditDialogMediaPanel
+          rail
+          mode="tag"
+          :images="images"
+          :current-index="currentIndex"
+          @edited="onImageEdited"
+        />
+      </template>
+      <template #rail>
+        <EditDialogHistoryAction entity-type="tag" :entity-id="Number(tag.id)" placement="rail" :disabled="formDirty" @restored="requestClose" />
+      </template>
+      <template #media>
+        <div class="tag-edit-media">
+          <EditDialogMediaPanel
+            mode="tag"
+            :images="images"
+            :current-index="currentIndex"
+            @update:current-index="currentIndex = $event"
+            @edited="onImageEdited"
+          />
+          <TagEnrollmentQuality
+            v-if="tag?.id && meta?.id"
+            ref="enrollmentQualityRef"
+            class="tag-edit-media__quality"
+            :tag-id="Number(tag.id)"
+            :meta-id="Number(meta.id)"
+          />
+        </div>
+        <div class="edit-dialog-media-actions">
+          <EditDialogHistoryAction entity-type="tag" :entity-id="Number(tag.id)" placement="media" :disabled="formDirty" @restored="requestClose" />
+        </div>
+      </template>
+    </EditPinnedMetaValues>
+
+    <template #dialogs>
+      <DialogConfirm
+        v-if="is_show_dialog_delete_confirm"
+        variant="delete"
+        :dialog="is_show_dialog_delete_confirm"
+        :text="t('media.move_to_trash_confirm')"
+        :check-box-text="t('actions.delete_permanently')"
+        :check-box="deletePermanently"
+        @update:check-box="deletePermanently = $event"
+        @delete="deleteTag"
+        @close="is_show_dialog_delete_confirm = false"
       />
-
-      <v-card-text class="edit-dialog-card__body">
-        <EditPinnedMetaValues
-          v-if="tag && meta"
-          :key="`${tag.id}-${editReloadKey}`"
-          layout="hero"
-          @close="requestClose"
-          @dirty-change="formDirty = $event"
-          :tag="tag"
-          :meta="meta"
-          ref="editingComponent"
-        >
-          <template #media>
-            <div class="tag-edit-media">
-              <EditDialogMediaPanel
-                mode="tag"
-                :images="images"
-                :current-index="currentIndex"
-                @update:current-index="currentIndex = $event"
-                @edited="onImageEdited"
-              />
-              <TagEnrollmentQuality
-                v-if="tag?.id && meta?.id"
-                ref="enrollmentQualityRef"
-                class="tag-edit-media__quality"
-                :tag-id="Number(tag.id)"
-                :meta-id="Number(meta.id)"
-              />
-            </div>
-            <div class="d-flex flex-wrap ga-2 mt-3">
-              <DialogChangeHistory entity-type="tag" :entity-id="tag.id" :disabled="formDirty" @restored="requestClose">
-                <template #activator="{open}">
-                  <v-btn class="edit-dialog-media-action" color="primary" variant="tonal" rounded="xl" size="small" prepend-icon="mdi-history" :disabled="formDirty" @click="open">
-                    {{ t('change_history.title') }}
-                  </v-btn>
-                </template>
-              </DialogChangeHistory>
-            </div>
-          </template>
-        </EditPinnedMetaValues>
-      </v-card-text>
-    </v-card>
-
-    <DialogConfirm
-      v-if="is_show_dialog_delete_confirm"
-      variant="delete"
-      :dialog="is_show_dialog_delete_confirm"
-      :text="t('media.move_to_trash_confirm')"
-      :check-box-text="t('actions.delete_permanently')"
-      :check-box="deletePermanently"
-      @update:check-box="deletePermanently = $event"
-      @delete="deleteTag"
-      @close="is_show_dialog_delete_confirm = false"
-    />
-
-    <DialogConfirm
-      v-if="is_show_unsaved_confirm"
-      variant="confirm"
-      :dialog="is_show_unsaved_confirm"
-      @confirm="forceClose"
-      @close="is_show_unsaved_confirm = false"
-      :text="t('editing.discard_unsaved_confirm')"
-    />
-  </v-dialog>
+    </template>
+  </EditDialogShell>
 </template>
 
 <script setup lang="ts">
-import DialogChangeHistory from '@/components/dialogs/DialogChangeHistory.vue'
 import {ref, computed, onMounted, onBeforeUnmount, shallowRef, nextTick, watch} from 'vue'
-import {useDisplay} from 'vuetify'
 import {useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import {useDialogsStore} from '@/stores/dialogs'
@@ -103,7 +89,9 @@ import {isThumbUnavailable, resolveTagThumbDisplayUrl} from '@/utils/thumbSource
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 import {checkCurrentPage, getUrlParam} from '@/services/routeService'
 import path from 'path-browserify'
-import DialogHeader from '@/components/elements/DialogHeader.vue'
+import EditDialogShell from '@/components/dialogs/editing/EditDialogShell.vue'
+import EditDialogHistoryAction from '@/components/dialogs/editing/EditDialogHistoryAction.vue'
+import {useEditDialogGuard, type EditDialogHeaderButton} from '@/composable/useEditDialog'
 import EditPinnedMetaValues from '@/components/items/EditPinnedMetaValues.vue'
 import EditDialogMediaPanel from '@/components/items/EditDialogMediaPanel.vue'
 import TagEnrollmentQuality from '@/components/tags/TagEnrollmentQuality.vue'
@@ -131,17 +119,6 @@ interface TagImage {
   missing?: boolean
 }
 
-interface DialogHeaderButton {
-  icon?: string
-  text?: string
-  title?: string
-  color?: string
-  variant?: string
-  outlined?: boolean
-  order?: number
-  action?: () => void | Promise<void>
-}
-
 interface EditComponentInstance {
   save?: () => Promise<boolean>
   tryApplyAutoColorFromImage?: (color: string) => void
@@ -149,7 +126,6 @@ interface EditComponentInstance {
   isDirty?: () => boolean
 }
 
-const {xl, xs} = useDisplay()
 const router = useRouter()
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
@@ -161,11 +137,10 @@ const listSync = useItemsListSync()
 const {t} = useI18n()
 
 const images = ref<TagImage[]>([])
-const buttons = ref<DialogHeaderButton[]>([])
+const buttons = ref<EditDialogHeaderButton[]>([])
 const debounceTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const is_show_dialog_delete_confirm = ref(false)
 const deletePermanently = ref(false)
-const is_show_unsaved_confirm = ref(false)
 const editingComponent = ref<EditComponentInstance | null>(null)
 const enrollmentQualityRef = ref<{
   reload?: () => Promise<void>
@@ -174,7 +149,13 @@ const enrollmentQualityRef = ref<{
 } | null>(null)
 const currentIndex = shallowRef(0)
 const editReloadKey = ref(0)
-const formDirty = ref(false)
+const mediaPanelHidden = ref(false)
+const {formDirty, unsavedConfirm, forceClose, requestClose, onVisibilityChange: onDialogVisibilityChange} = useEditDialogGuard({
+  isOpen: () => dialogsStore.tagEditing.show,
+  setOpen: (show) => { dialogsStore.tagEditing.show = show },
+  editingComponent,
+  save: () => save(),
+})
 
 const tag = computed(() => dialogsStore.tagEditing.tag)
 const meta = computed(() => dialogsStore.tagEditing.meta)
@@ -431,28 +412,6 @@ const save = async () => {
   forceClose()
 }
 
-const forceClose = () => {
-  is_show_unsaved_confirm.value = false
-  formDirty.value = false
-  dialogsStore.tagEditing.show = false
-}
-
-const requestClose = () => {
-  if (formDirty.value || editingComponent.value?.isDirty?.()) {
-    is_show_unsaved_confirm.value = true
-    return
-  }
-  forceClose()
-}
-
-const onDialogVisibilityChange = (show: boolean) => {
-  if (show) {
-    dialogsStore.tagEditing.show = true
-    return
-  }
-  requestClose()
-}
-
 const openScraper = () => {
   if (tag.value?.name) {
     scraperStore.query = tag.value.name
@@ -573,13 +532,6 @@ const handleScraperImages = () => {
   listSync.getItemsFromDb({ids: [tag.value.id], type: 'tag'})
 }
 
-const onSaveHotkey = (event: KeyboardEvent) => {
-  if (!dialogsStore.tagEditing.show) return
-  if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 's') return
-  event.preventDefault()
-  void save()
-}
-
 watch(
   () => dialogsStore.tmdbPersonScraper.show,
   async (show, wasShow) => {
@@ -609,12 +561,10 @@ onMounted(() => {
   getImages()
 
   eventBus.on('scraperGotImages', handleScraperImages)
-  window.addEventListener('keydown', onSaveHotkey)
 })
 
 onBeforeUnmount(() => {
   eventBus.off('scraperGotImages', handleScraperImages)
-  window.removeEventListener('keydown', onSaveHotkey)
   if (debounceTimer.value) clearTimeout(debounceTimer.value)
 })
 </script>

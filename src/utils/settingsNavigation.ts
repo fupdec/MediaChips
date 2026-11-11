@@ -757,6 +757,17 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     ]
   },
   {
+    "key": "generate_video_grids",
+    "icon": "mdi-view-grid-outline",
+    "elementId": "settings-generate-video-images-grid",
+    "tab": "maintenance",
+    "titleKey": "settings_labels.database.generate_video_images_grid",
+    "searchKeys": [
+      "settings_labels.database.generate_video_images_grid",
+      "settings_labels.database.generate_video_images_grid_hint"
+    ]
+  },
+  {
     "key": "generate_image_thumbs",
     "icon": "mdi-image-outline",
     "elementId": "settings-generate-image-thumbs",

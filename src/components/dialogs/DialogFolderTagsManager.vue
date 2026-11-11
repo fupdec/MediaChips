@@ -7,6 +7,7 @@
   >
     <v-card rounded="xl">
       <DialogHeader
+        icon="folder-pound-outline"
         :header="t('media.adding.folder_tags_manager_title')"
         closable
         @close="close"

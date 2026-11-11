@@ -16,6 +16,7 @@
     <v-dialog v-model="renameDialog" max-width="600" scrollable>
       <v-card rounded="xl">
         <DialogHeader
+          icon="form-textbox"
           :header="t('filters.editing_filter_name')"
           closable
           :buttons="renameButtons"

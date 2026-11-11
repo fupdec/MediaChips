@@ -247,13 +247,41 @@
             {{ previewInfoLabel }}
           </div>
 
+          <div class="inspector-panel__identity">
+            <div
+              class="inspector-panel__name"
+              :title="focusedItem.name"
+            >
+              {{ focusedItem.name || t('browser_layout.untitled') }}
+            </div>
+
+            <div
+              v-if="mediaPath"
+              class="inspector-panel__path"
+              :title="mediaPath"
+            >
+              <v-icon size="13" class="inspector-panel__path-icon">mdi-folder-outline</v-icon>
+              <span class="inspector-panel__path-text">{{ mediaPath }}</span>
+            </div>
+
+            <MediaOriginalsButton
+              v-if="focusedMedia"
+              class="inspector-panel__originals"
+              :media="focusedMedia"
+            />
+          </div>
+
           <details
             v-if="inspectorFacts.length"
             class="inspector-panel__details"
           >
             <summary class="inspector-panel__details-title">
+              <v-icon size="15" class="inspector-panel__details-icon">mdi-information-outline</v-icon>
+              <span class="inspector-panel__details-text">
+                {{ isTag ? t('editing.tag_information') : t('editing.media_file_information') }}
+              </span>
+              <span class="inspector-panel__details-line" aria-hidden="true" />
               <v-icon size="16" class="inspector-panel__details-chevron">mdi-chevron-down</v-icon>
-              {{ isTag ? t('editing.tag_information') : t('editing.media_file_information') }}
             </summary>
             <div class="inspector-panel__facts">
               <div
@@ -268,22 +296,6 @@
           </details>
 
           <div class="inspector-panel__body">
-            <div
-              class="inspector-panel__name"
-              :title="focusedItem.name"
-            >
-              {{ focusedItem.name || t('browser_layout.untitled') }}
-            </div>
-
-            <div
-              v-if="mediaPath"
-              class="inspector-panel__path text-medium-emphasis"
-              :title="mediaPath"
-            >
-              {{ mediaPath }}
-            </div>
-
-            <MediaOriginalsButton v-if="focusedMedia" :media="focusedMedia" />
 
             <template v-if="inlineEdit">
               <EditPinnedMetaValues
@@ -309,88 +321,166 @@
               />
             </template>
 
-            <template v-else>
-              <div
-                v-if="tagSynonyms"
-                class="inspector-panel__synonyms text-medium-emphasis"
-                v-html="tagSynonyms"
+            <div
+              v-else
+              class="inspector-view"
+              :class="{'inspector-view--icons': labelIcons}"
+            >
+              <EditingSectionHeader
+                :title="t('editing.section_main')"
+                icon="mdi-card-account-details-outline"
               />
 
               <div
-                v-if="tagCountries.length"
-                class="inspector-panel__field"
+                v-if="showRatingRow"
+                class="inspector-view__row"
               >
-                <div class="inspector-panel__field-label">
-                  {{ t('meta.types.country') }}
-                </div>
-                <div class="inspector-panel__chips">
+                <span class="inspector-view__label">
+                  <v-icon size="15" class="inspector-view__icon">
+                    {{ ratingVisible ? 'mdi-star-outline' : 'mdi-heart-outline' }}
+                  </v-icon>
+                  <span class="inspector-view__name">
+                    {{ ratingVisible ? t('meta.default_names.rating') : t('meta.default_names.favorite') }}
+                  </span>
+                </span>
+                <span class="inspector-view__value inspector-view__value--inline">
+                  <v-rating
+                    v-if="ratingVisible"
+                    :key="`inspector-rating-${focusedItem.id}`"
+                    :model-value="Number(focusedItem.rating) || 0"
+                    density="compact"
+                    half-increments
+                    readonly
+                    size="18"
+                    color="grey-darken-1"
+                    empty-icon="mdi-star-outline"
+                    active-color="yellow-darken-3"
+                    class="inspector-view__rating"
+                  />
+                  <span
+                    v-if="ratingVisible && favoriteVisible"
+                    class="inspector-view__sep"
+                    aria-hidden="true"
+                  />
+                  <v-icon
+                    v-if="favoriteVisible"
+                    size="18"
+                    :color="focusedItem.favorite ? 'pink' : undefined"
+                    :class="{'inspector-view__muted': !focusedItem.favorite}"
+                    :title="t('meta.default_names.favorite')"
+                  >
+                    {{ focusedItem.favorite ? 'mdi-heart' : 'mdi-heart-outline' }}
+                  </v-icon>
+                </span>
+              </div>
+
+              <div
+                v-if="itemColor"
+                class="inspector-view__row"
+              >
+                <span class="inspector-view__label">
+                  <v-icon size="15" class="inspector-view__icon">mdi-palette-outline</v-icon>
+                  <span class="inspector-view__name">{{ t('meta.default_names.color') }}</span>
+                </span>
+                <span class="inspector-view__value inspector-view__value--inline">
+                  <span
+                    class="inspector-panel__color-swatch"
+                    :style="{backgroundColor: itemColor}"
+                  />
+                  <span class="inspector-view__mono">{{ itemColor }}</span>
+                </span>
+              </div>
+
+              <div
+                v-if="tagSynonyms"
+                class="inspector-view__row"
+              >
+                <span class="inspector-view__label">
+                  <v-icon size="15" class="inspector-view__icon">mdi-alphabetical</v-icon>
+                  <span class="inspector-view__name">{{ t('filters.sort.synonyms') }}</span>
+                </span>
+                <span
+                  class="inspector-view__value inspector-view__text"
+                  v-html="tagSynonyms"
+                />
+              </div>
+
+              <div
+                v-if="tagCountries.length"
+                class="inspector-view__row"
+              >
+                <span class="inspector-view__label">
+                  <v-icon size="15" class="inspector-view__icon">mdi-flag-outline</v-icon>
+                  <span class="inspector-view__name">{{ t('meta.types.country') }}</span>
+                </span>
+                <span class="inspector-view__value inspector-view__chips">
                   <v-chip
                     v-for="country in tagCountries"
                     :key="country"
                     size="small"
-                    class="ma-1"
                     variant="tonal"
                   >
                     {{ country }}
                   </v-chip>
-                </div>
+                </span>
               </div>
 
               <div
                 v-if="itemBookmark"
-                class="inspector-panel__field"
+                class="inspector-view__row"
               >
-                <div class="inspector-panel__field-label">
-                  {{ t('meta.default_names.bookmark') }}
-                </div>
-                <div class="inspector-panel__bookmark">
+                <span class="inspector-view__label">
+                  <v-icon size="15" class="inspector-view__icon">mdi-bookmark-outline</v-icon>
+                  <span class="inspector-view__name">{{ t('meta.default_names.bookmark') }}</span>
+                </span>
+                <span class="inspector-view__value inspector-view__text inspector-view__bookmark">
                   {{ itemBookmark }}
-                </div>
+                </span>
               </div>
+
+              <template v-if="hasTagFields">
+                <EditingSectionHeader
+                  :title="t('editing.section_tags')"
+                  icon="mdi-tag-multiple-outline"
+                />
+                <ItemPinnedMeta
+                  class="inspector-panel__pinned"
+                  :item="focusedItem"
+                  :tags="focusedItem.tags"
+                  :values="focusedItem.values"
+                  :type="isTag ? 'tag' : 'media'"
+                  :is-show-all="true"
+                  :show-preset="false"
+                  grouped
+                  kind="tags"
+                />
+              </template>
+
+              <template v-if="hasValueFields">
+                <EditingSectionHeader
+                  :title="t('editing.section_attributes')"
+                  icon="mdi-format-list-bulleted-type"
+                />
+                <ItemPinnedMeta
+                  class="inspector-panel__pinned"
+                  :item="focusedItem"
+                  :tags="focusedItem.tags"
+                  :values="focusedItem.values"
+                  :type="isTag ? 'tag' : 'media'"
+                  :is-show-all="true"
+                  :show-preset="isTag"
+                  grouped
+                  kind="values"
+                />
+              </template>
 
               <div
-                v-if="showMetaRow"
-                class="inspector-panel__meta-row"
+                v-if="!hasTagFields && !hasValueFields"
+                class="inspector-view__none"
               >
-                <v-rating
-                  v-if="itemsStore.type === 'media' || meta?.rating"
-                  :key="`inspector-rating-${focusedItem.id}`"
-                  :model-value="Number(focusedItem.rating) || 0"
-                  density="compact"
-                  half-increments
-                  readonly
-                  size="small"
-                  active-color="yellow-darken-2"
-                />
-                <v-icon
-                  v-if="(itemsStore.type === 'media' || meta?.favorite) && focusedItem.favorite"
-                  size="18"
-                  color="pink"
-                >
-                  mdi-heart
-                </v-icon>
-                <span
-                  v-if="itemColor"
-                  class="inspector-panel__color-swatch"
-                  :style="{backgroundColor: itemColor}"
-                  :title="itemColor"
-                />
+                {{ t('browser_layout.inspector_no_fields') }}
               </div>
-
-              <div class="inspector-panel__section-label">
-                {{ t('meta.fields.metadata') }}
-              </div>
-              <ItemPinnedMeta
-                v-if="focusedItem"
-                class="inspector-panel__pinned"
-                :item="focusedItem"
-                :tags="focusedItem.tags"
-                :values="focusedItem.values"
-                :type="isTag ? 'tag' : 'media'"
-                :is-show-all="true"
-                :show-preset="isTag"
-              />
-            </template>
+            </div>
           </div>
         </div>
 
@@ -464,6 +554,7 @@ import dayjs from 'dayjs'
 import {useI18n} from 'vue-i18n'
 import EditPinnedMetaValues from '@/components/items/EditPinnedMetaValues.vue'
 import ItemPinnedMeta from '@/components/items/ItemPinnedMeta.vue'
+import EditingSectionHeader from '@/components/items/EditingSectionHeader.vue'
 import MediaOriginalsButton from '@/components/items/MediaOriginalsButton.vue'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
@@ -700,12 +791,21 @@ const itemColor = computed(() => {
   return String(value)
 })
 
-const showMetaRow = computed(() => {
-  if (!focusedItem.value) return false
-  return Boolean(focusedItem.value.rating)
-    || Boolean(focusedItem.value.favorite)
-    || Boolean(itemColor.value)
-})
+const ratingVisible = computed(() => !isTag.value || Boolean(meta.value?.rating))
+const favoriteVisible = computed(() => !isTag.value || Boolean(meta.value?.favorite))
+const showRatingRow = computed(() => Boolean(focusedItem.value) && (ratingVisible.value || favoriteVisible.value))
+
+/** Same setting as the edit dialog: icons in the label column are optional. */
+const labelIcons = computed(() => settingsStore.showIconsOfMetaInEditingDialog === '1')
+
+const hasTagFields = computed(() =>
+  (focusedItem.value?.tags ?? []).some((entry) => entry && Number(entry.tagId) > 0),
+)
+
+const hasValueFields = computed(() =>
+  isTag.value
+  || (focusedItem.value?.values ?? []).some((entry) => entry && entry.value != null && entry.value !== ''),
+)
 
 const mediaWidth = computed(() => {
   if (!focusedItem.value) return 0
@@ -1154,10 +1254,15 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 .inspector-panel__preview {
   width: 100%;
   max-height: min(26vh, 220px);
+  min-height: 96px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  background: rgba(var(--v-theme-on-surface), 0.03);
 
   &--clickable {
     cursor: zoom-in;
@@ -1166,6 +1271,7 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   &--video {
     position: relative;
     background: #000;
+    border-color: transparent;
   }
 }
 
@@ -1224,7 +1330,7 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 }
 
 .inspector-panel__media-info {
-  padding: 6px 12px 0;
+  padding: 6px 8px 0;
   font-size: 0.7rem;
   line-height: 1.3;
   font-variant-numeric: tabular-nums;
@@ -1232,20 +1338,55 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 }
 
 .inspector-panel__details {
-  margin: 12px 12px 0;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-  border-radius: 8px;
+  margin-top: 6px;
+  // Air between the file facts and the editor toolbar / first section below.
+  padding-bottom: 6px;
+
+  &[open] {
+    padding-bottom: 14px;
+  }
 }
 
 .inspector-panel__details-title {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px;
+  min-height: 26px;
+  padding: 8px 0 4px 8px;
   cursor: pointer;
   list-style: none;
-  font-size: 0.75rem;
+  user-select: none;
+  color: rgba(var(--v-theme-on-surface), 0.75);
+
+  &:hover {
+    color: rgb(var(--v-theme-on-surface));
+  }
+}
+
+.inspector-panel__details-icon {
+  opacity: 0.6;
+}
+
+.inspector-panel__details-text {
+  font-size: 0.6875rem;
   font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inspector-panel__details-line {
+  flex: 1 1 auto;
+  height: 1px;
+  min-width: 12px;
+  background: rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.inspector-panel__details-chevron {
+  opacity: 0.6;
+  transition: transform 150ms ease;
 }
 
 .inspector-panel__details-title::-webkit-details-marker {
@@ -1257,29 +1398,37 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 }
 
 .inspector-panel__facts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 20px;
-  padding: 4px 8px 8px;
-  font-size: 0.7rem;
-  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0 4px;
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 .inspector-panel__fact {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
+  // Same label column as the property rows of the inline editor below.
+  grid-template-columns: 88px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: baseline;
   min-width: 0;
+  padding: 3px 8px;
+  border-radius: 8px;
+
+  &:hover {
+    background: rgba(var(--v-theme-on-surface), 0.035);
+  }
 }
 
-.inspector-panel__fact:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-}
+
 
 .inspector-panel__fact-label {
-  color: rgba(var(--v-theme-on-surface), 0.65);
-  font-size: 0.62rem;
-  line-height: 1.3;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inspector-panel__fact-value {
@@ -1293,7 +1442,7 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
-  padding: 8px 12px 0;
+  padding: 8px 0 0;
 }
 
 .inspector-panel__gallery-thumb {
@@ -1346,10 +1495,23 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  padding: 8px 8px 12px;
 }
 
 .inspector-panel__body {
-  padding: 12px 12px 8px;
+  padding: 0;
+}
+
+.inspector-panel__identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 8px 4px;
+}
+
+.inspector-panel__originals {
+  margin-top: 4px;
 }
 
 .inspector-panel__actions {
@@ -1366,60 +1528,37 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 }
 
 .inspector-panel__name {
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
   line-height: 1.3;
   word-break: break-word;
-  margin-bottom: 4px;
 }
 
 .inspector-panel__path {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
   font-size: 0.7rem;
-  margin-bottom: 10px;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.inspector-panel__path-icon {
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
+
+.inspector-panel__path-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.inspector-panel__synonyms {
-  margin-top: 6px;
-  font-size: 0.75rem;
-  line-height: 1.35;
-  word-break: break-word;
-}
-
-.inspector-panel__field {
-  margin-top: 10px;
-}
-
-.inspector-panel__field-label {
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  opacity: 0.55;
-  margin-bottom: 2px;
-}
-
-.inspector-panel__chips {
-  display: flex;
-  flex-wrap: wrap;
-  margin: -4px;
-}
-
-.inspector-panel__bookmark {
-  font-size: 0.72rem;
-  line-height: 1.35;
-  white-space: pre-wrap;
-  word-break: break-word;
-  opacity: 0.85;
-}
-
-.inspector-panel__meta-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
+.inspector-panel__pending .inspector-panel__path {
+  justify-content: center;
+  white-space: normal;
+  word-break: break-all;
 }
 
 .inspector-panel__color-swatch {
@@ -1430,53 +1569,224 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   flex-shrink: 0;
 }
 
-.inspector-panel__section-label {
-  margin-top: 16px;
-  margin-bottom: 6px;
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+// ─── View mode: read-only property list ────────────────────────────────────
+// Mirrors the inline editor: section headers, label column (88px) | value,
+// 8px row inset, quiet hover. ItemPinnedMeta categories are laid out as the
+// same rows (label pinned into the left column, chips flow on the right).
+.inspector-view {
+  --iv-label-w: 88px;
+  --iv-col-gap: 8px;
+  --iv-pad-x: 8px;
+  --iv-row-h: 28px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+
+  :deep(.editing-group-header) {
+    min-height: 26px;
+    gap: 6px;
+    padding: 14px 0 4px var(--iv-pad-x);
+
+    &:first-child {
+      padding-top: 6px;
+    }
+
+    .editing-group-header__icon {
+      font-size: 15px !important;
+    }
+
+    .editing-group-header__title {
+      font-size: 0.6875rem;
+      letter-spacing: 0.05em;
+    }
+  }
+}
+
+.inspector-view__row {
+  display: grid;
+  grid-template-columns: var(--iv-label-w) minmax(0, 1fr);
+  column-gap: var(--iv-col-gap);
+  align-items: start;
+  min-height: var(--iv-row-h);
+  padding: 2px var(--iv-pad-x);
+  border-radius: 8px;
+  transition: background-color 120ms ease;
+
+  &:hover {
+    background: rgba(var(--v-theme-on-surface), 0.035);
+  }
+}
+
+.inspector-view__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: calc(var(--iv-row-h) - 4px);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.inspector-view__icon {
+  flex: 0 0 auto;
+  opacity: 0.6;
+  display: none;
+}
+
+.inspector-view--icons .inspector-view__icon {
+  display: inline-flex;
+}
+
+.inspector-view__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspector-view__value {
+  min-width: 0;
+  min-height: calc(var(--iv-row-h) - 4px);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.inspector-view__value--inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inspector-view__text {
+  display: flex;
+  align-items: center;
+  padding-block: 3px;
+  word-break: break-word;
+}
+
+.inspector-view__bookmark {
+  display: block;
+  white-space: pre-wrap;
+  color: rgba(var(--v-theme-on-surface), 0.85);
+}
+
+.inspector-view__mono {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: rgba(var(--v-theme-on-surface), 0.7);
   text-transform: uppercase;
-  opacity: 0.55;
+}
+
+.inspector-view__rating {
+  margin-inline-start: -3px;
+
+  :deep(.v-btn) {
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+  }
+}
+
+.inspector-view__sep {
+  width: 1px;
+  height: 16px;
+  background: rgba(var(--v-theme-on-surface), 0.12);
+}
+
+.inspector-view__muted {
+  opacity: 0.35;
+}
+
+.inspector-view__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding-block: 2px;
+
+  :deep(.v-chip) {
+    --v-chip-height: 22px;
+    height: 22px !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+.inspector-view__none {
+  padding: 10px var(--iv-pad-x) 4px;
+  font-size: 0.75rem;
+  color: rgba(var(--v-theme-on-surface), 0.45);
 }
 
 .inspector-panel__pinned {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+
   :deep(.category) {
-    margin-bottom: 6px;
-    margin-top: 0;
-    padding: 0;
-    align-items: flex-start;
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    min-height: var(--iv-row-h);
+    margin: 0 !important;
+    padding: 2px var(--iv-pad-x) 2px calc(var(--iv-pad-x) + var(--iv-label-w) + var(--iv-col-gap)) !important;
+    border-radius: 8px;
+    transition: background-color 120ms ease;
+
+    &:hover {
+      background: rgba(var(--v-theme-on-surface), 0.035);
+    }
   }
 
+  // Name pinned into the label column of the row.
   :deep(.category-name) {
-    font-size: 0.68rem;
-    font-weight: 400;
-    opacity: 0.65;
-    margin-bottom: 0;
-    margin-right: 6px;
-    min-height: 22px;
-    line-height: 22px;
+    position: absolute;
+    top: 2px;
+    left: var(--iv-pad-x);
+    width: var(--iv-label-w);
+    min-height: calc(var(--iv-row-h) - 4px);
+    margin: 0 !important;
+    gap: 6px !important;
+    font-size: 0.75rem !important;
+    font-weight: 500;
+    line-height: 1.2;
+    color: rgba(var(--v-theme-on-surface), 0.6);
+    overflow: hidden;
+    word-break: break-word;
 
     .v-icon {
-      font-size: 14px !important;
-      width: 14px;
-      height: 14px;
-      margin-right: 0;
+      flex: 0 0 auto;
+      font-size: 15px !important;
+      width: 15px;
+      height: 15px;
+      margin: 0 !important;
+      opacity: 0.6;
     }
   }
 
   :deep(.v-chip) {
-    margin: 1px 2px !important;
-    padding: 0 !important;
+    margin: 0 !important;
     min-height: 22px !important;
     height: 22px !important;
-    font-size: 0.72rem !important;
+    font-size: 0.75rem !important;
 
     .v-chip__content {
-      padding-inline: 6px !important;
       line-height: 1.2;
     }
   }
+
+  :deep(.nested-tag-chip-wrap) {
+    display: inline-flex;
+  }
+}
+
+// Label icons follow the same setting as the edit dialog.
+.inspector-view:not(.inspector-view--icons) .inspector-panel__pinned :deep(.category-name .v-icon) {
+  display: none;
 }
 
 .inspector-panel__editor {

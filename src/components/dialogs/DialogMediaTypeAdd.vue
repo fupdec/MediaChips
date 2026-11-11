@@ -9,6 +9,7 @@
     >
       <v-card rounded="xl">
         <DialogHeader
+          icon="shape-plus-outline"
           :header="t('media.type.adding_media_type')"
           :buttons="buttons"
           closable

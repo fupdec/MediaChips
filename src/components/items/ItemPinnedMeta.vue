@@ -325,7 +325,13 @@ const props = withDefaults(defineProps<{
   isShowAll?: boolean
   showPreset?: boolean
   assignment?: PinnedMetaAssignment[]
+  /** Always render grouped rows (name + chips), regardless of the card setting. */
+  grouped?: boolean
+  /** Limit grouped/flat output to tag fields or value fields (preset meta goes with values). */
+  kind?: 'all' | 'tags' | 'values'
 }>(), {
+  grouped: false,
+  kind: 'all',
   tags: () => [],
   values: () => [],
   tagPage: false,
@@ -342,7 +348,7 @@ const presetMetaProps: PresetMetaProps = {
 }
 
 const {preset_meta: presetMetaSource} = usePresetMeta(presetMetaProps)
-const preset_meta = computed(() => presetMetaSource.value)
+const preset_meta = computed(() => (props.kind === 'tags' ? [] : presetMetaSource.value))
 
 const settingsStore = useSettingsStore()
 const appStore = useAppStore()
@@ -483,7 +489,7 @@ const onTagHover = (event: MouseEvent | KeyboardEvent, tag: TagWithMeta): void =
 }
 
 const isGrouped = computed(() =>
-  settingsStore.group_chips_in_card_description === '1' || props.tagPage
+  settingsStore.group_chips_in_card_description === '1' || props.tagPage || props.grouped
 )
 
 const usePinnedMetaIdKey = computed(() =>
@@ -570,12 +576,12 @@ const valueGroups = computed(() =>
 
 const pinnedCategoriesComputed = computed((): PinnedCategory[] => {
   const categories: PinnedCategory[] = [
-    ...tagGroups.value.map((items): PinnedCategory => ({
+    ...(props.kind === 'values' ? [] : tagGroups.value).map((items): PinnedCategory => ({
       kind: 'tags',
       metaId: items[0].metaId,
       items,
     })),
-    ...valueGroups.value.map((items): PinnedCategory => ({
+    ...(props.kind === 'tags' ? [] : valueGroups.value).map((items): PinnedCategory => ({
       kind: 'values',
       metaId: items[0].id,
       items,
@@ -592,8 +598,8 @@ const pinnedCategoriesComputed = computed((): PinnedCategory[] => {
 
 const pinnedFlatComputed = computed((): PinnedFlatEntry[] => {
   const items: PinnedFlatEntry[] = [
-    ...tagItems.value.map((tag): PinnedFlatEntry => ({kind: 'tag', metaId: tag.metaId, data: tag})),
-    ...valueItems.value.map((value): PinnedFlatEntry => ({kind: 'value', metaId: value.id, data: value})),
+    ...(props.kind === 'values' ? [] : tagItems.value).map((tag): PinnedFlatEntry => ({kind: 'tag', metaId: tag.metaId, data: tag})),
+    ...(props.kind === 'tags' ? [] : valueItems.value).map((value): PinnedFlatEntry => ({kind: 'value', metaId: value.id, data: value})),
   ]
 
   return sortByPinnedAssignmentOrder(

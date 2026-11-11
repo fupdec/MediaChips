@@ -130,6 +130,7 @@
     <v-dialog v-model="dialog_edit" width="840">
       <v-card>
         <DialogHeader
+          icon="file-edit-outline"
           @close="closeDialog"
           :header="t('media.file_path.editing_path')"
           :buttons="headerButtons"

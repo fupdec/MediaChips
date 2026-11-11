@@ -8,6 +8,7 @@
   >
     <v-card rounded="xl" class="media-adding-process">
       <DialogHeader
+        icon="progress-upload"
         @close="closeProcessDialog"
         :header="t('media.adding.title')"
         :subheader="t('media.adding.process_source', {source: task.remoteImport?.source || t('media.adding.source_local')})"

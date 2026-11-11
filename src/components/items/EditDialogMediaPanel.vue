@@ -1,5 +1,66 @@
 <template>
-  <div class="edit-dialog-media-panel">
+  <!-- Collapsed panel: only the image actions, as icons for the side rail. -->
+  <div v-if="rail" class="edit-dialog-media-panel-rail">
+    <DialogImageEditing
+      v-if="railImage"
+      detached
+      compact
+      variant="text"
+      tooltip-location="end"
+      :icon-size="20"
+      :image="railImage.src"
+      :options="railImage.options"
+      :image-path="railImage.path"
+      :min-width="railImage.minWidth"
+      :min-height="railImage.minHeight"
+      @edited="$emit('edited', $event)"
+    />
+    <template v-if="isVideoPanel">
+      <v-btn
+        v-if="!isFileExists"
+        size="small"
+        variant="text"
+        color="error"
+        rounded="lg"
+        icon
+        :aria-label="t('image.create_thumb_source_missing')"
+        v-tooltip:end="t('image.create_thumb_source_missing')"
+        tabindex="-1"
+        @click.stop
+      >
+        <v-icon size="20">mdi-file-alert</v-icon>
+      </v-btn>
+      <template v-else>
+        <v-btn
+          size="small"
+          variant="text"
+          rounded="lg"
+          icon
+          :aria-label="t('image.create_thumb_random')"
+          v-tooltip:end="t('image.create_thumb_random')"
+          :loading="isCreatingThumb === 'random'"
+          :disabled="!canCreateThumb || isCreatingThumb != null"
+          @click="createVideoThumb('random')"
+        >
+          <v-icon size="20">mdi-dice-5-outline</v-icon>
+        </v-btn>
+        <v-btn
+          size="small"
+          variant="text"
+          rounded="lg"
+          icon
+          :aria-label="t('image.create_thumb_default')"
+          v-tooltip:end="t('image.create_thumb_default')"
+          :loading="isCreatingThumb === 'default'"
+          :disabled="!canCreateThumb || isCreatingThumb != null"
+          @click="createVideoThumb('default')"
+        >
+          <v-icon size="20">mdi-image-frame</v-icon>
+        </v-btn>
+      </template>
+    </template>
+  </div>
+  <div v-else class="edit-dialog-media-panel">
     <v-card
       variant="flat"
       class="edit-dialog-media-panel__card"
@@ -84,6 +145,8 @@
             cover
             position="top center"
             class="edit-dialog-media-panel__image"
+            :class="{'edit-dialog-media-panel__image--viewable': imageSrc}"
+            @click="openMediaImageViewer"
           />
         </div>
         <div v-if="imageSrc" class="edit-dialog-media-panel__controls">
@@ -107,7 +170,7 @@
 
       <template v-else>
         <div
-          class="edit-dialog-media-panel__image-wrap"
+          class="edit-dialog-media-panel__image-wrap edit-dialog-media-panel__image-wrap--tag"
           :style="imageWrapStyle"
         >
           <v-img
@@ -115,7 +178,8 @@
             :src="currentImage.src"
             cover
             position="top center"
-            class="edit-dialog-media-panel__image"
+            class="edit-dialog-media-panel__image edit-dialog-media-panel__image--viewable"
+            @click="openTagImageViewer"
           />
           <v-sheet
             v-else
@@ -186,6 +250,7 @@ import {typedApi} from '@/services/typedApi'
 import {setNotification} from '@/services/notificationService'
 import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import {useItemsStore} from '@/stores/items'
+import {useEventBus} from '@/utils/eventBus'
 
 const DialogImageEditing = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogImageEditing.vue'),
@@ -248,6 +313,11 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  /** Render only the image action buttons for the collapsed side rail. */
+  rail: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits<{
@@ -258,6 +328,26 @@ const emit = defineEmits<{
 
 const {t} = useI18n()
 const itemsStore = useItemsStore()
+const eventBus = useEventBus()
+
+/** Open the media thumbnail in the built-in image viewer. */
+function openMediaImageViewer() {
+  if (!props.imageSrc) return
+  eventBus.emit('viewImage', {
+    sources: [{src: props.imageSrc, name: props.media?.name || t('image.thumbnail')}],
+  })
+}
+
+/** Open the tag images (all existing slots) in the built-in image viewer. */
+function openTagImageViewer() {
+  const available = props.images.filter((image) => image.src && !image.missing)
+  if (!available.length) return
+  const index = Math.max(0, available.findIndex((image) => image === currentImage.value))
+  eventBus.emit('viewImage', {
+    sources: available.map((image) => ({src: image.src, name: image.type})),
+    index,
+  })
+}
 const isCreatingThumb = ref<'random' | 'default' | null>(null)
 
 const currentImage = computed((): TagImage | undefined => props.images[props.currentIndex])
@@ -319,6 +409,29 @@ const imageWrapStyle = computed(() => {
   }
 })
 
+/** Image the edit action targets, per mode — shared by the panel and the rail. */
+const railImage = computed(() => {
+  if (props.mode === 'tag') {
+    const image = currentImage.value
+    if (!image) return null
+    return {
+      src: image.src || '',
+      options: tagCropperOptions.value,
+      path: image.path,
+      minWidth: image.width,
+      minHeight: image.height,
+    }
+  }
+  if (!props.imageSrc) return null
+  return {
+    src: props.imageSrc,
+    options: props.cropperOptions,
+    path: props.imagePath ?? undefined,
+    minWidth: props.minWidth,
+    minHeight: mediaMinHeight.value,
+  }
+})
+
 const tagCropperOptions = computed(() => ({
   aspectRatio: currentImage.value?.aspectRatio || 1,
   viewMode: 1,
@@ -331,3 +444,17 @@ const tagCropperOptions = computed(() => ({
   cropBoxResizable: true,
 }))
 </script>
+
+<style scoped>
+.edit-dialog-media-panel-rail {
+  display: contents;
+}
+
+.edit-dialog-media-panel-rail :deep(.v-btn) {
+  opacity: 0.8;
+}
+
+.edit-dialog-media-panel-rail :deep(.v-btn:hover) {
+  opacity: 1;
+}
+</style>

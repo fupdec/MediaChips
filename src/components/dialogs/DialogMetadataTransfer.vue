@@ -2,7 +2,7 @@
   <slot name="activator" :open="open" />
   <v-dialog class="metadata-transfer-dialog" :aria-label="t('metadata_transfer.title')" v-model="visible" max-width="860" :persistent="busy" scrollable>
     <v-card rounded="xl">
-      <DialogHeader :closable="!busy" :header="t('metadata_transfer.title')" @close="!busy && (visible = false)" />
+      <DialogHeader icon="swap-horizontal" :closable="!busy" :header="t('metadata_transfer.title')" @close="!busy && (visible = false)" />
       <v-card-text class="metadata-transfer__body">
         <div class="metadata-transfer__toolbar">
           <SettingsSegmentedControl

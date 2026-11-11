@@ -1,5 +1,22 @@
 <template>
   <div class="similarity-settings">
+    <Teleport to="#duplicates-search-option" defer>
+      <v-switch v-if="similarityMode" v-model="searchSimilarVideos" color="primary" inset hide-details
+        class="mt-0 settings-switch settings-switch--with-description similarity-feature"
+        data-testid="similarity-search-videos">
+        <template #label>
+          <div class="d-flex flex-column ml-4">
+            <div class="text-body-1 text-high-emphasis">{{ t('duplicateSimilarity.searchSimilarVideos') }}</div>
+            <i18n-t keypath="duplicateSimilarity.searchSimilarVideosHint" tag="div" scope="global" class="text-caption text-medium-emphasis mt-1">
+              <template #visualIndex>
+                <button type="button" class="similarity-ref" @click.stop="revealTarget('index')">
+                  <v-icon size="12">mdi-image-search-outline</v-icon>{{ t('duplicateSimilarity.visualIndexLink') }}</button>
+              </template>
+            </i18n-t>
+          </div>
+        </template>
+      </v-switch>
+    </Teleport>
     <div v-if="!valid || error" class="similarity-toolbar">
       <div class="similarity-status similarity-status--error" role="status" aria-live="polite">
         <template v-if="!valid"><v-icon size="15">mdi-alert-circle-outline</v-icon>{{ t('duplicateSimilarity.invalid') }}</template>
@@ -8,20 +25,6 @@
       </div>
     </div>
     <SettingsGroupLabel id="similarity-criteria-label" :title="t('duplicateSimilarity.criteriaTitle')" icon="tune-variant" accent />
-    <div class="similarity-feature">
-      <v-switch v-model="searchSimilarVideos" color="primary" inset hide-details
-        class="mt-0 settings-switch settings-switch--with-description similarity-feature__switch"
-        data-testid="similarity-search-videos">
-        <template #label>
-          <div class="d-flex flex-column ml-4">
-            <div class="text-body-1 text-high-emphasis">{{ t('duplicateSimilarity.searchSimilarVideos') }}</div>
-            <div class="text-caption text-medium-emphasis mt-1">{{ t('duplicateSimilarity.searchSimilarVideosHint') }}</div>
-          </div>
-        </template>
-      </v-switch>
-    </div>
-
-
     <div class="similarity-search">
       <div class="similarity-search__bar">
         <div class="similarity-search__title">
@@ -39,12 +42,6 @@
       </div>
 
       <ul class="signal-list">
-        <li class="signal-list__head" aria-hidden="true">
-          <span />
-          <span />
-          <span>{{ t('duplicateSimilarity.weight') }}</span>
-          <span class="signal-list__head-required">{{ t('duplicateSimilarity.required') }}</span>
-        </li>
         <li v-for="signal in SIMILARITY_SIGNALS" :key="signal" class="signal-row"
           :class="{'signal-row--off': draft.weights[signal] === 0, 'signal-row--required': draft.required.includes(signal)}">
           <v-icon :icon="signalIcons[signal]" size="18" class="signal-row__icon" aria-hidden="true" />
@@ -62,11 +59,15 @@
             :aria-label="`${t(`duplicateSimilarity.${signal}`)}: ${t('duplicateSimilarity.weight')}`"
             color="primary" hide-details thumb-size="14" track-size="4" />
           <output class="signal-row__value">{{ draft.weights[signal] }}</output>
-          <button v-ripple type="button" class="signal-required" :aria-pressed="draft.required.includes(signal)"
-            :title="t('duplicateSimilarity.required')"
-            :aria-label="`${t(`duplicateSimilarity.${signal}`)}: ${t('duplicateSimilarity.required')}`" @click="toggleRequired(signal)">
-            <v-icon size="16">{{ draft.required.includes(signal) ? 'mdi-lock' : 'mdi-lock-open-variant-outline' }}</v-icon>
-          </button>
+          <v-tooltip :text="t(draft.required.includes(signal) ? 'duplicateSimilarity.requiredOnHint' : 'duplicateSimilarity.requiredOffHint', {signal: t(`duplicateSimilarity.${signal}`)})"
+            location="top" max-width="280">
+            <template #activator="{props: tip}">
+              <button v-bind="tip" v-ripple type="button" class="signal-required" :aria-pressed="draft.required.includes(signal)"
+                :aria-label="`${t(`duplicateSimilarity.${signal}`)}: ${t('duplicateSimilarity.required')}`" @click="toggleRequired(signal)">
+                <v-icon size="16">{{ draft.required.includes(signal) ? 'mdi-lock' : 'mdi-lock-open-variant-outline' }}</v-icon>
+              </button>
+            </template>
+          </v-tooltip>
         </li>
       </ul>
       <p class="similarity-search__hint similarity-caption">{{ t('duplicateSimilarity.weightHint') }}</p>
@@ -105,8 +106,11 @@
       </v-expansion-panel>
     </v-expansion-panels>
 
-    <SettingsGroupLabel id="similarity-preview-label" :title="t('duplicateSimilarity.preview.title')" icon="flask-outline" accent />
     <section class="similarity-preview" aria-labelledby="similarity-preview-label">
+      <div class="similarity-search__title">
+        <span class="similarity-tile similarity-tile--sm" aria-hidden="true"><v-icon size="18">mdi-flask-outline</v-icon></span>
+        <h4 id="similarity-preview-label">{{ t('duplicateSimilarity.preview.title') }}</h4>
+      </div>
       <p class="similarity-caption">{{ t('duplicateSimilarity.scoreHint') }}</p>
 
       <v-chip-group v-model="selectedExample" :aria-label="t('duplicateSimilarity.preview.title')" mandatory column class="similarity-examples">
@@ -189,10 +193,26 @@ import {useI18n} from 'vue-i18n'
 import {useSettingsStore} from '@/stores/settings'
 import {setOption} from '@/services/settingsService'
 import SettingsGroupLabel from '@/components/settings/SettingsGroupLabel.vue'
-import {SIMILARITY_SIGNALS, parseDuplicatePolicy, defaultDuplicatePolicy, compareSimilarity, type SimilarityItem} from '@shared/duplicateSimilarity'
+import {SIMILARITY_SIGNALS, parseDuplicatePolicy, defaultDuplicatePolicy, fingerprintDuplicatePolicy, recommendedDuplicatePolicy, compareSimilarity, type SimilarityItem} from '@shared/duplicateSimilarity'
+withDefaults(defineProps<{similarityMode?: boolean}>(), {similarityMode: true})
 const {t, locale} = useI18n()
 const settings = useSettingsStore()
 const draft = ref(parseDuplicatePolicy(settings.duplicateSimilarityPolicy))
+/** Scrolls to a related control (marked with data-duplicate-target) and briefly highlights it. */
+function revealTarget(name: 'index') {
+  const el = document.querySelector<HTMLElement>(`[data-duplicate-target="${name}"]`)
+  if (!el) return
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  el.scrollIntoView({behavior: reduced ? 'auto' : 'smooth', block: 'center'})
+  el.querySelector<HTMLElement>('button, input, [tabindex]:not([tabindex="-1"])')?.focus({preventScroll: true})
+  if (!reduced) {
+    el.animate([
+      {boxShadow: '0 0 0 0 rgba(var(--v-theme-primary), 0)'},
+      {boxShadow: '0 0 0 4px rgba(var(--v-theme-primary), .35)', offset: .25},
+      {boxShadow: '0 0 0 0 rgba(var(--v-theme-primary), 0)'},
+    ], {duration: 1400, delay: 250, easing: 'ease-out'})
+  }
+}
 const searchSimilarVideos = computed({
   get: () => draft.value.searchSimilarVideos ?? (draft.value.weights.visual > 0),
   set: (enabled: boolean) => {
@@ -264,6 +284,7 @@ function toggleRequired(signal: typeof SIMILARITY_SIGNALS[number]) {
   else draft.value.required.splice(index, 1)
 }
 const presets = [
+  {key: 'recommended', icon: 'mdi-star-outline', label: 'duplicateSimilarity.presetRecommended'},
   {key: 'fingerprint', icon: 'mdi-fingerprint', label: 'duplicateSimilarity.presetFingerprint'},
   {key: 'visual', icon: 'mdi-view-grid-outline', label: 'duplicateSimilarity.presetVisual'},
 ]
@@ -282,16 +303,21 @@ watch(() => settings.duplicateSimilarityPolicy, value => {
 watch(() => draft.value.files, value => { if (value !== 'keep') draft.value.autoMerge = false })
 const priorities = computed(() => ['quality', 'largest', 'smallest', 'oldest', 'newest'].map(value => ({value, title: t(`duplicateSimilarity.${value}`)})))
 const fileActions = computed(() => ['keep', 'delete'].map(value => ({value, title: t(`duplicateSimilarity.${value}`)})))
-const presetMode = computed(() => JSON.stringify(draft.value.weights) === JSON.stringify(defaultDuplicatePolicy().weights) ? 'fingerprint'
+const sameWeights = (weights: typeof draft.value.weights) => SIMILARITY_SIGNALS.every(key => draft.value.weights[key] === weights[key])
+// Recommended and fingerprint share weights; frame search tells them apart.
+const presetMode = computed(() => sameWeights(fingerprintDuplicatePolicy().weights) ? (searchSimilarVideos.value ? 'recommended' : 'fingerprint')
   : draft.value.weights.visual === 100 && SIMILARITY_SIGNALS.every(key => key === 'visual' || draft.value.weights[key] === 0) ? 'visual' : null)
 const changed = computed(() => JSON.stringify(draft.value) !== stored.value)
 const valid = computed(() => searchSimilarVideos.value || draft.value.weights.path > 0 || draft.value.weights.oshash > 0)
 function preset(mode: string) {
-  const base = defaultDuplicatePolicy()
+  const base = mode === 'recommended' ? recommendedDuplicatePolicy() : fingerprintDuplicatePolicy()
+  // Only detection settings change; merge outcome (priority, files, autoMerge) stays as the user set it.
   draft.value.weights = mode === 'visual' ? {path: 0, name: 0, size: 0, oshash: 0, visual: 100} : base.weights
-  draft.value.searchSimilarVideos = mode === 'visual'
+  draft.value.searchSimilarVideos = mode !== 'fingerprint'
   draft.value.required = mode === 'visual' ? ['visual'] : []
   draft.value.threshold = mode === 'visual' ? 90 : base.threshold
+  draft.value.visualMinimum = base.visualMinimum
+  draft.value.minimumFrames = base.minimumFrames
 }
 async function save(): Promise<boolean> {
   clearTimeout(autosaveTimer)
@@ -330,7 +356,7 @@ defineExpose({save})
 .similarity-settings > .settings-group-label { margin-block: 12px; }
 .similarity-settings > .settings-group-label:first-child, .similarity-toolbar + .settings-group-label { margin-top: 0; }
 /* standalone panels — same surface as other settings panels */
-.similarity-feature, .similarity-preview, .similarity-search, .similarity-advanced, .similarity-panel { border: 1px solid rgba(var(--v-theme-on-surface), .09); border-radius: 18px; background: rgb(var(--v-theme-surface)); }
+.similarity-preview, .similarity-search, .similarity-advanced, .similarity-panel { border: 1px solid rgba(var(--v-theme-on-surface), .09); border-radius: 18px; background: rgb(var(--v-theme-surface)); }
 .similarity-panel { padding: var(--settings-card-padding, 20px); }
 .similarity-settings h4 { margin: 0; font-size: .9375rem; font-weight: 600; line-height: 1.45; }
 .similarity-caption { font-size: .8125rem; line-height: 1.55; color: rgba(var(--v-theme-on-surface), .6); margin: 0; }
@@ -342,11 +368,12 @@ defineExpose({save})
 .similarity-heading { display: flex; align-items: flex-start; gap: 12px; }
 .similarity-heading p { margin-top: 2px; }
 
-/* feature toggle */
-.similarity-feature { padding: 10px 20px; }
-.similarity-feature__switch :deep(.v-selection-control) { align-items: flex-start; }
-.similarity-feature__switch :deep(.v-label) { background-color: transparent !important; opacity: 1; margin-left: 8px !important; }
-.settings-switch--with-description { padding-block: 6px; }
+/* feature toggle — same look as SettingsSwitch; rendered in the "Search the library" panel via Teleport */
+.similarity-feature.settings-switch--with-description { padding-block: 6px; }
+.similarity-feature :deep(.v-label) { background-color: transparent !important; opacity: 1; margin-left: 8px !important; }
+.similarity-ref { display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; margin-inline: 1px; border-radius: 5px; font: inherit; font-weight: 500; line-height: 1.45; color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .08); border: 1px solid rgba(var(--v-theme-primary), .16); vertical-align: baseline; cursor: pointer; transition: background-color .15s ease, border-color .15s ease; }
+.similarity-ref:hover { background: rgba(var(--v-theme-primary), .15); border-color: rgba(var(--v-theme-primary), .32); }
+.similarity-ref:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); outline-offset: 1px; }
 
 /* preview */
 .similarity-preview { display: flex; flex-direction: column; gap: 14px; padding: var(--settings-card-padding, 20px); }
@@ -394,17 +421,14 @@ defineExpose({save})
 .similarity-search { overflow: hidden; }
 .similarity-search__bar { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 14px; border-bottom: 1px solid rgba(var(--v-theme-on-surface), .07); background: rgba(var(--v-theme-on-surface), .02); }
 .similarity-search__title { display: flex; align-items: center; gap: 10px; }
-.similarity-search__bar h4 { font-size: .875rem !important; }
+.similarity-search__bar h4, .similarity-preview h4 { font-size: .875rem !important; }
 .similarity-presets { display: flex; flex-wrap: wrap; gap: 6px; }
 .similarity-preset.v-chip { margin: 0; font-weight: 500; }
 .similarity-preset.v-chip--variant-outlined { border-color: rgba(var(--v-theme-primary), .25); }
 .similarity-preset--custom.v-chip { cursor: default; }
 .similarity-search__hint { margin: 0; padding: 10px 16px 12px; border-top: 1px solid rgba(var(--v-theme-on-surface), .07); font-size: .75rem; }
-.signal-list { margin: 0; padding: 0 0 4px; list-style: none; }
-.signal-list__head, .signal-row { display: grid; grid-template-columns: 20px minmax(170px, 230px) minmax(0, 1fr) 36px 30px; align-items: center; gap: 0 14px; padding: 0 14px 0 16px; }
-.signal-list__head { min-height: 32px; padding-block: 8px 0; font-size: .6875rem; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: rgba(var(--v-theme-on-surface), .45); }
-.signal-list__head > :nth-child(3) { padding-inline-start: 6px; }
-.signal-list__head-required { grid-column: 4 / 6; justify-self: end; white-space: nowrap; }
+.signal-list { margin: 0; padding: 6px 0 4px; list-style: none; }
+.signal-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr) 36px 30px; align-items: center; gap: 0 14px; padding: 0 14px 0 16px; }
 .signal-row { min-height: 44px; transition: background-color .15s ease; }
 .signal-row + .signal-row { border-top: 1px solid rgba(var(--v-theme-on-surface), .05); }
 .signal-row:hover { background: rgba(var(--v-theme-primary), .03); }
@@ -465,7 +489,6 @@ defineExpose({save})
   .similarity-verdict { grid-template-columns: minmax(0, 1.25fr) minmax(240px, 1fr); }
 }
 @container (max-width: 560px) {
-  .signal-list__head { display: none; }
   .signal-row { grid-template-columns: 20px minmax(0, 1fr) 32px 32px; padding-block: 6px 0; }
   .signal-row__slider { grid-column: 1 / -1; grid-row: 2; }
   .similarity-fields { grid-template-columns: minmax(0, 1fr); }

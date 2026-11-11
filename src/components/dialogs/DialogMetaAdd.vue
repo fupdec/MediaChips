@@ -21,6 +21,7 @@
       <template #default>
         <v-card rounded="xl">
           <DialogHeader
+            icon="tag-plus-outline"
             @close="closeDialog"
             :header="t('meta.dialogs.adding_meta')"
             :buttons="buttons"

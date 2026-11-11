@@ -24,6 +24,7 @@
       <v-card rounded="xl" class="media-adding-dialog">
         <!-- Заголовок диалога с кнопками действий -->
         <DialogHeader
+          icon="plus-box-multiple-outline"
           @close="closeDialog"
           :header="dialogHeader"
           :subheader="selectionCount ? t('media.adding.browser_selected_count', {count: selectionCount}) : t('media.adding.select_source_hint')"

@@ -101,6 +101,7 @@
     >
       <v-card rounded="lg" class="parse-library-tags-dialog__card">
         <DialogHeader
+          icon="tag-search-outline"
           :header="t('settings_labels.library.parse_library_tags_dialog_title')"
           :subheader="dialogSubheader"
           :buttons="dialogButtons"

@@ -172,6 +172,7 @@
     >
       <v-card rounded="xl">
         <DialogHeader
+          icon="folder-eye-outline"
           :header="isEditMode
             ? t('settings_labels.tools.editing_folder')
             : t('settings_labels.tools.adding_folder')"

@@ -701,9 +701,13 @@
       @after-enter="focusCreateFolderInput"
     >
       <v-card rounded="xl">
-        <v-card-title class="text-subtitle-1 font-weight-medium px-5 pt-5">
-          {{ t('folders_browser.new_folder') }}
-        </v-card-title>
+        <DialogHeader
+          icon="folder-plus-outline"
+          :header="t('folders_browser.new_folder')"
+          :close-disabled="createFolderBusy"
+          closable
+          @close="createFolderOpen = false"
+        />
         <v-card-text class="px-5 pb-2">
           <v-text-field
             ref="createFolderInputRef"
@@ -879,6 +883,7 @@ import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRoute, useRouter} from 'vue-router'
 import {useDisplay} from 'vuetify'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
 import FoldersBrowseSkeleton from '@/components/folders/FoldersBrowseSkeleton.vue'
 import FoldersVirtualGrid from '@/components/folders/FoldersVirtualGrid.vue'
 import FolderTagsMenu from '@/components/dialogs/FolderTagsMenu.vue'

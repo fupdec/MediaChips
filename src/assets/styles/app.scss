@@ -56,6 +56,24 @@ header {
   letter-spacing: normal !important;
 }
 
+// Text buttons shrink to their container instead of overflowing it;
+// a label that does not fit is truncated with an ellipsis.
+// Buttons with block-level markup in the default slot keep Vuetify's
+// own flex layout, otherwise their children would stack vertically.
+.v-btn:not(.v-btn--icon):not(.v-tab):not(:has(> .v-btn__content > div)) {
+  max-width: 100%;
+  grid-template-columns: max-content minmax(0, auto) max-content;
+
+  > .v-btn__content {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+  }
+}
+
 .user-select {
   user-select: all;
 }

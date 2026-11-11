@@ -479,6 +479,7 @@
     >
       <v-card>
         <DialogHeader
+          icon="pin-outline"
           @close="closePinnedMetaDialog"
           :header="t('meta.settings.editing_pinned_meta')"
           closable

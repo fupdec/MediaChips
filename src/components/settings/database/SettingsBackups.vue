@@ -23,6 +23,7 @@
     >
       <v-card class="backups-dialog" rounded="xl">
         <DialogHeader
+          icon="backup-restore"
           :header="`${t('settings_labels.database.backups_management')} · ${selectedDatabase?.name || ''}`"
           closable
           @close="!busy && !dialogsStore.process.show && (dialog = false)"
@@ -271,6 +272,7 @@
     <v-dialog v-model="dialogImport" width="560">
       <v-card rounded="xl" class="backups-path-dialog">
         <DialogHeader
+          icon="file-restore-outline"
           @close="dialogImport = false"
           :header="t('settings_labels.database.select_backup')"
           closable
@@ -340,6 +342,7 @@
     <v-dialog v-model="dialogExport" width="560">
       <v-card rounded="xl" class="backups-path-dialog">
         <DialogHeader
+          icon="folder-open-outline"
           @close="dialogExport = false"
           :header="t('settings_labels.database.select_folder')"
           closable

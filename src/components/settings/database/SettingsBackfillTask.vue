@@ -17,6 +17,18 @@
         :striped="active"
       />
       <p class="maintenance-task__hint">{{ t(hintKey) }}</p>
+      <v-btn
+        v-if="config.prerequisite"
+        :to="{path: '/settings', query: {tab: 'maintenance', section: config.prerequisite.section}}"
+        color="primary"
+        rounded
+        size="small"
+        variant="tonal"
+        class="backfill-task__prerequisite pr-4"
+      >
+        <v-icon icon="mdi-view-grid-outline" start/>
+        {{ t(config.prerequisite.labelKey) }}
+      </v-btn>
       <div v-if="active && currentPath" class="text-caption text-medium-emphasis mb-3 selectable">
         {{ currentPath }}
       </div>
@@ -189,6 +201,10 @@ void refreshStatus()
 </script>
 
 <style scoped>
+.backfill-task__prerequisite {
+  margin-bottom: 12px;
+}
+
 .backfill-task__extra {
   margin-top: 16px;
   padding-top: 14px;

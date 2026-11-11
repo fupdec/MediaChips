@@ -3148,15 +3148,15 @@ body > .video-preview-container.video-preview-container--expanded {
     white-space: nowrap;
   }
 
-  &__rating:has(> .editing-rating-field__hint)::before {
-    content: '';
-    height: 1.2em;
-    font-size: 0.6875rem;
-  }
-
+  // Overlay at the bottom of the field card (positioned): shown on hover/focus
+  // without changing the field height, like Vuetify hints of other meta fields.
   &__hint {
+    position: absolute;
+    bottom: 1px;
+    inset-inline: 14px;
     visibility: hidden;
-    max-width: 100%;
+    max-width: none;
+    pointer-events: none;
     font-size: 0.6875rem;
     line-height: 1.2;
     color: rgba(var(--v-theme-on-surface), 0.5);
@@ -3165,7 +3165,6 @@ body > .video-preview-container.video-preview-container--expanded {
     white-space: nowrap;
   }
 
-  // Reserve the hint line so revealing it does not resize the field.
   .editing-field-card:hover &__hint,
   .editing-field-card:focus-within &__hint {
     visibility: visible;
@@ -3720,9 +3719,6 @@ body > .video-preview-container.video-preview-container--expanded {
 
   &__media--outlined {
     position: relative;
-    outline: 1px solid rgba(var(--v-theme-primary), 0.16);
-    border-radius: var(--edit-deck-radius);
-    padding: 6px;
 
     .edit-dialog-hero__media-toggle {
       position: absolute;
@@ -3743,6 +3739,23 @@ body > .video-preview-container.video-preview-container--expanded {
   &__overview {
     flex: 1 1 280px;
     min-width: 0;
+  }
+}
+
+// Quick actions under the media in every edit dialog (history, originals, …).
+.edit-dialog-media-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.edit-dialog-media-action {
+  width: 100%;
+  justify-content: flex-start;
+
+  > .v-btn__content {
+    text-align: start;
   }
 }
 
@@ -3774,11 +3787,22 @@ body > .video-preview-container.video-preview-container--expanded {
     .v-img__img {
       object-position: top center;
     }
+
+    &--viewable {
+      cursor: zoom-in;
+    }
   }
 
   &__image-wrap {
     position: relative;
     background: rgb(var(--v-theme-surface-variant));
+
+    // Tag images follow the category aspect ratio, so the 200px cap
+    // would squash portrait categories into a near-square frame.
+    &--tag,
+    &--tag .edit-dialog-media-panel__image {
+      max-height: none;
+    }
 
     &--video {
       max-height: none;
@@ -4265,5 +4289,99 @@ body > .video-preview-container.video-preview-container--expanded {
   img,
   .v-img__img {
     filter: saturate(0.1) opacity(50%);
+  }
+}
+
+// ─── Grid cards (view 1, media + tag): inspector-style description ─────────
+// Same visual language as the inspector: clear title, quiet synonyms, small
+// muted field labels. Kept compact — a label column made every chip wrap onto
+// its own line, so the label now sits inline at the start of the chip flow
+// (identical for media and tag cards, whatever the card width). em units
+// follow the s…xxl card size scale.
+.item.item-view-1 {
+  .description {
+    padding: 0.5em 0.55em 0.55em;
+  }
+
+  .item-title {
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0 0 0.15em !important;
+    padding-inline: 0.15em;
+  }
+
+  .synonyms {
+    padding: 0 0.15em !important;
+    margin-bottom: 0.15em;
+    font-size: 0.82em;
+    line-height: 1.3 !important;
+    color: rgba(var(--v-theme-on-surface), 0.6);
+  }
+
+  .nested-tags {
+    margin-top: 0.1em;
+
+    // Chips: one compact size, uniform gaps instead of per-chip margins.
+    .v-chip {
+      margin: 0 !important;
+      min-height: 0 !important;
+      height: 1.6em !important;
+      font-size: 0.82em !important;
+      line-height: 1.2;
+
+      .v-chip__content {
+        padding-inline: 0.55em !important;
+      }
+    }
+
+    .nested-tag-chip-wrap {
+      display: inline-flex;
+    }
+
+    // Flat mode.
+    > div:not(.tag-page-params):not(:has(> .category)) {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.2em;
+      padding-inline: 0.1em;
+    }
+
+    // Grouped mode: label inline, chips continue on the same line and wrap.
+    .category {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.2em;
+      margin: 0 !important;
+      padding: 0.12em 0.1em !important;
+    }
+
+    .category + .category {
+      margin-top: 0.1em !important;
+    }
+
+    .category-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25em !important;
+      margin: 0 0.2em 0 0 !important;
+      font-size: 0.76em;
+      font-weight: 500;
+      line-height: 1.2;
+      white-space: nowrap;
+      color: rgba(var(--v-theme-on-surface), 0.55);
+
+      .v-icon {
+        font-size: 1.15em !important;
+        width: 1.15em;
+        height: 1.15em;
+        margin: 0 !important;
+        opacity: 0.7;
+      }
+    }
+
+    .nested-tags__toggle {
+      margin: 0 !important;
+    }
   }
 }

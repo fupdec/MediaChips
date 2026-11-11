@@ -22,6 +22,8 @@ export interface SettingsBackfillConfig {
   i18nKey: string
   mode: SettingsBackfillMode
   includeSkipped?: boolean
+  /** Settings section that must be run first; shown as a link under the hint. */
+  prerequisite?: {section: string; labelKey: string}
 }
 
 export const FINGERPRINT_BACKFILL: SettingsBackfillConfig = {
@@ -42,6 +44,7 @@ export const VISUAL_HASH_BACKFILL: SettingsBackfillConfig = {
   i18nKey: 'visual_hash_backfill',
   mode: 'hash',
   includeSkipped: true,
+  prerequisite: {section: 'generate_video_grids', labelKey: 'settings_labels.database.visual_hash_backfill_open_grids'},
 }
 
 export const CLIP_EMBEDDING_BACKFILL: SettingsBackfillConfig = {

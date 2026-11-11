@@ -10,6 +10,7 @@
     >
       <v-card rounded="xl">
         <DialogHeader
+          icon="shape-outline"
           @close="close"
           :header="translate('media.type.media_header', {name: getMediaTypeName(media, translate)})"
           :buttons="buttons"

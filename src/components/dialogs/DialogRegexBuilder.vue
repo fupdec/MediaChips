@@ -8,6 +8,7 @@
   >
     <v-card rounded="xl">
       <DialogHeader
+        icon="regex"
         @close="dialogLocal = false"
         :header="header || t('regex_builder.dialog_title')"
         closable
