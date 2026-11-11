@@ -44,13 +44,17 @@
               v-for="tag in category.tags"
               :key="tag.id"
               class="widget-top-tags__card"
+              :style="categoryCardStyle(category.meta)"
               @click="openTagPage(category.meta, tag)"
               @contextmenu="showTagContextMenu($event, category.meta, tag)"
               rounded="lg"
               variant="outlined"
               flat
             >
-              <div class="widget-top-tags__preview">
+              <div
+                class="widget-top-tags__preview"
+                :style="{aspectRatio: String(categoryImageRatio(category.meta))}"
+              >
                 <v-img
                   :src="tagDisplayImage(tag)"
                   cover
@@ -205,6 +209,27 @@ function categorySubtitleKey(category: TopTagsCategory): string {
     sortMode.value,
     sortMode.value === META_SORT_MODES.menu ? sortBy : null,
   )
+}
+
+/** Preview height the default 3:4 card had at 104px width. */
+const CARD_PREVIEW_HEIGHT = 104 * 4 / 3
+const CARD_MIN_WIDTH = 80
+const CARD_MAX_WIDTH = 240
+const DEFAULT_IMAGE_RATIO = 3 / 4
+
+/** Image aspect ratio (width / height) from the category settings. */
+function categoryImageRatio(meta: Meta): number {
+  const ratio = Number(meta.imageAspectRatio)
+  return Number.isFinite(ratio) && ratio > 0 ? ratio : DEFAULT_IMAGE_RATIO
+}
+
+/** Keep the row height stable; card width follows the category ratio. */
+function categoryCardStyle(meta: Meta): Record<string, string> {
+  const width = Math.round(Math.min(
+    CARD_MAX_WIDTH,
+    Math.max(CARD_MIN_WIDTH, CARD_PREVIEW_HEIGHT * categoryImageRatio(meta)),
+  ))
+  return {width: `${width}px`, flex: `0 0 ${width}px`}
 }
 
 function tagDisplayImage(tag: TopTagItem): string {
