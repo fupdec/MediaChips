@@ -58,6 +58,11 @@ const chips_default_data: Array<{icon: string; textKey: string; value: DefaultMe
     />
 
     <settings-switch
+      :title="t('settings_labels.appearance.mute_card_tag_colors')"
+      option="mute_card_tag_colors"
+    />
+
+    <settings-switch
       :title="t('settings_labels.appearance.show_default_metadata')"
       option="show_preset_metadata_in_card"
     />

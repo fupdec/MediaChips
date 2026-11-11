@@ -38,6 +38,7 @@ const setOption = (value: SettingsState[keyof SettingsState]) => {
     false-value="0"
     true-value="1"
     class="mt-0 settings-switch"
+    :class="{'settings-switch--with-description': hint || $slots.label}"
     :disabled="disabled"
     hide-details
     inset
@@ -65,6 +66,10 @@ const setOption = (value: SettingsState[keyof SettingsState]) => {
 </template>
 
 <style scoped>
+.settings-switch--with-description {
+  padding-block: 6px;
+}
+
 .settings-switch :deep(.v-label) {
   background-color: transparent !important;
   opacity: 1;

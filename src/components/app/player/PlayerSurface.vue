@@ -36,7 +36,6 @@
           class="player-close-btn"
           variant="text"
           color="white"
-          size="x-small"
           icon
         >
           <v-icon>mdi-close</v-icon>
@@ -89,49 +88,49 @@
           </div>
 
           <div v-if="showPlaybackError" class="video-error">
-            <v-alert color="error" variant="text">
-              <v-icon size="24" color="error" left>mdi-alert</v-icon>
-              {{ t('common.error') }}:
-              <div class="filename" v-text="t('player.file') + ' ' + currentPlaying"></div>
+            <div class="video-error__message" role="alert">
+              <div class="video-error__title">
+                <v-icon size="20">mdi-alert-circle-outline</v-icon>
+                {{ t('common.error') }}
+              </div>
+              <div class="video-error__filename" :title="currentPlaying" v-text="t('player.file') + ' ' + currentPlaying"></div>
               <div v-if="player.is_file_exists">
                 {{ formatErrorMessage }}
-                <div v-if="fileExtension" class="error-detail">
+                <div v-if="fileExtension" class="video-error__detail">
                   {{ t('player.error_extension', { ext: fileExtension }) }}
                 </div>
-                <div v-if="player.metadata.codec" class="error-detail">
+                <div v-if="player.metadata.codec" class="video-error__detail">
                   {{ t('player.error_codec', { codec: player.metadata.codec }) }}
                 </div>
               </div>
               <div v-else>{{ t('player.file_is_missing') }}</div>
-            </v-alert>
-            <v-btn v-if="player.isWebVideo && !player.webVideoLoading" @click.stop="reloadWebVideo({fresh: true})"
-              class="mt-4 mr-2" color="primary" rounded>
-              <v-icon left>mdi-refresh</v-icon>
-              <span>{{ t('player.controls.web_video_refresh') }}</span>
-            </v-btn>
-            <v-btn v-if="isNasMediaPath(player.media?.path) && nasDownloadUrl" :href="nasDownloadUrl"
-              :download="currentPlaying" @click.stop class="mt-4 mr-2" color="primary" rounded>
-              <v-icon left>mdi-download</v-icon>
-              <span>{{ t('actions.download') }}</span>
-            </v-btn>
-            <v-btn v-if="driveViewUrl" @click.stop="openDrivePlayer" class="mt-4 mr-2" color="primary" rounded>
-              <v-icon left>mdi-google-drive</v-icon>
-              <span>{{ t('drive.open_in_drive') }}</span>
-            </v-btn>
-            <v-btn
-              v-if="player.is_file_exists && !isNasMediaPath(player.media?.path) && !isDriveMediaPath(player.media?.path) && !isCloudMediaPath(player.media?.path)"
-              @click.stop="openPath"
-              class="mt-4"
-              color="primary"
-              rounded
-            >
-              <v-icon left>mdi-play-circle-outline</v-icon>
-              <span>{{ t(isWebVideoPath(player.media?.path) ? 'media.adding.web_video_open' : 'actions.open_system_player') }}</span>
-            </v-btn>
-            <v-btn v-if="canPlayNext" @click.stop="nextVideo" class="mt-4 ml-2" color="primary" rounded>
-              <v-icon left>mdi-skip-next</v-icon>
-              <span>{{ t('actions.play_next_video') }}</span>
-            </v-btn>
+            </div>
+            <div class="video-error__actions">
+              <v-btn v-if="player.isWebVideo && !player.webVideoLoading" @click.stop="reloadWebVideo({fresh: true})">
+                <v-icon start>mdi-refresh</v-icon>
+                <span>{{ t('player.controls.web_video_refresh') }}</span>
+              </v-btn>
+              <v-btn v-if="isNasMediaPath(player.media?.path) && nasDownloadUrl" :href="nasDownloadUrl"
+                :download="currentPlaying" @click.stop>
+                <v-icon start>mdi-download</v-icon>
+                <span>{{ t('actions.download') }}</span>
+              </v-btn>
+              <v-btn v-if="driveViewUrl" @click.stop="openDrivePlayer">
+                <v-icon start>mdi-google-drive</v-icon>
+                <span>{{ t('drive.open_in_drive') }}</span>
+              </v-btn>
+              <v-btn
+                v-if="player.is_file_exists && !isNasMediaPath(player.media?.path) && !isDriveMediaPath(player.media?.path) && !isCloudMediaPath(player.media?.path)"
+                @click.stop="openPath"
+              >
+                <v-icon start>mdi-play-circle-outline</v-icon>
+                <span>{{ t(isWebVideoPath(player.media?.path) ? 'media.adding.web_video_open' : 'actions.open_system_player') }}</span>
+              </v-btn>
+              <v-btn v-if="canPlayNext" @click.stop="nextVideo">
+                <v-icon start>mdi-skip-next</v-icon>
+                <span>{{ t('actions.play_next_video') }}</span>
+              </v-btn>
+            </div>
           </div>
 
           <div v-if="showTranscodeSpinner" class="transcode-spinner" role="status" aria-live="polite">

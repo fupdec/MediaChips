@@ -65,6 +65,12 @@ header {
   font-family: Helvetica, Roboto, sans-serif;
 }
 
+html.dev-text-selection body,
+html.dev-text-selection body * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
 .v-progress-linear {
   pointer-events: none;
 }

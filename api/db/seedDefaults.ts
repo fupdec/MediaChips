@@ -46,6 +46,7 @@ const DEFAULT_MEDIA_TYPES = [
 const MIGRATION_SETTINGS = [
   {option: 'ratingAndFavoriteInCard', value: '1'},
   {option: 'group_chips_in_card_description', value: '1'},
+  {option: 'mute_card_tag_colors', value: '1'},
   {option: 'show_preset_metadata_in_card', value: '1'},
   {option: 'show_bookmark_on_card', value: '1'},
   {option: 'show_thumb_resolution', value: '1'},

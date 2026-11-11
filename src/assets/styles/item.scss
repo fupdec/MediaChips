@@ -2490,8 +2490,7 @@ body > .video-preview-container.video-preview-container--expanded {
       flex: 0 0 auto;
     }
 
-    .v-chip:not(.tag-chip--colored),
-    .v-chip.tag-chip--colored {
+    .v-chip {
       margin: 0 !important;
       padding: 0 !important;
       min-height: 22px;
@@ -2515,13 +2514,13 @@ body > .video-preview-container.video-preview-container--expanded {
       }
     }
 
-    .v-chip:not(.tag-chip--colored) {
+    .v-chip:not(.tag-chip--colored, .tag-chip--muted) {
       background: rgba(255, 255, 255, 0.92) !important;
       color: rgba(0, 0, 0, 0.87) !important;
       border: 1px solid rgba(255, 255, 255, 0.35);
     }
 
-    .v-chip.tag-chip--colored {
+    .v-chip.tag-chip--colored:not(.tag-chip--muted) {
       border: 1px solid rgba(255, 255, 255, 0.2);
     }
 

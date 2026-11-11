@@ -164,8 +164,9 @@ function hitKey(hit: Pick<Hit, 'id' | 'time'>) {
   return `${hit.id}:${hit.time}`
 }
 
-function hitName(hit: Hit) {
-  return hit.video.name || hit.video.basename || String(hit.id)
+function hitName(hit: Hit): string {
+  const {name, basename} = hit.video
+  return name || (typeof basename === 'string' ? basename : '') || String(hit.id)
 }
 
 function markerThumbnail(hit: Hit) {

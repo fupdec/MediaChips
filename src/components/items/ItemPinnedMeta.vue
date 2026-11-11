@@ -320,6 +320,7 @@ const props = withDefaults(defineProps<{
   tags?: ItemTagRef[]
   values?: ItemValueRef[]
   type: ItemsPageType | string
+  mutedTags?: boolean
   tagPage?: boolean
   isShowAll?: boolean
   showPreset?: boolean
@@ -430,6 +431,7 @@ const isNestedTagContextTarget = (tagId: number): boolean => {
 }
 
 const getTagChipBind = (tag: TagWithMeta) => {
+  const muted = props.mutedTags && settingsStore.mute_card_tag_colors !== '0'
   const active = isNestedTagContextTarget(tag.id)
   const variant: ChipVariant = tag.fromFolder
     ? 'tonal'
@@ -447,18 +449,20 @@ const getTagChipBind = (tag: TagWithMeta) => {
     : undefined
 
   return {
-    variant,
-    color: colored ? color : undefined,
-    // Flat/elevated only — see getTagChipTextStyle.
-    style: textColor ? {color: textColor} : undefined,
+    variant: muted ? 'flat' : variant,
+    color: muted ? undefined : color,
+    style: muted
+      ? {'--card-tag-accent': color || 'rgb(var(--v-theme-on-surface))'}
+      : textColor ? {color: textColor} : undefined,
     label: getMetaChipLabel(tag.meta),
     title: fromFolderTitle || dragTitle || tag.name || undefined,
     size: active ? 'large' : undefined,
     filter: active || undefined,
     prependIcon: tag.fromFolder ? 'mdi-folder-outline' : undefined,
     class: [
+      muted ? 'tag-chip--muted' : undefined,
       colored ? 'tag-chip--colored' : undefined,
-      light ? 'tag-chip--light' : undefined,
+      light && !muted ? 'tag-chip--light' : undefined,
       tag.fromFolder ? 'tag-chip--from-folder' : undefined,
       active ? 'active-chip' : undefined,
     ].filter(Boolean).join(' ') || undefined,
@@ -973,6 +977,20 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
 .tag-chip--from-folder {
   opacity: 0.92;
   border-style: dashed !important;
+}
+
+.v-chip.tag-chip--muted {
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)), var(--card-tag-accent) 10%) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  opacity: 1;
+}
+
+.v-chip.tag-chip--muted.tag-chip--colored {
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)), var(--card-tag-accent) var(--card-tag-color-share, 32%)) !important;
+}
+
+:global(.v-theme--dark) {
+  --card-tag-color-share: 36%;
 }
 
 .nested-tag-chip-wrap--draggable {

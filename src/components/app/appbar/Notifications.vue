@@ -216,7 +216,7 @@ const app = useAppStore()
 const copyJobs = ref<CopyActivity[]>([])
 const copyAction = ref(false)
 const copyError = ref(false)
-const copySettings = {name: 'Settings', query: {tab: 'maintenance', section: 'find_duplicates'}}
+const copySettings = {name: 'Settings', query: {tab: 'maintenance', section: 'copy_discovery'}}
 const copyPolling = new AbortController()
 let copyTimer: ReturnType<typeof setTimeout> | undefined
 

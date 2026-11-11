@@ -111,6 +111,7 @@
         </div>
 
         <ItemPinnedMeta
+          muted-tags
           :item="item"
           :tags="item.tags"
           :values="item.values"
@@ -161,6 +162,7 @@
         />
 
         <ItemPinnedMeta
+          muted-tags
           :item="item"
           :tags="item.tags"
           :values="item.values"
