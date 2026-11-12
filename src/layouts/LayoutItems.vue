@@ -137,55 +137,146 @@
       </div>
     </div>
 
+    <!-- Quick filters are hidden by default: only active ones are shown here as
+         removable chips. The full set lives inside the filters panel. -->
     <div
-      v-if="items_type === 'tag' && settingsStore.showAlphabetFilter == '1'"
-      class="items-alphabet"
+      v-if="!filtersPanelOpen && (letterFilter || colorFilter)"
+      class="items-quick-active"
     >
       <button
-        v-for="letter in alphabetLetters"
-        :key="letter"
+        v-if="letterFilter"
         type="button"
-        class="items-alphabet__btn"
-        :class="{
-          'items-alphabet__btn--active': letterFilter === letter,
-        }"
-        @click="toggleLetterFilter(letter)"
+        class="items-quick-active__chip"
+        :aria-label="`${t('common.reset')}: ${letterFilter}`"
+        v-tooltip:top="t('common.reset')"
+        @click="letterFilter = null"
       >
-        {{ letter }}
+        <span class="items-quick-active__letter">{{ letterFilter }}</span>
+        <v-icon size="14">mdi-close</v-icon>
+      </button>
+      <button
+        v-if="colorFilter"
+        type="button"
+        class="items-quick-active__chip"
+        :aria-label="`${t('common.reset')}: ${colorFilter === TAG_COLOR_FILTER_NONE ? t('items.color_filter_none') : colorFilter}`"
+        v-tooltip:top="t('common.reset')"
+        @click="colorFilter = null"
+      >
+        <span
+          class="items-color-filter__swatch items-quick-active__swatch"
+          :class="{'items-color-filter__swatch--none': colorFilter === TAG_COLOR_FILTER_NONE}"
+          :style="colorFilter === TAG_COLOR_FILTER_NONE ? undefined : {backgroundColor: colorFilter}"
+        />
+        <v-icon size="14">mdi-close</v-icon>
       </button>
     </div>
 
-    <div
-      v-if="showColorFilterBar"
-      class="items-color-filter"
-    >
-      <button
-        type="button"
-        class="items-color-filter__swatch items-color-filter__swatch--none"
-        :class="{'items-color-filter__swatch--active': colorFilter === TAG_COLOR_FILTER_NONE}"
-        :aria-pressed="colorFilter === TAG_COLOR_FILTER_NONE ? 'true' : 'false'"
-        :aria-label="t('items.color_filter_none')"
-        v-tooltip:top="t('items.color_filter_none')"
-        @click="toggleColorFilter(TAG_COLOR_FILTER_NONE)"
-      />
-      <button
-        v-for="color in categoryTagColors"
-        :key="color"
-        type="button"
-        class="items-color-filter__swatch"
-        :class="{'items-color-filter__swatch--active': colorFilter === color}"
-        :style="{backgroundColor: color}"
-        :aria-pressed="colorFilter === color ? 'true' : 'false'"
-        :aria-label="color"
-        v-tooltip:top="color"
-        @click="toggleColorFilter(color)"
-      />
-    </div>
+    <!-- Filters: top panel in the control deck; quick filters render inside it -->
+    <Filters v-if="pageInitialized" :isReady="isFiltersReady">
+      <template #quick-settings>
+        <v-menu
+          location="bottom end"
+          :close-on-content-click="false"
+        >
+          <template #activator="{props: menuProps}">
+            <v-btn
+              v-bind="menuProps"
+              icon
+              size="x-small"
+              variant="text"
+              color="primary"
+              :aria-label="t('filters.quick_settings')"
+              v-tooltip:top="t('filters.quick_settings')"
+            >
+              <v-icon size="16">mdi-tune-variant</v-icon>
+            </v-btn>
+          </template>
+          <v-card
+            rounded="xl"
+            class="items-quick-menu"
+          >
+            <div class="items-quick-menu-title">{{ t('filters.quick_settings') }}</div>
+            <SettingsSwitch
+              v-if="items_type === 'tag'"
+              option="showAlphabetFilter"
+              :title="t('settings_labels.appearance.alphabet_filter')"
+              density="compact"
+            />
+            <SettingsSwitch
+              v-if="items_type === 'tag' && meta?.color"
+              option="showColorFilter"
+              :title="t('settings_labels.appearance.color_filter')"
+              density="compact"
+            />
+            <SettingsSwitch
+              option="showSavedFilters"
+              :title="t('settings_labels.appearance.saved_filters')"
+              density="compact"
+            />
+          </v-card>
+        </v-menu>
+      </template>
 
-    <SavedFilters v-if="pageInitialized && settingsStore.showSavedFilters == '1'"/>
+      <template
+        v-if="!quickAllHidden"
+        #quick
+      >
+        <EditingSectionHeader
+          icon="mdi-lightning-bolt-outline"
+          :title="t('filters.quick_presets')"
+        />
+        <div
+          v-if="showAlphabetBar || showColorFilterBar"
+          class="items-quick-row"
+        >
+          <div
+            v-if="showAlphabetBar"
+            class="items-alphabet"
+          >
+            <button
+              v-for="letter in alphabetLetters"
+              :key="letter"
+              type="button"
+              class="items-alphabet__btn"
+              :class="{
+                'items-alphabet__btn--active': letterFilter === letter,
+              }"
+              @click="toggleLetterFilter(letter)"
+            >
+              {{ letter }}
+            </button>
+          </div>
 
-    <!-- Filters: top panel in the control deck -->
-    <Filters v-if="pageInitialized" :isReady="isFiltersReady"/>
+          <div
+            v-if="showColorFilterBar"
+            class="items-color-filter"
+          >
+            <button
+              type="button"
+              class="items-color-filter__swatch items-color-filter__swatch--none"
+              :class="{'items-color-filter__swatch--active': colorFilter === TAG_COLOR_FILTER_NONE}"
+              :aria-pressed="colorFilter === TAG_COLOR_FILTER_NONE ? 'true' : 'false'"
+              :aria-label="t('items.color_filter_none')"
+              v-tooltip:top="t('items.color_filter_none')"
+              @click="toggleColorFilter(TAG_COLOR_FILTER_NONE)"
+            />
+            <button
+              v-for="color in categoryTagColors"
+              :key="color"
+              type="button"
+              class="items-color-filter__swatch"
+              :class="{'items-color-filter__swatch--active': colorFilter === color}"
+              :style="{backgroundColor: color}"
+              :aria-pressed="colorFilter === color ? 'true' : 'false'"
+              :aria-label="color"
+              v-tooltip:top="color"
+              @click="toggleColorFilter(color)"
+            />
+          </div>
+        </div>
+        <SavedFilters v-if="showSavedChips"/>
+      </template>
+    </Filters>
 
     <ItemsBrowseSkeleton
       v-if="loader.is_busy && !ITEMS.itemsOnPage.length"
@@ -199,6 +290,7 @@
     />
 
     <ItemsPaginationBar
+      class="items-pagination--top"
       v-if="showPagination && !loader.is_busy"
       v-model:page="paginationPage"
       v-model:jump-page="jumpPageForPagination"
@@ -356,6 +448,7 @@
     </div>
 
     <ItemsPaginationBar
+      class="items-pagination--bottom"
       v-if="showPagination && !loader.is_busy"
       v-model:page="paginationPage"
       v-model:jump-page="jumpPageForPagination"
@@ -524,6 +617,8 @@ import ItemsVirtualGrid from '@/components/items/ItemsVirtualGrid.vue'
 import ItemsMasonryGrid from '@/components/items/ItemsMasonryGrid.vue'
 import Filters from '@/components/app/Filters.vue'
 import SavedFilters from '@/components/elements/FiltersSaved.vue'
+import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
+import EditingSectionHeader from '@/components/items/EditingSectionHeader.vue'
 import ItemsPaginationBar from '@/components/elements/ItemsPaginationBar.vue'
 import QuickActionButton from '@/components/app/QuickActionButton.vue'
 import ToolbarSort from '@/components/app/toolbar/ToolbarSort.vue'
@@ -741,7 +836,10 @@ const activeFilters = computed(() => {
 });
 
 const filtersPanelOpen = computed(() => Boolean(appStore.filters.visible))
-const activeFiltersCount = computed(() => activeFilters.value.length)
+const quickActiveCount = computed(() =>
+  (letterFilter.value ? 1 : 0) + (colorFilter.value ? 1 : 0),
+)
+const activeFiltersCount = computed(() => activeFilters.value.length + quickActiveCount.value)
 const isGroupByOff = computed(() =>
   normalizeItemsGroupBy(ITEMS.value.groupBy) === 'none',
 )
@@ -936,7 +1034,15 @@ const openGroupFilter = (section: ItemsGroupSection<MediaItem>) => {
   }, 0)
 }
 
+// Saved-filter chips used to reset the active filters on their own unmount.
+// They now live inside the filters panel (mounted only while it is open and
+// the chips are enabled), so the reset is tied to the page lifecycle instead.
+watch(pageInitialized, (ready, wasReady) => {
+  if (wasReady && !ready) itemsStore.clearSavedFilters()
+})
+
 onBeforeUnmount(() => {
+  itemsStore.clearSavedFilters()
   clearVisibleItemIds()
   resetVisibilityObserver()
   void flushPageSettings()
@@ -1032,6 +1138,18 @@ const showColorFilterBar = computed(() => (
   props.items_type === 'tag'
   && settingsStore.showColorFilter === '1'
   && !!meta.value?.color
+))
+
+const showAlphabetBar = computed(() => (
+  props.items_type === 'tag' && settingsStore.showAlphabetFilter === '1'
+))
+
+const showSavedChips = computed(() => (
+  settingsStore.showSavedFilters === '1' && (itemsStore.filters_saved?.length ?? 0) > 0
+))
+
+const quickAllHidden = computed(() => (
+  !showAlphabetBar.value && !showColorFilterBar.value && !showSavedChips.value
 ))
 
 function toggleColorFilter(value: string): void {
@@ -1260,81 +1378,195 @@ defineEmits<{
   overflow-anchor: none;
 }
 
-.items-alphabet {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  margin-bottom: 12px;
-}
-
-.items-alphabet__btn {
-  min-width: 28px;
-  height: 28px;
-  padding: 0 4px;
-  border: none;
-  border-radius: 6px;
-  background: rgba(var(--v-theme-on-surface), 0.04);
-  color: rgba(var(--v-theme-on-surface), 0.7);
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 28px;
-  text-align: center;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-
-  &:hover {
-    background: rgba(var(--v-theme-on-surface), 0.1);
-    color: rgba(var(--v-theme-on-surface), 0.9);
-  }
-
-  &--active {
-    background: rgb(var(--v-theme-primary));
-    color: rgb(var(--v-theme-on-primary));
-  }
-}
-
+/* ── Quick filters (inside the filters panel): shared "track" look ── */
+.items-alphabet,
 .items-color-filter {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  box-shadow: inset 0 0 0 1px rgba(var(--v-theme-on-surface), 0.05);
+}
+
+.items-alphabet {
+  gap: 2px;
+}
+
+.items-alphabet__btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(var(--v-theme-on-surface), 0.62);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    background: rgba(var(--v-theme-primary), 0.1);
+    color: rgb(var(--v-theme-primary));
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.5);
+  }
+
+  &--active,
+  &--active:hover {
+    background: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-on-primary));
+    box-shadow: 0 2px 6px rgba(var(--v-theme-primary), 0.35);
+  }
+}
+
+.items-color-filter {
   gap: 6px;
-  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 999px;
 }
 
 .items-color-filter__swatch {
+  position: relative;
   width: 22px;
   height: 22px;
   padding: 0;
+  border: none;
   border-radius: 50%;
-  border: 2px solid rgba(var(--v-theme-on-surface), 0.18);
   background: transparent;
   cursor: pointer;
   flex-shrink: 0;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  /* thin inner edge so light swatches don't melt into the track */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 
   &:hover {
-    transform: scale(1.08);
+    transform: scale(1.12);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.14),
+      0 0 0 2px rgb(var(--v-theme-surface)),
+      0 0 0 4px rgba(var(--v-theme-primary), 0.5);
   }
 
   &--none {
-    position: relative;
-    background: rgba(var(--v-theme-on-surface), 0.04);
+    background: rgb(var(--v-theme-surface));
+    box-shadow: inset 0 0 0 1.5px rgba(var(--v-theme-on-surface), 0.28);
 
     &::after {
       content: '';
       position: absolute;
-      left: 18%;
-      right: 18%;
-      top: 50%;
-      height: 2px;
+      left: 22%;
+      right: 22%;
+      top: calc(50% - 0.75px);
+      height: 1.5px;
+      border-radius: 1px;
       background: rgba(var(--v-theme-on-surface), 0.5);
       transform: rotate(-45deg);
     }
   }
 
-  &--active {
-    border-color: rgb(var(--v-theme-primary));
-    box-shadow: 0 0 0 2px rgb(var(--v-theme-primary));
+  &--active,
+  &--active:hover {
+    transform: scale(1.12);
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.14),
+      0 0 0 2px rgb(var(--v-theme-surface)),
+      0 0 0 4px rgb(var(--v-theme-primary));
   }
+}
+
+/* ── Quick filters inside the filters panel, grouped by type ── */
+.filters-top__quick .editing-group-header {
+  padding: 8px 4px 6px;
+}
+
+.filters-top__quick .items-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.filters-top__quick .sf-chips.d-flex {
+  margin: 2px -4px -4px;
+}
+
+.items-quick-menu {
+  min-width: 280px;
+  padding: 8px 16px 12px;
+}
+
+.items-quick-menu-title {
+  padding: 4px 0 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+/* Active quick filters shown under the deck while the panel is closed */
+.items-quick-active {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.items-quick-active__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(var(--v-theme-primary), 0.12);
+  color: rgb(var(--v-theme-primary));
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: rgba(var(--v-theme-primary), 0.2);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.5);
+  }
+}
+
+.items-quick-active__swatch {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+
+  &:hover {
+    transform: none;
+  }
+}
+
+.items-layout-container .items-pagination--top {
+  margin: 16px 0 32px;
+}
+
+.items-layout-container .items-pagination--bottom {
+  margin: 40px 0 calc(32px + var(--floating-bottom-dock-reserve, 0px));
 }
 </style>

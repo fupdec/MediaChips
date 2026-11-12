@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, ref, defineAsyncComponent} from 'vue'
+import {computed, ref, defineAsyncComponent} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRoute} from 'vue-router'
 import {useItemsStore} from '@/stores/items'
@@ -209,10 +209,6 @@ const showContextMenu = (event: MouseEvent, savedFilter: SavedFilter) => {
     y: event.clientY,
   })
 }
-
-onBeforeUnmount(() => {
-  itemsStore.clearSavedFilters()
-})
 </script>
 
 <style lang="scss" scoped>

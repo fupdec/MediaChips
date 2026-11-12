@@ -4451,6 +4451,9 @@ const en = {
     ai_goal_required: 'Describe what to find, or enter a sample text below.',
   },
   filters: {
+    quick_settings: 'What to show',
+    quick_presets: 'Presets',
+    quick_conditions: 'Field conditions',
     title: 'Filters',
     duplicates: 'Duplicates',
     duplicates_by_path: 'Duplicates by path',

@@ -4451,6 +4451,9 @@ const ru = {
     ai_goal_required: 'Опишите, что найти, или введите пример текста ниже.',
   },
   filters: {
+    quick_settings: 'Что показывать',
+    quick_presets: 'Пресеты',
+    quick_conditions: 'Поля-условия',
     title: 'Фильтры',
     duplicates: 'Дубликаты',
     duplicates_by_path: 'Дубликаты по пути',

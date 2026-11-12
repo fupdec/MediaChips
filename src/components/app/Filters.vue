@@ -47,6 +47,8 @@
                 ]"
                 compact
               />
+
+              <slot name="quick-settings"/>
             </div>
 
             <div class="filters-top__chrome-end">
@@ -94,6 +96,17 @@
                 <v-icon size="16">mdi-close</v-icon>
               </v-btn>
             </div>
+          </div>
+
+          <div
+            v-if="filtersVisible && $slots.quick"
+            class="filters-top__quick"
+          >
+            <slot name="quick"/>
+            <EditingSectionHeader
+              icon="mdi-filter-variant"
+              :title="t('filters.quick_conditions')"
+            />
           </div>
 
           <v-expand-transition>
@@ -212,6 +225,7 @@
 </template>
 
 <script setup lang="ts">
+import EditingSectionHeader from '@/components/items/EditingSectionHeader.vue'
 import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {ref, computed, watch, onMounted, onUnmounted} from 'vue'
 import {useI18n} from 'vue-i18n'
@@ -1001,6 +1015,21 @@ watch(filtersVisible, (visible) => {
   border-radius: 0;
   background: transparent;
   border-top: 1px solid rgba(var(--v-theme-primary), 0.18);
+}
+
+.filters-top__quick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0 12px;
+
+  > .editing-group-header {
+    align-self: stretch;
+  }
+}
+
+.filters-top__quick:empty {
+  display: none;
 }
 
 .filters-top__chrome {
