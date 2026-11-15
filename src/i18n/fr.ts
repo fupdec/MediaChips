@@ -1622,6 +1622,8 @@ const fr = {
     search_fields: 'Rechercher…',
     filter_fields_label: 'Afficher les champs',
     no_matching_fields: 'Aucun champ correspondant',
+    no_matching_fields_hint: 'Essayez une autre recherche ou affichez tous les champs.',
+    reset_field_search: 'Réinitialiser la recherche',
     overview_expand: 'Afficher les informations du fichier',
     overview_collapse: 'Masquer les informations du fichier',
     unsaved_changes: 'Modifications non enregistrées',
@@ -1635,6 +1637,7 @@ const fr = {
     log_in: 'Connectez-vous',
     password_required: 'Entrez votre mot de passe',
     wrong_password: 'Mauvais mot de passe',
+    too_many_attempts: 'Trop de tentatives échouées. Réessayez dans 15 minutes.',
   },
   bulk_editing: {
     title: 'Modification en masse',

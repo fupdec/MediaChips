@@ -16,6 +16,8 @@ import {offlinePlayback} from '../services/mediaSources/offline'
 import {saveWebVideoFrame} from '../services/webVideo/frames'
 import {WebVideoFrameSchema} from '../../shared/webVideo'
 import {createCloudPlaybackSessions} from '../services/cloudPlayback'
+import {completeOAuth, oauthLaunchMode, oauthResultPage, parseOAuthReturnUrl, registerOAuthHandler} from '../services/oauthFlow'
+import {getDriveConfig} from '../services/cloudDrive/config'
 
 export default function registerCloudAccounts(app: Express, db: ApiDb) {
   const accounts = getCloudAccounts(), router = express.Router()
@@ -29,6 +31,36 @@ export default function registerCloudAccounts(app: Express, db: ApiDb) {
       if (retryAfter !== undefined) res.setHeader('Retry-After', retryAfter)
       res.status(status).json({code: (err as {code?: string})?.code || 'cloud_request_failed', message: err instanceof z.ZodError ? 'Invalid cloud request.' : 'Cloud request failed. Check the account connection.'})
     }
+  }
+  const oauthMessages: Record<string, string> = {
+    oauth_denied: 'Access was not granted. Start sign-in again. / Доступ не предоставлен. Начните вход заново.',
+    invalid_client: 'The provider rejected the Client ID or secret. / Провайдер отклонил Client ID или секрет.',
+    redirect_uri_mismatch: 'The redirect URI does not match the provider app settings. / Адрес возврата не совпадает с настройками приложения у провайдера.',
+    network_error: 'MediaChips could not reach the provider to finish sign-in. / MediaChips не удалось связаться с провайдером для завершения входа.',
+  }
+  registerOAuthHandler({
+    owns: state => accounts.owns(state),
+    async complete(state, code, error) {
+      try { await accounts.callback(state, code, !!error); return {ok: true} }
+      catch (err) {
+        const code = (err as {code?: string}).code || 'failed'
+        return {ok: false, code, message: oauthMessages[code] || 'Sign-in failed or expired. Start sign-in again in MediaChips. / Вход не удался или истёк. Начните заново в MediaChips.'}
+      }
+    },
+  })
+  /** The main Google Drive OAuth client, reusable by extra Google accounts. */
+  const sharedGoogleClient = (port: number | undefined) => {
+    const config = getDriveConfig()
+    if (config.mock || !config.clientId || !config.clientSecret || !callbackReachesApi(config.redirectUri, port)) return
+    return {clientId: config.clientId, clientSecret: config.clientSecret, redirectUri: config.redirectUri}
+  }
+  /** Google accounts submitted without keys use the shared client. */
+  const withSharedGoogleClient = (req: Request) => {
+    const body = (req.body || {}) as Record<string, unknown>
+    if (body.provider !== 'gdrive' || (typeof body.clientId === 'string' && body.clientId.trim())) return body
+    const shared = sharedGoogleClient(req.socket.localPort)
+    if (!shared) throw Object.assign(new Error('Set up the Google Drive OAuth client first.'), {code: 'google_client_missing', status: 409})
+    return {...body, ...shared}
   }
   const id = (req: Request) => z.string().uuid().parse(req.params.id)
   const mediaId = (req: Request) => z.coerce.number().int().positive().parse(req.params.mediaId)
@@ -72,7 +104,8 @@ export default function registerCloudAccounts(app: Express, db: ApiDb) {
   }
   router.get('/configuration', route((req, res) => {
     const managed = CloudProviderSchema.options.filter(provider => managedInput(provider, req.socket.localPort))
-    res.json({redirectUri: localCloudCallback(req.socket.localPort!, 'cloud-accounts'), mode: 'local-credentials', managed})
+    res.json({redirectUri: localCloudCallback(req.socket.localPort!, 'cloud-accounts'), mode: 'local-credentials', managed,
+      googleClient: !!sharedGoogleClient(req.socket.localPort)})
   }))
   router.post('/managed', route((req, res) => {
     const {provider} = z.object({provider: CloudProviderSchema}).strict().parse(req.body)
@@ -81,21 +114,27 @@ export default function registerCloudAccounts(app: Express, db: ApiDb) {
     res.status(201).json(accounts.create(db, input))
   }))
   router.get('/', route((_req, res) => { res.json(accounts.list(db)) }))
-  router.post('/', route((req, res) => { res.status(201).json(accounts.create(db, req.body)) }))
-  router.put('/:id/configuration', route((req, res) => { const account = accounts.configure(db, id(req), req.body); playback.invalidate(id(req)); res.json(account) }))
+  router.post('/', route((req, res) => { res.status(201).json(accounts.create(db, withSharedGoogleClient(req))) }))
+  router.put('/:id/configuration', route((req, res) => { const account = accounts.configure(db, id(req), withSharedGoogleClient(req)); playback.invalidate(id(req)); res.json(account) }))
   router.post('/:id/oauth/start', route((req, res) => {
     const account = accounts.list(db).find(a => a.id === id(req))
     if (account && !callbackReachesApi(account.redirectUri, req.socket.localPort)) throw Object.assign(new Error('redirect_uri_mismatch'), {code: 'redirect_uri_mismatch', status: 400})
-    const started = accounts.start(db, id(req)); playback.invalidate(id(req)); res.json(started) }))
+    const {redirectUri, ...started} = accounts.start(db, id(req)); playback.invalidate(id(req))
+    res.json({...started, mode: oauthLaunchMode(req, redirectUri)}) }))
   router.get('/:id/oauth/status', route((req, res) => { res.json({result: accounts.result(db, id(req), z.string().regex(/^[a-f0-9]{64}$/).parse(req.query.state))}) }))
   router.post('/:id/oauth/cancel', route((req, res) => { accounts.cancel(db, id(req)); res.json({ok: true}) }))
   router.get('/oauth/callback', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store')
-    try {
-      await accounts.callback(z.string().regex(/^[a-f0-9]{64}$/).parse(req.query.state), typeof req.query.code === 'string' ? req.query.code : undefined, !!req.query.error)
-      res.type('html').send('<!doctype html><meta charset="utf-8"><meta name="referrer" content="no-referrer"><p>Облачный аккаунт подключён. Cloud account connected. Можно закрыть окно.</p>')
-    } catch { res.status(400).type('text').send('Authorization failed or expired. Start sign-in again in MediaChips.') }
+    const result = await completeOAuth(typeof req.query.state === 'string' ? req.query.state : '',
+      typeof req.query.code === 'string' ? req.query.code : undefined, req.query.error ? String(req.query.error) : undefined)
+    res.status(result.ok ? 200 : 400).type('html').send(oauthResultPage(result))
   })
+  router.post('/oauth/complete', route(async (req, res) => {
+    const parsed = parseOAuthReturnUrl((req.body as {url?: unknown} | undefined)?.url)
+    if (!parsed) { res.status(400).json({code: 'invalid_oauth_url', message: 'Paste the full address from the browser address bar.'}); return }
+    const result = await completeOAuth(parsed.state, parsed.code, parsed.error)
+    if (result.ok) res.json({ok: true}); else res.status(400).json({code: result.code, message: result.message})
+  }))
   router.delete('/:id', route((req, res) => {
     const accountId = id(req)
     accounts.remove(db, accountId)

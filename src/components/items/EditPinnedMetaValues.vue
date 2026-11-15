@@ -179,7 +179,7 @@
               >
                 <div v-if="propRows" class="prop-row__label">
                   <v-icon v-if="labelIcons" size="18" class="prop-row__icon" :icon="'mdi-alphabetical-variant'" />
-                  <span class="prop-row__name">{{ t('common.name') }}</span>
+                  <span class="prop-row__name"><template v-for="(part, pi) in nameParts(t('common.name'))" :key="pi"><mark v-if="part.matched" class="prop-row__match">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
                 </div>
                 <v-text-field
                   v-model="vals.name"
@@ -206,7 +206,7 @@
               >
                 <div v-if="propRows" class="prop-row__label">
                   <v-icon v-if="labelIcons" size="18" class="prop-row__icon" :icon="'mdi-alphabetical'" />
-                  <span class="prop-row__name">{{ t('filters.sort.synonyms') }}</span>
+                  <span class="prop-row__name"><template v-for="(part, pi) in nameParts(t('filters.sort.synonyms'))" :key="pi"><mark v-if="part.matched" class="prop-row__match">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
                 </div>
                 <v-text-field
                   v-model="vals.synonyms"
@@ -236,7 +236,7 @@
                 >
                   <div class="prop-row__label">
                     <v-icon v-if="labelIcons" size="18" class="prop-row__icon" icon="mdi-star-outline" />
-                    <span class="prop-row__name">{{ t('meta.default_names.rating') }}</span>
+                    <span class="prop-row__name"><template v-for="(part, pi) in nameParts(t('meta.default_names.rating'))" :key="pi"><mark v-if="part.matched" class="prop-row__match">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
                   </div>
                   <div class="editing-rating-field">
                     <v-rating
@@ -263,7 +263,7 @@
                 >
                   <div class="prop-row__label">
                     <v-icon v-if="labelIcons" size="18" class="prop-row__icon" icon="mdi-heart-outline" />
-                    <span class="prop-row__name">{{ t('meta.default_names.favorite') }}</span>
+                    <span class="prop-row__name"><template v-for="(part, pi) in nameParts(t('meta.default_names.favorite'))" :key="pi"><mark v-if="part.matched" class="prop-row__match">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
                   </div>
                   <v-checkbox
                     v-model="vals.favorite"
@@ -365,7 +365,7 @@
               >
                 <div v-if="propRows" class="prop-row__label">
                   <v-icon v-if="labelIcons" size="18" class="prop-row__icon" :icon="'mdi-eye'" />
-                  <span class="prop-row__name">{{ t('settings_labels.appearance.number_of_views') }}</span>
+                  <span class="prop-row__name"><template v-for="(part, pi) in nameParts(t('settings_labels.appearance.number_of_views'))" :key="pi"><mark v-if="part.matched" class="prop-row__match">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
                 </div>
                 <v-number-input
                   v-model="vals.views"
@@ -398,7 +398,7 @@
               >
                 <div v-if="propRows" class="prop-row__label">
                   <v-icon v-if="labelIcons" size="18" class="prop-row__icon" :icon="'mdi-palette-outline'" />
-                  <span class="prop-row__name">{{ t('meta.default_names.color') }}</span>
+                  <span class="prop-row__name"><template v-for="(part, pi) in nameParts(t('meta.default_names.color'))" :key="pi"><mark v-if="part.matched" class="prop-row__match">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
                 </div>
                 <v-text-field
                   :model-value="vals.color || ''"
@@ -452,7 +452,7 @@
               >
                 <div v-if="propRows" class="prop-row__label">
                   <v-icon v-if="labelIcons" size="18" class="prop-row__icon" :icon="'mdi-flag-outline'" />
-                  <span class="prop-row__name">{{ t('meta.default_names.country') }}</span>
+                  <span class="prop-row__name"><template v-for="(part, pi) in nameParts(t('meta.default_names.country'))" :key="pi"><mark v-if="part.matched" class="prop-row__match">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
                 </div>
                 <MetaInputCountry
                   @update:model-value="setValByKey($event, 'country')"
@@ -508,7 +508,7 @@
             >
               <div v-if="propRows" class="prop-row__label">
                 <v-icon v-if="labelIcons" size="18" class="prop-row__icon" :icon="'mdi-tag-multiple-outline'" />
-                <span class="prop-row__name">{{ t('meta.fields.mixed_tags_label') }}</span>
+                <span class="prop-row__name"><template v-for="(part, pi) in nameParts(t('meta.fields.mixed_tags_label'))" :key="pi"><mark v-if="part.matched" class="prop-row__match">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
               </div>
               <MetaInputMixedTags
                 :key="`mixed_${currentItemId}`"
@@ -569,7 +569,7 @@
               >
                 <div v-if="propRows" class="prop-row__label">
                   <v-icon v-if="labelIcons" size="18" class="prop-row__icon" :icon="'mdi-bookmark-outline'" />
-                  <span class="prop-row__name">{{ t('meta.default_names.bookmark') }}</span>
+                  <span class="prop-row__name"><template v-for="(part, pi) in nameParts(t('meta.default_names.bookmark'))" :key="pi"><mark v-if="part.matched" class="prop-row__match">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
                 </div>
                 <v-textarea
                   v-model="vals.bookmark"
@@ -602,7 +602,7 @@
               >
                 <div v-if="propRows" class="prop-row__label">
                   <v-icon v-if="labelIcons" size="18" class="prop-row__icon" :icon="`mdi-${metaIcon(entry.item)}`" />
-                  <span class="prop-row__name">{{ metaName(entry.item) }}</span>
+                  <span class="prop-row__name"><template v-for="(part, pi) in nameParts(metaName(entry.item))" :key="pi"><mark v-if="part.matched" class="prop-row__match">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
                 </div>
                 <MetaInputArray
                   v-if="entry.item.meta?.type === 'array'"
@@ -743,9 +743,25 @@
 
         <div
           v-if="showFieldToolbar && visibleAssignedItems.length === 0 && !showMixedTagsField && assignedItems.length > 0"
-          class="editing-section__empty text-medium-emphasis text-body-2 mt-2"
+          class="editing-section__empty"
+          role="status"
         >
-          {{ t('editing.no_matching_fields') }}
+          <div class="editing-section__empty-icon">
+            <v-icon icon="mdi-text-search-variant" size="28" />
+          </div>
+          <div class="editing-section__empty-title">{{ t('editing.no_matching_fields') }}</div>
+          <div class="editing-section__empty-hint">{{ t('editing.no_matching_fields_hint') }}</div>
+          <v-btn
+            variant="tonal"
+            color="primary"
+            size="small"
+            rounded="lg"
+            prepend-icon="mdi-filter-remove-outline"
+            class="mt-3"
+            @click="resetFieldSearch"
+          >
+            {{ t('editing.reset_field_search') }}
+          </v-btn>
         </div>
       </v-container>
     </v-form>
@@ -791,6 +807,7 @@ import {createImage, createUnavailableImage, checkFileExists} from '@/services/f
 import {refreshMediaFileInfo} from '@/services/mediaFileInfoService'
 import {setNotification} from '@/services/notificationService'
 import {setOption} from '@/services/settingsService'
+import {highlightSettingsMatch} from '@/utils/settingsNavigation'
 import {
   cloneMetaFieldValue,
   cloneMetaValues,
@@ -1130,6 +1147,19 @@ const matchesFieldSearch = (label: string): boolean => {
   const query = (fieldSearch.value ?? '').trim().toLowerCase()
   if (!query) return true
   return label.toLowerCase().includes(query)
+}
+
+function resetFieldSearch() {
+  fieldSearch.value = ''
+  fieldFilter.value = 'all'
+}
+
+/** Split a field label into plain / matched parts for the field search highlight. */
+const nameParts = (label: string | undefined) => {
+  const text = label ?? ''
+  const query = (fieldSearch.value ?? '').trim()
+  if (!query || !showFieldToolbar.value) return [{text, matched: false}]
+  return highlightSettingsMatch(text, query)
 }
 
 const shouldShowPinnedField = (options: {
@@ -2568,9 +2598,50 @@ defineExpose({
     margin-inline-start: 10px;
   }
 
+  // Pinned to the right edge with a fixed width; the free space stays on its left.
   .editing-section__group--search {
-    flex: 0 1 18rem;
+    flex: 0 1 20rem;
+    min-width: 12rem;
     margin-inline-start: auto;
+  }
+
+  .editing-section__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 12px;
+    // Body padding is smaller vertically than horizontally — top it up so the
+    // gap under the card matches the gap on its right.
+    margin-bottom: calc(var(--edit-deck-pad-x, 0px) - var(--edit-deck-pad-y, 0px));
+    padding: 28px 16px;
+    border: 1px dashed rgba(var(--v-theme-on-surface), 0.14);
+    border-radius: 14px;
+    background: rgba(var(--v-theme-on-surface), 0.02);
+    text-align: center;
+  }
+
+  .editing-section__empty-icon {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    margin-bottom: 10px;
+    border-radius: 50%;
+    background: rgba(var(--v-theme-primary), 0.1);
+    color: rgb(var(--v-theme-primary));
+  }
+
+  .editing-section__empty-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: rgba(var(--v-theme-on-surface), 0.87);
+  }
+
+  .editing-section__empty-hint {
+    margin-top: 4px;
+    font-size: 0.8125rem;
+    color: rgba(var(--v-theme-on-surface), 0.6);
   }
 
   .editing-section__tags-icon {
@@ -2759,6 +2830,12 @@ defineExpose({
     .v-checkbox {
       margin-inline-start: 2px;
     }
+
+    // Row aligns items to start (multi-line fields); a bare checkbox is
+    // shorter than the label column, so center it on the label instead.
+    > .v-checkbox {
+      align-self: center;
+    }
   }
 
   // Counters: compact, never stretched across the whole row.
@@ -2790,6 +2867,14 @@ defineExpose({
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .prop-row__match {
+    background: rgba(var(--v-theme-primary), 0.16);
+    color: rgb(var(--v-theme-primary));
+    border-radius: 3px;
+    font-weight: 600;
+    padding: 0 1px;
   }
 
   .prop-row--empty:not(:focus-within) .prop-row__label {

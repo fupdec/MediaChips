@@ -30,6 +30,7 @@ export type CloudDriveService = {
   cancelOAuthState(state: string): void
   cancelOAuth(): void
   consumeOAuthState(state: string, error?: DriveOAuthErrorCode): boolean
+  ownsOAuthState(state: string): boolean
   logout(): void
   listFolder(folderId: string, pageToken?: string): ReturnType<DriveTransport['listFolder']>
   streamFile: typeof streamDriveFile
@@ -100,6 +101,7 @@ function createCloudDriveService(options?: {
     },
     oauthError(state) { return completed.get(state)?.error },
     consumeOAuthState,
+    ownsOAuthState(state) { return (pending.get(state) || 0) > Date.now() },
     cancelOAuthState(state) { pending.delete(state); verifiers.delete(state); completed.delete(state) },
     cancelOAuth() { authGeneration++; pending.clear(); verifiers.clear(); completed.clear() },
 

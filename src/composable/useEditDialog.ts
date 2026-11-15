@@ -8,6 +8,9 @@ export interface EditDialogHeaderButton {
   title?: string
   color?: string
   outlined?: boolean
+  kind?: 'primary' | 'tonal' | 'quiet'
+  /** Hotkey hint badge, e.g. 'mod+s'. */
+  shortcut?: string
   /** Legacy field kept by the tag dialog's original buttons; DialogHeader ignores it. */
   variant?: string
   disabled?: boolean
@@ -46,7 +49,7 @@ export function useEditDialogButtons() {
     ;(opts.fetchers ?? []).forEach((f, i) => {
       list.push({icon: f.icon, text: f.text, color: 'info', outlined: true, order: 10 + i, action: f.action})
     })
-    list.push({icon: 'content-save', text: t('common.save'), color: 'success', outlined: false, order: 100, action: opts.onSave})
+    list.push({icon: 'content-save', text: t('common.save'), color: 'success', outlined: false, shortcut: 'mod+s', order: 100, action: opts.onSave})
     return list
   }
 

@@ -1622,6 +1622,8 @@ const cn = {
     search_fields: '搜索…',
     filter_fields_label: '显示字段',
     no_matching_fields: '没有匹配的字段',
+    no_matching_fields_hint: '尝试其他搜索词或显示所有字段。',
+    reset_field_search: '重置搜索',
     overview_expand: '显示文件信息',
     overview_collapse: '隐藏文件信息',
     unsaved_changes: '有未保存的更改',
@@ -1635,6 +1637,7 @@ const cn = {
     log_in: '登录',
     password_required: '输入密码',
     wrong_password: '密码错误',
+    too_many_attempts: '失败次数过多。请在 15 分钟后重试。',
   },
   bulk_editing: {
     title: '批量编辑',

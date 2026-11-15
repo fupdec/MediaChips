@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { buildAuthedWsUrl } from '@/services/authSession'
 import { translate } from '@/utils/translate'
 import { useSettingsStore } from '@/stores/settings'
 import { useTasksStore } from '@/stores/tasks'
@@ -254,7 +255,7 @@ export const useOperationsStore = defineStore('useOperationsStore', {
           resolve(result)
         }
 
-        const wsUrl = (app.localhost || '').replace('http', 'ws') + '/moving'
+        const wsUrl = buildAuthedWsUrl(app.localhost || '', '/moving')
         const ws = new WebSocket(wsUrl)
         const updateTask = (data: Record<string, unknown>) => tasks.updateTask(taskId, data)
 

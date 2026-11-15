@@ -1622,6 +1622,8 @@ const de = {
     search_fields: 'Suchen…',
     filter_fields_label: 'Felder anzeigen',
     no_matching_fields: 'Keine passenden Felder',
+    no_matching_fields_hint: 'Versuche eine andere Suche oder zeige alle Felder.',
+    reset_field_search: 'Suche zurücksetzen',
     overview_expand: 'Dateiinformationen anzeigen',
     overview_collapse: 'Dateiinformationen ausblenden',
     unsaved_changes: 'Ungespeicherte Änderungen',
@@ -1635,6 +1637,7 @@ const de = {
     log_in: 'Anmelden',
     password_required: 'Passwort eingeben',
     wrong_password: 'Falsches Passwort',
+    too_many_attempts: 'Zu viele Fehlversuche. Versuche es in 15 Minuten erneut.',
   },
   bulk_editing: {
     title: 'Massenbearbeitung',

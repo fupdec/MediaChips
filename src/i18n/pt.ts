@@ -1622,6 +1622,8 @@ const pt = {
     search_fields: 'Buscar…',
     filter_fields_label: 'Mostrar campos',
     no_matching_fields: 'Nenhum campo correspondente',
+    no_matching_fields_hint: 'Tente outra busca ou mostre todos os campos.',
+    reset_field_search: 'Redefinir busca',
     overview_expand: 'Mostrar informações do arquivo',
     overview_collapse: 'Ocultar informações do arquivo',
     unsaved_changes: 'Alterações não salvas',
@@ -1635,6 +1637,7 @@ const pt = {
     log_in: 'Faça login',
     password_required: 'Digite sua senha',
     wrong_password: 'Senha errada',
+    too_many_attempts: 'Muitas tentativas falhadas. Tente novamente em 15 minutos.',
   },
   bulk_editing: {
     title: 'Edição em massa',

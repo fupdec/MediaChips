@@ -9,7 +9,8 @@ export const CloudAccountInputSchema = z.object({
   redirectUri: z.string().url().max(2048).refine(v => {
     const u = new URL(v)
     return ['http:', 'https:'].includes(u.protocol) && !u.username && !u.password && !u.search && !u.hash
-      && u.pathname === '/api/cloud-accounts/oauth/callback'
+      // Google accounts may share the main Drive client and its callback.
+      && ['/api/cloud-accounts/oauth/callback', '/api/drive/oauth/callback'].includes(u.pathname)
   }),
 }).strict()
 export type CloudAccountInput = z.infer<typeof CloudAccountInputSchema>

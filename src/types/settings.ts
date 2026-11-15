@@ -299,7 +299,7 @@ export type SettingsState = {
 }
 
 export const defaultSettingsState = (): SettingsState => ({
-  allowLanAccess: '1',
+  allowLanAccess: '0',
   passwordProtection: '0',
   phrase: '',
   passwordHint: '',

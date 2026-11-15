@@ -82,14 +82,17 @@
               <span class="text-caption text-medium-emphasis">
                 {{ t('settings_labels.database.health_guide_next') }}:
               </span>
-              <button
-                type="button"
-                class="widget-health__next-link"
+              <v-btn
+                size="small"
+                variant="tonal"
+                color="primary"
+                rounded="lg"
+                :prepend-icon="nextIssue.icon"
+                class="widget-health__next-btn"
                 @click="nextIssue.action?.()"
               >
-                <v-icon size="14">{{ nextIssue.icon }}</v-icon>
                 {{ nextIssue.text }}
-              </button>
+              </v-btn>
             </div>
           </div>
         </div>
@@ -678,22 +681,10 @@ onBeforeUnmount(() => {
   gap: 6px;
 }
 
-.widget-health__next-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 0;
-  background: transparent;
-  color: rgb(var(--v-theme-primary));
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-  text-align: left;
-}
-
-.widget-health__next-link:hover {
-  text-decoration: underline;
+.widget-health__next-btn {
+  max-width: 100%;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .widget-health__actions {

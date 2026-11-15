@@ -21,6 +21,7 @@ import {
 } from '@/utils/watcherScanNotifications'
 import {useMediaInboxStore} from '@/stores/mediaInbox'
 import uniqBy from 'lodash/uniqBy'
+import {buildAuthedWsUrl} from '@/services/authSession'
 
 export function useWatcher(apiUrl: string) {
   const settingsStore = useSettingsStore()
@@ -59,9 +60,7 @@ export function useWatcher(apiUrl: string) {
     }
 
     try {
-      watcherStore.ws = new WebSocket(
-        apiUrl.replace('http', 'ws') + '/watcher'
-      )
+      watcherStore.ws = new WebSocket(buildAuthedWsUrl(apiUrl, '/watcher'))
 
       watcherStore.ws.onopen = () => {
         console.log('WebSocket connected')

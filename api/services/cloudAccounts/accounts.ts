@@ -80,6 +80,7 @@ export function createCloudAccounts(directory = path.join(process.env.MEDIA_CHIP
       for (const [state, entry] of pending) if (entry.id === id) pending.delete(state)
       return this.list(db).find(a => a.id === id)!
     },
+    owns(state: string) { return (pending.get(state)?.expires || 0) > Date.now() },
     start(db: ApiDb, id: string) {
       row(db, id)
       const value = get(id)
@@ -96,7 +97,7 @@ export function createCloudAccounts(directory = path.join(process.env.MEDIA_CHIP
       if (value.provider === 'gdrive') { query.set('access_type', 'offline'); query.set('prompt', 'consent select_account') }
       if (value.provider === 'onedrive') query.set('prompt', 'select_account')
       if (value.provider === 'dropbox') query.set('token_access_type', 'offline')
-      return {url: `${endpoints[value.provider].auth}?${query}`, state}
+      return {url: `${endpoints[value.provider].auth}?${query}`, state, redirectUri: value.redirectUri}
     },
     async callback(state: string, code?: string, denied = false) {
       const entry = pending.get(state)

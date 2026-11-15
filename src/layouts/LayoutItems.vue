@@ -291,7 +291,9 @@
 
     <ItemsPaginationBar
       class="items-pagination--top"
-      v-if="showPagination && !loader.is_busy"
+      keyboard
+      v-if="showPagination"
+      :class="{ 'items-pagination--busy': loader.is_busy }"
       v-model:page="paginationPage"
       v-model:jump-page="jumpPageForPagination"
       :pages="pages"
@@ -449,7 +451,8 @@
 
     <ItemsPaginationBar
       class="items-pagination--bottom"
-      v-if="showPagination && !loader.is_busy"
+      v-if="showPagination"
+      :class="{ 'items-pagination--busy': loader.is_busy }"
       v-model:page="paginationPage"
       v-model:jump-page="jumpPageForPagination"
       :pages="pages"
@@ -1560,6 +1563,11 @@ defineEmits<{
   &:hover {
     transform: none;
   }
+}
+
+.items-layout-container .items-pagination--busy {
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
 }
 
 .items-layout-container .items-pagination--top {

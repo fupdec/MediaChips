@@ -3302,7 +3302,8 @@ body > .video-preview-container.video-preview-container--expanded {
   --edit-deck-radius: 16px;
   // Tall enough for filled floating labels above the value.
   --edit-deck-control-h: 40px;
-  --edit-deck-search-h: 28px;
+  // Same height as the compact segmented filter next to it (28 + 2×3 + 2).
+  --edit-deck-search-h: 36px;
 
   display: flex;
   flex-direction: column;
@@ -3313,7 +3314,7 @@ body > .video-preview-container.video-preview-container--expanded {
     --edit-deck-pad-y: 8px;
     --edit-deck-gap: 8px;
     --edit-deck-control-h: 36px;
-    --edit-deck-search-h: 26px;
+    --edit-deck-search-h: 36px;
   }
 
   &__body {
@@ -3329,17 +3330,23 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 
   .editing-section__search {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
 
     .v-field {
       --v-input-control-height: var(--edit-deck-search-h);
-      font-size: 0.75rem;
+      font-size: 0.875rem;
+      border-radius: 11px;
+    }
+
+    .v-field__prepend-inner .v-icon {
+      font-size: 20px;
+      opacity: 0.7;
     }
 
     .v-field__input {
       min-height: var(--edit-deck-search-h) !important;
       max-height: var(--edit-deck-search-h);
-      font-size: 0.75rem !important;
+      font-size: 0.875rem !important;
       line-height: 1.2 !important;
       padding-top: 0 !important;
       padding-bottom: 0 !important;
@@ -4303,6 +4310,14 @@ body > .video-preview-container.video-preview-container--expanded {
     padding: 0.5em 0.55em 0.55em;
   }
 
+  // L…XXL cards are 1.2–2× wider than M, but the base item font only grows
+  // ~8% per step, so title and meta chips looked tiny on big cards. Scale the
+  // description (title, synonyms, chips, labels) on its own so preview
+  // overlays keep their size. Keep in sync with DESCRIPTION_HEIGHT.
+  &.item__size-4 .description { font-size: 1.26rem; }
+  &.item__size-5 .description { font-size: 1.46rem; }
+  &.item__size-6 .description { font-size: 1.66rem; }
+
   .item-title {
     font-weight: 600;
     line-height: 1.25;
@@ -4336,6 +4351,15 @@ body > .video-preview-container.video-preview-container--expanded {
 
     .nested-tag-chip-wrap {
       display: inline-flex;
+    }
+
+    // Plain values (numbers, sizes, short text): same chip as tags, but
+    // neutral and centred so "3" or "C" don't read as stray dots.
+    .nested-value-chip {
+      min-width: 1.9em;
+      justify-content: center;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
     }
 
     // Flat mode.
@@ -4383,5 +4407,105 @@ body > .video-preview-container.video-preview-container--expanded {
     .nested-tags__toggle {
       margin: 0 !important;
     }
+  }
+}
+
+// ── Quiet card overlays ─────────────────────────────────────────────────────
+// Stars and the heart are noise when repeated on every card. On the preview
+// they stay hidden until hover/focus; a rated card shows a compact "★ 4" chip
+// instead, and a favorite is signalled by the card's permanent pink outline.
+.item {
+  .item_preview > .rating,
+  .item_preview > .fav-btn {
+    opacity: 0;
+  }
+
+  &:hover,
+  &:focus-within {
+    .item_preview > .rating {
+      opacity: 0.95;
+    }
+
+    .item_preview > .fav-btn {
+      opacity: 0.9;
+    }
+
+    .item_preview > .item-rating-badge {
+      opacity: 0;
+    }
+  }
+
+  .item_preview > .item-rating-badge {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 22px;
+    padding: 0 8px 0 6px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+
+    .v-icon {
+      color: #ffc107;
+    }
+  }
+
+  // Touch screens have no hover: keep the controls reachable.
+  @media (hover: none) {
+    .item_preview > .rating,
+    .item_preview > .fav-btn {
+      opacity: 0.9;
+    }
+
+    .item_preview > .item-rating-badge {
+      display: none;
+    }
+  }
+
+  // Long alias lists: two lines max, full list in the tooltip (grid cards).
+  &.item-view-1 .description > .synonyms {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+}
+
+// Tag card without a photo: calm tile with initials (not an "error" glyph).
+.item .tag-thumb-placeholder {
+  cursor: pointer;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(var(--v-theme-primary), 0.14), transparent 60%),
+    rgba(var(--v-theme-on-surface), 0.06);
+
+  .v-responsive__content {
+    display: flex;
+  }
+
+  &__inner {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__initials {
+    font-size: 3.4em;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: rgba(var(--v-theme-primary), 0.35);
+    user-select: none;
   }
 }

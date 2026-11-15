@@ -49,9 +49,9 @@ describe('applyLanAccessChange', () => {
     })
   })
 
-  it('does not restart the HTTP listener when LAN is already enabled', async () => {
-    // initLanAccess defaults lanEnabled to true before deps are registered.
-    await applyLanAccessChange(true)
+  it('does not restart the HTTP listener when LAN is already disabled', async () => {
+    // LAN is opt-in: lanEnabled defaults to false before deps are registered.
+    await applyLanAccessChange(false)
     expect(restartListener).not.toHaveBeenCalled()
     expect(saveConfigFile).toHaveBeenCalled()
   })

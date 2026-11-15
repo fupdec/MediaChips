@@ -7,7 +7,7 @@ import {driveMediaPath} from '../../shared/cloudDrive'
 import type {Request, Response} from 'express'
 import {sourceRetryAfter, sourceFailure, sourceRateLimited} from '../../shared/sourceErrors'
 import {getCloudDriveService, resetCloudDriveService} from '../services/cloudDrive'
-import {hasSavedDriveConfiguration, removeDriveConfiguration, saveDriveConfiguration} from '../services/cloudDrive/config'
+import {hasSavedDriveConfiguration, removeDriveConfiguration, saveDriveConfiguration, usesAutomaticDriveRedirect} from '../services/cloudDrive/config'
 import {listDriveFolder, importDriveFile, driveLibraryFile} from '../services/cloudDrive/library'
 import {DriveImportSchema, DriveFileIdSchema, isDriveMediaPath} from '../../shared/cloudDrive'
 import {WebVideoFrameSchema} from '../../shared/webVideo'
@@ -20,6 +20,7 @@ import {checkOAuthClient, validateOAuthClient} from '../services/cloudDrive/oaut
 import {DriveOAuthError, driveOAuthErrorCode, driveOAuthErrorMessages, type DriveOAuthErrorCode} from '../services/cloudDrive/oauthErrors'
 import {createCloudPlaybackSessions} from '../services/cloudPlayback'
 import {createDriveSourceAdapter} from '../services/mediaSources/driveAdapter'
+import {completeOAuth, oauthLaunchMode, oauthResultPage, parseOAuthReturnUrl, registerOAuthHandler, type OAuthCompletion} from '../services/oauthFlow'
 
 function createCloudDriveController(db: ApiDb) {
   const playback = createCloudPlaybackSessions(db)
@@ -34,7 +35,28 @@ function createCloudDriveController(db: ApiDb) {
     }
     res.status(status === 401 ? 409 : status).json({code: driveOAuthErrorCode(err), message: err instanceof z.ZodError ? 'Invalid Google Drive request.' : err instanceof Error ? err.message : 'Google Drive request failed.'})
   }
-  const callbackPage = (res: Response, ok: boolean, code: DriveOAuthErrorCode = 'unknown') => res.status(ok ? 200 : 400).type('html').send(`<!doctype html><html><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>MediaChips · Google Drive</title><body><p>${ok ? 'Google Drive connected. You can close this window. / Google Drive подключён. Можно закрыть это окно.' : driveOAuthErrorMessages[code]}</p><script>window.close()</script></body></html>`)
+  registerOAuthHandler({
+    owns: state => getCloudDriveService().ownsOAuthState(state),
+    async complete(state, code, error): Promise<OAuthCompletion> {
+      const service = getCloudDriveService()
+      if (error || !code) {
+        const failed: DriveOAuthErrorCode = error === 'access_denied' ? 'access_denied' : 'unknown'
+        service.consumeOAuthState(state, failed)
+        return {ok: false, code: failed, message: driveOAuthErrorMessages[failed]}
+      }
+      try {
+        const autoTarget = pinSourceDb(db)
+        await service.handleOAuthCallback(code, state)
+        try { autoTarget.assertCurrent(); notifyCopySourceConnected(autoTarget.db, DEFAULT_DRIVE_CONNECTION_ID) }
+        catch { /* Authentication may finish after switching libraries. */ }
+        return {ok: true}
+      } catch (err) {
+        const failed = driveOAuthErrorCode(err)
+        console.warn('[drive] OAuth callback failed:', failed)
+        return {ok: false, code: failed, message: driveOAuthErrorMessages[failed]}
+      }
+    },
+  })
   const controller = {
     async status(req: Request, res: Response) {
       res.setHeader('Cache-Control', 'no-store')
@@ -42,6 +64,7 @@ function createCloudDriveController(db: ApiDb) {
       res.json({
         ...service.status(),
         hasSavedConfiguration: hasSavedDriveConfiguration(),
+        automaticRedirectUri: usesAutomaticDriveRedirect(),
         suggestedRedirectUri: localCloudCallback(req.socket.localPort!, 'drive'),
         redirectUriMismatch: !callbackReachesApi(service.config.redirectUri, req.socket.localPort),
         oauthResult: typeof req.query.oauthState === 'string' ? service.oauthResult(req.query.oauthState) : undefined,
@@ -60,33 +83,32 @@ function createCloudDriveController(db: ApiDb) {
         if (service !== getCloudDriveService()) throw new DriveOAuthError('cancelled')
         const url = service.getAuthUrl()
         playback.invalidate()
-        res.json({url, oauthState: new URL(url).searchParams.get('state'), redirectUri: service.config.redirectUri, scopes: service.config.scopes})
+        res.json({url, oauthState: new URL(url).searchParams.get('state'), redirectUri: service.config.redirectUri, scopes: service.config.scopes,
+          mode: oauthLaunchMode(_req, service.config.redirectUri)})
       } catch (err: unknown) {
         res.status(400).json({code: driveOAuthErrorCode(err), message: err instanceof Error ? err.message : 'Google Drive sign-in failed.'})
       }
     },
 
+    /** Shared Google callback: also finishes additional Google Drive accounts
+     * that reuse this OAuth client, dispatched by state. */
     async oauthCallback(req: Request, res: Response) {
-      const service = getCloudDriveService()
-      const state = typeof req.query.state === 'string' ? req.query.state : ''
-      const code = typeof req.query.code === 'string' ? req.query.code : ''
       res.setHeader('Cache-Control', 'no-store')
-      if (req.query.error || !code) {
-        const code: DriveOAuthErrorCode = req.query.error === 'access_denied' ? 'access_denied' : 'unknown'
-        service.consumeOAuthState(state, code)
-        return callbackPage(res, false, code)
-      }
-      try {
-        const autoTarget = pinSourceDb(db)
-        await service.handleOAuthCallback(code, state)
-        try { autoTarget.assertCurrent(); notifyCopySourceConnected(autoTarget.db, DEFAULT_DRIVE_CONNECTION_ID) }
-        catch { /* Authentication may finish after switching libraries. */ }
-        return callbackPage(res, true)
-      } catch (err) {
-        const code = driveOAuthErrorCode(err)
-        console.warn('[drive] OAuth callback failed:', code)
-        return callbackPage(res, false, code)
-      }
+      const state = typeof req.query.state === 'string' ? req.query.state : ''
+      const result = await completeOAuth(state, typeof req.query.code === 'string' ? req.query.code : undefined,
+        typeof req.query.error === 'string' ? req.query.error : req.query.error ? 'unknown' : undefined)
+      res.status(result.ok ? 200 : 400).type('html').send(oauthResultPage(result))
+    },
+
+    /** NAS/Docker: the browser cannot reach the API's 127.0.0.1 callback, so the
+     * user pastes the address-bar URL of the failed redirect page instead. */
+    async oauthComplete(req: Request, res: Response) {
+      res.setHeader('Cache-Control', 'no-store')
+      const parsed = parseOAuthReturnUrl((req.body as {url?: unknown} | undefined)?.url)
+      if (!parsed) { res.status(400).json({code: 'invalid_oauth_url', message: 'Paste the full address from the browser address bar.'}); return }
+      const result = await completeOAuth(parsed.state, parsed.code, parsed.error)
+      if (result.ok) res.json({ok: true})
+      else res.status(400).json({code: result.code, message: result.message})
     },
 
     async oauthHealth(_req: Request, res: Response) {

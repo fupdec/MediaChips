@@ -115,6 +115,7 @@
         </div>
 
         <v-chip
+          class="nested-value-chip"
           :label="settingsStore.show_default_meta_label == '1'"
           :variant="defaultMetaChipVariant"
           :text="String(meta.value ?? item[meta.name] ?? '')"
@@ -161,6 +162,9 @@
           <v-chip
             v-for="i in category.items"
             :key="`${i.name}_${item.id}`"
+            class="nested-value-chip"
+            :label="settingsStore.show_default_meta_label == '1'"
+            :variant="defaultMetaChipVariant"
             :title="formatMetaValue(i)"
             :text="formatMetaValue(i)"
           ></v-chip>
@@ -189,6 +193,7 @@
         v-for="meta in visiblePresetMeta"
         :key="meta.name"
         :title="meta.text"
+        class="nested-value-chip"
         :label="settingsStore.show_default_meta_label == '1'"
         :variant="defaultMetaChipVariant"
         :prepend-icon="`mdi-${meta.icon}`"
@@ -222,6 +227,9 @@
 
         <v-chip
           v-else
+          class="nested-value-chip"
+          :label="settingsStore.show_default_meta_label == '1'"
+          :variant="defaultMetaChipVariant"
           :prepend-icon="`mdi-${entry.data.icon}`"
           :title="formatMetaValue(entry.data)"
           :text="formatMetaValue(entry.data)"
@@ -329,6 +337,8 @@ const props = withDefaults(defineProps<{
   grouped?: boolean
   /** Limit grouped/flat output to tag fields or value fields (preset meta goes with values). */
   kind?: 'all' | 'tags' | 'values'
+  /** Chips shown before the "+N" toggle; cards pass a size/aspect-aware value. */
+  collapseLimit?: number
 }>(), {
   grouped: false,
   kind: 'all',
@@ -618,6 +628,11 @@ watch(() => props.item.id, () => {
 
 const collapseEnabled = computed(() => !props.tagPage && !props.isShowAll)
 
+const chipLimit = computed((): number => {
+  const limit = Math.floor(Number(props.collapseLimit))
+  return limit > 0 ? limit : CHIP_COLLAPSE_LIMIT
+})
+
 const totalChipCount = computed((): number => {
   if (isGrouped.value) {
     return preset_meta.value.length
@@ -626,31 +641,33 @@ const totalChipCount = computed((): number => {
   return preset_meta.value.length + pinnedFlatComputed.value.length
 })
 
+// A "+1" toggle takes as much room as the chip it hides — collapse only
+// when at least two chips would go behind it.
 const needsCollapse = computed(() =>
-  collapseEnabled.value && totalChipCount.value > CHIP_COLLAPSE_LIMIT,
+  collapseEnabled.value && totalChipCount.value > chipLimit.value + 1,
 )
 
 const hiddenChipCount = computed(() =>
-  Math.max(0, totalChipCount.value - CHIP_COLLAPSE_LIMIT),
+  Math.max(0, totalChipCount.value - chipLimit.value),
 )
 
 const isChipsCollapsed = computed(() => needsCollapse.value && !chipsExpanded.value)
 
 const visiblePresetMeta = computed(() => {
   if (!isChipsCollapsed.value) return preset_meta.value
-  return preset_meta.value.slice(0, CHIP_COLLAPSE_LIMIT)
+  return preset_meta.value.slice(0, chipLimit.value)
 })
 
 const visibleFlatEntries = computed((): PinnedFlatEntry[] => {
   if (!isChipsCollapsed.value) return pinnedFlatComputed.value
-  const remaining = Math.max(0, CHIP_COLLAPSE_LIMIT - preset_meta.value.length)
+  const remaining = Math.max(0, chipLimit.value - preset_meta.value.length)
   return pinnedFlatComputed.value.slice(0, remaining)
 })
 
 const visibleCategories = computed((): PinnedCategory[] => {
   if (!isChipsCollapsed.value) return pinnedCategoriesComputed.value
 
-  let remaining = Math.max(0, CHIP_COLLAPSE_LIMIT - preset_meta.value.length)
+  let remaining = Math.max(0, chipLimit.value - preset_meta.value.length)
   const result: PinnedCategory[] = []
 
   for (const category of pinnedCategoriesComputed.value) {

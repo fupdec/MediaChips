@@ -53,7 +53,7 @@
           density="compact"
           rounded="xl"
         >
-          {{ t('login.wrong_password') }}
+          {{ t(throttled ? 'login.too_many_attempts' : 'login.wrong_password') }}
         </v-alert>
       </v-card-text>
     </v-card>
@@ -89,6 +89,7 @@ const eventBus = useEventBus()
 const password = ref('');
 const showPassword = ref(false);
 const error = ref(false);
+const throttled = ref(false);
 const loading = ref(false);
 const buttons = computed(() => [
   {
@@ -120,7 +121,8 @@ const logIn = async () => {
     setAuthToken(res.data.token)
     emit('success')
     eventBus.emit('app:authenticated')
-  } catch {
+  } catch (err: unknown) {
+    throttled.value = (err as {response?: {status?: number}})?.response?.status === 429
     error.value = true
   } finally {
     loading.value = false

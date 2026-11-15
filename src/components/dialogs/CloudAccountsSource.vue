@@ -1,8 +1,17 @@
 <template>
   <div class="cloud-accounts-source">
-    <v-alert v-if="error" type="error" closable @click:close="error = ''" class="mb-3">{{ error }}</v-alert>
-    <v-alert v-if="authMessage" type="info" class="mb-3">{{ authMessage }}</v-alert>
-    <v-btn v-if="authAttempt" variant="flat" color="primary" rounded="lg" @click="cancelSignIn">{{ tr('Отменить вход', 'Cancel sign-in') }}</v-btn>
+    <v-alert v-if="error && !editing" type="error" variant="tonal" density="compact" rounded="lg" closable class="cloud-accounts-source__notice" @click:close="error = ''">{{ error }}</v-alert>
+    <div v-if="authAttempt" class="cloud-accounts-source__waiting">
+      <div class="cloud-accounts-source__waiting-status" role="status">
+        <v-progress-circular indeterminate color="primary" size="14" width="2" aria-hidden="true" />
+        <span>{{ authMessage || tr('Завершите вход в открывшемся окне.', 'Complete sign-in in the opened window.') }}</span>
+      </div>
+      <v-btn size="small" variant="tonal" color="primary" rounded="lg" @click="cancelSignIn">{{ tr('Отменить', 'Cancel') }}</v-btn>
+    </div>
+    <v-alert v-else-if="authMessage" :type="authOk ? 'success' : 'warning'" variant="tonal" density="compact" rounded="lg" closable
+             class="cloud-accounts-source__notice" @click:close="authMessage = ''">{{ authMessage }}</v-alert>
+    <GoogleMismatchHelp v-if="authAttempt && account?.provider === 'gdrive'" class="mb-2" @json="fixWithJson" />
+    <OAuthPasteField v-if="authAttempt?.mode === 'paste'" class="mb-2" endpoint="/api/cloud-accounts/oauth/complete" @completed="checkSignInNow" />
     <v-select v-if="!unified" v-model="accountId" :items="visibleAccounts" item-title="name" item-value="id" :label="tr('Облачный аккаунт', 'Cloud account')" :disabled="busy" variant="outlined" density="compact" hide-details class="mb-3" @update:model-value="resetFolder" />
     <div v-if="!unified" class="d-flex flex-wrap ga-2 mb-4 account-toolbar">
       <v-btn v-if="!unified" @click="addAccount" :disabled="busy" prepend-icon="mdi-plus">{{ tr('Добавить аккаунт', 'Add account') }}</v-btn>
@@ -15,46 +24,101 @@
     <DialogConfirm v-model:dialog="confirmRemoval" variant="delete" @confirm="deleteAccount">
       {{ t('sources.remove_connection_confirm', {name: account?.name || ''}) }}
     </DialogConfirm>
-    <v-dialog v-model="editing" max-width="560" persistent scrollable>
-      <v-card rounded="xl">
+    <v-dialog v-model="editing" max-width="580" persistent scrollable>
+      <v-card rounded="xl" class="account-dialog">
         <DialogHeader :header="editingId ? tr('Настройка аккаунта', 'Account settings') : tr('Новый облачный аккаунт', 'New cloud account')"
                       :icon="providerStyle(form.provider).icon.replace('mdi-', '')" :buttons="editorButtons" compact closable
                       :close-disabled="busy" :close-label="tr('Отмена', 'Cancel')" @close="closeEditor" />
         <v-card-text class="account-editor">
           <v-alert v-if="error" type="error" variant="tonal" density="compact" rounded="lg" class="mb-4">{{ error }}</v-alert>
-          <template v-if="!editingId">
-            <v-select v-if="!props.provider" v-model="form.provider" :disabled="busy" :items="providers"
-                      :label="tr('Провайдер', 'Provider')" variant="outlined" density="compact" />
-            <p v-if="!managedAvailable" class="text-body-2 mb-3">{{ t('sources.managed_oauth_unavailable') }}</p>
-          </template>
-          <details :open="!!editingId" class="account-editor__help">
-            <summary>{{ t('sources.advanced_oauth') }}</summary>
-            <p class="account-editor__description">{{ tr('Ключи приложения хранятся только на этом компьютере.', 'App credentials stay on this computer.') }}</p>
+
+          <section v-if="!editingId && !props.provider" class="account-editor__section">
+            <h3 class="account-editor__label">{{ tr('Сервис', 'Service') }}</h3>
+            <div class="account-editor__providers" role="radiogroup" :aria-label="tr('Сервис', 'Service')">
+              <button v-for="item in providers" :key="item.value" type="button" role="radio" :aria-checked="form.provider === item.value"
+                      class="account-editor__provider" :class="{'account-editor__provider--active': form.provider === item.value}"
+                      :style="{'--provider-color': providerStyle(item.value).color}" :disabled="busy" @click="selectProvider(item.value)">
+                <span class="account-editor__provider-icon"><v-icon :icon="providerStyle(item.value).icon" size="26" /></span>
+                <span class="account-editor__provider-name">{{ item.title }}</span>
+                <v-icon v-if="form.provider === item.value" icon="mdi-check-circle" size="16" class="account-editor__provider-check" />
+              </button>
+            </div>
+          </section>
+
+          <section class="account-editor__section">
+            <v-text-field v-model="form.name" :disabled="busy" :label="tr('Название', 'Name')" :placeholder="providerName(form.provider)"
+                          variant="outlined" density="compact" rounded="lg" hide-details="auto" maxlength="120" prepend-inner-icon="mdi-label-outline" />
+          </section>
+
+          <section v-if="quickConnect" class="account-editor__managed">
+            <v-icon :icon="sharedGoogle ? 'mdi-key-chain-variant' : 'mdi-lightning-bolt-outline'" size="20" />
+            <div>
+              <strong>{{ sharedGoogle ? tr('Ключи уже настроены', 'Keys are already set up') : tr('Быстрое подключение', 'Quick connect') }}</strong>
+              <p>{{ sharedGoogle
+                ? tr('Используется OAuth-клиент основного подключения Google Drive. Нажмите «Подключить» и выберите нужный Google-аккаунт.', 'Uses the OAuth client of the main Google Drive connection. Click "Connect" and pick the Google account.')
+                : tr('Нажмите «Подключить» — откроется окно входа в аккаунт. Ничего настраивать не нужно.', 'Click "Connect" to open the sign-in window. Nothing else to set up.') }}</p>
+            </div>
+          </section>
+
+          <component :is="quickConnect ? 'details' : 'section'" class="account-editor__oauth" :class="{'account-editor__oauth--collapsible': quickConnect}">
+            <summary v-if="quickConnect">{{ sharedGoogle ? tr('Использовать другой OAuth-клиент', 'Use a different OAuth client') : t('sources.advanced_oauth') }}</summary>
+            <header class="account-editor__oauth-head">
+              <h3 class="account-editor__label">{{ tr('Своё OAuth-приложение', 'Your own OAuth app') }}</h3>
+              <span class="account-editor__local"><v-icon icon="mdi-lock-outline" size="13" />{{ tr('Ключи хранятся только на этом компьютере', 'Keys stay on this computer') }}</span>
+            </header>
+
+            <ol class="account-editor__steps">
+              <li v-for="(step, index) in setupSteps" :key="index">
+                <span class="account-editor__step-index">{{ index + 1 }}</span>
+                <span class="account-editor__step-text">{{ step.text }}
+                  <a v-if="step.link" href="#" @click.prevent="openLink(step.link)">{{ step.linkText }}<v-icon icon="mdi-open-in-new" size="12" /></a>
+                </span>
+              </li>
+            </ol>
+
+            <div v-if="form.provider !== 'gdrive' || !googleDesktop" class="account-editor__callback">
+              <span class="account-editor__callback-label">{{ tr('Адрес возврата (Redirect URI)', 'Redirect URI') }}</span>
+              <div class="account-editor__callback-row">
+                <code>{{ form.redirectUri || callbackUri }}</code>
+                <v-btn size="x-small" variant="text" rounded="lg" :icon="copied ? 'mdi-check' : 'mdi-content-copy'" :color="copied ? 'success' : undefined"
+                       :aria-label="tr('Копировать', 'Copy')" v-tooltip:top="tr('Копировать', 'Copy')" @click="copyCallback" />
+              </div>
+            </div>
+
+            <div v-if="form.provider === 'gdrive'" class="account-editor__drop" :class="{'account-editor__drop--active': dragging}"
+                 @dragover.prevent="dragging = true" @dragleave="dragging = false" @drop.prevent="onGoogleDrop">
+              <v-icon icon="mdi-file-key-outline" size="22" />
+              <span>{{ googleJsonNotice || tr('Перетащите сюда JSON клиента из Google Cloud — поля заполнятся сами.', 'Drop the client JSON from Google Cloud here — fields fill in automatically.') }}</span>
+              <v-btn size="small" variant="tonal" color="primary" rounded="lg" :disabled="busy" @click="googleJson?.click()">{{ t('drive.json_choose') }}</v-btn>
+              <input ref="googleJson" type="file" accept=".json,application/json" hidden @change="onGoogleJson">
+            </div>
+
             <v-form @submit.prevent="create()">
-              <v-defaults-provider :defaults="{VTextField: {variant: 'outlined', density: 'compact', rounded: 'lg', hideDetails: 'auto'}, VSelect: {variant: 'outlined', density: 'compact', rounded: 'lg', hideDetails: 'auto'}}">
+              <v-defaults-provider :defaults="{VTextField: {variant: 'outlined', density: 'compact', rounded: 'lg', hideDetails: 'auto'}}">
                 <div class="account-editor__fields">
-                  <v-text-field v-model="form.name" :class="{'account-editor__full-width': props.provider}" :disabled="busy" :label="tr('Название аккаунта', 'Account name')" :placeholder="providerName(form.provider)" maxlength="120" />
-                  <v-text-field v-model="form.clientId" :disabled="busy" label="OAuth Client ID / App key" required />
-                  <v-text-field v-model="form.clientSecret" :disabled="busy" type="password" :label="tr('Секрет приложения (если требуется)', 'Client secret (if required)')" autocomplete="new-password" />
-                  <v-text-field v-model="form.redirectUri" class="account-editor__redirect" :disabled="busy" label="OAuth Redirect URI" required />
+                  <v-text-field v-model="form.clientId" :disabled="busy" :label="form.provider === 'dropbox' ? 'App key' : 'Client ID'" required />
+                  <v-text-field v-model="form.clientSecret" :disabled="busy" type="password" autocomplete="new-password"
+                                :label="form.provider === 'dropbox' ? 'App secret' : 'Client secret'"
+                                :placeholder="editingId ? tr('Без изменений', 'Unchanged') : undefined" />
                 </div>
+                <details class="account-editor__advanced">
+                  <summary>{{ tr('Изменить адрес возврата', 'Change redirect URI') }}</summary>
+                  <v-text-field v-model="form.redirectUri" class="account-editor__redirect mt-2" :disabled="busy" label="Redirect URI" required />
+                </details>
               </v-defaults-provider>
-              <details class="account-editor__help">
-                <summary>{{ tr('Как настроить OAuth', 'OAuth setup help') }}</summary>
-                <p>{{ tr('Создайте OAuth-приложение у провайдера и зарегистрируйте callback API (не dev-сервера):', 'Create an OAuth app with your provider and register the API callback (not the dev server):') }}</p>
-                <code>{{ callbackUri }}</code>
-                <p v-if="form.provider === 'gdrive'">{{ tr('Google Drive подключается отдельно, только для чтения. Существующее подключение сохраняется.', 'Google Drive connects as a separate read-only account. Your existing connection is retained.') }}</p>
-              </details>
-              <v-btn type="submit" variant="tonal" color="primary" class="mt-3" :disabled="!canSaveManual">
-                {{ t('sources.save_and_connect') }}
-              </v-btn>
-              <v-btn v-if="editingId" variant="text" class="mt-3" :disabled="!canSaveManual" @click="create(false)">{{ t('common.save') }}</v-btn>
+              <button type="submit" hidden />
             </v-form>
-          </details>
+          </component>
+
+          <p v-if="!editingId && !quickConnect" class="account-editor__footnote">{{ t('sources.managed_oauth_unavailable') }}</p>
         </v-card-text>
       </v-card>
     </v-dialog>
-    <v-alert v-if="account && !account.authenticated" type="info" class="mb-3">{{ tr('Подключите аккаунт, чтобы открыть файлы.', 'Connect the account to browse files.') }}</v-alert>
+    <div v-if="account && !account.authenticated && !authAttempt" class="cloud-accounts-source__empty">
+      <v-icon :icon="providerStyle(account.provider).icon" size="20" />
+      <span>{{ tr('Подключите аккаунт, чтобы открыть файлы.', 'Connect the account to browse files.') }}</span>
+      <v-btn size="small" variant="flat" color="primary" rounded="lg" prepend-icon="mdi-login" :disabled="busy" @click="connect()">{{ t('sources.connect_account') }}</v-btn>
+    </div>
     <template v-if="account?.authenticated">
       <div class="d-flex ga-2 mb-2">
         <v-btn :disabled="busy || !history.length" @click="back" icon="mdi-arrow-up" :aria-label="tr('Назад', 'Back')" />
@@ -99,11 +163,15 @@ import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
 import {useRemoteMediaAddingProcess} from '@/composable/useRemoteMediaAddingProcess'
 import {type CloudAccount, type CloudAccountInput, type CloudProvider} from '@shared/cloudAccounts'
 import {mediaFileKind} from '@shared/mediaFormats'
+import {googleClientRedirect, parseGoogleOAuthClientFile} from '@shared/googleOAuthClient'
 import {importExtensionMatcher, remotePathExcluder, type RemoteImportOptions} from '@/services/remoteImportOptions'
 import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {useEventBus} from '@/utils/eventBus'
 import RemoteProcessingPanel from './RemoteProcessingPanel.vue'
+import OAuthPasteField from './OAuthPasteField.vue'
+import GoogleMismatchHelp from './GoogleMismatchHelp.vue'
+import {openOAuthUrl, prepareOAuthWindow, type OAuthLaunchMode} from '@/services/oauthWindow'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 type Entry = {resourceKey: string; name: string; size: number; isDirectory: boolean; contentType: string}
 const props = defineProps<{extensions?: string; importOptions?: RemoteImportOptions; provider?: CloudAccountInput['provider']; unified?: boolean}>()
@@ -119,17 +187,61 @@ const busy = ref(false), stopping = ref(false), editing = ref(false), error = re
 const entries = ref<Entry[]>([]), selected = ref<string[]>([]), folder = ref('root'), history = ref<string[]>([]), nextPageToken = ref<string>()
 const imported = ref<Array<{id: number; title: string}>>([]), processingId = ref<number>()
 const callbackUri = ref('')
+const googleJson = ref<HTMLInputElement>(), googleJsonNotice = ref(''), googleDesktop = ref(false), dragging = ref(false), copied = ref(false)
+async function readGoogleJson(file?: File | null) {
+  const parsed = file && file.size < 64 * 1024 ? parseGoogleOAuthClientFile(await file.text()) : null
+  if (!parsed) { googleJsonNotice.value = t('drive.json_invalid'); googleDesktop.value = false; return }
+  const redirect = googleClientRedirect(parsed, callbackUri.value, '/api/cloud-accounts/oauth/callback')
+  form.value = {...form.value, clientId: parsed.clientId, clientSecret: parsed.clientSecret, redirectUri: redirect.redirectUri || callbackUri.value}
+  googleDesktop.value = parsed.type === 'installed'
+  googleJsonNotice.value = parsed.type === 'installed' ? t('drive.json_desktop_ok') : redirect.registered ? t('drive.json_web_ok') : t('drive.json_web_missing')
+}
+async function onGoogleJson(event: Event) {
+  const input = event.target as HTMLInputElement, file = input.files?.[0]
+  input.value = ''
+  await readGoogleJson(file)
+}
+function onGoogleDrop(event: DragEvent) { dragging.value = false; void readGoogleJson(event.dataTransfer?.files?.[0]) }
+function openLink(url: string) { if (app.isElectron) void openExternal(url); else window.open(url, '_blank', 'noopener') }
+async function copyCallback() {
+  const value = form.value.redirectUri || callbackUri.value
+  try { await navigator.clipboard.writeText(value); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* clipboard unavailable */ }
+}
+function selectProvider(provider: CloudProvider) {
+  if (busy.value || form.value.provider === provider) return
+  form.value = {...form.value, provider, clientId: '', clientSecret: '', redirectUri: callbackUri.value}
+  googleJsonNotice.value = ''; googleDesktop.value = false; error.value = ''
+}
+const setupSteps = computed(() => {
+  const provider = form.value.provider
+  if (provider === 'onedrive') return [
+    {text: tr('Зарегистрируйте приложение в Microsoft Entra.', 'Register an app in Microsoft Entra.'), link: 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade', linkText: tr('Открыть', 'Open')},
+    {text: tr('В разделе «Authentication» добавьте платформу Web и вставьте адрес возврата ниже.', 'Under "Authentication" add a Web platform and paste the redirect URI below.')},
+    {text: tr('Создайте секрет в «Certificates & secrets» и скопируйте Client ID и секрет сюда.', 'Create a secret in "Certificates & secrets", then copy the Client ID and secret here.')},
+  ]
+  if (provider === 'dropbox') return [
+    {text: tr('Создайте приложение с доступом Full Dropbox.', 'Create an app with Full Dropbox access.'), link: 'https://www.dropbox.com/developers/apps/create', linkText: tr('Открыть', 'Open')},
+    {text: tr('Во вкладке Permissions включите files.metadata.read и files.content.read.', 'On the Permissions tab enable files.metadata.read and files.content.read.')},
+    {text: tr('Добавьте адрес возврата ниже в Redirect URIs и скопируйте App key и App secret.', 'Add the redirect URI below to Redirect URIs, then copy the App key and App secret.')},
+  ]
+  return [
+    {text: tr('Включите Google Drive API в своём проекте.', 'Enable the Google Drive API in your project.'), link: 'https://console.cloud.google.com/apis/library/drive.googleapis.com', linkText: tr('Открыть', 'Open')},
+    {text: tr('Создайте OAuth-клиент типа «Приложение для ПК» и скачайте JSON.', 'Create a "Desktop app" OAuth client and download its JSON.'), link: 'https://console.cloud.google.com/auth/clients/create', linkText: tr('Создать', 'Create')},
+    {text: tr('Добавьте свой адрес Gmail в тестовые пользователи.', 'Add your Gmail address as a test user.'), link: 'https://console.cloud.google.com/auth/audience', linkText: tr('Открыть', 'Open')},
+  ]
+})
 const managedProviders = ref<CloudProvider[]>([])
-const authMessage = ref('')
-const authAttempt = ref<{id: string; state: string; deadline: number}>()
+const authMessage = ref(''), authOk = ref(false)
+const authAttempt = ref<{id: string; state: string; deadline: number; mode: OAuthLaunchMode}>()
+const googleClient = ref(false)
 let authPoll: ReturnType<typeof setTimeout> | undefined
-const form = ref<CloudAccountInput>({provider: 'onedrive', name: '', clientId: '', clientSecret: '', redirectUri: callbackUri.value})
+const form = ref<CloudAccountInput>({provider: 'gdrive', name: '', clientId: '', clientSecret: '', redirectUri: callbackUri.value})
 const providerStyle = (provider: string) => provider === 'onedrive'
-  ? {icon: 'mdi-microsoft-onedrive'}
+  ? {icon: 'mdi-microsoft-onedrive', color: '#0078d4'}
   : provider === 'dropbox'
-    ? {icon: 'mdi-dropbox'}
-    : {icon: 'mdi-google-drive'}
-const providers = [{title: 'OneDrive', value: 'onedrive'}, {title: 'Dropbox', value: 'dropbox'}, {title: 'Google Drive', value: 'gdrive'}]
+    ? {icon: 'mdi-dropbox', color: '#0061ff'}
+    : {icon: 'mdi-google-drive', color: '#34a853'}
+const providers = [{title: 'Google Drive', value: 'gdrive'}, {title: 'Dropbox', value: 'dropbox'}, {title: 'OneDrive', value: 'onedrive'}]
 const providerName = (provider: string) => providers.find(item => item.value === provider)?.title || provider
 let controller: AbortController | undefined
 let reloadRequested = false
@@ -142,8 +254,9 @@ const guarded = async (action: () => Promise<void>) => {
 const base = () => `/api/cloud-accounts/${accountId.value}`
 async function refresh() {
   await guarded(async () => {
-    const {data: config} = await apiClient.get<{redirectUri: string; managed?: CloudProvider[]}>('/api/cloud-accounts/configuration', {signal: controller?.signal})
+    const {data: config} = await apiClient.get<{redirectUri: string; managed?: CloudProvider[]; googleClient?: boolean}>('/api/cloud-accounts/configuration', {signal: controller?.signal})
     callbackUri.value = config.redirectUri
+    googleClient.value = !!config.googleClient
     managedProviders.value = config.managed || []
     accounts.value = (await apiClient.get<CloudAccount[]>('/api/cloud-accounts', {signal: controller?.signal})).data
     if (!visibleAccounts.value.some(a => a.id === accountId.value)) accountId.value = visibleAccounts.value[0]?.id || '' })
@@ -151,12 +264,26 @@ async function refresh() {
 }
 function closeEditor() { editing.value = false; form.value.clientSecret = '' }
 const managedAvailable = computed(() => managedProviders.value.includes(form.value.provider))
-const canSaveManual = computed(() => !busy.value && !!form.value.clientId.trim() && !!form.value.redirectUri.trim())
-const editorButtons = computed(() => editingId.value ? [] : [
-  {text: t('sources.connect_account'), color: 'primary', loading: busy.value, disabled: busy.value || !managedAvailable.value, action: () => create(true, true)},
-])
-function addAccount() { error.value = ''; editingId.value = ''; editing.value = true; form.value = {provider: props.provider || 'onedrive', name: '', clientId: '', clientSecret: '', redirectUri: callbackUri.value} }
-function editAccount() { if (!account.value) return; editingId.value = account.value.id; editing.value = true; form.value = {provider: account.value.provider, name: account.value.name, clientId: '', clientSecret: '', redirectUri: account.value.redirectUri || callbackUri.value} }
+/** Extra Google accounts reuse the main Drive OAuth client: no keys to enter. */
+const sharedGoogle = computed(() => form.value.provider === 'gdrive' && googleClient.value)
+const usesSharedGoogle = computed(() => sharedGoogle.value && !form.value.clientId.trim())
+const quickConnect = computed(() => sharedGoogle.value || (!editingId.value && managedAvailable.value))
+const canSaveManual = computed(() => !busy.value && (usesSharedGoogle.value || (!!form.value.clientId.trim() && !!form.value.redirectUri.trim())))
+const editorButtons = computed(() => {
+  if (editingId.value) return [
+    {text: t('common.save'), icon: 'check', color: 'secondary', disabled: !canSaveManual.value, action: () => create(false)},
+    {text: t('sources.save_and_connect'), icon: 'login', color: 'primary', loading: busy.value, disabled: !canSaveManual.value, action: () => create()},
+  ]
+  if (usesSharedGoogle.value) return [
+    {text: t('sources.connect_account'), icon: 'login', color: 'primary', loading: busy.value, disabled: !canSaveManual.value, action: () => create()},
+  ]
+  if (managedAvailable.value && !form.value.clientId.trim()) return [
+    {text: t('sources.connect_account'), icon: 'login', color: 'primary', loading: busy.value, disabled: busy.value, action: () => create(true, true)},
+  ]
+  return [{text: t('sources.save_and_connect'), icon: 'login', color: 'primary', loading: busy.value, disabled: !canSaveManual.value, action: () => create()}]
+})
+function addAccount() { error.value = ''; editingId.value = ''; editing.value = true; googleJsonNotice.value = ''; googleDesktop.value = false; form.value = {provider: props.provider || 'gdrive', name: '', clientId: '', clientSecret: '', redirectUri: callbackUri.value} }
+function editAccount() { if (!account.value) return; googleJsonNotice.value = ''; googleDesktop.value = false; editingId.value = account.value.id; editing.value = true; form.value = {provider: account.value.provider, name: account.value.name, clientId: '', clientSecret: '', redirectUri: account.value.redirectUri || callbackUri.value} }
 async function create(signIn = true, managed = false) {
   if (busy.value) return
   const input = {...form.value, name: form.value.name.trim() || providerName(form.value.provider)}
@@ -184,7 +311,7 @@ async function cancelSignIn() {
   if (!attempt) return
   await apiClient.post(`/api/cloud-accounts/${attempt.id}/oauth/cancel`)
   stopAuthPoll(); authAttempt.value = undefined
-  authMessage.value = tr('Вход отменён. Можно начать заново.', 'Sign-in cancelled. You can try again.')
+  authOk.value = false; authMessage.value = ''
 }
 async function pollSignIn() {
   const attempt = authAttempt.value
@@ -194,6 +321,7 @@ async function pollSignIn() {
     if (authAttempt.value !== attempt) return
     if (data.result !== 'waiting' || Date.now() > attempt.deadline) {
       authAttempt.value = undefined; stopAuthPoll()
+      authOk.value = data.result === 'connected'
       authMessage.value = data.result === 'connected' ? tr('Аккаунт подключён.', 'Account connected.')
         : data.result === 'invalid_client' ? tr('Провайдер отклонил Client ID или secret. Проверьте настройки аккаунта.', 'Provider rejected the Client ID or secret. Check account settings.')
         : data.result === 'redirect_uri_mismatch' ? tr('Проверьте точное совпадение callback в MediaChips и консоли провайдера.', 'Check that the callback matches exactly in MediaChips and the provider console.')
@@ -208,20 +336,26 @@ async function pollSignIn() {
   }
   if (authAttempt.value === attempt) authPoll = setTimeout(pollSignIn, 1500)
 }
-function openSignInWindow() {
-  return useAppStore().isElectron ? null : window.open('about:blank', '_blank', 'popup,width=600,height=760')
+/** redirect_uri_mismatch fix: stop the failed sign-in and open the account prefilled from the new client JSON. */
+async function fixWithJson(file: File) {
+  await cancelSignIn().catch(() => {})
+  editAccount()
+  if (editing.value) await readGoogleJson(file)
 }
+function openSignInWindow() { return prepareOAuthWindow('mediachips-cloud-account') }
+/** The pasted redirect finished sign-in: report the result right away. */
+function checkSignInNow() { stopAuthPoll(); void pollSignIn() }
 async function connect(signInWindow?: Window | null) {
   if (busy.value) { signInWindow?.close(); return }
   const popup = signInWindow === undefined ? openSignInWindow() : signInWindow
   await guarded(async () => {
     try {
       await cancelSignIn()
-      const {data} = await apiClient.post<{url: string; state: string}>(`${base()}/oauth/start`, {}, {signal: controller?.signal})
-      authAttempt.value = {id: accountId.value, state: data.state, deadline: Date.now() + 10 * 60_000}
-      authMessage.value = tr('Завершите вход во внешнем браузере или нажмите «Отменить вход».', 'Complete sign-in in your browser or cancel sign-in.')
+      const {data} = await apiClient.post<{url: string; state: string; mode?: OAuthLaunchMode}>(`${base()}/oauth/start`, {}, {signal: controller?.signal})
+      authAttempt.value = {id: accountId.value, state: data.state, deadline: Date.now() + 10 * 60_000, mode: data.mode || 'callback'}
+      authOk.value = false; authMessage.value = ''
       authPoll = setTimeout(pollSignIn, 1500)
-      if (popup) { popup.opener = null; popup.location.href = data.url } else await openExternal(data.url)
+      await openOAuthUrl(popup, data.url)
     } catch (err) { popup?.close(); await cancelSignIn(); throw err }
   })
 }
@@ -351,19 +485,90 @@ defineExpose({account, editAccount, connect, logout, removeAccount, accounts, ac
 </script>
 
 <style scoped>
-.account-editor { padding: 12px 20px 16px !important; }
-.account-editor__description { margin-bottom: 12px; font-size: 12px; color: rgba(var(--v-theme-on-surface), .65); }
+.cloud-accounts-source__notice { margin-bottom: 8px; font-size: .8125rem; }
+.cloud-accounts-source__waiting,
+.cloud-accounts-source__empty {
+  display: flex; align-items: center; gap: 10px; min-height: 48px; margin-bottom: 8px; padding: 8px 12px; border-radius: 10px;
+  font-size: .8125rem; line-height: 1.4;
+}
+.cloud-accounts-source__waiting { justify-content: space-between; background: rgba(var(--v-theme-primary), .06); }
+.cloud-accounts-source__waiting-status { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cloud-accounts-source__waiting-status .v-progress-circular { flex-shrink: 0; }
+.cloud-accounts-source__empty { border: 1px dashed rgba(var(--v-theme-on-surface), .18); color: rgba(var(--v-theme-on-surface), .75); }
+.cloud-accounts-source__empty > span { flex: 1; min-width: 0; }
+.account-editor { display: grid; gap: 16px; padding: 14px 20px 20px !important; }
+.account-editor > .v-alert { margin: 0 !important; }
+.account-editor__section { display: grid; gap: 8px; }
+.account-editor__label { margin: 0; font-size: .75rem; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: rgba(var(--v-theme-on-surface), .6); }
+
+.account-editor__providers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.account-editor__provider {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 8px 12px;
+  border: 1px solid rgba(var(--v-theme-on-surface), .12); border-radius: 14px; background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface)); font: inherit; cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.account-editor__provider:hover:not(:disabled) { border-color: rgba(var(--v-theme-on-surface), .28); transform: translateY(-1px); }
+.account-editor__provider:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); outline-offset: 2px; }
+.account-editor__provider:disabled { opacity: .5; cursor: default; }
+.account-editor__provider--active {
+  border-color: var(--provider-color); background: color-mix(in srgb, var(--provider-color) 8%, rgb(var(--v-theme-surface)));
+  box-shadow: 0 0 0 1px var(--provider-color) inset;
+}
+.account-editor__provider-icon {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+  color: var(--provider-color); background: color-mix(in srgb, var(--provider-color) 12%, transparent);
+}
+.account-editor__provider-name { font-size: .8125rem; font-weight: 500; }
+.account-editor__provider-check { position: absolute; top: 8px; right: 8px; color: var(--provider-color); }
+
+.account-editor__managed {
+  display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 12px;
+  background: rgba(var(--v-theme-primary), .07); color: rgb(var(--v-theme-on-surface)); font-size: .8125rem;
+}
+.account-editor__managed .v-icon { color: rgb(var(--v-theme-primary)); margin-top: 1px; }
+.account-editor__managed p { margin: 2px 0 0; color: rgba(var(--v-theme-on-surface), .7); }
+
+.account-editor__oauth { display: grid; gap: 14px; padding: 14px; border: 1px solid rgba(var(--v-theme-on-surface), .1); border-radius: 14px; }
+.account-editor__oauth--collapsible:not([open]) { gap: 0; }
+.account-editor__oauth > summary { cursor: pointer; font-size: .8125rem; font-weight: 500; color: rgb(var(--v-theme-primary)); }
+.account-editor__oauth-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.account-editor__local { display: inline-flex; align-items: center; gap: 4px; font-size: .6875rem; color: rgba(var(--v-theme-on-surface), .55); }
+
+.account-editor__steps { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: .8125rem; line-height: 1.45; }
+.account-editor__steps li { display: flex; gap: 10px; align-items: flex-start; }
+.account-editor__step-index {
+  flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; margin-top: 1px; border-radius: 50%;
+  font-size: .6875rem; font-weight: 600; color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .12);
+}
+.account-editor__step-text a { display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; color: rgb(var(--v-theme-primary)); text-decoration: none; font-weight: 500; }
+.account-editor__step-text a:hover { text-decoration: underline; }
+
+.account-editor__callback { display: grid; gap: 4px; }
+.account-editor__callback-label { font-size: .75rem; color: rgba(var(--v-theme-on-surface), .6); }
+.account-editor__callback-row {
+  display: flex; align-items: center; gap: 4px; padding: 4px 4px 4px 10px; border-radius: 10px;
+  background: rgba(var(--v-theme-on-surface), .05);
+}
+.account-editor__callback-row code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: .75rem; background: none; user-select: all; }
+
+.account-editor__drop {
+  display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px dashed rgba(var(--v-theme-on-surface), .25);
+  border-radius: 12px; font-size: .8125rem; transition: border-color .15s ease, background-color .15s ease;
+}
+.account-editor__drop > span { flex: 1; min-width: 0; }
+.account-editor__drop--active { border-color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .06); }
+
 .account-editor__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.account-editor__full-width,
-.account-editor__redirect { grid-column: 1 / -1; }
+.account-editor__advanced { margin-top: 10px; font-size: .75rem; }
+.account-editor__advanced summary { cursor: pointer; width: fit-content; color: rgba(var(--v-theme-on-surface), .6); }
 .account-editor__redirect :deep(input) { font-family: monospace; font-size: 12px; }
-.account-editor__help { margin-top: 14px; font-size: 12px; color: rgba(var(--v-theme-on-surface), .7); }
-.account-editor__help summary { cursor: pointer; color: rgb(var(--v-theme-primary)); width: fit-content; }
-.account-editor__help p { margin: 10px 0 6px; }
-.account-editor__help code { display: block; overflow-wrap: anywhere; user-select: all; }
+.account-editor__footnote { margin: 0; font-size: .75rem; color: rgba(var(--v-theme-on-surface), .55); }
 .account-toolbar :deep(.v-btn) { box-shadow: none; font-size: 12px; }
 @media (max-width: 480px) {
   .account-editor { padding-inline: 14px !important; }
   .account-editor__fields { grid-template-columns: minmax(0, 1fr); }
+  .account-editor__provider { padding: 12px 4px 10px; }
+  .account-editor__drop { flex-wrap: wrap; }
 }
 </style>

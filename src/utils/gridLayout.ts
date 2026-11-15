@@ -36,9 +36,32 @@ const DESCRIPTION_HEIGHT: Record<number, number> = {
   1: 118,
   2: 128,
   3: 140,
-  4: 152,
-  5: 164,
-  6: 178,
+  4: 166,
+  5: 190,
+  6: 214,
+}
+
+/**
+ * Card chips shown before the "+N" toggle, for a 16:9 preview.
+ * L…XXL cards are much wider than M, so they hold more chips per line.
+ */
+const CARD_CHIP_LIMIT: Record<number, number> = {
+  1: 12, 2: 12, 3: 12, 4: 14, 5: 16, 6: 18,
+}
+
+const WIDE_PREVIEW_ASPECT = 16 / 9
+const MIN_CARD_CHIP_LIMIT = 6
+
+/**
+ * Size- and orientation-aware chip limit for grid cards. A tall (portrait)
+ * preview already makes the card long, so it leaves room for fewer meta
+ * chips; a 16:9 preview is short and gets the full limit.
+ */
+export function getCardChipLimit(size = 3, previewAspect = WIDE_PREVIEW_ASPECT): number {
+  const base = CARD_CHIP_LIMIT[Number(size)] || CARD_CHIP_LIMIT[3]
+  const aspect = Number(previewAspect) > 0 ? Number(previewAspect) : WIDE_PREVIEW_ASPECT
+  const factor = Math.min(1, Math.max(0.55, Math.sqrt(aspect / WIDE_PREVIEW_ASPECT)))
+  return Math.max(MIN_CARD_CHIP_LIMIT, Math.round(base * factor))
 }
 
 export function getCardDescriptionHeight(size = 3): number {

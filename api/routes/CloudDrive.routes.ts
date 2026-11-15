@@ -20,6 +20,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.get('/oauth/health', controller.oauthHealth)
   router.get('/oauth/start', controller.oauthStart)
   router.get('/oauth/callback', controller.oauthCallback)
+  router.post('/oauth/complete', controller.oauthComplete)
   router.post('/oauth/cancel', controller.oauthCancel)
   router.post('/oauth/logout', controller.logout)
   router.get('/folders/:folderId', controller.listFolder)

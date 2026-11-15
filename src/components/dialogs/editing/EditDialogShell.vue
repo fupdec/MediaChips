@@ -14,6 +14,9 @@
         :subheader-copy-text="subheader"
         :buttons="buttons"
         :icon="icon"
+        :breadcrumbs="breadcrumbs"
+        :dirty="dirty"
+        :loading="loading"
         compact
         closable
         @close="emit('request-close')"
@@ -53,9 +56,13 @@ withDefaults(defineProps<{
   buttons?: EditDialogHeaderButton[]
   persistent?: boolean
   unsavedConfirm?: boolean
+  breadcrumbs?: string[]
+  dirty?: boolean
+  loading?: boolean
 }>(), {
   icon: 'pencil',
   buttons: () => [],
+  breadcrumbs: () => [],
 })
 
 const emit = defineEmits<{

@@ -8,13 +8,26 @@
     :class="{
       'dialog-header--compact': isCompact,
       'dialog-header--scrolled': scrolled,
+      'dialog-header--no-kbd': fitLevel >= 1,
     }"
     :style="{'--dh-tone': `var(--v-theme-${tone})`}"
   >
-    <div class="content">
+    <div
+      v-if="stripe"
+      class="dialog-header__stripe"
+      :style="{background: stripe}"
+      aria-hidden="true"
+    />
+
+    <div
+      ref="contentEl"
+      class="content"
+      :style="iconInset != null ? {paddingLeft: `${iconInset}px`} : undefined"
+    >
       <div class="headline">
         <span
           v-if="icon"
+          ref="iconEl"
           class="headline__icon"
           aria-hidden="true"
         >
@@ -32,16 +45,31 @@
             class="headline__title"
             :title="header"
           >
-            {{ header }}
+            <span
+              v-if="dirty"
+              class="headline__dirty"
+              :title="t('editing.unsaved_changes')"
+            />{{ header }}
           </div>
           <div class="headline__subheader text-medium-emphasis">
+            <template
+              v-for="(crumb, crumbIndex) in breadcrumbs"
+              :key="crumbIndex"
+            >
+              <span class="headline__crumb">{{ crumb }}</span>
+              <v-icon
+                class="headline__crumb-sep"
+                icon="mdi-chevron-right"
+                size="14"
+              />
+            </template>
             <span
               class="headline__subheader-text"
               :title="subheader"
             >{{ subheader }}</span>
             <v-btn
               v-if="subheaderCopyText"
-              class="flex-shrink-0"
+              class="headline__copy"
               variant="text"
               icon
               size="x-small"
@@ -61,7 +89,11 @@
           class="headline__title"
           :title="header"
         >
-          {{ header }}
+          <span
+            v-if="dirty"
+            class="headline__dirty"
+            :title="t('editing.unsaved_changes')"
+          />{{ header }}
         </span>
       </div>
 
@@ -82,6 +114,7 @@
           :class="{
             'dialog-header__action--icon-only': !!btn.icon,
             'dialog-header__action--quiet': kindOf(btn) === 'quiet' && !!btn.icon,
+            'dialog-header__action--collapsed': isCollapsed(btn),
           }"
           @click="run(btn)"
         >
@@ -95,14 +128,12 @@
             v-if="btn.text"
             class="dialog-header__action-text"
           >{{ btn.text }}</span>
+          <kbd
+            v-if="btn.shortcut"
+            class="dialog-header__kbd"
+          >{{ formatShortcut(btn.shortcut) }}</kbd>
         </v-btn>
       </div>
-
-      <span
-        v-if="closable && buttonsOrdered.length"
-        class="dialog-header__sep"
-        aria-hidden="true"
-      />
 
       <v-btn
         v-if="closable"
@@ -112,7 +143,7 @@
         :size="isCompact ? 'small' : undefined"
         :disabled="closeDisabled"
         :aria-label="closeLabel || t('common.close')"
-        :title="closeLabel || t('common.close')"
+        :title="`${closeLabel || t('common.close')} (Esc)`"
         @click="emit('close')"
       >
         <v-icon
@@ -121,16 +152,28 @@
         />
       </v-btn>
     </div>
+
+    <v-progress-linear
+      v-if="loading"
+      class="dialog-header__progress"
+      indeterminate
+      absolute
+      location="bottom"
+      height="2"
+      :color="tone"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import type { PropType } from 'vue'
 import {useI18n} from 'vue-i18n'
-import {useDisplay} from 'vuetify'
+import {useDisplay, useTheme} from 'vuetify'
 import sortBy from 'lodash/sortBy'
 import {copyToClipboard} from '@/utils/copyToClipboard'
+import {isMacOS} from '@/utils/playerWheel'
+import {useSettingsStore} from '@/stores/settings'
 
 type DialogHeaderButtonKind = 'primary' | 'tonal' | 'quiet'
 type DialogHeaderTone = 'primary' | 'error' | 'warning' | 'success' | 'info'
@@ -138,6 +181,8 @@ type DialogHeaderTone = 'primary' | 'error' | 'warning' | 'success' | 'info'
 interface DialogHeaderButton {
   /** Visual weight. Auto when omitted: see kindOf(). */
   kind?: DialogHeaderButtonKind
+  /** Hint badge only (the dialog registers the hotkey itself), e.g. 'mod+s'. */
+  shortcut?: string
   icon?: string
   text?: string
   title?: string
@@ -174,6 +219,15 @@ const props = defineProps({
     type: String as PropType<DialogHeaderTone>,
     default: 'primary',
   },
+  /** Path shown before the subheader: ['Video'] → "Video › file.mp4". */
+  breadcrumbs: {
+    type: Array as PropType<string[]>,
+    default: () => [],
+  },
+  /** Unsaved changes marker next to the title. */
+  dirty: Boolean,
+  /** Thin indeterminate progress line along the bottom edge. */
+  loading: Boolean,
 })
 
 const {t} = useI18n()
@@ -222,16 +276,120 @@ function onContentScroll(event: Event) {
   scrolled.value = scrolledEls.size > 0
 }
 
+/* Left inset of the icon tile = its top inset, so the tile sits in an even frame. */
+const contentEl = ref<HTMLElement | null>(null)
+const iconEl = ref<HTMLElement | null>(null)
+const iconInset = ref<number | null>(null)
+let insetObserver: ResizeObserver | null = null
+
+function updateIconInset() {
+  const box = contentEl.value
+  const tile = iconEl.value
+  if (!box || !tile || !tile.offsetHeight) {
+    iconInset.value = null
+    return
+  }
+  const inset = Math.round(tile.getBoundingClientRect().top - box.getBoundingClientRect().top)
+  if (inset > 0 && inset !== iconInset.value) iconInset.value = inset
+}
+
 onMounted(() => {
   scrollRoot = headerEl.value?.parentElement ?? null
   scrollRoot?.addEventListener('scroll', onContentScroll, {capture: true, passive: true})
+
+  if (contentEl.value) {
+    insetObserver = new ResizeObserver(updateIconInset)
+    insetObserver.observe(contentEl.value)
+    updateIconInset()
+  }
+})
+
+/*
+ * Keep every action visible: when the row overflows, step down —
+ * 1) hide hotkey badges, 2) secondary buttons icon-only, 3) all buttons icon-only.
+ * Labels stay in title / aria-label.
+ */
+const fitLevel = ref(0)
+let fitObserver: ResizeObserver | null = null
+let fitWidth = -1
+let fitting = false
+
+const isCollapsed = (btn: DialogHeaderButton) => {
+  if (!btn.icon) return false
+  if (fitLevel.value >= 3) return true
+  return fitLevel.value >= 2 && kindOf(btn) !== 'primary'
+}
+
+const overflows = () => {
+  const box = contentEl.value
+  return !!box && box.scrollWidth > box.clientWidth + 1
+}
+
+async function fitActions() {
+  if (fitting) return
+  fitting = true
+  try {
+    fitLevel.value = 0
+    await nextTick()
+    while (overflows() && fitLevel.value < 3) {
+      fitLevel.value++
+      await nextTick()
+    }
+  } finally {
+    fitting = false
+  }
+}
+
+function onHeaderResize() {
+  const width = headerEl.value?.clientWidth ?? 0
+  if (width === fitWidth) return
+  fitWidth = width
+  void fitActions()
+}
+
+watch(() => props.buttons.map(b => `${b.text}|${b.icon}|${b.kind}|${b.shortcut}`).join(), () => {
+  void fitActions()
+})
+
+onMounted(() => {
+  if (!headerEl.value) return
+  fitObserver = new ResizeObserver(onHeaderResize)
+  fitObserver.observe(headerEl.value)
 })
 
 onBeforeUnmount(() => {
+  fitObserver?.disconnect()
+  fitObserver = null
+  insetObserver?.disconnect()
+  insetObserver = null
   scrollRoot?.removeEventListener('scroll', onContentScroll, {capture: true})
   scrollRoot = null
   scrolledEls.clear()
 })
+
+/* Brand stripe: app header gradient for normal dialogs, solid tone otherwise. */
+const settingsStore = useSettingsStore()
+const theme = useTheme()
+const stripe = computed(() => {
+  if (props.tone !== 'primary') return `rgb(var(--v-theme-${props.tone}))`
+  if (settingsStore.neutralTheme === '1' || settingsStore.headerGradient == '0') return ''
+  const gradient = theme.global.current.value.dark
+    ? settingsStore.headerGradientDark
+    : settingsStore.headerGradientLight
+  return typeof gradient === 'string' ? gradient : ''
+})
+
+const isMac = isMacOS()
+const formatShortcut = (shortcut: string) => shortcut
+  .split('+')
+  .map(part => {
+    const key = part.trim().toLowerCase()
+    if (key === 'mod') return isMac ? '⌘' : 'Ctrl+'
+    if (key === 'shift') return isMac ? '⇧' : 'Shift+'
+    if (key === 'alt') return isMac ? '⌥' : 'Alt+'
+    return key.length === 1 ? key.toUpperCase() : key
+  })
+  .join('')
 
 const run = (btn: DialogHeaderButton) => {
   btn.function ? btn.function() : btn.action?.()
@@ -330,6 +488,7 @@ onBeforeUnmount(resetPosition)
   touch-action: none;
   z-index: 1;
   --dh-tone: var(--v-theme-primary);
+  position: relative;
   background: linear-gradient(
     110deg,
     rgba(var(--dh-tone), 0.1),
@@ -353,17 +512,17 @@ onBeforeUnmount(resetPosition)
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 12px 16px 12px 12px;
     min-width: 0;
   }
 
   .headline {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 16px;
     /* Shrinks first so action buttons keep a single row */
     flex: 1 1 0;
-    min-width: 7.5rem;
+    min-width: 12rem;
     overflow: hidden;
 
     &__icon {
@@ -379,9 +538,21 @@ onBeforeUnmount(resetPosition)
     }
 
     &__text {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1px;
       min-width: 0;
       flex: 1 1 auto;
       overflow: hidden;
+    }
+
+    /* Copy button must not make the subheader line taller than its text. */
+    &__copy {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      margin-block: -3px;
     }
 
     &__title {
@@ -404,6 +575,29 @@ onBeforeUnmount(resetPosition)
       line-height: 1.3;
     }
 
+    &__dirty {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-inline-end: 8px;
+      border-radius: 50%;
+      vertical-align: middle;
+      background: rgb(var(--v-theme-warning));
+    }
+
+    &__crumb {
+      flex-shrink: 0;
+      max-width: 40%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &__crumb-sep {
+      flex-shrink: 0;
+      opacity: 0.6;
+    }
+
     &__subheader-text {
       min-width: 0;
       overflow: hidden;
@@ -419,17 +613,35 @@ onBeforeUnmount(resetPosition)
     flex-wrap: nowrap;
     gap: 8px;
     min-width: 0;
+
+    .v-btn {
+      border-radius: 10px;
+    }
   }
 
-  &__sep {
-    flex: 0 0 auto;
-    width: 1px;
-    height: 24px;
-    margin-inline: -2px;
-    background: rgba(var(--v-border-color), var(--v-border-opacity));
+  &__stripe {
+    height: 3px;
   }
 
-  &__action--quiet {
+  &__kbd {
+    margin-inline-start: 8px;
+    padding: 0 4px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.65rem;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0;
+    opacity: 0.75;
+  }
+
+  &--no-kbd .dialog-header__kbd {
+    display: none;
+  }
+
+  &__action--quiet,
+  &__action--collapsed {
     min-width: 40px;
     padding-inline: 10px;
 
@@ -448,21 +660,17 @@ onBeforeUnmount(resetPosition)
 
   &__close {
     flex: 0 0 auto;
-
-    &:hover {
-      color: rgb(var(--v-theme-error));
-    }
   }
 
   &--compact {
     .content {
       gap: 10px;
-      padding: 10px 14px;
+      padding: 10px 14px 10px 10px;
       min-height: 52px;
     }
 
     .headline {
-      gap: 6px;
+      gap: 14px;
 
       &__icon {
         width: 32px;
@@ -513,7 +721,7 @@ onBeforeUnmount(resetPosition)
   .dialog-header .content {
     flex-wrap: wrap;
     row-gap: 8px;
-    padding: 10px 12px;
+    padding: 10px 12px 10px 8px;
     gap: 8px;
   }
 
@@ -527,7 +735,7 @@ onBeforeUnmount(resetPosition)
     order: 2;
   }
 
-  .dialog-header__sep {
+  .dialog-header__kbd {
     display: none;
   }
 
@@ -558,7 +766,7 @@ onBeforeUnmount(resetPosition)
   }
 
   .dialog-header--compact .content {
-    padding: 8px 12px;
+    padding: 8px 12px 8px 8px;
     gap: 8px;
     min-height: 0;
   }

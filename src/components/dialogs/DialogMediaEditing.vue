@@ -2,6 +2,9 @@
   <EditDialogShell
     :show="dialogsStore.mediaEditing.show"
     :subheader="fileName"
+    :breadcrumbs="currentMediaType?.name ? [currentMediaType.name] : []"
+    :dirty="formDirty"
+    :loading="saving"
     :buttons="buttons"
     :persistent="keepDialogOpen"
     v-model:unsaved-confirm="unsavedConfirm"
@@ -235,6 +238,7 @@ function initButtons() {
     text: t('common.save'),
     color: "success",
     outlined: false,
+    shortcut: 'mod+s',
     action: save,
   })
 }
@@ -312,13 +316,16 @@ async function onImageEdited() {
   })
 }
 
+const saving = ref(false)
+
 async function save() {
   if (!editingComponent.value?.save) {
     console.error('Component or method not available')
     return
   }
 
-  const saved = await editingComponent.value.save()
+  saving.value = true
+  const saved = await editingComponent.value.save().finally(() => { saving.value = false })
   if (!saved) return
 
   const mediaId = media.value?.id

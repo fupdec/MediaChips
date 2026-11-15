@@ -85,14 +85,17 @@
               <span class="text-caption text-medium-emphasis">
                 {{ t('settings_labels.database.health_guide_next') }}:
               </span>
-              <button
-                type="button"
-                class="health-guide__next-link"
+              <v-btn
+                size="small"
+                variant="tonal"
+                color="primary"
+                rounded="lg"
+                :prepend-icon="nextPhase.icon"
+                class="health-guide__next-btn"
                 @click="focusPhase(nextPhase.id)"
               >
-                <v-icon size="14" start>{{ nextPhase.icon }}</v-icon>
                 {{ t(nextPhase.titleKey) }}
-              </button>
+              </v-btn>
               <span
                 v-if="formatEta(nextPhase.etaSeconds)"
                 class="text-caption text-medium-emphasis"
@@ -675,21 +678,9 @@ onBeforeUnmount(() => {
   gap: 6px;
 }
 
-.health-guide__next-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 0;
-  background: transparent;
-  color: rgb(var(--v-theme-primary));
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-}
-
-.health-guide__next-link:hover {
-  text-decoration: underline;
+.health-guide__next-btn {
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .health-guide__actions {
@@ -786,6 +777,12 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  transition: background-color 0.15s ease;
+}
+
+// Подсветка на всю ширину шапки, а не только на область кнопки-тоггла
+.health-guide__phase-header:has(> .health-guide__phase-toggle:hover) {
+  background: rgba(var(--v-theme-on-surface), 0.03);
 }
 
 .health-guide__phase-toggle {
@@ -800,10 +797,6 @@ onBeforeUnmount(() => {
   text-align: start;
   color: inherit;
   cursor: pointer;
-}
-
-.health-guide__phase-toggle:hover {
-  background: rgba(var(--v-theme-on-surface), 0.03);
 }
 
 .health-guide__phase-toggle:focus-visible {

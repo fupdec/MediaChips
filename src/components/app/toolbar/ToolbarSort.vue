@@ -115,16 +115,20 @@
     :disabled="!items.isFiltersLoaded"
     @update:menu="onMenuToggle"
   >
-    <template #prepend>
+    <!-- Direction lives inside the field: one control for "sort by X ↑/↓". -->
+    <template #prepend-inner>
       <v-btn
         v-tooltip:top="t('filters.change_direction')"
+        :aria-label="t('filters.change_direction')"
+        class="toolbar-sort__dir"
         color="primary"
-        variant="tonal"
-        size="small"
+        variant="text"
+        size="x-small"
         icon
-        @click="toggleDir"
+        @mousedown.stop.prevent
+        @click.stop="toggleDir"
       >
-        <v-icon>
+        <v-icon size="18">
           {{
             items.sortDir === 'asc'
               ? 'mdi-sort-ascending'
@@ -383,6 +387,18 @@ function sortFromMenu(param: string | number) {
 <style scoped lang="scss">
 :deep(.v-input__prepend) {
   margin-inline-end: 4px;
+}
+
+.toolbar-sort__dir {
+  margin-inline: -4px 2px;
+}
+
+:deep(.v-field__prepend-inner) {
+  align-self: center;
+  padding-top: 0;
+  padding-inline-end: 6px;
+  margin-inline-end: 2px;
+  border-inline-end: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
 .toolbar-sort__selection {

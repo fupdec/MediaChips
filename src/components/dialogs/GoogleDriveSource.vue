@@ -63,6 +63,8 @@
       </div>
       <v-btn size="default" variant="flat" color="primary" rounded="lg" @click="cancelOAuth">{{ t('common.cancel') }}</v-btn>
     </div>
+    <GoogleMismatchHelp v-if="waiting" class="mt-2" @json="fixWithJson" />
+    <OAuthPasteField v-if="waiting && launchMode === 'paste'" class="mt-2" endpoint="/api/drive/oauth/complete" @completed="refresh" />
     <div v-if="!connectionsOnly && status?.authenticated">
       <v-alert v-if="status.capabilities?.move === false && !status.mock" type="info" variant="tonal" density="compact" rounded="lg" class="google-drive-source__authorization">
         <span>{{ t('originals.drive_authorization') }}</span>
@@ -95,13 +97,38 @@
         <DialogHeader :header="t('drive.oauth_settings')" icon="google-drive" :buttons="editorButtons" compact closable
                       :close-disabled="saving" :close-label="t('common.cancel')" @close="closeConfiguration" />
         <v-card-text class="google-drive-source-editor__body">
-          <p class="text-body-2 mb-3">{{ t('drive.setup_hint') }}</p>
+          <ol class="google-drive-source-editor__steps">
+            <li>{{ t('drive.quick_step_project') }}
+              <a href="#" @click.prevent="openLink(GOOGLE_LINKS.enableApi)">{{ t('drive.quick_link_api') }}</a></li>
+            <li>{{ t('drive.quick_step_client') }}
+              <a href="#" @click.prevent="openLink(GOOGLE_LINKS.createClient)">{{ t('drive.quick_link_client') }}</a></li>
+            <li>{{ t('drive.quick_step_users') }}
+              <a href="#" @click.prevent="openLink(GOOGLE_LINKS.testUsers)">{{ t('drive.quick_link_users') }}</a></li>
+            <li>{{ t('drive.quick_step_json') }}</li>
+          </ol>
+          <div class="google-drive-source-editor__drop" :class="{'google-drive-source-editor__drop--active': dragging}"
+               @dragover.prevent="dragging = true" @dragleave="dragging = false" @drop.prevent="onDrop">
+            <v-icon icon="mdi-file-key-outline" size="22" />
+            <span>{{ t('drive.json_drop') }}</span>
+            <v-btn size="small" variant="tonal" color="primary" rounded="lg" :disabled="saving" @click="jsonInput?.click()">{{ t('drive.json_choose') }}</v-btn>
+            <input ref="jsonInput" type="file" accept=".json,application/json" hidden @change="onJsonFile">
+          </div>
+          <v-alert v-if="jsonNotice" :type="jsonNotice.type" variant="tonal" density="compact" rounded="lg" class="mb-3" role="status">
+            {{ jsonNotice.text }}
+            <code v-if="jsonNotice.uri" class="google-drive-source__callback-url">{{ jsonNotice.uri }}</code>
+          </v-alert>
           <v-defaults-provider :defaults="{VTextField: {density: 'compact', rounded: 'lg', hideDetails: 'auto'}}">
             <div class="google-drive-source-editor__fields">
-              <v-text-field v-model="draft.clientId" label="OAuth Client ID" :disabled="saving" variant="outlined" />
+              <v-text-field v-model="draft.clientId" label="OAuth Client ID" :disabled="saving" variant="outlined" @update:model-value="maybeJson" />
               <v-text-field v-model="draft.clientSecret" label="OAuth Client Secret" type="password" autocomplete="new-password" :disabled="saving"
                             :placeholder="status?.configured ? t('drive.secret_saved') : undefined" variant="outlined" />
-              <v-text-field v-model="draft.redirectUri" :label="t('drive.redirect_uri')" class="google-drive-source-editor__full-width" :disabled="saving" variant="outlined" />
+              <details class="google-drive-source-editor__full-width google-drive-source-editor__advanced" :open="!draft.autoRedirect">
+                <summary>{{ t('sources.advanced_oauth') }}</summary>
+                <v-switch v-model="draft.autoRedirect" :label="t('drive.redirect_auto')" color="primary" density="compact" hide-details inset :disabled="saving" />
+                <v-text-field v-if="!draft.autoRedirect" v-model="draft.redirectUri" :label="t('drive.redirect_uri')" :disabled="saving" variant="outlined" />
+                <p class="google-drive-source-editor__hint">{{ t(draft.autoRedirect ? 'drive.redirect_auto_hint' : 'drive.redirect_web_hint') }}</p>
+                <code class="google-drive-source__callback-url">{{ draft.autoRedirect ? currentCallback : draft.redirectUri }}</code>
+              </details>
               <v-alert v-if="formError" type="error" variant="tonal" density="compact" rounded="lg" class="google-drive-source-editor__full-width" role="status">{{ formError }}</v-alert>
             </div>
           </v-defaults-provider>
@@ -126,6 +153,10 @@ import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {useEventBus} from '@/utils/eventBus'
 import {remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
+import {googleClientRedirect, parseGoogleOAuthClientFile} from '@shared/googleOAuthClient'
+import {closeOAuthWindow, openOAuthUrl, prepareOAuthWindow, type OAuthLaunchMode} from '@/services/oauthWindow'
+import OAuthPasteField from './OAuthPasteField.vue'
+import GoogleMismatchHelp from './GoogleMismatchHelp.vue'
 import {DriveConfigurationSchema, driveMediaPath, type DriveStatus, type DriveImportResult} from '@shared/cloudDrive'
 import {driveBrowserRoot, driveFileIdFromPath, driveReadablePath, listDriveDirectory} from '@/services/driveBrowse'
 import {loadDriveBrowserLocation, persistDriveBrowserLocation} from '@/services/driveBrowserPrefs'
@@ -179,12 +210,51 @@ async function checkConnection() {
 }
 const editing = ref(false)
 const formError = ref('')
-const draft = ref({clientId: '', clientSecret: '', redirectUri: ''})
+const draft = ref({clientId: '', clientSecret: '', redirectUri: '', autoRedirect: true})
+const GOOGLE_LINKS = {
+  enableApi: 'https://console.cloud.google.com/apis/library/drive.googleapis.com',
+  createClient: 'https://console.cloud.google.com/auth/clients/create',
+  testUsers: 'https://console.cloud.google.com/auth/audience',
+}
+const DRIVE_CALLBACK_PATH = '/api/drive/oauth/callback'
+const currentCallback = computed(() => status.value?.suggestedRedirectUri || status.value?.redirectUri || '')
+const jsonInput = ref<HTMLInputElement>()
+const dragging = ref(false)
+const jsonNotice = ref<{type: 'success' | 'warning' | 'error'; text: string; uri?: string}>()
+function openLink(url: string) {
+  if (app.isElectron) void openExternal(url)
+  else window.open(url, '_blank', 'noopener')
+}
+function applyClientJson(text: string): boolean {
+  const file = parseGoogleOAuthClientFile(text)
+  if (!file) return false
+  const redirect = googleClientRedirect(file, currentCallback.value, DRIVE_CALLBACK_PATH)
+  draft.value = {...draft.value, clientId: file.clientId, clientSecret: file.clientSecret,
+    autoRedirect: !redirect.redirectUri, redirectUri: redirect.redirectUri || currentCallback.value}
+  jsonNotice.value = file.type === 'installed'
+    ? {type: 'success', text: t('drive.json_desktop_ok')}
+    : redirect.registered
+      ? {type: 'success', text: t('drive.json_web_ok')}
+      : {type: 'warning', text: t('drive.json_web_missing'), uri: currentCallback.value}
+  formError.value = ''
+  return true
+}
+async function readJson(file?: File | null) {
+  if (!file) return
+  if (file.size > 64 * 1024 || !applyClientJson(await file.text())) jsonNotice.value = {type: 'error', text: t('drive.json_invalid')}
+}
+function onJsonFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  void readJson(input.files?.[0]); input.value = ''
+}
+function onDrop(event: DragEvent) { dragging.value = false; void readJson(event.dataTransfer?.files?.[0]) }
+// Pasting the whole downloaded JSON into the Client ID field fills everything.
+function maybeJson(value: string) { if (value?.trim().startsWith('{')) { if (!applyClientJson(value)) { draft.value.clientId = ''; jsonNotice.value = {type: 'error', text: t('drive.json_invalid')} } } }
 const editorButtons = computed(() => [
   {text: t('common.save'), icon: 'check', color: 'secondary',
-    disabled: busy.value || waiting.value || !draft.value.clientId || !draft.value.redirectUri, action: () => saveConfiguration()},
+    disabled: busy.value || waiting.value || !draft.value.clientId || (!draft.value.autoRedirect && !draft.value.redirectUri), action: () => saveConfiguration()},
   {text: t('sources.save_and_connect'), icon: 'login', color: 'primary', loading: saving.value,
-    disabled: busy.value || waiting.value || !draft.value.clientId || !draft.value.redirectUri, action: () => saveConfiguration(true)},
+    disabled: busy.value || waiting.value || !draft.value.clientId || (!draft.value.autoRedirect && !draft.value.redirectUri), action: () => saveConfiguration(true)},
 ])
 const browserPrefsScope = () => JSON.stringify([app.dbPath || app.config?.id || 'default', app.localhost || ''])
 const initialLocation = loadDriveBrowserLocation(browserPrefsScope())
@@ -242,10 +312,13 @@ const apiError = (err: unknown) => {
   const key = code && code !== 'unknown' ? `drive.oauth_errors.${code}` : ''
   return key && te(key) ? t(key) : remoteSourceErrorMessage(err, t)
 }
-function stopPoll() { if (poll) clearInterval(poll); poll = undefined; waiting.value = false; oauthState = undefined }
+function stopPoll() { if (poll) clearInterval(poll); poll = undefined; waiting.value = false; oauthState = undefined; launchMode.value = undefined }
+// The backend decides whether Google can return straight to it or the user
+// has to paste the redirect address (NAS/Docker/another computer).
+const launchMode = ref<OAuthLaunchMode>()
 function cancelOAuth() {
   if (oauthState) void apiClient.post('/api/drive/oauth/cancel', {oauthState}).catch(() => {})
-  stopPoll(); popup?.close(); popup = null }
+  stopPoll(); closeOAuthWindow(popup); popup = null }
 async function refresh() {
   if (refreshGeneration === generation) return
   const current = generation
@@ -268,9 +341,7 @@ async function refresh() {
   } catch (err) { if (current === generation) { message.value = apiError(err); error.value = true } }
   finally { if (refreshGeneration === current) refreshGeneration = undefined }
 }
-function openSignInWindow() {
-  return app.isElectron ? null : window.open('about:blank', 'mediachips-google-drive', 'popup,width=560,height=720')
-}
+function openSignInWindow() { return prepareOAuthWindow('mediachips-google-drive') }
 async function connect(signInWindow?: Window | null) {
   if (waiting.value || busy.value) { signInWindow?.close(); return }
   if (status.value?.redirectUriMismatch) { signInWindow?.close(); openConfiguration(); return }
@@ -279,11 +350,11 @@ async function connect(signInWindow?: Window | null) {
   waiting.value = true; message.value = ''; error.value = false
   const current = generation
   try {
-    const {data} = await apiClient.get<{url: string; oauthState?: string}>('/api/drive/oauth/start')
+    const {data} = await apiClient.get<{url: string; oauthState?: string; mode?: OAuthLaunchMode}>('/api/drive/oauth/start')
     if (current !== generation) { cancelOAuth(); return }
     oauthState = data.oauthState
-    if (app.isElectron) await openExternal(data.url)
-    else if (popup) popup.location.href = data.url
+    launchMode.value = data.mode || 'callback'
+    await openOAuthUrl(popup, data.url)
     authStartedAt = Date.now()
     poll = setInterval(() => {
       void refresh().then(() => {
@@ -296,8 +367,16 @@ async function connect(signInWindow?: Window | null) {
 }
 function openConfiguration() {
   if (!status.value || status.value.mock || busy.value || waiting.value) return
-  draft.value = {clientId: status.value.clientId || '', clientSecret: '', redirectUri: (status.value.redirectUriMismatch && status.value.suggestedRedirectUri) || status.value.redirectUri}
-  formError.value = ''; editing.value = true
+  const auto = status.value.automaticRedirectUri !== false || !!status.value.redirectUriMismatch
+  draft.value = {clientId: status.value.clientId || '', clientSecret: '', autoRedirect: auto,
+    redirectUri: auto ? currentCallback.value : status.value.redirectUri}
+  formError.value = ''; jsonNotice.value = undefined; editing.value = true
+}
+/** redirect_uri_mismatch fix: stop the failed sign-in and open settings prefilled from the new client JSON. */
+async function fixWithJson(file: File) {
+  cancelOAuth(); message.value = ''
+  openConfiguration()
+  if (editing.value) await readJson(file)
 }
 function closeConfiguration() {
   if (saving.value) return
@@ -305,7 +384,8 @@ function closeConfiguration() {
 }
 async function saveConfiguration(signIn = false) {
   if (busy.value || waiting.value) return
-  const parsed = DriveConfigurationSchema.safeParse({...draft.value, clientSecret: draft.value.clientSecret || undefined})
+  const parsed = DriveConfigurationSchema.safeParse({clientId: draft.value.clientId, clientSecret: draft.value.clientSecret || undefined,
+    redirectUri: draft.value.autoRedirect ? undefined : draft.value.redirectUri})
   if (!parsed.success) { formError.value = t('drive.invalid_config'); return }
   const signInWindow = signIn ? openSignInWindow() : null
   let saved = false
@@ -445,7 +525,7 @@ watch([() => app.dbPath, () => app.localhost], () => {
   const location = loadDriveBrowserLocation(browserPrefsScope())
   selectedPaths.value = []; batchStats.value = {found: 0, skipped: 0, inLibrary: 0, added: 0, duplicates: 0}; directories.clear(); folder.value = location.path; pathTitles.value = location.pathTitles; failures.value = []; message.value = ''
   editing.value = false; formError.value = ''
-  draft.value = {clientId: '', clientSecret: '', redirectUri: ''}; void refresh()
+  draft.value = {clientId: '', clientSecret: '', redirectUri: '', autoRedirect: true}; void refresh()
 })
 onMounted(() => { void refresh(); window.addEventListener('focus', onFocus) })
 onBeforeUnmount(() => { generation++; controller?.abort(); cancelOAuth(); window.removeEventListener('focus', onFocus) })
@@ -509,6 +589,14 @@ defineExpose({status, refresh, busy: computed(() => busy.value || waiting.value 
 .google-drive-source-editor__body { padding: 12px 20px 16px !important; }
 .google-drive-source-editor__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .google-drive-source-editor__full-width { grid-column: 1 / -1; }
+.google-drive-source-editor__steps { margin: 0 0 12px; padding-inline-start: 20px; font-size: .8125rem; line-height: 1.6; }
+.google-drive-source-editor__steps a { color: rgb(var(--v-theme-primary)); }
+.google-drive-source-editor__drop { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 12px; border: 1px dashed rgba(var(--v-theme-on-surface), .25); border-radius: 12px; font-size: .8125rem; }
+.google-drive-source-editor__drop span { flex: 1; min-width: 0; }
+.google-drive-source-editor__drop--active { border-color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .06); }
+.google-drive-source-editor__advanced summary { cursor: pointer; font-size: .8125rem; margin-bottom: 6px; }
+.google-drive-source-editor__advanced { display: grid; gap: 8px; }
+.google-drive-source-editor__hint { margin: 0; font-size: .75rem; opacity: .7; }
 @media (max-width: 480px) {
   .google-drive-source__status-label { display: none; }
   .google-drive-source-editor__body { padding-inline: 14px !important; }

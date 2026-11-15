@@ -3,6 +3,9 @@
     :show="dialogsStore.tagEditing.show"
     :header="'Editing'"
     :subheader="tag?.name"
+    :breadcrumbs="meta?.name ? [meta.name] : []"
+    :dirty="formDirty"
+    :loading="saving"
     :buttons="buttons"
     v-model:unsaved-confirm="unsavedConfirm"
     @visibility-change="onDialogVisibilityChange"
@@ -222,6 +225,7 @@ const initButtons = () => {
     text: t('common.save'),
     color: 'success',
     variant: 'flat',
+    shortcut: 'mod+s',
     action: save,
   })
 }
@@ -376,13 +380,16 @@ const deleteTag = async () => {
   }
 }
 
+const saving = ref(false)
+
 const save = async () => {
   if (!editingComponent.value?.save) {
     console.error('Component or method not available')
     return
   }
 
-  const saved = await editingComponent.value.save()
+  saving.value = true
+  const saved = await editingComponent.value.save().finally(() => { saving.value = false })
   if (!saved) return
 
   const savedTagId = tag.value?.id

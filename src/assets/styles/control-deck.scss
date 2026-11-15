@@ -103,7 +103,7 @@
     */
     z-index: 950;
     margin-top: 0;
-    margin-bottom: 16px;
+    margin-bottom: 28px;
     /* Opaque page bg under rounded surface — do not use overflow:hidden here
        or the stuck elevation shadow gets clipped and the deck blends in. */
     background: rgb(var(--v-theme-background));

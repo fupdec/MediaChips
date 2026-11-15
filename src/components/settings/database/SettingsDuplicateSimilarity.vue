@@ -21,7 +21,7 @@
       <div class="similarity-status similarity-status--error" role="status" aria-live="polite">
         <template v-if="!valid"><v-icon size="15">mdi-alert-circle-outline</v-icon>{{ t('duplicateSimilarity.invalid') }}</template>
         <template v-else-if="error"><v-icon size="15">mdi-alert-circle-outline</v-icon>{{ error }}
-          <button type="button" class="similarity-status__retry" @click="save">{{ t('duplicateSimilarity.retry') }}</button></template>
+          <v-btn size="x-small" variant="tonal" color="primary" rounded="lg" prepend-icon="mdi-refresh" class="similarity-status__retry" @click="save">{{ t('duplicateSimilarity.retry') }}</v-btn></template>
       </div>
     </div>
     <SettingsGroupLabel id="similarity-criteria-label" :title="t('duplicateSimilarity.criteriaTitle')" icon="tune-variant" accent />
@@ -484,7 +484,7 @@ defineExpose({save})
 .similarity-status .v-icon { color: rgb(var(--v-theme-success)); }
 .similarity-status--saving { color: rgb(var(--v-theme-primary)); }
 .similarity-status--error, .similarity-status--error .v-icon { color: rgb(var(--v-theme-error)); }
-.similarity-status__retry { margin-left: 4px; padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: rgb(var(--v-theme-primary)); text-decoration: underline; cursor: pointer; }
+.similarity-status__retry { margin-left: 4px; letter-spacing: normal; text-transform: none; }
 @container (min-width: 720px) {
   .similarity-verdict { grid-template-columns: minmax(0, 1.25fr) minmax(240px, 1fr); }
 }

@@ -1622,6 +1622,8 @@ const ja = {
     search_fields: '検索…',
     filter_fields_label: 'フィールド表示',
     no_matching_fields: '一致するフィールドがありません',
+    no_matching_fields_hint: '別のキーワードで検索するか、すべてのフィールドを表示してください。',
+    reset_field_search: '検索をリセット',
     overview_expand: 'ファイル情報を表示',
     overview_collapse: 'ファイル情報を隠す',
     unsaved_changes: '未保存の変更',
@@ -1635,6 +1637,7 @@ const ja = {
     log_in: 'ログイン',
     password_required: 'パスワードを入力',
     wrong_password: 'パスワードが間違っています',
+    too_many_attempts: '失敗回数が多すぎます。15 分後にもう一度お試しください。',
   },
   bulk_editing: {
     title: '一括編集',

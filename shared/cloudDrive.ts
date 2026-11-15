@@ -12,13 +12,14 @@ export const DriveImportSchema = z.object({fileId: DriveFileIdSchema}).strict()
 export const DriveConfigurationSchema = z.object({
   clientId: z.string().trim().min(1).max(1024),
   clientSecret: z.string().trim().max(4096).transform(normalizeDriveClientSecret).optional(),
+  // Omitted = automatic: always the API's current loopback callback (Desktop OAuth clients).
   redirectUri: z.string().url().max(2048).refine(value => {
     const url = new URL(value)
     return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password
       && url.pathname === '/api/drive/oauth/callback' && !url.search && !url.hash
-  }),
+  }).optional(),
 }).strict()
-export type DriveStatus = {hasSavedConfiguration?: boolean; suggestedRedirectUri?: string; redirectUriMismatch?: boolean; capabilities?: SourceCapabilities; configured: boolean; authenticated: boolean; mock: boolean; redirectUri: string; clientId?: string; hasClientId: boolean; oauthResult?: 'waiting' | 'connected' | 'failed' | 'expired'; oauthError?: 'cancelled' | 'expired' | 'access_denied' | 'invalid_client' | 'invalid_grant' | 'redirect_uri_mismatch' | 'network_error' | 'token_storage_error' | 'unknown'}
+export type DriveStatus = {hasSavedConfiguration?: boolean; automaticRedirectUri?: boolean; suggestedRedirectUri?: string; redirectUriMismatch?: boolean; capabilities?: SourceCapabilities; configured: boolean; authenticated: boolean; mock: boolean; redirectUri: string; clientId?: string; hasClientId: boolean; oauthResult?: 'waiting' | 'connected' | 'failed' | 'expired'; oauthError?: 'cancelled' | 'expired' | 'access_denied' | 'invalid_client' | 'invalid_grant' | 'redirect_uri_mismatch' | 'network_error' | 'token_storage_error' | 'unknown'}
 export type DriveEntry = {id: string; name: string; mimeType: string; size?: number; modifiedTime?: string; isFolder: boolean; mediaId?: number | null}
 export type DriveFolder = {folderId: string; files: DriveEntry[]; nextPageToken?: string; mock: boolean}
 export type DriveImportResult = {id: number; title: string; created: boolean}

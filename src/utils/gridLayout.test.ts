@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  getCardChipLimit,
   averageMeasuredRowStride,
   buildMasonryLayout,
   chunkIntoRows,
@@ -349,5 +350,28 @@ describe('findVisibleMasonryItems', () => {
 
     expect(visible.map((entry) => entry.item.id)).toEqual([1, 2])
     expect(findVisibleMasonryItems(positions, 250, 400, 0).map((entry) => entry.item.id)).toEqual([3])
+  })
+})
+
+describe('getCardChipLimit', () => {
+  it('keeps 12 chips for M cards with a 16:9 preview', () => {
+    expect(getCardChipLimit(3, 16 / 9)).toBe(12)
+  })
+
+  it('shows more chips on L/XL/XXL cards', () => {
+    expect(getCardChipLimit(4)).toBeGreaterThan(getCardChipLimit(3))
+    expect(getCardChipLimit(5)).toBeGreaterThan(getCardChipLimit(4))
+    expect(getCardChipLimit(6)).toBeGreaterThan(getCardChipLimit(5))
+  })
+
+  it('shows fewer chips under portrait previews', () => {
+    expect(getCardChipLimit(6, 0.625)).toBeLessThan(getCardChipLimit(6, 1))
+    expect(getCardChipLimit(6, 1)).toBeLessThan(getCardChipLimit(6, 16 / 9))
+    expect(getCardChipLimit(1, 0.4)).toBeGreaterThanOrEqual(6)
+  })
+
+  it('treats wider-than-16:9 and invalid ratios as 16:9', () => {
+    expect(getCardChipLimit(4, 3)).toBe(getCardChipLimit(4, 16 / 9))
+    expect(getCardChipLimit(4, 0)).toBe(getCardChipLimit(4, 16 / 9))
   })
 })
