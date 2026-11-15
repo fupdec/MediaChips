@@ -13,7 +13,7 @@ export type LocalAiChatPromptRequest = {
   system?: string
 }
 
-export const APP_UI_LOCALES = ['en', 'ru', 'cn', 'de', 'es', 'fr', 'ja', 'pt'] as const
+export const APP_UI_LOCALES = ['en', 'ru', 'cn', 'de', 'es', 'fr', 'ja', 'pt', 'ko', 'pl', 'tr', 'it', 'tw'] as const
 export type AppUiLocale = (typeof APP_UI_LOCALES)[number]
 
 const LOCALE_LANGUAGE_NAMES: Record<AppUiLocale, string> = {
@@ -24,6 +24,11 @@ const LOCALE_LANGUAGE_NAMES: Record<AppUiLocale, string> = {
   es: 'Spanish',
   pt: 'Portuguese',
   ja: 'Japanese',
+  ko: 'Korean',
+  pl: 'Polish',
+  tr: 'Turkish',
+  it: 'Italian',
+  tw: 'Traditional Chinese',
   cn: 'Simplified Chinese',
 }
 
@@ -31,6 +36,7 @@ const LOCALE_LANGUAGE_NAMES: Record<AppUiLocale, string> = {
 export function normalizeAppUiLocale(locale?: string | null): AppUiLocale {
   const raw = String(locale || 'en').trim().toLowerCase().replace(/_/g, '-')
   if (!raw) return 'en'
+  if (raw === 'tw' || raw === 'zh-tw' || raw === 'zh-hant' || raw.startsWith('zh-hant-') || raw === 'zh-hk' || raw === 'zh-mo') return 'tw'
   if (raw === 'cn' || raw === 'zh' || raw.startsWith('zh-')) return 'cn'
   const base = raw.split('-')[0]
   if ((APP_UI_LOCALES as readonly string[]).includes(base)) return base as AppUiLocale

@@ -122,6 +122,11 @@ import 'dayjs/locale/en'
 import 'dayjs/locale/de'
 import 'dayjs/locale/fr'
 import 'dayjs/locale/ja'
+import 'dayjs/locale/ko'
+import 'dayjs/locale/pl'
+import 'dayjs/locale/tr'
+import 'dayjs/locale/it'
+import 'dayjs/locale/zh-tw'
 import 'dayjs/locale/pt-br'
 import 'dayjs/locale/es'
 import 'dayjs/locale/zh-cn'
@@ -168,7 +173,7 @@ const compactSummary = computed(() => {
   return parts.join(' · ')
 })
 
-const locale = computed(() => settingsStore.locale == 'cn' ? 'zh-cn' : settingsStore.locale == 'pt' ? 'pt-br' : settingsStore.locale)
+const locale = computed(() => settingsStore.locale == 'cn' ? 'zh-cn' : settingsStore.locale == 'tw' ? 'zh-tw' : settingsStore.locale == 'pt' ? 'pt-br' : settingsStore.locale)
 dayjs.extend(relativeTime)
 dayjs.locale(locale.value)
 

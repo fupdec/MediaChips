@@ -90,6 +90,11 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/de'
 import 'dayjs/locale/fr'
 import 'dayjs/locale/ja'
+import 'dayjs/locale/ko'
+import 'dayjs/locale/pl'
+import 'dayjs/locale/tr'
+import 'dayjs/locale/it'
+import 'dayjs/locale/zh-tw'
 import 'dayjs/locale/pt-br'
 import 'dayjs/locale/es'
 import 'dayjs/locale/zh-cn'
@@ -114,7 +119,7 @@ const selected = ref<HistoryOperation | null>(null)
 const moreOperations = ref(false), moreFields = ref(false)
 
 dayjs.extend(relativeTime)
-const dateLocale = computed(() => locale.value === 'cn' ? 'zh-cn' : locale.value === 'pt' ? 'pt-br' : locale.value)
+const dateLocale = computed(() => locale.value === 'cn' ? 'zh-cn' : locale.value === 'tw' ? 'zh-tw' : locale.value === 'pt' ? 'pt-br' : locale.value)
 const now = ref(Date.now())
 
 watch(visible, (open, _, onCleanup) => {
