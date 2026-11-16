@@ -29,11 +29,13 @@ describe('source location migration', () => {
     const revision = createHash('sha256').update(version).digest('hex')
     const paths = ['/local/video.mp4', 'gdrive://existing-video', nasMediaPath(connectionId, 'Кино/video 1.mp4', revision),
       nasMediaPath(connectionId, 'older.mp4'), 'trash://drive-card']
-    const repo = createMediaRepository(fixture.drizzle)
+    // Raw SQL: the repository's RETURNING lists columns added after migration 0032.
+    const insertCard = fixture.sqlite.prepare(`INSERT INTO media
+      (path, name, basename, ext, rating, favorite, deletedAt, trashOriginalPath, createdAt, updatedAt)
+      VALUES (?, ?, ?, 'mp4', 4, 1, ?, ?, '2026-01-01', '2026-01-01')`)
     paths.forEach((path, index) => {
-      const card = repo.create({path, name: `Card ${index}`, basename: `original-${index}.mp4`, ext: 'mp4'})
-      repo.updateById(card.id, {rating: 4, favorite: true,
-        ...(index === 4 ? {deletedAt: '2026-01-01', trashOriginalPath: 'gdrive://trashed-file'} : {})})
+      insertCard.run(path, `Card ${index}`, `original-${index}.mp4`,
+        index === 4 ? '2026-01-01' : null, index === 4 ? 'gdrive://trashed-file' : null)
     })
     fixture.sqlite.exec(`
       INSERT INTO meta (id, name, type, createdAt, updatedAt) VALUES (1, 'Genre', 'tags', 'old', 'old');
@@ -53,7 +55,13 @@ describe('source location migration', () => {
     runDrizzleMigrations(copy)
     const upgraded = new Database(copy)
     try {
-      for (const table of tables) expect(upgraded.prepare(`SELECT * FROM ${table}`).all()).toEqual(snapshot[table])
+      // Later migrations may add columns; compare only the columns that existed before the upgrade.
+      for (const table of tables) {
+        const before = snapshot[table] as Record<string, unknown>[]
+        const after = (upgraded.prepare(`SELECT * FROM ${table}`).all() as Record<string, unknown>[])
+          .map((row, index) => Object.fromEntries(Object.keys(before[index] ?? {}).map(key => [key, row[key]])))
+        expect(after).toEqual(before)
+      }
       expect(upgraded.prepare('SELECT id, provider, credentialRef FROM sourceConnections WHERE id = ?').get(connectionId))
         .toEqual({id: connectionId, provider: 'nas', credentialRef})
       const locations = upgraded.prepare('SELECT mediaId, connectionId, resourceKey, version, availability, lastVerifiedAt FROM mediaLocations ORDER BY mediaId').all()

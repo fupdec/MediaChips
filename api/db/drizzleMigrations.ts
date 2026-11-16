@@ -161,6 +161,34 @@ function isMigrationSatisfied(sqlite: Database.Database, sql: string): boolean {
 }
 
 /**
+ * schemaRepair may have added some columns of a later migration before an
+ * earlier, still-unrecorded migration (e.g. a CREATE TABLE) ran. Such pure
+ * ADD COLUMN / CREATE ... IF NOT EXISTS migrations can be applied here
+ * safely, skipping columns that already exist, so stamping can continue in
+ * journal order instead of stopping and letting migrate() re-add a column.
+ */
+function applyReplaySafeMigration(sqlite: Database.Database, sql: string): boolean {
+  const statements = sql.split(/-->\s*statement-breakpoint/).map(part => part.trim()).filter(Boolean)
+  if (statements.length === 0) return false
+  const createIfNotExists = /^CREATE\s+(?:UNIQUE\s+)?(?:TABLE|INDEX)\s+IF\s+NOT\s+EXISTS\s/i
+  const addColumn = /^ALTER\s+TABLE\s+[`"]?(\w+)[`"]?\s+ADD(?:\s+COLUMN)?\s+[`"]?(\w+)[`"]?/i
+  if (!statements.every(statement => createIfNotExists.test(statement) || addColumn.test(statement))) return false
+
+  try {
+    sqlite.transaction(() => {
+      for (const statement of statements) {
+        const match = statement.match(addColumn)
+        if (match && hasColumn(sqlite, match[1] as string, match[2] as string)) continue
+        sqlite.exec(statement)
+      }
+    })()
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
  * When schemaRepair (or a prior partial boot) already added columns/indexes/tables,
  * stamp the matching pure ADD COLUMN / CREATE INDEX / CREATE TABLE drizzle migrations
  * so migrate() does not fail by trying to re-apply them.
@@ -188,7 +216,7 @@ export function stampSatisfiedAddColumnMigrations(sqlite: Database.Database): st
     // migration while an earlier one stays unrecorded would permanently
     // hide that earlier migration from migrate(). Stop at the first entry
     // we can't verify so stamping never skips ahead out of order.
-    if (!isMigrationSatisfied(sqlite, sql)) {
+    if (!isMigrationSatisfied(sqlite, sql) && !applyReplaySafeMigration(sqlite, sql)) {
       break
     }
 
