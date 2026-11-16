@@ -28,8 +28,8 @@
                   :color="kind === option.value ? (option.value === 'delete' ? 'error' : 'primary') : undefined"
                   :variant="kind === option.value ? 'flat' : 'outlined'" :disabled="pending" :aria-pressed="kind === option.value"
                   :aria-label="t('originals.choose_action', {action: option.title})" @click="kind = option.value">
-                  <v-icon :icon="actionIcons[option.value]" size="16" />
-                  <span>{{ option.title }}</span>
+                  <template #prepend><v-icon :icon="actionIcons[option.value]" size="16" /></template>
+                  {{ option.title }}
                 </v-btn>
               </div>
             </div>
@@ -274,8 +274,11 @@ onBeforeUnmount(() => { generation++; clearTimeout(timer) })
 }
 .originals-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
 .originals-action {
-  height: 28px !important; padding: 0 8px !important; min-width: 0; border-color: var(--operation-border); border-radius: 999px;
-  :deep(.v-btn__content) { gap: 5px; line-height: 1.2; font-size: .6875rem; }
+  height: 32px !important; padding: 0 14px !important; min-width: 0; border-color: var(--operation-border); border-radius: 999px;
+  font-size: .75rem;
+  // global app.scss forces .v-btn__content to display:block, so flex gap doesn't work — space via Vuetify's prepend slot
+  :deep(.v-btn__prepend) { margin-inline: 0 8px !important; }
+  :deep(.v-btn__content) { line-height: 1.2; }
   &--selected { font-weight: 600; box-shadow: 0 2px 6px rgba(var(--v-theme-primary), .2); }
 }
 .originals-settings { display: flex; flex-direction: column; gap: 10px; }
