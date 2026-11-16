@@ -2,6 +2,15 @@
   <div v-if="pages > 1" class="items-pagination pagination-container">
     <div class="items-pagination__pill">
       <v-btn
+        v-if="page > 1"
+        icon="mdi-page-first"
+        variant="text"
+        size="x-small"
+        aria-label="First page"
+        title="First page"
+        @click="go(1)"
+      />
+      <v-btn
         icon="mdi-chevron-left"
         variant="text"
         size="x-small"
@@ -54,6 +63,15 @@
         aria-label="Next page"
         title="PageDown (Shift: +10)"
         @click="go(page + 1)"
+      />
+      <v-btn
+        v-if="page < pages"
+        icon="mdi-page-last"
+        variant="text"
+        size="x-small"
+        aria-label="Last page"
+        title="Last page"
+        @click="go(pages)"
       />
     </div>
   </div>
