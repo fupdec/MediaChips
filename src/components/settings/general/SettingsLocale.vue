@@ -102,6 +102,12 @@ const locales = [
     flag: 'cn',
   },
   {
+    code: 'tw',
+    nameKey: 'settings_labels.general.languages.tw',
+    nativeName: '繁體中文',
+    flag: 'tw',
+  },
+  {
     code: 'ru',
     nameKey: 'settings_labels.general.languages.ru',
     nativeName: 'Русский',
@@ -130,12 +136,6 @@ const locales = [
     nameKey: 'settings_labels.general.languages.it',
     nativeName: 'Italiano',
     flag: 'it',
-  },
-  {
-    code: 'tw',
-    nameKey: 'settings_labels.general.languages.tw',
-    nativeName: '繁體中文',
-    flag: 'tw',
   },
 ] as const
 
