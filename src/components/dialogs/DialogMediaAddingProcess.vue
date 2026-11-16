@@ -32,7 +32,7 @@
       </v-card-actions>
 
       <div class="d-flex justify-space-between ga-3 px-4" role="status" aria-live="polite">
-        <div>{{ task.status }}</div>
+        <div class="media-adding-process__status">{{ task.status }}</div>
         <div class="text-medium-emphasis text-caption text-end flex-shrink-0">
           <v-progress-linear
             v-if="task.active && !task.stopped"
@@ -47,11 +47,12 @@
         </div>
       </div>
 
+      <!-- Side padding lives on a wrapper: the global tab style caps width at 100%, which ignores inline margins. -->
+      <div class="px-4 mt-3">
       <v-tabs
         v-model="activeResult"
         color="primary"
         show-arrows
-        class="mx-4 mt-3"
         :aria-label="t('media.adding.title')"
       >
         <v-tab value="added" prepend-icon="mdi-plus">
@@ -71,6 +72,7 @@
           <v-badge v-if="task.errors.length > 0" inline color="primary" class="ms-2" :content="task.errors.length" />
         </v-tab>
       </v-tabs>
+      </div>
 
       <v-card-text class="px-4 pb-4 pt-0 process-dialog-body">
         <v-tabs-window v-model="activeResult">
@@ -2320,5 +2322,10 @@ watch(canDetectFaces, (enabled) => {
   line-height: 1.3;
   max-width: 36rem;
   font-size: 0.75rem;
+}
+/* Long file paths in the status must wrap instead of widening the dialog on phones. */
+.media-adding-process__status {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 </style>

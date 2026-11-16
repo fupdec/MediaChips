@@ -167,3 +167,34 @@ export async function assessWatchedFolder(request: APIRequestContext, folderPath
     [key: string]: unknown
   }>
 }
+
+/** Fails with the elements that stick out past the container's right edge, so a layout overflow names its cause. */
+export async function expectNoHorizontalOverflow(locator: ReturnType<Page['locator']>) {
+  // Re-check until layout settles: right after a viewport change the shell (v-main padding, drawers) is still animating.
+  await expect(async () => {
+    await checkHorizontalOverflow(locator)
+  }).toPass({timeout: 5_000})
+}
+
+async function checkHorizontalOverflow(locator: ReturnType<Page['locator']>) {
+  const report = await locator.evaluate(root => {
+    const box = root.getBoundingClientRect()
+    const describe = (el: Element) => {
+      const parts: string[] = []
+      for (let node: Element | null = el; node && node !== root && parts.length < 4; node = node.parentElement) {
+        const cls = [...node.classList].filter(name => !name.startsWith('v-theme')).slice(0, 2).join('.')
+        parts.unshift(node.tagName.toLowerCase() + (cls ? '.' + cls : ''))
+      }
+      return parts.join(' > ')
+    }
+    const offenders = [...root.querySelectorAll('*')]
+      .map(el => ({el, right: el.getBoundingClientRect().right, width: el.getBoundingClientRect().width}))
+      .filter(item => item.width > 0 && item.right > box.right + 1)
+      // Keep the outermost offenders: a child of an overflowing element is usually not the cause.
+      .filter((item, _, all) => !all.some(other => other.el !== item.el && other.el.contains(item.el)))
+      .slice(0, 8)
+      .map(item => `${describe(item.el)} (+${Math.round(item.right - box.right)}px, width ${Math.round(item.width)})`)
+    return {width: root.clientWidth, scrollWidth: root.scrollWidth, offenders}
+  })
+  expect(report.scrollWidth, `Horizontal overflow:\n${report.offenders.join('\n')}`).toBeLessThanOrEqual(report.width)
+}

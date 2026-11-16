@@ -1,5 +1,5 @@
 import {test, expect} from '@playwright/test'
-import {disableFeatureHints, dismissOnboardingIfVisible, waitForAppShell} from './helpers'
+import {disableFeatureHints, dismissOnboardingIfVisible, waitForAppShell, expectNoHorizontalOverflow} from './helpers'
 
 const connection = {id: '44f4a4b9-8504-42a5-a530-5b48f61c6539', name: 'Batch NAS', protocol: 'sftp',
   host: 'test.invalid', port: 22, username: 'reader', root: '/media', hasCredentials: true, hasPassword: true, hasPrivateKey: false}
@@ -74,11 +74,16 @@ for (const provider of ['drive', 'nas'] as const) {
     await page.getByRole('button', {name: /^(Add media|Добавить медиа)$/}).first().click()
     const dialog = page.locator('.media-adding-dialog')
     await dialog.getByRole('tab', {name: /^(Sources|Источники)$/}).click()
-    if (provider === 'nas') await dialog.getByRole('tab', {name: 'Network', exact: true}).click()
+    if (provider === 'nas') await dialog.getByRole('radio', {name: 'Network', exact: true}).click()
     const source = dialog.locator(provider === 'drive' ? '.google-drive-source' : '.nas-sources')
-    await dialog.getByRole('button', {name: /^(Import settings|Настройки импорта)$/}).click()
-    await dialog.getByRole('checkbox', {name: /^(Exclude specific paths|Исключить определенные пути)$/}).check()
-    await dialog.getByRole('textbox', {name: /Excluded paths to files or folders|Исключенные пути к файлам или папкам/}).fill('Exclude\ntrailer')
+    // Exclusions are picked in the folders-only "Ignored folders" browser of the same source.
+    await dialog.getByRole('button', {name: /^(Ignored folders|Игнорируемые папки)$/}).click()
+    const ignored = page.locator('.v-overlay--active .v-card:not(.media-adding-dialog)').filter({hasText: /Ignored folders|Игнорируемые папки/})
+    await expect(ignored).toBeVisible()
+    await ignored.locator('.v-list-item').filter({hasText: 'Drama'}).click()
+    await ignored.locator('.v-list-item').filter({hasText: 'Exclude'}).getByRole('checkbox').check()
+    await ignored.locator('.dialog-header__close').first().click()
+    await expect(ignored).toBeHidden()
     const selectFolder = () => source.locator('.v-list-item').filter({hasText: 'Drama'}).getByRole('checkbox').check()
     await selectFolder()
     const add = dialog.locator('.dialog-header').first().getByRole('button', {name: /^(Add|Добавить)$/})
@@ -87,7 +92,7 @@ for (const provider of ['drive', 'nas'] as const) {
     await expect(dialog).toBeHidden()
     const retry = process.getByRole('button', {name: /Retry remaining|Повторить оставшиеся/})
     await expect(retry).toBeVisible()
-    expect(new Set(attempts)).toEqual(new Set(['drama/first', 'drama/bad', 'drama/last', 'drama/sub/deep']))
+    expect(new Set(attempts)).toEqual(new Set(['drama/first', 'drama/bad', 'drama/last', 'drama/trailer', 'drama/sub/deep']))
     expect(listed).not.toContain('drama/skip')
     expect(parsed.some(path => path.endsWith('/Drama/Sub/Deep.mp4'))).toBe(true)
     expect(parsed.every(path => !path.includes('gdrive://') && !path.includes('drama-'))).toBe(true)
@@ -96,7 +101,7 @@ for (const provider of ['drive', 'nas'] as const) {
     await retry.click()
     await expect(source.locator('.media-folder-browser__selected-count')).toHaveText(/:\s*0$/)
     expect(attempts.at(-1)).toBe('drama/bad')
-    expect(attempts).toHaveLength(5)
+    expect(attempts).toHaveLength(6)
     await expect(retry).toHaveCount(0)
     await expect(process).toContainText(/Adding files is complete!|Добавление файлов завершено!/)
     await process.locator('.dialog-header__close').click()
@@ -105,11 +110,10 @@ for (const provider of ['drive', 'nas'] as const) {
     await selectFolder()
     await add.click()
     await expect(source.locator('.media-folder-browser__selected-count')).toHaveText(/:\s*0$/)
-    expect(attempts).toHaveLength(5)
-    await expect(process.locator('.remote-process-counts')).toContainText(/Existing \(5\)|Существующие \(5\)|Уже есть \(5\)/)
+    expect(attempts).toHaveLength(6)
+    await expect(process.getByRole('tab', {name: /^(Existing|Существующие)/}).locator('.v-badge__badge')).toHaveText('6')
     await page.setViewportSize({width: 390, height: 844})
-    const dimensions = await process.evaluate(element => ({width: element.clientWidth, scrollWidth: element.scrollWidth}))
-    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width)
+    await expectNoHorizontalOverflow(process)
     await process.screenshot({animations: 'disabled', path: test.info().outputPath(`${provider}-batch-mobile.png`)})
   })
 }

@@ -28,7 +28,7 @@ test('opens backups for a database and switches the list without activating it',
     await expect(dialog).toContainText(other.name)
     await expect(dialog.locator('.backups-card')).toContainText('other:backup')
     await dialog.locator('.backups-card').click()
-    await dialog.getByRole('combobox').click()
+    await dialog.getByRole('combobox').first().click()
     await page.getByRole('option', {name: active.name, exact: true}).click()
     await expect(dialog.locator('.backups-card')).toContainText('active:backup')
     await expect(dialog.locator('.backups-card--selected')).toHaveCount(0)

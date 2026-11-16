@@ -67,11 +67,11 @@ test('scrolls through a long check history without rendering every job', async (
   await expect(history.getByText('/Archive/Check 1', {exact: true})).toBeVisible()
   await expect(lastJob).toHaveCount(0)
   await history.scrollIntoViewIfNeeded()
-  await history.press('End')
-  // The last rows are measured once Vuetify renders them.
-  await expect(lastJob).toBeAttached()
-  await history.press('End')
-  await expect(lastJob).toBeInViewport()
+  // Rows are measured as Vuetify renders them, so the scroll height grows after each jump to the end.
+  await expect(async () => {
+    await history.press('End')
+    await expect(lastJob).toBeInViewport({timeout: 500})
+  }).toPass({timeout: 10_000})
 })
 
 test('a real bulk import schedules discovery and attaches a copy in a previously selected folder', async ({request}) => {

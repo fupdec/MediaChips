@@ -34,9 +34,9 @@ test('persists concise similarity settings and disables automatic deletion', asy
   await card.getByRole('combobox', {name: /Other files|Остальные файлы/}).press('ArrowDown')
   await page.getByRole('option', {name: /Delete other files|Удалить остальные/, exact: true}).click()
   await expect(card.getByRole('checkbox', {name: /Merge when starting a search|Объединять при запуске поиска/})).toBeDisabled()
-  await card.getByRole('button', {name: /^(Save|Сохранить)$/}).click()
+  // Settings autosave shortly after the last change.
   await expect.poll(() => read().priority).toBe('largest')
-  expect(read().files).toBe('delete')
+  await expect.poll(() => read().files).toBe('delete')
   await page.reload()
   await waitForAppShell(page)
   await expect(card.locator('.v-select').first()).toContainText(/Largest file|Самый большой/)

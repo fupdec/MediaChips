@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test'
+import {test, expect, type Locator, type Page} from '@playwright/test'
 import {disableFeatureHints, dismissOnboardingIfVisible, waitForAppShell} from './helpers'
 
 const bundle = {
@@ -9,27 +9,45 @@ const bundle = {
   tagValues: [], fieldAssignments: [], fieldPins: [],
 }
 
+// The JSON file is picked in the server-side file browser; the server then previews it by path.
+async function chooseBundleFile(page: Page, dialog: Locator) {
+  await page.route('**/api/browse/places', route => route.fulfill({json: {container: false,
+    places: [{id: 'home', name: 'Transfers', path: '/transfers', icon: 'mdi-folder'}]}}))
+  await page.route('**/api/browse/listDirectory', route => route.fulfill({json: {
+    currentPath: '/transfers', rootPath: '/transfers', parentPath: null, platform: 'linux', truncated: false,
+    entries: [{name: 'transfer.mediachips.json', path: '/transfers/transfer.mediachips.json', isDirectory: false,
+      size: 100, mtimeMs: 1000, extension: 'json'}],
+  }}))
+  await dialog.getByRole('button', {name: /^(Metadata JSON file|JSON метаданных)$/}).click()
+  const browser = page.locator('.v-overlay--active .v-card').filter({has: page.locator('.media-folder-browser')}).last()
+  await browser.locator('.v-list-item').filter({hasText: 'transfer.mediachips.json'}).getByRole('checkbox').check()
+  await browser.locator('.dialog-header').first().getByRole('button', {name: /^(Select|Выбрать)$/}).click()
+  await expect(browser).toBeHidden()
+}
+
 test('reviews conflicts, requires decisions and refreshes a stale import preview', async ({page}) => {
   await disableFeatureHints(page)
   let previews = 0, imports = 0
   let payload: unknown
   await page.route('**/api/metadata-transfer/**', async route => {
-    if (route.request().url().endsWith('/preview')) {
+    const url = route.request().url()
+    if (url.endsWith('/preview') || url.endsWith('/preview-file')) {
       previews++
-      return route.fulfill({json: {token: String(previews).repeat(64), counts: {media: 1, fields: 1, tags: 0, marks: 0}, conflicts: [{
+      const preview = {token: String(previews).repeat(64), counts: {media: 1, fields: 1, tags: 0, marks: 0}, conflicts: [{
         key: 'media:7', entity: 'media', name: 'Portable movie', blocked: false,
         current: {rating: 2, favorite: false}, incoming: {rating: 4.5, favorite: true},
-      }]}})
+      }]}
+      return route.fulfill({json: url.endsWith('/preview-file') ? {bundle, preview} : preview})
     }
     imports++; payload = route.request().postDataJSON()
     if (imports === 1) return route.fulfill({status: 409, json: {message: 'Library changed. Preview the import again.'}})
     return route.fulfill({json: {counts: {media: 1, fields: 1, tags: 0, marks: 0}, conflicts: [], token: '2'.repeat(64)}})
   })
   await page.goto('/settings?tab=files'); await waitForAppShell(page); await dismissOnboardingIfVisible(page)
-  await page.locator('#settings-metadata-transfer').getByRole('button').click()
+  await page.locator('#settings-metadata-transfer').getByRole('button', {name: /^(Open metadata transfer|Открыть перенос метаданных)$/}).click()
   const dialog = page.getByRole('dialog', {name: /Import and export metadata|Импорт и экспорт метаданных/})
   await expect(dialog.getByRole('button', {name: /^(Close|Закрыть)$/})).toBeVisible()
-  await dialog.locator('input[type=file]').setInputFiles({name: 'transfer.mediachips.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(bundle))})
+  await chooseBundleFile(page, dialog)
   await expect(dialog).toContainText('Portable movie')
   const apply = dialog.getByRole('button', {name: /Import reviewed metadata|Импортировать проверенные метаданные/})
   await expect(apply).toBeDisabled()
@@ -54,16 +72,18 @@ test('blocks incompatible field types before import', async ({page}) => {
   await disableFeatureHints(page)
   let imports = 0
   await page.route('**/api/metadata-transfer/**', route => {
-    if (route.request().url().endsWith('/import')) imports++
-    return route.fulfill({json: {token: 'a'.repeat(64), counts: {media: 1, fields: 1, tags: 0, marks: 0}, conflicts: [{
+    const url = route.request().url()
+    if (url.endsWith('/import')) imports++
+    const preview = {token: 'a'.repeat(64), counts: {media: 1, fields: 1, tags: 0, marks: 0}, conflicts: [{
       key: 'fields:2', entity: 'fields', name: 'Seen', blocked: true, current: {type: 'string'}, incoming: {type: 'boolean'},
-    }]}})
+    }]}
+    return route.fulfill({json: url.endsWith('/preview-file') ? {bundle, preview} : preview})
   })
   await page.goto('/settings?tab=files'); await waitForAppShell(page); await dismissOnboardingIfVisible(page)
-  await page.locator('#settings-metadata-transfer').getByRole('button').click()
+  await page.locator('#settings-metadata-transfer').getByRole('button', {name: /^(Open metadata transfer|Открыть перенос метаданных)$/}).click()
   const dialog = page.getByRole('dialog', {name: /Import and export metadata|Импорт и экспорт метаданных/})
   await expect(dialog.getByRole('button', {name: /^(Close|Закрыть)$/})).toBeVisible()
-  await dialog.locator('input[type=file]').setInputFiles({name: 'transfer.mediachips.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(bundle))})
+  await chooseBundleFile(page, dialog)
   await dialog.getByRole('button', {name: /Seen/}).click()
   await expect(dialog).toContainText(/incompatible|несовместимы/i)
   await dialog.getByRole('button', {name: /Use all incoming data|Принять все входящие данные/}).click()

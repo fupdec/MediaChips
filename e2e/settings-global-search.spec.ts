@@ -16,9 +16,12 @@ for (const locale of ['en','ru']) {
     await page.goto('/')
     await waitForAppShell(page)
     await dismissOnboardingIfVisible(page)
-    await page.keyboard.press('/')
     const input=page.locator('.global-search__input-text')
-    await expect(input).toBeVisible()
+    // App hotkeys are ignored while any blocking overlay is still closing, so a single press can be lost on a busy run.
+    await expect(async()=>{
+      if(!await input.isVisible())await page.keyboard.press('/')
+      await expect(input).toBeVisible({timeout:1_000})
+    }).toPass({timeout:10_000})
     await input.fill(locale==='ru'?'разрешение конвертации':'conversion resolution')
     const result=page.locator('.global-search__setting')
     await expect(result).toHaveCount(1)

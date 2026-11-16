@@ -1,5 +1,5 @@
 import {test, expect, type Page} from '@playwright/test'
-import {disableFeatureHints, dismissOnboardingIfVisible, waitForAppShell} from './helpers'
+import {disableFeatureHints, dismissOnboardingIfVisible, waitForAppShell, expectNoHorizontalOverflow} from './helpers'
 const connection = {id: '11111111-1111-4111-8111-111111111111', name: 'Studio NAS', protocol: 'sftp',
   host: 'nas.test', port: 22, username: 'reader', root: '/media', hasCredentials: true, hasPassword: true, hasPrivateKey: false,
   capabilities: {view: true, seek: true, download: true, move: false, delete: false}}
@@ -22,7 +22,7 @@ for (const provider of ['drive', 'nas']) {
     await page.route(endpoint, route => failure ? route.fulfill({status: failure === 'network_error' ? 502 : failure === 'permission_denied' ? 403 : 409,
       json: {code: failure, message: 'Remote failure'}}) : route.fulfill({json: provider === 'drive' ? {folderId: 'root', files: []} : {path: '', entries: [], truncated: false}}))
     await openSources(page)
-    if (provider === 'nas') await page.getByRole('tab', {name: 'Network', exact: true}).click()
+    if (provider === 'nas') await page.getByRole('radio', {name: 'Network', exact: true}).click()
     const source = page.locator(provider === 'drive' ? '#settings-google-drive' : '#settings-nas')
     const health = source.locator('.source-health')
     const actions = provider === 'drive' ? page.locator('.sources-panel__account-actions') : source.locator('[class$="__connection-actions"]')
@@ -52,8 +52,7 @@ for (const provider of ['drive', 'nas']) {
     await check.click()
     await expect(health).toHaveCount(0)
     await page.setViewportSize({width: 390, height: 844})
-    const box = await source.evaluate(el => ({width: el.clientWidth, scrollWidth: el.scrollWidth}))
-    expect(box.scrollWidth).toBeLessThanOrEqual(box.width)
+    await expectNoHorizontalOverflow(source)
     await source.screenshot({animations: 'disabled', path: test.info().outputPath(`${provider}-sources-mobile.png`)})
   })
 }
@@ -94,7 +93,7 @@ test('NAS credentials can be replaced, disconnected and restored without recreat
     return route.fulfill({json: {ok: true}})
   })
   await openSources(page)
-  await page.getByRole('tab', {name: 'Network', exact: true}).click()
+  await page.getByRole('radio', {name: 'Network', exact: true}).click()
   const source = page.locator('#settings-nas')
   await source.getByRole('button', {name: /^(Credentials|Учётные данные)$/}).click()
   const editor = page.locator('.nas-source-editor')
@@ -118,7 +117,7 @@ test('remembers import and connection tabs across reopening, reloads and setting
   await page.route('**/api/drive/folders/*', route => route.fulfill({json: {folderId: 'root', files: []}}))
   const dialog = page.locator('.media-adding-dialog')
   const sourcesTab = dialog.getByRole('tab', {name: /^(Sources|Источники)$/})
-  const nasTab = dialog.getByRole('tab', {name: 'Network', exact: true})
+  const nasTab = dialog.getByRole('radio', {name: 'Network', exact: true})
   const linksTab = dialog.getByRole('tab', {name: /^(Links|Ссылки)$/})
   const open = async () => {
     await waitForAppShell(page)
@@ -137,11 +136,11 @@ test('remembers import and connection tabs across reopening, reloads and setting
   await close()
   await open()
   await expect(sourcesTab).toHaveAttribute('aria-selected', 'true')
-  await expect(nasTab).toHaveAttribute('aria-selected', 'true')
+  await expect(nasTab).toHaveAttribute('aria-checked', 'true')
   await page.reload()
   await open()
   await expect(sourcesTab).toHaveAttribute('aria-selected', 'true')
-  await expect(nasTab).toHaveAttribute('aria-selected', 'true')
+  await expect(nasTab).toHaveAttribute('aria-checked', 'true')
   await linksTab.click()
   await close()
   await open()
@@ -151,10 +150,10 @@ test('remembers import and connection tabs across reopening, reloads and setting
   await expect(linksTab).toHaveAttribute('aria-selected', 'true')
   await close()
   await page.goto('/settings?tab=connections')
-  await expect(page.getByRole('tab', {name: 'Network', exact: true})).toHaveAttribute('aria-selected', 'true')
-  await page.getByRole('tab', {name: /^(Cloud|Облако)$/}).click()
+  await expect(page.getByRole('radio', {name: 'Network', exact: true})).toHaveAttribute('aria-checked', 'true')
+  await page.getByRole('radio', {name: /^(Cloud|Облако)$/}).click()
   await page.goto('/media?mediaTypeId=1')
   await open()
   await sourcesTab.click()
-  await expect(dialog.getByRole('tab', {name: /^(Cloud|Облако)$/})).toHaveAttribute('aria-selected', 'true')
+  await expect(dialog.getByRole('radio', {name: /^(Cloud|Облако)$/})).toHaveAttribute('aria-checked', 'true')
 })

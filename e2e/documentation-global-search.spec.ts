@@ -18,8 +18,12 @@ for (const keyboard of [false, true]) {
     await page.goto('/')
     await waitForAppShell(page)
     await dismissOnboardingIfVisible(page)
-    await page.keyboard.press('/')
     const input = page.locator('.global-search__input-text')
+    // A fresh library may redirect from Home right after load and swallow the first shortcut.
+    await expect(async () => {
+      await page.keyboard.press('/')
+      await expect(input).toBeVisible({timeout: 1000})
+    }).toPass({timeout: 15_000})
     await input.fill('core concepts')
     const result = page.locator('.global-search__documentation').first()
     await expect(result).toBeVisible()
