@@ -1098,7 +1098,7 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     },
     "settings.sources.accounts": {
       "name": "Cloud and NAS",
-      "content": "<p>Sources & import combines watched folders, cloud accounts, NAS browsing and import options. Import plugins appear here when enabled.</p>"
+      "content": "<p>Sources & import combines watched folders, cloud accounts, NAS browsing and import options. Import plugins appear here when enabled.</p><p>Google Drive, OneDrive and Dropbox need your own OAuth client from each provider. Sign-in runs on the MediaChips server. On the same computer the consent page closes by itself. From another device (NAS, Docker) the provider redirects to a page that does not open: copy the full address from the address bar and paste it into the field in the account dialog. The link is valid for 10 minutes.</p><p>Extra Google Drive accounts can reuse the main Google Drive client. OneDrive and Dropbox are in beta.</p>"
     },
     "settings.metadata_transfer": {
       "name": "Metadata transfer",
@@ -1212,7 +1212,7 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     },
     "settings.sources.accounts": {
       "name": "Облако и NAS",
-      "content": "<p>Источники и импорт объединяют отслеживаемые папки, облачные аккаунты, просмотр NAS и параметры импорта. Здесь же появляются включённые плагины импорта.</p>"
+      "content": "<p>Источники и импорт объединяют отслеживаемые папки, облачные аккаунты, просмотр NAS и параметры импорта. Здесь же появляются включённые плагины импорта.</p><p>Для Google Drive, OneDrive и Dropbox нужен собственный OAuth-клиент у каждого провайдера. Вход выполняется на сервере MediaChips. На том же компьютере страница согласия закрывается сама. С другого устройства (NAS, Docker) провайдер перенаправит на страницу, которая не откроется: скопируйте полный адрес из адресной строки и вставьте его в поле в окне аккаунта. Ссылка действует 10 минут.</p><p>Дополнительные аккаунты Google Drive могут использовать клиент основного Google Drive. OneDrive и Dropbox работают в режиме бета.</p>"
     },
     "settings.metadata_transfer": {
       "name": "Перенос метаданных",
@@ -1330,7 +1330,7 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     },
     "settings.sources.accounts": {
       name: "Cloud und NAS",
-      content: "<p>Quellen & Import umfasst überwachte Ordner, Cloud-Konten, NAS-Zugriff und Importoptionen. Aktivierte Import-Plugins erscheinen ebenfalls hier.</p>",
+      content: "<p>Quellen & Import umfasst überwachte Ordner, Cloud-Konten, NAS-Zugriff und Importoptionen. Aktivierte Import-Plugins erscheinen ebenfalls hier.</p><p>Google Drive, OneDrive und Dropbox benötigen jeweils einen eigenen OAuth-Client beim Anbieter. Die Anmeldung läuft auf dem MediaChips-Server. Auf demselben Computer schließt sich die Zustimmungsseite von selbst. Von einem anderen Gerät (NAS, Docker) leitet der Anbieter auf eine Seite weiter, die sich nicht öffnet: Kopieren Sie die vollständige Adresse aus der Adressleiste und fügen Sie sie in das Feld im Kontodialog ein. Der Link ist 10 Minuten gültig.</p><p>Weitere Google-Drive-Konten können den Client des Haupt-Google-Drive nutzen. OneDrive und Dropbox sind in der Beta.</p>",
     },
     "settings.metadata_transfer": {
       name: "Übertragung von Metadaten",
@@ -1448,7 +1448,7 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     },
     "settings.sources.accounts": {
       name: "Nube y NAS",
-      content: "<p>Fuentes e importación reúne carpetas supervisadas, cuentas en la nube, exploración del NAS y opciones de importación. Los plugins de importación aparecen aquí cuando están activados.</p>",
+      content: "<p>Fuentes e importación reúne carpetas supervisadas, cuentas en la nube, exploración del NAS y opciones de importación. Los plugins de importación aparecen aquí cuando están activados.</p><p>Google Drive, OneDrive y Dropbox necesitan tu propio cliente OAuth en cada proveedor. El inicio de sesión se realiza en el servidor de MediaChips. En el mismo equipo, la página de consentimiento se cierra sola. Desde otro dispositivo (NAS, Docker), el proveedor redirige a una página que no se abre: copia la dirección completa de la barra de direcciones y pégala en el campo del diálogo de la cuenta. El enlace es válido durante 10 minutos.</p><p>Las cuentas adicionales de Google Drive pueden reutilizar el cliente de Google Drive principal. OneDrive y Dropbox están en beta.</p>",
     },
     "settings.metadata_transfer": {
       name: "Transferencia de metadatos",
@@ -1566,7 +1566,7 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     },
     "settings.sources.accounts": {
       name: "Cloud et NAS",
-      content: "<p>Sources et importation regroupe les dossiers surveillés, les comptes cloud, l’exploration NAS et les options d’importation. Les plugins d’importation activés y apparaissent également.</p>",
+      content: "<p>Sources et importation regroupe les dossiers surveillés, les comptes cloud, l’exploration NAS et les options d’importation. Les plugins d’importation activés y apparaissent également.</p><p>Google Drive, OneDrive et Dropbox nécessitent votre propre client OAuth chez chaque fournisseur. La connexion s’effectue sur le serveur MediaChips. Sur le même ordinateur, la page de consentement se ferme d’elle-même. Depuis un autre appareil (NAS, Docker), le fournisseur redirige vers une page qui ne s’ouvre pas : copiez l’adresse complète depuis la barre d’adresse et collez-la dans le champ de la fenêtre du compte. Le lien est valable 10 minutes.</p><p>Les comptes Google Drive supplémentaires peuvent réutiliser le client Google Drive principal. OneDrive et Dropbox sont en bêta.</p>",
     },
     "settings.metadata_transfer": {
       name: "Transfert de métadonnées",
@@ -1684,7 +1684,7 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     },
     "settings.sources.accounts": {
       name: "Nuvem e NAS",
-      content: "<p>Fontes e importação reúne pastas monitoradas, contas na nuvem, navegação no NAS e opções de importação. Plugins de importação aparecem aqui quando ativados.</p>",
+      content: "<p>Fontes e importação reúne pastas monitoradas, contas na nuvem, navegação no NAS e opções de importação. Plugins de importação aparecem aqui quando ativados.</p><p>Google Drive, OneDrive e Dropbox precisam do seu próprio cliente OAuth em cada provedor. O login é feito no servidor do MediaChips. No mesmo computador, a página de consentimento fecha sozinha. Em outro dispositivo (NAS, Docker), o provedor redireciona para uma página que não abre: copie o endereço completo da barra de endereços e cole-o no campo da janela da conta. O link é válido por 10 minutos.</p><p>Contas adicionais do Google Drive podem reutilizar o cliente do Google Drive principal. OneDrive e Dropbox estão em beta.</p>",
     },
     "settings.metadata_transfer": {
       name: "Transferência de metadados",
@@ -1802,7 +1802,7 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     },
     "settings.sources.accounts": {
       name: "クラウドと NAS",
-      content: "<p>「ソースとインポート」には、監視フォルダー、クラウドアカウント、NAS の参照、インポート設定がまとまっています。有効にしたインポート用プラグインもここに表示されます。</p>",
+      content: "<p>「ソースとインポート」には、監視フォルダー、クラウドアカウント、NAS の参照、インポート設定がまとまっています。有効にしたインポート用プラグインもここに表示されます。</p><p>Google Drive、OneDrive、Dropbox では、各プロバイダーで独自の OAuth クライアントが必要です。サインインは MediaChips サーバー上で行われます。同じコンピューターでは同意ページが自動的に閉じます。別のデバイス（NAS、Docker）からの場合、プロバイダーは開けないページにリダイレクトします。アドレスバーの完全な URL をコピーし、アカウントのダイアログの欄に貼り付けてください。リンクの有効期限は 10 分です。</p><p>追加の Google Drive アカウントはメインの Google Drive クライアントを再利用できます。OneDrive と Dropbox はベータ版です。</p>",
     },
     "settings.metadata_transfer": {
       name: "メタデータ転送",
@@ -1920,7 +1920,7 @@ const settingsDocumentationUpdates: Record<string, Record<string, {name: string;
     },
     "settings.sources.accounts": {
       name: "云端与 NAS",
-      content: "<p>“来源与导入”集中管理监视文件夹、云端账号、NAS 浏览和导入选项。启用后的导入插件也会出现在此处。</p>",
+      content: "<p>“来源与导入”集中管理监视文件夹、云端账号、NAS 浏览和导入选项。启用后的导入插件也会出现在此处。</p><p>Google Drive、OneDrive 和 Dropbox 需要在各服务商处创建你自己的 OAuth 客户端。登录在 MediaChips 服务器上完成。在同一台电脑上，授权页面会自动关闭。从其他设备（NAS、Docker）登录时，服务商会跳转到一个无法打开的页面：请从地址栏复制完整地址，并粘贴到账号对话框中的输入框。链接 10 分钟内有效。</p><p>额外的 Google Drive 账号可以复用主 Google Drive 的客户端。OneDrive 和 Dropbox 目前为测试版。</p>",
     },
     "settings.metadata_transfer": {
       name: "元数据传输",
