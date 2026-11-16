@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Remote sources** — browse and import Google Drive, SFTP, FTP and WebDAV files through shared source controls; keep library metadata editable while originals are offline.
-- **Cloud accounts** — connect additional Google Drive, OneDrive and Dropbox accounts using your own OAuth app credentials; queue bounded background processing jobs.
+- **Cloud accounts** — connect additional Google Drive, OneDrive and Dropbox accounts using your own OAuth app credentials; queue bounded background processing jobs. OneDrive and Dropbox are **beta**: covered by tests, live acceptance on real accounts is not finished.
 - **File copies** — discover and verify alternate originals, retain multiple copies on one card, and restore missing file links.
 - **Original management** — preview conflicts and run recoverable transfers across local, NAS and Google Drive storage.
 - **Metadata history** — review changes, restore individual fields or operations, and preview conflicts before importing metadata from another library.
@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Saved views** — saved-view chips no longer clear every active filter when they unmount.
 - **Download actions** — labels are translated in all supported languages.
 - **Layout glitches** — long text buttons truncate with an ellipsis instead of overflowing, the category link on tag pages no longer stacks its icons vertically, and draggable dialogs stay inside the window.
+
+### Known limitations
+
+- **Web videos from dynamic pages** — embedded players and HLS streams rely on the installed yt-dlp and have not been verified live on every OS; treat this as conditional and report issues on GitHub.
+- **OneDrive and Dropbox** — beta, see Cloud accounts above.
 
 ### Upgrade notes
 

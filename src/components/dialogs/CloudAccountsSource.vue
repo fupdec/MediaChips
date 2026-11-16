@@ -40,6 +40,8 @@
                       :style="{'--provider-color': providerStyle(item.value).color}" :disabled="busy" @click="selectProvider(item.value)">
                 <span class="account-editor__provider-icon"><v-icon :icon="providerStyle(item.value).icon" size="26" /></span>
                 <span class="account-editor__provider-name">{{ item.title }}</span>
+                <span v-if="item.beta" class="account-editor__provider-beta"
+                      :title="tr('Проверено на тестах, приёмка на реальных аккаунтах не завершена', 'Covered by tests; live acceptance on real accounts is not finished')">beta</span>
                 <v-icon v-if="form.provider === item.value" icon="mdi-check-circle" size="16" class="account-editor__provider-check" />
               </button>
             </div>
@@ -241,7 +243,8 @@ const providerStyle = (provider: string) => provider === 'onedrive'
   : provider === 'dropbox'
     ? {icon: 'mdi-dropbox', color: '#0061ff'}
     : {icon: 'mdi-google-drive', color: '#34a853'}
-const providers: {title: string; value: CloudProvider}[] = [{title: 'Google Drive', value: 'gdrive'}, {title: 'Dropbox', value: 'dropbox'}, {title: 'OneDrive', value: 'onedrive'}]
+// OneDrive and Dropbox stay beta in 2.0.0: fixture-tested, live acceptance pending (docs/onedrive-dropbox-acceptance.md).
+const providers: {title: string; value: CloudProvider; beta?: boolean}[] = [{title: 'Google Drive', value: 'gdrive'}, {title: 'Dropbox', value: 'dropbox', beta: true}, {title: 'OneDrive', value: 'onedrive', beta: true}]
 const providerName = (provider: string) => providers.find(item => item.value === provider)?.title || provider
 let controller: AbortController | undefined
 let reloadRequested = false
@@ -521,6 +524,7 @@ defineExpose({account, editAccount, connect, logout, removeAccount, accounts, ac
 }
 .account-editor__provider-name { font-size: .8125rem; font-weight: 500; }
 .account-editor__provider-check { position: absolute; top: 8px; right: 8px; color: var(--provider-color); }
+.account-editor__provider-beta { position: absolute; top: 8px; left: 8px; padding: 0 6px; border-radius: 999px; font-size: .625rem; font-weight: 600; line-height: 16px; text-transform: uppercase; letter-spacing: .04em; color: rgba(var(--v-theme-on-surface), .7); background: rgba(var(--v-theme-on-surface), .08); }
 
 .account-editor__managed {
   display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 12px;
