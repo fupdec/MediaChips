@@ -82,6 +82,22 @@ Image architectures: `linux/amd64`, `linux/arm64`.
 | `PUID` / `PGID` | Run as this UID/GID (Synology permission match) |
 | `TZ` | Container timezone |
 | `FFMPEG_PATH` / `FFPROBE_PATH` | System ffmpeg binaries in the image |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | Main Google Drive OAuth client (also reused by extra Google Drive accounts without their own) |
+| `GOOGLE_OAUTH_REDIRECT_URI` | Optional Google Drive callback; a loopback address on a port other than the API port is ignored |
+| `MEDIA_CHIPS_CLOUD_REDIRECT_URI` | Optional callback for server-side cloud OAuth clients, e.g. `https://host/api/cloud-accounts/oauth/callback` |
+| `MEDIA_CHIPS_CLOUD_{GOOGLE,ONEDRIVE,DROPBOX}_CLIENT_{ID,SECRET}` | Optional OAuth client per provider; enables one-click **Connect** when id, secret and the redirect URI are all set |
+
+## Cloud accounts on a NAS
+
+Google Drive, OneDrive and Dropbox sign-in works on a NAS or in Docker without a public address, a reverse proxy or a relay service.
+
+1. Create your own OAuth client with each provider and register the callback `http://127.0.0.1:12321/api/cloud-accounts/oauth/callback` (and `/api/drive/oauth/callback` for the main Google Drive). Use your container's published API port if it is not `12321`. Details per provider: [docs/cloud-oauth-release.md](./docs/cloud-oauth-release.md).
+2. Open MediaChips from your computer or phone (`http://NAS-IP:12321`), add the account and press **Connect**.
+3. Sign in at the provider. The browser then lands on a page that cannot be opened (`127.0.0.1` is your own device, not the NAS) — this is expected. Copy the full address from the address bar and paste it into the field MediaChips shows; the connection finishes automatically.
+
+The server picks this mode itself: sign-in returns directly only when your browser runs on the same machine as the API or the callback is a public address. Pending sign-ins last 10 minutes and are lost on container restart; just start again. Tokens live in the data volume (`MEDIA_CHIPS_DATA_DIR`), so keep it mounted between updates.
+
+To get a one-click **Connect** button for everyone who uses your server, set the optional `MEDIA_CHIPS_CLOUD_*` variables below. Without them each account takes its own client id and secret in its advanced settings, and extra Google Drive accounts can reuse the main Google Drive client.
 
 ## Backup
 

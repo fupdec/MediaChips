@@ -48,9 +48,15 @@ You shape the library: define **chips** (custom metadata), keep rich **tags**, f
 
 Browse and import originals from Google Drive, SFTP, FTP and WebDAV, keep
 metadata available offline, and manage verified copies on one media card.
-Additional Google Drive, OneDrive and Dropbox accounts require your own OAuth
-application credentials; publisher-managed sign-in is not included. See the
-[cloud setup and acceptance guide](docs/cloud-oauth-release.md).
+Google Drive, OneDrive and Dropbox need your own OAuth client from each
+provider; publisher-managed sign-in is not included. Sign-in is handled by the
+server, so it also works on a NAS or in Docker: a browser on another device
+finishes it by pasting the return link, with no public address required.
+Extra Google Drive accounts can reuse the main Google Drive client. OneDrive
+and Dropbox are **beta**: they pass fixture-based tests, but live acceptance
+against real accounts is not finished. See the
+[cloud setup and acceptance guide](docs/cloud-oauth-release.md) and the
+[Docker / NAS guide](DOCKER.md#cloud-accounts-on-a-nas).
 Web-video extraction supports compatible public sources; see the
 [support limits](docs/web-video-release.md) before relying on a particular site.
 
