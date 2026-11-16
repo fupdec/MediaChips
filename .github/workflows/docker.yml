@@ -17,7 +17,7 @@ permissions:
 #   - ghcr.io/fupdec/mediachips  (GitHub Packages)
 #   - vinsdoe/mediachips        (Docker Hub — existing public repo)
 #
-# Required repo secrets for Docker Hub:
+# Optional repo secrets for Docker Hub (without them only GHCR is published):
 #   DOCKERHUB_USERNAME  (e.g. vinsdoe)
 #   DOCKERHUB_TOKEN     (Hub Access Token with Read & Write)
 
@@ -25,6 +25,8 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      DOCKERHUB_ENABLED: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
 
     steps:
       - name: Checkout
@@ -44,6 +46,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
+        if: env.DOCKERHUB_ENABLED == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -55,7 +58,7 @@ jobs:
         with:
           images: |
             ghcr.io/${{ github.repository_owner }}/mediachips
-            vinsdoe/mediachips
+            name=vinsdoe/mediachips,enable=${{ env.DOCKERHUB_ENABLED == 'true' }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
