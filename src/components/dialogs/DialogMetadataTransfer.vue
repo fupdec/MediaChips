@@ -143,8 +143,8 @@ function chooseFile([path]: string[]) {
       bundle.value = data.bundle; preview.value = data.preview
     } catch (err) {
       const response = (err as {response?: {status?: number; data?: {message?: string}}}).response
-      if (response?.status === 413) throw new Error(t('metadata_transfer.too_large'))
-      if (response?.data?.message === 'Invalid metadata document') throw new Error(t('metadata_transfer.invalid_format'))
+      if (response?.status === 413) throw new Error(t('metadata_transfer.too_large'), {cause: err})
+      if (response?.data?.message === 'Invalid metadata document') throw new Error(t('metadata_transfer.invalid_format'), {cause: err})
       throw err
     }
   })

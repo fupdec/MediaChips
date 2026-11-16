@@ -27,7 +27,7 @@ it('creates, lists, restores and deletes backups for an inactive database withou
   active = new Database(path.join(root, 'active', 'db.sqlite'))
   const db = {path: path.join(root, 'active'), path_databases: root, config: {id: 'active'}, sqlite: active} as ApiDb
   const handlers = controller({} as Express, db)
-  const req = {query: {databaseId: 'other'}, body: {}} as ApiRequest
+  const req = {query: {databaseId: 'other'}, body: {}} as unknown as ApiRequest
   const res = {sendStatus: vi.fn(), send: vi.fn(), json: vi.fn(), status: vi.fn().mockReturnThis()} as unknown as ApiResponse
   await handlers.createBackup(req, res)
   expect(res.sendStatus).toHaveBeenLastCalledWith(200)
