@@ -29,7 +29,7 @@
       @mousedown="handleMouseSeek($event)"
       @wheel.prevent.stop="wheelSeek"
       :disabled="!player.is_file_exists || player.playbackError || player.webVideoLoading"
-      :track-size="2"
+      :track-size="4"
       :class="[
         'timeline-slider pt-4',
         {

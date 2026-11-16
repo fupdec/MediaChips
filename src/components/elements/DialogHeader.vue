@@ -169,11 +169,10 @@
 import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import type { PropType } from 'vue'
 import {useI18n} from 'vue-i18n'
-import {useDisplay, useTheme} from 'vuetify'
+import {useDisplay} from 'vuetify'
 import sortBy from 'lodash/sortBy'
 import {copyToClipboard} from '@/utils/copyToClipboard'
 import {isMacOS} from '@/utils/playerWheel'
-import {useSettingsStore} from '@/stores/settings'
 
 type DialogHeaderButtonKind = 'primary' | 'tonal' | 'quiet'
 type DialogHeaderTone = 'primary' | 'error' | 'warning' | 'success' | 'info'
@@ -367,17 +366,13 @@ onBeforeUnmount(() => {
   scrolledEls.clear()
 })
 
-/* Brand stripe: app header gradient for normal dialogs, solid tone otherwise. */
-const settingsStore = useSettingsStore()
-const theme = useTheme()
-const stripe = computed(() => {
-  if (props.tone !== 'primary') return `rgb(var(--v-theme-${props.tone}))`
-  if (settingsStore.neutralTheme === '1' || settingsStore.headerGradient == '0') return ''
-  const gradient = theme.global.current.value.dark
-    ? settingsStore.headerGradientDark
-    : settingsStore.headerGradientLight
-  return typeof gradient === 'string' ? gradient : ''
-})
+/*
+ * Top stripe only where the colour carries meaning: destructive (error) or
+ * risky (warning) dialogs. Regular dialogs stay clean.
+ */
+const stripe = computed(() => (
+  props.tone !== 'primary' ? `rgb(var(--v-theme-${props.tone}))` : ''
+))
 
 const isMac = isMacOS()
 const formatShortcut = (shortcut: string) => shortcut

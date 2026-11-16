@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="rootEl"
     class="neighbor-preview"
     :class="[
       `neighbor-preview--${variant}`,
@@ -66,11 +67,12 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, nextTick, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {getReadableDuration} from '@/services/formatUtils'
 import {getSegmentEnd, getSegmentStart} from '@/utils/mediaItem'
 import type {MediaItem} from '@/types/stores'
+import {applyPlayerEdgeShift} from '@/utils/playerEdgeClamp'
 
 const props = withDefaults(defineProps<{
   item: MediaItem
@@ -110,6 +112,13 @@ const countdown = computed(() => {
 })
 
 const hint = computed(() => t('player.controls.up_next_hint'))
+
+const rootEl = ref<HTMLElement | null>(null)
+
+onMounted(() => {
+  if (props.variant !== 'hover') return
+  void nextTick(() => applyPlayerEdgeShift(rootEl.value))
+})
 
 const onClick = () => {
   if (!props.clickable) return

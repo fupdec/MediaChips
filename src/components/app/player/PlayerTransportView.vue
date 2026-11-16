@@ -52,7 +52,7 @@
         min="0"
         step="0.05"
         max="1"
-        track-size="1"
+        :track-size="4"
         hide-details
       />
     </v-btn-group>

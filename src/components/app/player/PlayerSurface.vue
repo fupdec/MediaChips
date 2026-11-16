@@ -161,7 +161,9 @@
               >
                 mdi-{{ player.displayStatusIcon }}
               </v-icon>
-              {{ player.displayStatusText }}
+              <span class="status-text__label" :title="player.displayStatusText">
+                {{ player.displayStatusText }}
+              </span>
             </div>
             <div v-if="player.statusProgress != null" class="status-text__progress">
               <div

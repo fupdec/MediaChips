@@ -10,69 +10,35 @@
       :style="{'--mark-accent': accentColor}"
       @keydown.enter="onEnterKey"
     >
-      <div class="mark-menu__top">
+      <header class="mark-menu__top">
         <div class="mark-menu__types" role="tablist">
-          <v-btn
+          <button
             v-for="item in mark_types"
             :key="item.value"
-            variant="text"
-            :color="isTypeSelected(item.value) ? typeChipColor(item) : undefined"
-            size="x-small"
-            rounded="lg"
+            type="button"
             class="mark-menu__type"
             :class="{'is-selected': isTypeSelected(item.value)}"
+            :style="{'--type-color': typeChipColor(item)}"
             role="tab"
             :aria-selected="isTypeSelected(item.value)"
             @click="changeType(item.value)"
           >
-            <v-icon start size="16">mdi-{{ item.icon }}</v-icon>
-            {{ getMarkTypeText(item) }}
-          </v-btn>
+            <v-icon size="15">mdi-{{ item.icon }}</v-icon>
+            <span>{{ getMarkTypeText(item) }}</span>
+          </button>
         </div>
 
-        <div class="mark-menu__actions">
-          <v-btn
-            v-if="isEditing && (!hideDisabledButtons || !markAdding.submitting)"
-            v-tooltip="formTooltip(t('common.delete'))"
-            color="error"
-            :disabled="markAdding.submitting"
-            :loading="deleting"
-            variant="tonal"
-            size="x-small"
-            icon
-            class="mark-menu__delete"
-            @click="remove"
-          >
-            <v-icon size="16">mdi-delete-outline</v-icon>
-          </v-btn>
-          <v-btn
-            v-if="!hideDisabledButtons || canSubmit"
-            color="success"
-            :disabled="!canSubmit"
-            :loading="markAdding.submitting"
-            variant="flat"
-            size="small"
-            rounded="lg"
-            class="mark-menu__submit"
-            @click="add"
-          >
-            <v-icon start size="16">mdi-{{ isEditing ? 'content-save' : 'plus' }}</v-icon>
-            {{ submitLabel }}
-          </v-btn>
-          <v-progress-circular v-if="hideDisabledButtons && markAdding.submitting" indeterminate size="18" width="2"
-            :aria-label="submitLabel"/>
-          <v-btn
-            v-tooltip="formTooltip(t('common.close'))"
-            variant="text"
-            size="x-small"
-            icon
-            class="mark-menu__close"
-            @click="closeStudio"
-          >
-            <v-icon size="16">mdi-close</v-icon>
-          </v-btn>
-        </div>
-      </div>
+        <v-btn
+          v-tooltip="formTooltip(t('common.close'))"
+          variant="text"
+          size="x-small"
+          icon
+          class="mark-menu__close"
+          @click="closeStudio"
+        >
+          <v-icon size="18">mdi-close</v-icon>
+        </v-btn>
+      </header>
 
       <div class="mark-menu__identity">
         <v-form v-if="isNoteType" ref="form" v-model="valid" class="mark-menu__identity-field">
@@ -90,7 +56,8 @@
             auto-grow
             rows="1"
             max-rows="6"
-            variant="outlined"
+            variant="solo-filled"
+            flat
             rounded="lg"
             hide-details
             class="mark-menu__textarea"
@@ -106,18 +73,20 @@
           single
           autofocus
           density="compact"
-          variant="outlined"
+          variant="solo-filled"
+          flat
           rounded="lg"
           hide-details
           class="mark-menu__mixed-tags"
           @update:model-value="onMixedTagsUpdate"
         />
         <p v-else class="mark-menu__identity-hint">
+          <v-icon size="16" class="mark-menu__field-icon">mdi-{{ markIcon }}</v-icon>
           {{ t('player.mark_dialog.at_position', {time: formatTime(markAdding.time ?? 0)}) }}
         </p>
       </div>
 
-      <section class="mark-menu__timing">
+      <section class="mark-menu__timing" :class="{'is-range': markAdding.is_end_time_active}">
         <div class="mark-menu__cue">
           <MarkTimeHmsInput
             compact
@@ -135,7 +104,7 @@
             class="mark-menu__cue-btn"
             @click="jumpTo(markAdding.time ?? 0)"
           >
-            <v-icon size="16">mdi-play</v-icon>
+            <v-icon size="15">mdi-play</v-icon>
           </v-btn>
           <v-btn
             v-tooltip="formTooltip(t('player.mark_dialog.sync_with_player'))"
@@ -145,83 +114,104 @@
             class="mark-menu__cue-btn"
             @click="getCurrentTime('time')"
           >
-            <v-icon size="16">mdi-crosshairs-gps</v-icon>
+            <v-icon size="15">mdi-crosshairs-gps</v-icon>
           </v-btn>
         </div>
 
-        <v-btn
-          v-tooltip="formTooltip(rangeTooltip)"
-          :color="markAdding.is_end_time_active ? accentColor : undefined"
-          :variant="markAdding.is_end_time_active ? 'flat' : 'tonal'"
-          size="x-small"
-          icon
-          class="mark-menu__range"
-          @click="toggleEndTime(!markAdding.is_end_time_active)"
+        <template v-if="markAdding.is_end_time_active">
+          <div class="mark-menu__span" :class="{'is-invalid': hasInvalidRange}">
+            <v-icon size="14">mdi-arrow-right</v-icon>
+            <span v-if="rangeDurationLabel" class="mark-menu__span-label">{{ rangeDurationLabel }}</span>
+          </div>
+
+          <div class="mark-menu__cue">
+            <MarkTimeHmsInput
+              compact
+              :model-value="markAdding.end ?? markAdding.time ?? 0"
+              :min="markAdding.time || 0"
+              :max="playerDuration"
+              :aria-label="t('player.mark_dialog.end_time')"
+              @update:model-value="onEndTimeChange"
+            />
+            <v-btn
+              v-tooltip="formTooltip(t('player.mark_dialog.jump_to_time'))"
+              size="x-small"
+              variant="text"
+              icon
+              class="mark-menu__cue-btn"
+              @click="jumpTo(markAdding.end ?? 0)"
+            >
+              <v-icon size="15">mdi-skip-forward</v-icon>
+            </v-btn>
+            <v-btn
+              v-tooltip="formTooltip(t('player.mark_dialog.sync_with_player'))"
+              size="x-small"
+              variant="text"
+              icon
+              class="mark-menu__cue-btn"
+              @click="getCurrentTime('end')"
+            >
+              <v-icon size="15">mdi-crosshairs-gps</v-icon>
+            </v-btn>
+          </div>
+
+          <v-btn
+            v-tooltip="formTooltip(t('player.mark_dialog.clear_range'))"
+            size="x-small"
+            variant="text"
+            icon
+            class="mark-menu__range-clear"
+            @click="toggleEndTime(false)"
+          >
+            <v-icon size="15">mdi-close-circle-outline</v-icon>
+          </v-btn>
+        </template>
+
+        <button
+          v-else
+          type="button"
+          class="mark-menu__range-add"
+          @click="toggleEndTime(true)"
         >
-          <v-icon size="14">mdi-arrow-expand-horizontal</v-icon>
-        </v-btn>
-
-        <div class="mark-menu__cue" :class="{'mark-menu__cue--ghost': !markAdding.is_end_time_active}">
-          <MarkTimeHmsInput
-            compact
-            :model-value="markAdding.end ?? markAdding.time ?? 0"
-            :min="markAdding.time || 0"
-            :max="playerDuration"
-            :disabled="!markAdding.is_end_time_active"
-            :aria-label="t('player.mark_dialog.end_time')"
-            @update:model-value="onEndTimeChange"
-          />
-          <v-btn
-            v-if="!hideDisabledButtons || markAdding.is_end_time_active"
-            :disabled="!markAdding.is_end_time_active"
-            v-tooltip="formTooltip(t('player.mark_dialog.jump_to_time'))"
-            size="x-small"
-            variant="text"
-            icon
-            class="mark-menu__cue-btn"
-            @click="jumpTo(markAdding.end ?? 0)"
-          >
-            <v-icon size="16">mdi-skip-forward</v-icon>
-          </v-btn>
-          <v-btn
-            v-if="!hideDisabledButtons || markAdding.is_end_time_active"
-            :disabled="!markAdding.is_end_time_active"
-            v-tooltip="formTooltip(t('player.mark_dialog.sync_with_player'))"
-            size="x-small"
-            variant="text"
-            icon
-            class="mark-menu__cue-btn"
-            @click="getCurrentTime('end')"
-          >
-            <v-icon size="16">mdi-crosshairs-gps</v-icon>
-          </v-btn>
-        </div>
+          <v-icon size="15">mdi-arrow-expand-horizontal</v-icon>
+          {{ t('player.mark_dialog.set_range') }}
+        </button>
       </section>
 
-      <div class="mark-menu__tools">
-        <div v-if="isNoteType" class="mark-menu__icons">
-          <v-btn
+      <v-expand-transition>
+        <div v-if="hasInvalidRange || validationError" class="mark-menu__alert">
+          <v-icon size="14">mdi-alert-circle-outline</v-icon>
+          {{ validationError || t('player.mark_dialog.end_time_must_be_greater') }}
+        </div>
+      </v-expand-transition>
+
+      <footer class="mark-menu__footer">
+        <div v-if="isNoteType" class="mark-menu__icons" role="radiogroup">
+          <button
             v-for="preset in iconPresets"
             :key="preset"
-            :variant="markIcon === preset ? 'flat' : 'tonal'"
-            :color="markIcon === preset ? accentColor : undefined"
-            size="x-small"
-            icon
+            type="button"
+            class="mark-menu__icon"
+            :class="{'is-selected': markIcon === preset}"
+            role="radio"
+            :aria-checked="markIcon === preset"
             tabindex="-1"
             @click="setMarkIcon(preset)"
           >
-            <v-icon size="14">mdi-{{ preset }}</v-icon>
-          </v-btn>
-          <v-btn
+            <v-icon size="15">mdi-{{ preset }}</v-icon>
+          </button>
+          <button
             v-tooltip="formTooltip(t('meta.fields.select_icon'))"
-            :title="t('meta.fields.select_icon')"
-            size="x-small"
-            variant="tonal"
-            icon
+            type="button"
+            class="mark-menu__icon"
+            :class="{'is-selected': !iconPresets.includes(markIcon)}"
+            :aria-label="t('meta.fields.select_icon')"
             @click="showIconPicker = true"
           >
-            <v-icon size="16">mdi-dots-horizontal</v-icon>
-          </v-btn>
+            <v-icon size="15">
+              mdi-{{ iconPresets.includes(markIcon) ? 'dots-horizontal' : markIcon }}
+            </v-icon>
+          </button>
           <DialogIcons
             v-model="showIconPicker"
             :icon="markIcon"
@@ -230,18 +220,37 @@
             @apply="setMarkIcon"
           />
         </div>
-      </div>
 
-      <v-alert
-        v-if="hasInvalidRange || validationError"
-        type="error"
-        variant="tonal"
-        density="compact"
-        class="mark-menu__alert text-caption"
-        rounded="lg"
-      >
-        {{ validationError || t('player.mark_dialog.end_time_must_be_greater') }}
-      </v-alert>
+        <div class="mark-menu__actions">
+          <v-btn
+            v-if="isEditing && (!hideDisabledButtons || !markAdding.submitting)"
+            v-tooltip="formTooltip(t('common.delete'))"
+            color="error"
+            :disabled="markAdding.submitting"
+            :loading="deleting"
+            variant="text"
+            size="small"
+            icon
+            class="mark-menu__delete"
+            @click="remove"
+          >
+            <v-icon size="18">mdi-delete-outline</v-icon>
+          </v-btn>
+          <v-btn
+            :disabled="!canSubmit"
+            :loading="markAdding.submitting"
+            variant="flat"
+            size="small"
+            rounded="lg"
+            class="mark-menu__submit"
+            @click="add"
+          >
+            <v-icon start size="16">mdi-{{ isEditing ? 'content-save' : 'plus' }}</v-icon>
+            {{ submitLabel }}
+            <kbd class="mark-menu__kbd">↵</kbd>
+          </v-btn>
+        </div>
+      </footer>
     </div>
   </v-theme-provider>
 </template>
@@ -403,6 +412,12 @@ const submitLabel = computed(() => {
 })
 
 const formatTime = (seconds: number) => getReadableDuration(seconds || 0)
+
+const rangeDurationLabel = computed(() => {
+  if (!markAdding.value.is_end_time_active || hasInvalidRange.value) return ''
+  const span = (markAdding.value.end ?? 0) - (markAdding.value.time ?? 0)
+  return span > 0 ? formatTime(span) : ''
+})
 
 const parseMixedTagKey = (key: string | null | undefined) => {
   if (!key) return null
@@ -660,98 +675,108 @@ watch(
 
 <style scoped lang="scss">
 .mark-menu {
+  --mark-menu-fill: rgba(255, 255, 255, 0.07);
+  --mark-menu-fill-hover: rgba(255, 255, 255, 0.12);
+  --mark-menu-line: rgba(255, 255, 255, 0.1);
+
   width: 440px;
   max-width: 100%;
   box-sizing: border-box;
   position: relative;
-  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
   border-radius: 14px;
   color: rgba(255, 255, 255, 0.92);
   background: var(--mark-form-surface, rgba(22, 24, 28, 0.48));
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
   box-shadow:
-    0 10px 28px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.08);
+    0 12px 32px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 255, 255, 0.09);
+  overflow: hidden;
 }
+
+/* ---------- header ---------- */
 
 .mark-menu__top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 6px;
   min-width: 0;
 }
 
 .mark-menu__types {
-  padding: 3px;
-  border: 1px solid rgba(var(--v-theme-on-surface), .07);
-  border-radius: 11px;
-  background: rgba(var(--v-theme-on-surface), .035);
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
   flex: 1 1 auto;
+  gap: 2px;
   min-width: 0;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
 }
 
 .mark-menu__type {
-  border: 1px solid transparent;
-  border-radius: 8px !important;
-  flex: 0 0 auto;
-  text-transform: none;
-  letter-spacing: 0;
-}
+  --type-color: #fff;
 
-.mark-menu__type.is-selected {
-  background: rgb(var(--v-theme-surface));
-  border-color: currentColor;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 7%);
-}
-
-.mark-menu__type:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: -2px;
-}
-
-.mark-menu__icons {
-  display: flex;
-  flex-wrap: nowrap;
+  display: inline-flex;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
+  gap: 6px;
+  flex: 1 1 0;
   min-width: 0;
-  flex: 1 1 auto;
-}
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 
-.mark-menu__submit {
-  flex: 0 0 auto;
-}
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-.mark-menu__actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: 0 0 auto;
+  &:hover {
+    color: #fff;
+    background: var(--mark-menu-fill);
+  }
+
+  &.is-selected {
+    color: #fff;
+    background: color-mix(in srgb, var(--type-color) 22%, rgba(255, 255, 255, 0.06));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--type-color) 55%, transparent);
+
+    .v-icon {
+      color: var(--type-color);
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--type-color);
+    outline-offset: -2px;
+  }
 }
 
 .mark-menu__close {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  margin-left: 4px;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  color: rgba(255, 255, 255, 0.7);
 }
 
-.mark-menu__delete {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  margin-right: 4px;
-}
+/* ---------- text / tag ---------- */
 
 .mark-menu__identity {
-  min-height: 40px;
   min-width: 0;
-  margin-top: 6px;
   display: flex;
   align-items: center;
 
@@ -762,7 +787,24 @@ watch(
 
   :deep(.v-field) {
     color: rgba(255, 255, 255, 0.92);
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--mark-menu-fill);
+    box-shadow: inset 0 0 0 1px var(--mark-menu-line);
+    transition: box-shadow 0.15s ease, background-color 0.15s ease;
+  }
+
+  :deep(.v-field:hover) {
+    background: var(--mark-menu-fill-hover);
+  }
+
+  :deep(.v-field--focused) {
+    background: var(--mark-menu-fill-hover);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--mark-accent) 70%, transparent),
+      0 0 0 3px color-mix(in srgb, var(--mark-accent) 18%, transparent);
+  }
+
+  :deep(.v-field__overlay) {
+    display: none;
   }
 
   :deep(.v-field__input),
@@ -770,21 +812,16 @@ watch(
   :deep(.v-field textarea),
   :deep(input),
   :deep(textarea) {
-    color: rgba(255, 255, 255, 0.92);
-    caret-color: #fff;
+    color: rgba(255, 255, 255, 0.95);
+    caret-color: var(--mark-accent);
   }
 
   :deep(.v-field input::placeholder),
   :deep(.v-field textarea::placeholder),
   :deep(.v-field .v-label),
   :deep(.v-field__placeholder) {
-    color: rgba(255, 255, 255, 0.48);
-    opacity: 1;
-  }
-
-  :deep(.v-field .v-field__outline) {
-    --v-field-border-opacity: 0.28;
     color: rgba(255, 255, 255, 0.42);
+    opacity: 1;
   }
 }
 
@@ -793,80 +830,270 @@ watch(
   width: 100%;
 }
 
+.mark-menu__field-icon {
+  color: var(--mark-accent);
+  opacity: 0.95;
+  transition: color 0.2s ease;
+}
+
+// Compact single-line look: 32px high, grows only when text wraps.
+.mark-menu__identity {
+  :deep(.v-input--density-compact) {
+    --v-input-control-height: 32px;
+    --v-input-padding-top: 6px;
+  }
+
+  :deep(.v-field) {
+    --v-field-padding-start: 10px;
+    --v-field-padding-end: 10px;
+    --v-field-padding-top: 6px;
+    --v-field-padding-bottom: 6px;
+    --v-field-input-padding-top: 6px;
+    --v-field-input-padding-bottom: 6px;
+    font-size: 0.875rem;
+  }
+
+  :deep(.v-field__input) {
+    min-height: 32px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+}
+
 .mark-menu__textarea {
   :deep(textarea) {
-    line-height: 1.35;
-    min-height: 24px !important;
+    line-height: 20px;
+    min-height: 20px !important;
+    -webkit-mask-image: none;
+    mask-image: none;
   }
 }
 
 .mark-menu__identity-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
   margin: 0;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.62);
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--mark-menu-fill);
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.7);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- timing ---------- */
 
 .mark-menu__timing {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
-  justify-content: space-between;
-  gap: 4px;
-  margin-top: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
 .mark-menu__cue {
   display: inline-flex;
   align-items: center;
-  gap: 0;
+  flex: 0 0 auto;
   min-width: 0;
-  min-height: 32px;
-  padding: 1px 2px 1px 4px;
+  height: 32px;
+  padding: 0 2px 0 2px;
   border-radius: 10px;
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--mark-menu-fill);
+  box-shadow: inset 0 0 0 1px var(--mark-menu-line);
+}
 
-  &--ghost {
-    opacity: 0.48;
+.mark-menu__cue-btn,
+.mark-menu__range-clear {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  color: rgba(255, 255, 255, 0.72);
+
+  &:hover {
+    color: #fff;
   }
 }
 
-.mark-menu__cue-btn {
-  flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
+.mark-menu__range-clear {
+  margin-left: auto;
 }
 
-.mark-menu__range {
-  flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
+.mark-menu__span {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 auto;
   min-width: 24px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1;
+
+  &.is-invalid {
+    color: rgb(var(--v-theme-error));
+  }
 }
 
-.mark-menu__tools {
-  display: flex;
+.mark-menu__span-label {
+  margin-top: 1px;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mark-menu__range-add {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 6px;
-  min-width: 0;
+  height: 32px;
+  margin-left: auto;
+  padding: 0 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.66);
+  font: inherit;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+
+  &:hover {
+    color: #fff;
+    border-color: color-mix(in srgb, var(--mark-accent) 70%, transparent);
+    background: color-mix(in srgb, var(--mark-accent) 12%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mark-accent);
+    outline-offset: 1px;
+  }
 }
 
 .mark-menu__alert {
-  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  color: #ffb4ab;
+  background: rgba(var(--v-theme-error), 0.14);
 }
 
+/* ---------- footer ---------- */
+
+.mark-menu__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--mark-menu-line);
+}
+
+.mark-menu__icons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.mark-menu__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    color: #fff;
+    background: var(--mark-menu-fill-hover);
+  }
+
+  &.is-selected {
+    color: #fff;
+    background: var(--mark-accent);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--mark-accent) 45%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mark-accent);
+    outline-offset: 1px;
+  }
+}
+
+.mark-menu__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.mark-menu__delete {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+}
+
+.mark-menu__submit {
+  flex: 0 0 auto;
+  color: #fff !important;
+  background: rgb(var(--v-theme-success)) !important;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  padding-inline: 10px 8px !important;
+
+  &.v-btn--disabled {
+    color: rgba(255, 255, 255, 0.45) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    opacity: 1;
+
+    .mark-menu__kbd {
+      opacity: 0.4;
+    }
+  }
+}
+
+.mark-menu__kbd {
+  margin-left: 8px;
+  padding: 0 5px;
+  min-width: 18px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.18);
+  font-family: inherit;
+  font-size: 0.6875rem;
+  line-height: 16px;
+}
+
+/* ---------- time input ---------- */
+
 :deep(.mark-time-hms) {
-  color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.95);
+  background: transparent;
+  border-color: transparent;
 }
 
 :deep(.mark-time-hms__field) {
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.95);
+
+  &:focus {
+    background: color-mix(in srgb, var(--mark-accent) 22%, transparent);
+  }
 }
 </style>
 

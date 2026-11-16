@@ -223,8 +223,23 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
     preview_show.value = false
   }
 
+  // Marks are positioned from the timeline bottom; measure where the real
+  // slider track sits so they line up with it exactly.
+  const syncTrackOffset = () => {
+    const el = (slider_progress.value?.$el || slider_progress.value) as HTMLElement | null
+    if (!el?.querySelector) return
+    const track = el.querySelector('.timeline-slider .v-slider-track')
+    if (!track) return
+    const elRect = el.getBoundingClientRect()
+    const trackRect = track.getBoundingClientRect()
+    if (!elRect.height || !trackRect.height) return
+    const offset = elRect.bottom - (trackRect.top + trackRect.height / 2)
+    el.style.setProperty('--player-timeline-track-offset', `${Math.round(offset * 2) / 2}px`)
+  }
+
   const resize = () => {
     ++resized.value
+    syncTrackOffset()
   }
 
   const observeTimelineResize = () => {
@@ -241,7 +256,10 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
   onMounted(() => {
     is_mounted.value = true
     window.addEventListener('resize', resize)
-    nextTick(observeTimelineResize)
+    nextTick(() => {
+      observeTimelineResize()
+      syncTrackOffset()
+    })
   })
 
   onBeforeUnmount(() => {

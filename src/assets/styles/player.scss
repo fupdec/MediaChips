@@ -721,19 +721,21 @@
     transform: translateY(20px);
   }
 
+  // Small pointer from the form down to the mark on the timeline.
   .mark-inspector__caret {
     position: absolute;
-    bottom: -6px;
+    bottom: -7px;
     left: var(--mark-caret, 50%);
-    width: 12px;
-    height: 12px;
-    transform: translateX(-50%) rotate(45deg);
+    width: 14px;
+    height: 7px;
+    transform: translateX(-50%);
     background: var(--mark-form-surface, rgba(22, 24, 28, 0.48));
-    border-right: 1px solid rgba(255, 255, 255, 0.12);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 0 0 2px var(--mark-accent, #f44336);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
     z-index: 2;
     pointer-events: none;
+    transition: left 0.22s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .mark-inspector {
@@ -830,14 +832,13 @@
     --player-timeline-preview-height: clamp(100px, 15vh, 180px);
     --player-timeline-preview-offset: 50px;
     --player-timeline-track-offset: 20px;
+    --player-track-height: 4px;
+    --player-mark-range-height: 3px;
 
     position: relative;
     overflow: visible;
-    &:hover {
-      .mark-icon {
-        opacity: 0.7;
-        transform: scale(1);
-      }
+    &:hover .mark {
+      --mark-dot-size: 12px;
     }
     &.timeline--studio {
       padding-top: 8px;
@@ -996,6 +997,28 @@
       pointer-events: none;
       position: absolute;
       z-index: 12;
+      transform-origin: bottom center;
+      transition:
+        opacity 0.16s ease,
+        box-shadow 0.32s cubic-bezier(0.2, 0.9, 0.25, 1) 0.04s,
+        scale 0.22s cubic-bezier(0.2, 0.9, 0.25, 1),
+        translate 0.22s cubic-bezier(0.2, 0.9, 0.25, 1);
+
+      // Fades out while a mark card takes its place (cross-fade).
+      &.preview--hidden {
+        opacity: 0;
+        scale: 0.94;
+        translate: 0 6px;
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0),
+          0 1px 2px rgba(0, 0, 0, 0),
+          0 4px 8px rgba(0, 0, 0, 0);
+        transition:
+          opacity 0.14s ease,
+          box-shadow 0.12s ease,
+          scale 0.18s ease,
+          translate 0.18s ease;
+      }
       bottom: var(--player-timeline-preview-offset);
       width: auto;
       height: var(--player-timeline-preview-height);
@@ -1005,8 +1028,11 @@
       overflow: hidden;
       transform-origin: bottom center;
       border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      border: 0;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.2),
+        0 4px 10px rgba(0, 0, 0, 0.35),
+        0 14px 34px rgba(0, 0, 0, 0.5);
       background-color: #000;
 
       &.preview--time-only {
@@ -1069,67 +1095,112 @@
     border-radius: 5px;
   }
   .mark {
+    --mark-color-raw: #fff;
+    --mark-color: var(--mark-color-raw);
+    --mark-dot-size: 10px;
+
+    // Muted like tag chips on media cards: keep lightness, cut saturation.
+    &.mark--muted {
+      --mark-color: oklch(from var(--mark-color-raw) l calc(c * 0.45) h);
+    }
+
     cursor: pointer;
     position: absolute;
     bottom: var(--player-timeline-track-offset, 20px);
-    .breaker {
-      position: absolute;
-      top: auto;
-      bottom: 0;
-      width: 1px;
-      height: 8px;
-      transform: translateY(50%);
-      opacity: 1;
-      transition: 0.3s all;
-      background-color: #ffffffcc;
-      pointer-events: none;
-      box-shadow: 0px -3px 3px 1px #24242457;
-    }
-    &:hover {
-      > .timeline {
-        height: 5px;
-        opacity: 1;
-      }
-    }
+    width: 0;
+    height: 0;
+    z-index: 3;
+
+    // Range bar sits just above the main track so it doesn't tint the
+    // played (white) part of the timeline.
     .timeline {
-      background-color: white;
       position: absolute;
-      display: flex;
-      bottom: 0;
       left: 0;
-      height: 2px;
-      transform: translateY(50%);
-      opacity: 0.7;
-      border-radius: 3px;
+      bottom: calc(var(--player-track-height, 2px) / 2 + 2px);
+      height: var(--player-mark-range-height, 3px);
+      min-width: 2px;
+      border-radius: 99px;
+      background: var(--mark-color);
+      opacity: 0.55;
       pointer-events: none;
-      transition: 0.3s all;
+      transition:
+        height 0.2s cubic-bezier(0.2, 0.9, 0.25, 1),
+        opacity 0.15s ease,
+        background-color 0.15s ease;
     }
-    .mark-icon {
+
+    .mark-dot {
       position: absolute;
-      bottom: 10px;
-      left: -11px;
-      right: 0;
-      opacity: 0;
-      transform: scale(0);
-      transition: transform 0.2s 0.1s ease-in, opacity 0.1s ease-in;
-      filter: drop-shadow(0 0 2px rgb(0 0 0 / 0.4));
+      left: 0;
+      bottom: 0;
+      width: var(--mark-dot-size);
+      height: var(--mark-dot-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--mark-color);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.85),
+        0 1px 3px rgba(0, 0, 0, 0.4);
+      transform: translate(-50%, 50%);
+      transition:
+        width 0.15s ease,
+        height 0.15s ease,
+        box-shadow 0.15s ease;
+      z-index: 1;
+
+      // Bigger invisible hit area around the small dot.
+      &::before {
+        content: '';
+        position: absolute;
+        inset: -7px;
+        border-radius: 50%;
+      }
+
+      &__icon {
+        opacity: 0;
+        transform: scale(0.4);
+        transition: opacity 0.12s ease, transform 0.15s ease;
+        pointer-events: none;
+      }
+
       &:hover {
-        opacity: 1;
-        z-index: 1;
+        --mark-dot-size: 22px;
+        // Hovered mark shows its full colour.
+        background: var(--mark-color-raw);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.9),
+          0 0 0 3px color-mix(in srgb, var(--mark-color) 30%, transparent),
+          0 2px 8px rgba(0, 0, 0, 0.5);
+
+        .mark-dot__icon {
+          opacity: 1;
+          transform: scale(1);
+        }
+
         & + .tooltip {
           opacity: 1;
-          transform: translateX(-50%) scale(1);
+          visibility: visible;
+          scale: 1;
+          translate: 0 0;
+          box-shadow: var(--mark-card-shadow);
+          transition:
+            opacity 0.18s ease,
+            box-shadow 0.32s cubic-bezier(0.2, 0.9, 0.25, 1) 0.04s,
+            scale 0.26s cubic-bezier(0.2, 0.9, 0.25, 1),
+            translate 0.26s cubic-bezier(0.2, 0.9, 0.25, 1),
+            visibility 0s;
         }
       }
     }
-    .meta-icon {
-      position: absolute;
-      top: 3px;
-      padding-top: 3px;
-      padding-left: 100%;
-      display: flex;
-      align-items: center;
+
+    &:hover .timeline {
+      height: 6px;
+      opacity: 1;
+      background: var(--mark-color-raw);
     }
+
     .tooltip {
       position: absolute;
       padding: 0;
@@ -1137,58 +1208,124 @@
       width: auto;
       height: var(--player-timeline-preview-height);
       min-height: 100px;
-      left: 50%;
+      left: 0;
       display: inline-flex;
       flex-direction: column;
       overflow: hidden;
-      transform: translateX(-50%) scale(0);
+      transform: translateX(calc(-50% + var(--edge-shift, 0px)));
       transform-origin: bottom center;
       opacity: 0;
-      transition: transform 0.01s ease, opacity 0.2s 0.1s ease;
+      visibility: hidden;
+      scale: 0.94;
+      translate: 0 6px;
+      will-change: opacity, scale, translate, box-shadow;
+      // Hide with a short delay so the cursor can travel from the dot to the
+      // card; visibility flips last so the card stays hoverable meanwhile.
+      transition:
+        opacity 0.16s ease 0.12s,
+        box-shadow 0.14s ease 0.12s,
+        scale 0.2s ease 0.12s,
+        translate 0.2s ease 0.12s,
+        visibility 0s linear 0.32s;
       z-index: 12;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      border-radius: 10px;
+      border: 0;
+      // Shadow grows in after the card, instead of popping with it.
+      --mark-card-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.2),
+        0 4px 10px rgba(0, 0, 0, 0.35),
+        0 14px 34px rgba(0, 0, 0, 0.5);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0),
+        0 1px 2px rgba(0, 0, 0, 0),
+        0 4px 8px rgba(0, 0, 0, 0);
       background-color: #000;
 
       &:hover {
         opacity: 1;
-        transform: translateX(-50%) scale(1);
+        visibility: visible;
+        scale: 1;
+        translate: 0 0;
+        box-shadow: var(--mark-card-shadow);
+        transition:
+          opacity 0.18s ease,
+          box-shadow 0.32s cubic-bezier(0.2, 0.9, 0.25, 1) 0.04s,
+          scale 0.26s cubic-bezier(0.2, 0.9, 0.25, 1),
+          translate 0.26s cubic-bezier(0.2, 0.9, 0.25, 1),
+          visibility 0s;
       }
     }
     .thumb {
       width: 100%;
       height: 100%;
-      border-radius: 8px;
-      background-color: #000000;
+      background-color: #000;
     }
-    .edit {
+    .mark-name,
+    .time,
+    .mark-actions {
       position: absolute;
-      left: 3px;
-      bottom: 3px;
-    }
-    .delete {
-      position: absolute;
-      left: 40px;
-      bottom: 3px;
-    }
-    .time {
-      position: absolute;
-      bottom: 2px;
-      right: 2px;
-      border-radius: 3px;
-      padding: 0px 4px;
-      white-space: nowrap;
-      opacity: 0.65;
+      color: #fff;
+      background: rgba(10, 10, 12, 0.62);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(8px);
+      border-radius: 6px;
     }
     .mark-name {
-      border-radius: 3px;
-      top: 2px;
-      left: 2px;
-      padding: 3px 5px;
+      top: 6px;
+      left: 6px;
+      max-width: calc(100% - 12px);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px 2px 6px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 18px;
       white-space: nowrap;
-      opacity: 0.65;
-      position: absolute;
+
+      &__swatch {
+        flex: 0 0 auto;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--mark-color-raw);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+      }
+
+      .name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+    .time {
+      right: 6px;
+      bottom: 6px;
+      padding: 1px 6px;
+      font-size: 11px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .mark-actions {
+      left: 6px;
+      bottom: 6px;
+      display: flex;
+      gap: 2px;
+      padding: 2px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .tooltip:hover .mark-actions {
+      opacity: 1;
+    }
+    .mark-action {
+      color: #fff;
+      width: 26px;
+      height: 26px;
+
+      &--danger:hover {
+        color: rgb(var(--v-theme-error));
+      }
     }
   }
   .marks-track {
@@ -1441,7 +1578,7 @@
       position: absolute;
       left: 50%;
       bottom: calc(100% + 14px);
-      transform: translateX(-50%);
+      transform: translateX(calc(-50% + var(--edge-shift, 0px)));
     }
 
     &--up-next {
@@ -1560,7 +1697,7 @@
   .neighbor-preview-pop-enter-from,
   .neighbor-preview-pop-leave-to {
     opacity: 0;
-    transform: translateX(-50%) translateY(8px) scale(0.94);
+    transform: translateX(calc(-50% + var(--edge-shift, 0px))) translateY(8px) scale(0.94);
   }
 
   .up-next-slide-enter-active,
@@ -1650,6 +1787,10 @@
   align-items: center;
   margin: 8px;
   padding: 4px 16px 4px 8px;
+  // Leave room for the close button on the right.
+  max-width: calc(100% - 80px);
+  min-width: 0;
+  overflow: hidden;
   border-radius: 16px;
   color: white;
   background: rgba(12, 12, 16, 0.38);
@@ -1671,8 +1812,22 @@
   &__content {
     display: flex;
     align-items: center;
+    min-width: 0;
+    max-width: 100%;
     font-variant-numeric: tabular-nums;
     line-height: 1.2;
+
+    .v-icon {
+      flex: 0 0 auto;
+    }
+  }
+
+  &__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &--timed &__content {
@@ -1682,15 +1837,12 @@
 
   &--title {
     padding: 8px 18px 8px 10px;
-    max-width: min(70vw, 560px);
+    max-width: min(calc(100% - 80px), 70vw, 560px);
   }
 
   &--title &__content {
     font-size: 18px;
     font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   &__subtitle {
