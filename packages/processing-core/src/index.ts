@@ -42,7 +42,7 @@ export async function runFfmpeg(context: ProcessingContext, args: string[], outp
   await new Promise<void>((resolve, reject) => {
     const child = spawn(context.ffmpeg, ['-nostdin', '-hide_banner', '-loglevel', 'error', '-y', '-max_alloc', String(limits.maxAllocationBytes),
       '-protocol_whitelist', 'file,pipe', '-max_pixels', '16777216', '-threads', String(limits.threads), '-filter_threads', String(limits.threads), ...args,
-      '-threads', String(limits.threads), '-fs', String(limits.maxOutputBytes), output], {stdio: 'ignore'})
+      '-threads', String(limits.threads), '-fs', String(limits.maxOutputBytes), output], {stdio: 'ignore', windowsHide: true})
     let limitExceeded = false, memoryExceeded = false, checkingMemory = false, closed = false
     let checks = 0
     const kill = () => child.kill('SIGKILL')

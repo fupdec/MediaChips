@@ -13,7 +13,7 @@ const inputOptions = ['-protocol_whitelist', 'http,tcp', '-format_whitelist',
 export async function probeNasMedia(url: string, signal: AbortSignal) {
   return runWithFfprobeLimit(async () => {
     const {stdout} = await exec(getFfprobePath(), ['-v', 'error', '-max_alloc', '67108864', '-threads', '1', ...inputOptions, '-show_format', '-show_streams', '-of', 'json', url],
-      {signal, timeout: 35_000, killSignal: 'SIGKILL', maxBuffer: 2 * 1024 * 1024})
+      {signal, timeout: 35_000, killSignal: 'SIGKILL', maxBuffer: 2 * 1024 * 1024, windowsHide: true})
     const raw = JSON.parse(stdout) as {format?: {tags?: Record<string, string>; duration?: string; bit_rate?: string};
       streams?: Array<FfprobeStream & {index: number; duration?: string; bit_rate?: string; disposition?: {attached_pic?: number}; tags?: Record<string, string>}>}
     const info = normalizeFfprobePayload(raw)
@@ -40,6 +40,6 @@ export async function createNasThumbnail(url: string, output: string, kind: stri
       ...(seek ? ['-ss', String(seek)] : []), '-i', url,
       '-map', kind === 'audio' ? `0:${coverIndex}` : '0:v:0', '-an', '-threads', '1',
       '-vf', "scale='min(640,iw)':-2", '-frames:v', '1', '-q:v', '3', '-f', 'image2', '-y', output],
-      {signal, timeout: 45_000, killSignal: 'SIGKILL', maxBuffer: 1024 * 1024})
+      {signal, timeout: 45_000, killSignal: 'SIGKILL', maxBuffer: 1024 * 1024, windowsHide: true})
   }, {signal, priority: -10})
 }

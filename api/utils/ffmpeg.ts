@@ -56,7 +56,7 @@ export function parseFfmpegProgressTime(line: string): number | null {
 
 function runProcess(binary: string, args: string[], options: RunProcessOptions = {}): Promise<{stdout: string; stderr: string}> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(binary, args, {stdio: ['ignore', 'pipe', 'pipe']})
+    const proc = spawn(binary, args, {stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true})
     let stdout = ''
     let stderr = ''
     let progressBuffer = ''

@@ -290,7 +290,7 @@ type FfmpegCaptureOptions = {
 
 async function runFfmpegCapture(options: FfmpegCaptureOptions): Promise<string> {
   return runWithFfmpegLimit(() => new Promise((resolve, reject) => {
-    const proc = spawn(getFfmpegPath(), options.args, {stdio: ['ignore', 'pipe', 'pipe']})
+    const proc = spawn(getFfmpegPath(), options.args, {stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true})
     let stdout = ''
     let stderr = ''
     let settled = false
