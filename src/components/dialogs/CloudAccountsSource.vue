@@ -241,7 +241,7 @@ const providerStyle = (provider: string) => provider === 'onedrive'
   : provider === 'dropbox'
     ? {icon: 'mdi-dropbox', color: '#0061ff'}
     : {icon: 'mdi-google-drive', color: '#34a853'}
-const providers = [{title: 'Google Drive', value: 'gdrive'}, {title: 'Dropbox', value: 'dropbox'}, {title: 'OneDrive', value: 'onedrive'}]
+const providers: {title: string; value: CloudProvider}[] = [{title: 'Google Drive', value: 'gdrive'}, {title: 'Dropbox', value: 'dropbox'}, {title: 'OneDrive', value: 'onedrive'}]
 const providerName = (provider: string) => providers.find(item => item.value === provider)?.title || provider
 let controller: AbortController | undefined
 let reloadRequested = false

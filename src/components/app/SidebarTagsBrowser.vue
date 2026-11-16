@@ -765,7 +765,7 @@ watch(
 // when the meta stays the same so page switches don't apply a stale sort.
 watch(
   () => (itemsStore.type === 'tag'
-    ? [Number(itemsStore.environment?.meta_id) || 0, String(itemsStore.sortBy || ''), String(itemsStore.sortDir || '')]
+    ? [Number(itemsStore.environment?.meta_id) || 0, String(itemsStore.sortBy || ''), String(itemsStore.sortDir || '')] as [number, string, string]
     : null),
   (next, prev) => {
     if (!next || !prev) return
