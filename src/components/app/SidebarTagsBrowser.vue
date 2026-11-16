@@ -1,12 +1,16 @@
 <template>
   <div
     class="sidebar-tags-browser"
+    :style="{'--sidebar-tags-toolbar-h': `${toolbarHeight}px`}"
     :class="{
       'sidebar-tags-browser--editing': editMode,
       'sidebar-tags-browser--nest-drag': canDragCategoryToNest,
     }"
   >
-    <div class="sidebar-tags-browser__toolbar">
+    <div
+      ref="toolbarRef"
+      class="sidebar-tags-browser__toolbar"
+    >
       <v-text-field
         :model-value="search"
         density="compact"
@@ -194,8 +198,8 @@
             >
               <v-icon
                 v-if="category.icon"
-                size="16"
-                class="mr-2 opacity-70"
+                size="20"
+                class="sidebar-tags-browser__category-icon"
               >
                 mdi-{{ category.icon }}
               </v-icon>
@@ -252,9 +256,9 @@
               @dragend="onHierarchyDragEnd"
             >
               <span
-                v-if="tag.color"
                 class="sidebar-tags-browser__tag-swatch"
-                :style="{backgroundColor: tag.color}"
+                :class="{'sidebar-tags-browser__tag-swatch--empty': !tag.color}"
+                :style="tag.color ? {backgroundColor: tag.color} : undefined"
               />
               <span class="sidebar-tags-browser__tag-name">{{ tag.name }}</span>
               <v-icon
@@ -292,12 +296,13 @@
 </template>
 
 <script setup lang="ts">
-import {computed, defineAsyncComponent, reactive, ref, watch} from 'vue'
+import {computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useI18n} from 'vue-i18n'
 import DialogMetaManager from '@/components/dialogs/DialogMetaManager.vue'
 import {useAppStore} from '@/stores/app'
 import {useSettingsStore} from '@/stores/settings'
+import {useItemsStore} from '@/stores/items'
 import {metaPath, useLibraryNavItems} from '@/composable/useLibraryNavItems'
 import {useBrowserTagFilter} from '@/composable/useBrowserTagFilter'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
@@ -343,6 +348,23 @@ const {moveTagsToCategory} = useMoveTagsToCategory()
 const {reparentCategory} = useHierarchyReparent()
 
 const search = ref('')
+const toolbarRef = ref<HTMLElement | null>(null)
+const toolbarHeight = ref(44)
+let toolbarObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  const el = toolbarRef.value
+  if (!el || typeof ResizeObserver === 'undefined') return
+  toolbarObserver = new ResizeObserver(() => {
+    toolbarHeight.value = Math.round(el.getBoundingClientRect().height)
+  })
+  toolbarObserver.observe(el)
+})
+
+onBeforeUnmount(() => {
+  toolbarObserver?.disconnect()
+  toolbarObserver = null
+})
 const expanded = reactive<Record<number, boolean>>({})
 const categoryRows = ref<Meta[]>([])
 const categoryDragging = ref(false)
@@ -454,13 +476,92 @@ watch(metaArray, (metas) => {
   syncCategoryRows(metas)
 }, {immediate: true})
 
+/* ---------- Category page sort mirroring ----------
+ * Tags in the tree follow the sort chosen on each category's page. The order
+ * comes from the server (sorts can use media counts, pinned meta, etc. that the
+ * cached catalog lacks); only ids are fetched, tags still render from the cache.
+ * `null` = no custom sort saved → alphabetical.
+ */
+const itemsStore = useItemsStore()
+const categoryOrder = reactive<Record<number, number[] | null>>({})
+const categoryOrderRequest: Record<number, number> = {}
+
+type CategorySort = {sortBy: string; sortDir: 'asc' | 'desc'}
+
+async function fetchCategorySort(metaId: number): Promise<CategorySort | null> {
+  try {
+    // Lookup only — never create default page settings rows.
+    const res = await typedApi.findPageSettings({
+      metaId,
+      tagId: null,
+      mediaTypeId: null,
+      tabId: null,
+    })
+    const sortBy = String(res.data?.sortBy || '')
+    if (!sortBy) return null
+    return {sortBy, sortDir: res.data?.sortDir === 'desc' ? 'desc' : 'asc'}
+  } catch {
+    return null
+  }
+}
+
+async function loadCategoryOrder(
+  metaId: number,
+  options: {force?: boolean; sort?: CategorySort | null} = {},
+): Promise<void> {
+  if (!options.force && metaId in categoryOrder) return
+  const token = (categoryOrderRequest[metaId] || 0) + 1
+  categoryOrderRequest[metaId] = token
+
+  const sort = options.sort !== undefined ? options.sort : await fetchCategorySort(metaId)
+  if (categoryOrderRequest[metaId] !== token) return
+
+  // Shuffle on the page is random per load — keep the tree stable instead.
+  if (!sort || sort.sortBy === 'shuffle') {
+    categoryOrder[metaId] = null
+    return
+  }
+
+  try {
+    const res = await typedApi.postTagSortedIds({
+      metaId,
+      sortBy: sort.sortBy,
+      direction: sort.sortDir,
+    })
+    if (categoryOrderRequest[metaId] !== token) return
+    categoryOrder[metaId] = res.data.ids
+  } catch {
+    if (categoryOrderRequest[metaId] !== token) return
+    categoryOrder[metaId] = null
+  }
+}
+
+function sortTagsForCategory(metaId: number, tags: Tag[]): Tag[] {
+  const byName = (a: Tag, b: Tag) => String(a.name || '').localeCompare(String(b.name || ''))
+  const order = categoryOrder[metaId]
+  if (!order?.length) return tags.sort(byName)
+
+  const rank = new Map<number, number>()
+  order.forEach((id, index) => rank.set(id, index))
+  return tags.sort((a, b) => {
+    const ra = rank.get(Number(a.id))
+    const rb = rank.get(Number(b.id))
+    // Tags created after the order was fetched go last, alphabetically.
+    if (ra == null && rb == null) return byName(a, b)
+    if (ra == null) return 1
+    if (rb == null) return -1
+    return ra - rb
+  })
+}
+
 const tagsByMetaId = computed(() => {
   const query = search.value.trim().toLowerCase()
   const map = new Map<number, Tag[]>()
 
   for (const category of categoryRows.value) {
-    let tags = [...(appStore.getTagsByMetaId(category.id) as Tag[])].sort((a, b) =>
-      String(a.name || '').localeCompare(String(b.name || '')),
+    let tags = sortTagsForCategory(
+      category.id,
+      [...(appStore.getTagsByMetaId(category.id) as Tag[])],
     )
     if (query) {
       tags = tags.filter((tag) => {
@@ -651,6 +752,55 @@ watch(
   {immediate: true},
 )
 
+// Lazily mirror the page sort for every expanded category.
+watch(
+  () => categoryRows.value.filter((category) => isExpanded(category.id)).map((category) => category.id),
+  (ids) => {
+    for (const id of ids) void loadCategoryOrder(id)
+  },
+  {immediate: true},
+)
+
+// Sort changed on the open category page → follow it right away. Only react
+// when the meta stays the same so page switches don't apply a stale sort.
+watch(
+  () => (itemsStore.type === 'tag'
+    ? [Number(itemsStore.environment?.meta_id) || 0, String(itemsStore.sortBy || ''), String(itemsStore.sortDir || '')] as [number, string, string]
+    : null),
+  (next, prev) => {
+    if (!next || !prev) return
+    const [metaId, sortBy, sortDir] = next
+    if (!metaId || metaId !== prev[0]) return
+    if (sortBy === prev[1] && sortDir === prev[2]) return
+    void loadCategoryOrder(metaId, {
+      force: true,
+      sort: sortBy ? {sortBy, sortDir: sortDir === 'desc' ? 'desc' : 'asc'} : null,
+    })
+  },
+)
+
+// Catalog reloads (new tags, counts, ratings…) can shift server-side order.
+let catalogRefreshTimer: ReturnType<typeof setTimeout> | null = null
+watch(
+  () => appStore.tags,
+  () => {
+    if (catalogRefreshTimer != null) clearTimeout(catalogRefreshTimer)
+    catalogRefreshTimer = setTimeout(() => {
+      catalogRefreshTimer = null
+      for (const key of Object.keys(categoryOrder)) {
+        const metaId = Number(key)
+        if (categoryOrder[metaId] && isExpanded(metaId)) {
+          void loadCategoryOrder(metaId, {force: true})
+        }
+      }
+    }, 800)
+  },
+)
+
+onBeforeUnmount(() => {
+  if (catalogRefreshTimer != null) clearTimeout(catalogRefreshTimer)
+})
+
 defineExpose({
   allCategoriesExpanded,
   toggleAllCategories,
@@ -790,31 +940,44 @@ async function onMetaCreated(): Promise<void> {
 
 <style scoped lang="scss">
 .sidebar-tags-browser {
+  --tags-hover: rgba(var(--v-theme-on-surface), 0.06);
+  --tags-guide: rgba(var(--v-theme-on-surface), 0.1);
+
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
 .sidebar-tags-browser__toolbar {
-  padding: 0 0 8px;
+  padding: 6px 0 10px;
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
   background: rgb(var(--v-theme-surface));
 }
 
 .sidebar-tags-browser__search {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
 
   :deep(.v-input__control) {
-    min-height: 28px;
+    min-height: 32px;
   }
 
   :deep(.v-field) {
-    background: transparent !important;
+    background: rgba(var(--v-theme-on-surface), 0.045) !important;
+    border-radius: 9px !important;
     --v-field-padding-top: 0;
     --v-field-padding-bottom: 0;
-    --v-input-control-height: 28px;
+    --v-input-control-height: 32px;
+    transition: background-color 0.12s ease;
+  }
+
+  :deep(.v-field:hover) {
+    background: rgba(var(--v-theme-on-surface), 0.07) !important;
+  }
+
+  :deep(.v-field--focused) {
+    background: rgb(var(--v-theme-surface)) !important;
   }
 
   :deep(.v-field__field) {
@@ -823,28 +986,28 @@ async function onMetaCreated(): Promise<void> {
   }
 
   :deep(.v-field__input) {
-    min-height: 28px !important;
+    min-height: 32px !important;
     padding-top: 0;
     padding-bottom: 0;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
   }
 
   :deep(.v-field__prepend-inner) {
     padding-top: 0;
-    padding-inline-end: 2px;
+    padding-inline-end: 4px;
     align-self: center;
   }
 
   :deep(.v-field__prepend-inner > .v-icon),
   :deep(.v-field__append-inner > .v-icon) {
-    font-size: 15px !important;
-    width: 15px;
-    height: 15px;
+    font-size: 16px !important;
+    width: 16px;
+    height: 16px;
     opacity: 0.5;
   }
 
   :deep(.v-field__outline) {
-    --v-field-border-opacity: 0.18;
+    --v-field-border-opacity: 0;
   }
 
   :deep(.v-field--focused .v-field__outline) {
@@ -870,9 +1033,9 @@ async function onMetaCreated(): Promise<void> {
   align-items: center;
   width: 100%;
   min-width: 0;
-  padding: 5px 8px;
+  padding: 6px 10px;
   border: 1px dashed rgba(var(--v-theme-primary), 0.45);
-  border-radius: 8px;
+  border-radius: 9px;
   background: rgba(var(--v-theme-primary), 0.06);
   color: rgb(var(--v-theme-primary));
   cursor: pointer;
@@ -880,6 +1043,7 @@ async function onMetaCreated(): Promise<void> {
   font-weight: 500;
   line-height: 1.3;
   text-align: left;
+  transition: background-color 0.12s ease;
 
   &:hover:not(:disabled) {
     background: rgba(var(--v-theme-primary), 0.12);
@@ -930,12 +1094,17 @@ async function onMetaCreated(): Promise<void> {
   cursor: grab;
 }
 
+/* Category header stays pinned under the search box while its tags scroll by */
 .sidebar-tags-browser__category-header {
   display: flex;
   align-items: center;
   width: 100%;
   gap: 2px;
-  padding: 2px 0;
+  padding: 1px 0;
+  position: sticky;
+  top: var(--sidebar-tags-toolbar-h, 42px);
+  z-index: 1;
+  background: rgb(var(--v-theme-surface));
 }
 
 .sidebar-tags-browser__category-drag {
@@ -954,18 +1123,19 @@ async function onMetaCreated(): Promise<void> {
   justify-content: center;
   flex-shrink: 0;
   width: 24px;
-  height: 24px;
+  height: 36px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 10px;
   background: transparent;
   color: inherit;
   cursor: pointer;
-  opacity: 0.65;
+  opacity: 0.55;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
 
   &:hover {
     opacity: 1;
-    background: rgba(var(--v-theme-on-surface), 0.06);
+    background: var(--tags-hover);
   }
 }
 
@@ -974,28 +1144,43 @@ async function onMetaCreated(): Promise<void> {
   align-items: center;
   flex: 1;
   min-width: 0;
-  padding: 4px 6px;
+  height: 36px;
+  padding: 0 10px 0 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 10px;
   background: transparent;
   color: inherit;
   cursor: pointer;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 500;
   letter-spacing: normal;
   text-transform: none;
-  opacity: 0.9;
+  transition: background-color 0.12s ease, color 0.12s ease;
 
   &:hover {
-    opacity: 1;
-    background: rgba(var(--v-theme-on-surface), 0.05);
+    background: var(--tags-hover);
   }
 
   &--active {
-    opacity: 1;
     background: rgba(var(--v-theme-primary), 0.12);
     color: rgb(var(--v-theme-primary));
+    font-weight: 600;
+
+    .sidebar-tags-browser__category-icon {
+      opacity: 1;
+    }
+
+    .sidebar-tags-browser__category-count {
+      background: rgba(var(--v-theme-primary), 0.16);
+      color: inherit;
+    }
   }
+}
+
+.sidebar-tags-browser__category-icon {
+  flex-shrink: 0;
+  margin-inline-end: 10px;
+  opacity: 0.72;
 }
 
 .sidebar-tags-browser__category-name {
@@ -1008,10 +1193,18 @@ async function onMetaCreated(): Promise<void> {
 }
 
 .sidebar-tags-browser__category-count {
-  font-weight: 500;
-  opacity: 0.55;
-  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 22px;
   margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .sidebar-tags-browser__category-actions {
@@ -1021,31 +1214,40 @@ async function onMetaCreated(): Promise<void> {
   margin-left: 2px;
 }
 
+/* Tag list hangs off a thin guide line under the category chevron */
 .sidebar-tags-browser__tags {
-  padding: 0 4px 6px;
+  margin: 1px 0 6px 11px;
+  padding: 0 0 0 5px;
+  border-left: 1px solid var(--tags-guide);
+}
+
+.sidebar-tags-browser--editing .sidebar-tags-browser__tags {
+  margin-left: 29px;
 }
 
 .sidebar-tags-browser__tag {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
-  padding: 3px 8px 3px 28px;
+  min-height: 26px;
+  padding: 3px 8px;
   border: 0;
   background: transparent;
   color: inherit;
   cursor: grab;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  border-radius: 7px;
+  font-size: 0.8125rem;
   line-height: 1.35;
   text-align: left;
+  transition: background-color 0.1s ease, color 0.1s ease;
 
   &:hover {
-    background: rgba(var(--v-theme-on-surface), 0.06);
+    background: var(--tags-hover);
   }
 
   &--active {
-    background: rgba(var(--v-theme-primary), 0.16);
+    background: rgba(var(--v-theme-primary), 0.14);
     color: rgb(var(--v-theme-primary));
     font-weight: 600;
   }
@@ -1055,15 +1257,22 @@ async function onMetaCreated(): Promise<void> {
   }
 }
 
-.sidebar-tags-browser--editing .sidebar-tags-browser__tag {
-  padding-left: 36px;
-}
-
 .sidebar-tags-browser__tag-swatch {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+
+  &--empty {
+    background: rgba(var(--v-theme-on-surface), 0.16);
+    box-shadow: none;
+    transform: scale(0.6);
+  }
+}
+
+.sidebar-tags-browser__tag--active .sidebar-tags-browser__tag-swatch--empty {
+  background: currentColor;
 }
 
 .sidebar-tags-browser__tag-name {

@@ -46,9 +46,9 @@ function createCorsMiddleware() {
       res.header('Vary', 'Origin')
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Content-Disposition')
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Content-Disposition, Range')
     res.header('Access-Control-Allow-Credentials', 'true')
-    res.header('Access-Control-Expose-Headers', 'Content-Disposition')
+    res.header('Access-Control-Expose-Headers', 'Content-Disposition, Content-Range, Accept-Ranges, Content-Length')
 
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200)
@@ -67,4 +67,3 @@ export {
   isAllowedOrigin,
   createCorsMiddleware,
 }
-

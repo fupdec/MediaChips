@@ -150,6 +150,9 @@ if (readFlag('--dir')) {
 if (!readFlag('--dir')) {
   builderArgs.push('--publish', publish)
 }
+for (const arch of ['--arm64', '--x64', '--ia32', '--universal']) {
+  if (readFlag(arch)) builderArgs.push(arch)
+}
 
 const macDeveloperIdSign = wantsMacDeveloperIdSign(childEnv)
   && (target === 'mac' || readFlag('--mac'))
@@ -234,6 +237,16 @@ if (macDeveloperIdSign) {
   }
 }
 
+// Explicit architectures on individual mac targets otherwise override CLI flags.
+const requestedMacArchs = ['arm64', 'x64', 'universal'].filter(arch => readFlag(`--${arch}`))
+if (target === 'mac' && requestedMacArchs.length) {
+  const config = builderConfig || JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).build
+  const targets = Array.isArray(config.mac?.target) ? config.mac.target : [config.mac?.target || 'dmg']
+  builderConfig = {...config, mac: {...config.mac, target: targets.map(item => ({
+    ...(typeof item === 'string' ? {target: item} : item), arch: requestedMacArchs,
+  }))}}
+}
+
 if (builderConfig) {
   const configDir = join(root, '.cache')
   mkdirSync(configDir, {recursive: true})
@@ -241,7 +254,7 @@ if (builderConfig) {
     ? 'electron-builder.msstore.json'
     : storeBuild
       ? 'electron-builder.store.json'
-      : 'electron-builder.mac-sign.json'
+      : macDeveloperIdSign ? 'electron-builder.mac-sign.json' : 'electron-builder.dist.json'
   const configPath = join(configDir, configName)
   writeFileSync(configPath, JSON.stringify(builderConfig, null, 2))
   builderArgs.push('--config', configPath)

@@ -13,6 +13,8 @@ export const media = sqliteTable('media', {
   visualHash: text('visualHash'),
   /** Colon-separated per-tile aHashes from the grid (row-major). */
   visualHashTiles: text('visualHashTiles'),
+  /** Perceptual aHash of the standalone video thumbnail. */
+  visualHashThumbnail: text('visualHashThumbnail'),
   rating: integer('rating').default(0),
   favorite: integer('favorite', {mode: 'boolean'}).default(false),
   bookmark: text('bookmark'),
@@ -31,5 +33,13 @@ export const media = sqliteTable('media', {
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 }, (table) => ({
+  trashOriginalPathIdx: index('media_trash_original_path_idx').on(table.trashOriginalPath),
   favoriteIdIdx: index('media_favorite_id_idx').on(table.favorite, table.id),
+  mediaTypeNameIdx: index('media_media_type_id_name_idx').on(table.mediaTypeId, table.name),
+  mediaTypePathIdx: index('media_media_type_id_path_idx').on(table.mediaTypeId, table.path),
+  mediaTypeExtIdx: index('media_media_type_id_ext_idx').on(table.mediaTypeId, table.ext),
+  mediaTypeMediaCreatedAtIdx: index('media_media_type_id_media_created_at_idx').on(
+    table.mediaTypeId,
+    table.mediaCreatedAt,
+  ),
 }))

@@ -1,3 +1,4 @@
+import {modelDownloadError} from './manualModels'
 import {watch} from 'vue'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useNotificationsStore} from '@/stores/notifications'
@@ -163,11 +164,7 @@ export async function ensureModelsDownloaded(options: {
     } catch (error) {
       console.error(`Model download failed (${model.kind}):`, error)
       notifications.closeNotification(notificationId)
-      setNotification({
-        type: 'error',
-        title: options.t('ai.models.downloading_title'),
-        text: error instanceof Error ? error.message : String(error),
-      })
+      modelDownloadError(model.kind, error, options.t)
       return 'error'
     }
   }

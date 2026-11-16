@@ -23,3 +23,10 @@ export function clearAuthToken(): void {
     // ignore storage failures
   }
 }
+
+/** Build a ws:// URL for a server WebSocket route; browsers can't set headers on upgrade, so the session token rides in the query. */
+export function buildAuthedWsUrl(baseHttpUrl: string, route: string): string {
+  const base = (baseHttpUrl || '').replace(/^http/, 'ws').replace(/\/+$/, '')
+  const token = getAuthToken()
+  return base + route + (token ? `?token=${encodeURIComponent(token)}` : '')
+}

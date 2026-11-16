@@ -1,3 +1,4 @@
+import {isLibraryRestoring, onLibraryRestoreStart, runLibraryBackgroundTask} from '../../api/services/libraryMaintenance'
 import type { ApiDb } from '../../api/types/db'
 import type {
   AppWebSocket,
@@ -9,6 +10,8 @@ import type {
 } from '../types/websockets'
 import { errorMessage } from '../types/websockets'
 import type { Request } from 'express'
+import {requestAutomaticCopyDiscovery} from '../../api/services/mediaSources/copyDiscoveryTriggers'
+import {pinSourceDb} from '../../api/services/mediaSources/context'
 import { WatcherSyncEngine } from './watcherSync'
 import { collectExcludedWatchPaths } from './watcherOptions'
 import { watchFolders, type ParcelFolderWatcher } from './parcelFolderWatcher'
@@ -22,6 +25,7 @@ const FILE_EVENT_DEBOUNCE_MS = 200
 
 export function createWatcherWsHandler(db: ApiDb): WsHandler {
   return (ws: AppWebSocket, _req: Request) => {
+    if (isLibraryRestoring()) { ws.close(); return }
     let watcher: ParcelFolderWatcher | null = null
     let watchedFolders: WatchedFolderEntry[] = []
     const syncEngine = new WatcherSyncEngine(db)
@@ -88,7 +92,7 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
     }
 
     const processPendingFileEvents = () => {
-      if (!pendingFileEvents.length) {
+      if (isLibraryRestoring() || !pendingFileEvents.length) {
         return false
       }
 
@@ -124,7 +128,7 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
       }
 
       try {
-        await syncEngine.fullSync(watchedFolders)
+        await runLibraryBackgroundTask(() => syncEngine.fullSync(watchedFolders))
         // fullSync is authoritative — discard FS events queued during the walk.
         if (pendingFileEvents.length) {
           console.log(
@@ -171,8 +175,10 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
       isProcessing = true
 
       try {
-        syncEngine.syncFolderMetadata(watchedFolders)
-        await syncEngine.refreshDbPaths()
+        await runLibraryBackgroundTask(async () => {
+          syncEngine.syncFolderMetadata(watchedFolders)
+          await syncEngine.refreshDbPaths()
+        })
         sendReports()
       } catch (error: unknown) {
         console.error('Error in watcher db refresh:', errorMessage(error))
@@ -225,6 +231,12 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
 
     const startWatcher = (folders: WatchedFolderEntry[], extensions: WatcherExtensionsMap) => {
       const generation = ++startGeneration
+      const autoTarget = pinSourceDb(db)
+      const notifyCopyChange = (filePath: string) => {
+        if (isLibraryRestoring()) return
+        try { autoTarget.assertCurrent(); requestAutomaticCopyDiscovery(autoTarget.db, [{key: filePath}], 'folder_update') }
+        catch { /* A stale watcher belongs to the previous library. */ }
+      }
 
       if (watcher) {
         void watcher.close()
@@ -253,7 +265,9 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
           watcher
             .on('add', (filePath: unknown) => {
               queueFileEvent('add', String(filePath))
+              notifyCopyChange(String(filePath))
             })
+            .on('change', (filePath: unknown) => { notifyCopyChange(String(filePath)) })
             .on('unlink', (filePath: unknown) => {
               queueFileEvent('unlink', String(filePath))
             })
@@ -291,6 +305,7 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
 
     ws.on('message', async (rawMsg: unknown) => {
       try {
+        if (isLibraryRestoring()) { ws.send(JSON.stringify({type: 'error', code: 'library_restoring'})); return }
         const data = JSON.parse(String(rawMsg)) as WatcherWsMessage
 
         switch (data.type) {
@@ -344,7 +359,18 @@ export function createWatcherWsHandler(db: ApiDb): WsHandler {
       }
     })
 
+    const stopForRestore = onLibraryRestoreStart(() => {
+      startGeneration += 1
+      if (debounceTimer) clearTimeout(debounceTimer)
+      pendingFullSync = false
+      pendingDbRefresh = false
+      pendingFileEvents = []
+      if (watcher) { void watcher.close(); watcher = null }
+      ws.close()
+    })
+
     ws.on('close', () => {
+      stopForRestore()
       startGeneration += 1
       if (debounceTimer) {
         clearTimeout(debounceTimer)

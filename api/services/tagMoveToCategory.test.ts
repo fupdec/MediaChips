@@ -116,6 +116,7 @@ function createTestDb() {
       oshash TEXT,
       visualHash TEXT,
       visualHashTiles TEXT,
+      visualHashThumbnail TEXT,
       rating INTEGER DEFAULT 0,
       favorite INTEGER DEFAULT 0,
       bookmark TEXT,

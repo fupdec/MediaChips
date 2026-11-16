@@ -115,6 +115,7 @@
         </div>
 
         <v-chip
+          class="nested-value-chip"
           :label="settingsStore.show_default_meta_label == '1'"
           :variant="defaultMetaChipVariant"
           :text="String(meta.value ?? item[meta.name] ?? '')"
@@ -161,6 +162,9 @@
           <v-chip
             v-for="i in category.items"
             :key="`${i.name}_${item.id}`"
+            class="nested-value-chip"
+            :label="settingsStore.show_default_meta_label == '1'"
+            :variant="defaultMetaChipVariant"
             :title="formatMetaValue(i)"
             :text="formatMetaValue(i)"
           ></v-chip>
@@ -189,6 +193,7 @@
         v-for="meta in visiblePresetMeta"
         :key="meta.name"
         :title="meta.text"
+        class="nested-value-chip"
         :label="settingsStore.show_default_meta_label == '1'"
         :variant="defaultMetaChipVariant"
         :prepend-icon="`mdi-${meta.icon}`"
@@ -222,6 +227,9 @@
 
         <v-chip
           v-else
+          class="nested-value-chip"
+          :label="settingsStore.show_default_meta_label == '1'"
+          :variant="defaultMetaChipVariant"
           :prepend-icon="`mdi-${entry.data.icon}`"
           :title="formatMetaValue(entry.data)"
           :text="formatMetaValue(entry.data)"
@@ -320,11 +328,20 @@ const props = withDefaults(defineProps<{
   tags?: ItemTagRef[]
   values?: ItemValueRef[]
   type: ItemsPageType | string
+  mutedTags?: boolean
   tagPage?: boolean
   isShowAll?: boolean
   showPreset?: boolean
   assignment?: PinnedMetaAssignment[]
+  /** Always render grouped rows (name + chips), regardless of the card setting. */
+  grouped?: boolean
+  /** Limit grouped/flat output to tag fields or value fields (preset meta goes with values). */
+  kind?: 'all' | 'tags' | 'values'
+  /** Chips shown before the "+N" toggle; cards pass a size/aspect-aware value. */
+  collapseLimit?: number
 }>(), {
+  grouped: false,
+  kind: 'all',
   tags: () => [],
   values: () => [],
   tagPage: false,
@@ -341,7 +358,7 @@ const presetMetaProps: PresetMetaProps = {
 }
 
 const {preset_meta: presetMetaSource} = usePresetMeta(presetMetaProps)
-const preset_meta = computed(() => presetMetaSource.value)
+const preset_meta = computed(() => (props.kind === 'tags' ? [] : presetMetaSource.value))
 
 const settingsStore = useSettingsStore()
 const appStore = useAppStore()
@@ -430,6 +447,7 @@ const isNestedTagContextTarget = (tagId: number): boolean => {
 }
 
 const getTagChipBind = (tag: TagWithMeta) => {
+  const muted = props.mutedTags && settingsStore.mute_card_tag_colors !== '0'
   const active = isNestedTagContextTarget(tag.id)
   const variant: ChipVariant = tag.fromFolder
     ? 'tonal'
@@ -447,18 +465,20 @@ const getTagChipBind = (tag: TagWithMeta) => {
     : undefined
 
   return {
-    variant,
-    color: colored ? color : undefined,
-    // Flat/elevated only — see getTagChipTextStyle.
-    style: textColor ? {color: textColor} : undefined,
+    variant: muted ? 'flat' : variant,
+    color: muted ? undefined : color,
+    style: muted
+      ? {'--card-tag-accent': color || 'rgb(var(--v-theme-on-surface))'}
+      : textColor ? {color: textColor} : undefined,
     label: getMetaChipLabel(tag.meta),
     title: fromFolderTitle || dragTitle || tag.name || undefined,
     size: active ? 'large' : undefined,
     filter: active || undefined,
     prependIcon: tag.fromFolder ? 'mdi-folder-outline' : undefined,
     class: [
+      muted ? 'tag-chip--muted' : undefined,
       colored ? 'tag-chip--colored' : undefined,
-      light ? 'tag-chip--light' : undefined,
+      light && !muted ? 'tag-chip--light' : undefined,
       tag.fromFolder ? 'tag-chip--from-folder' : undefined,
       active ? 'active-chip' : undefined,
     ].filter(Boolean).join(' ') || undefined,
@@ -479,7 +499,7 @@ const onTagHover = (event: MouseEvent | KeyboardEvent, tag: TagWithMeta): void =
 }
 
 const isGrouped = computed(() =>
-  settingsStore.group_chips_in_card_description === '1' || props.tagPage
+  settingsStore.group_chips_in_card_description === '1' || props.tagPage || props.grouped
 )
 
 const usePinnedMetaIdKey = computed(() =>
@@ -566,12 +586,12 @@ const valueGroups = computed(() =>
 
 const pinnedCategoriesComputed = computed((): PinnedCategory[] => {
   const categories: PinnedCategory[] = [
-    ...tagGroups.value.map((items): PinnedCategory => ({
+    ...(props.kind === 'values' ? [] : tagGroups.value).map((items): PinnedCategory => ({
       kind: 'tags',
       metaId: items[0].metaId,
       items,
     })),
-    ...valueGroups.value.map((items): PinnedCategory => ({
+    ...(props.kind === 'tags' ? [] : valueGroups.value).map((items): PinnedCategory => ({
       kind: 'values',
       metaId: items[0].id,
       items,
@@ -588,8 +608,8 @@ const pinnedCategoriesComputed = computed((): PinnedCategory[] => {
 
 const pinnedFlatComputed = computed((): PinnedFlatEntry[] => {
   const items: PinnedFlatEntry[] = [
-    ...tagItems.value.map((tag): PinnedFlatEntry => ({kind: 'tag', metaId: tag.metaId, data: tag})),
-    ...valueItems.value.map((value): PinnedFlatEntry => ({kind: 'value', metaId: value.id, data: value})),
+    ...(props.kind === 'values' ? [] : tagItems.value).map((tag): PinnedFlatEntry => ({kind: 'tag', metaId: tag.metaId, data: tag})),
+    ...(props.kind === 'tags' ? [] : valueItems.value).map((value): PinnedFlatEntry => ({kind: 'value', metaId: value.id, data: value})),
   ]
 
   return sortByPinnedAssignmentOrder(
@@ -608,6 +628,11 @@ watch(() => props.item.id, () => {
 
 const collapseEnabled = computed(() => !props.tagPage && !props.isShowAll)
 
+const chipLimit = computed((): number => {
+  const limit = Math.floor(Number(props.collapseLimit))
+  return limit > 0 ? limit : CHIP_COLLAPSE_LIMIT
+})
+
 const totalChipCount = computed((): number => {
   if (isGrouped.value) {
     return preset_meta.value.length
@@ -616,31 +641,33 @@ const totalChipCount = computed((): number => {
   return preset_meta.value.length + pinnedFlatComputed.value.length
 })
 
+// A "+1" toggle takes as much room as the chip it hides — collapse only
+// when at least two chips would go behind it.
 const needsCollapse = computed(() =>
-  collapseEnabled.value && totalChipCount.value > CHIP_COLLAPSE_LIMIT,
+  collapseEnabled.value && totalChipCount.value > chipLimit.value + 1,
 )
 
 const hiddenChipCount = computed(() =>
-  Math.max(0, totalChipCount.value - CHIP_COLLAPSE_LIMIT),
+  Math.max(0, totalChipCount.value - chipLimit.value),
 )
 
 const isChipsCollapsed = computed(() => needsCollapse.value && !chipsExpanded.value)
 
 const visiblePresetMeta = computed(() => {
   if (!isChipsCollapsed.value) return preset_meta.value
-  return preset_meta.value.slice(0, CHIP_COLLAPSE_LIMIT)
+  return preset_meta.value.slice(0, chipLimit.value)
 })
 
 const visibleFlatEntries = computed((): PinnedFlatEntry[] => {
   if (!isChipsCollapsed.value) return pinnedFlatComputed.value
-  const remaining = Math.max(0, CHIP_COLLAPSE_LIMIT - preset_meta.value.length)
+  const remaining = Math.max(0, chipLimit.value - preset_meta.value.length)
   return pinnedFlatComputed.value.slice(0, remaining)
 })
 
 const visibleCategories = computed((): PinnedCategory[] => {
   if (!isChipsCollapsed.value) return pinnedCategoriesComputed.value
 
-  let remaining = Math.max(0, CHIP_COLLAPSE_LIMIT - preset_meta.value.length)
+  let remaining = Math.max(0, chipLimit.value - preset_meta.value.length)
   const result: PinnedCategory[] = []
 
   for (const category of pinnedCategoriesComputed.value) {
@@ -973,6 +1000,20 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
 .tag-chip--from-folder {
   opacity: 0.92;
   border-style: dashed !important;
+}
+
+.v-chip.tag-chip--muted {
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)), var(--card-tag-accent) 10%) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  opacity: 1;
+}
+
+.v-chip.tag-chip--muted.tag-chip--colored {
+  background: color-mix(in srgb, rgb(var(--v-theme-surface)), var(--card-tag-accent) var(--card-tag-color-share, 32%)) !important;
+}
+
+:global(.v-theme--dark) {
+  --card-tag-color-share: 36%;
 }
 
 .nested-tag-chip-wrap--draggable {

@@ -1,5 +1,5 @@
 <template>
-  <v-btn-group variant="tonal"
+  <v-btn-group v-if="player.isLibraryMedia" variant="tonal"
       :density="density"
       rounded="xl"
       style="overflow: visible"
@@ -37,8 +37,8 @@
       </v-btn>
 
       <v-btn
+        v-if="player.marks.length > 0"
         @click="jumpToMark('prev')"
-        :disabled="player.marks.length == 0"
         class="mark-prev"
         icon
         dark
@@ -51,8 +51,8 @@
       </v-btn>
 
       <v-btn
+        v-if="player.marks.length > 0"
         @click="jumpToMark('next')"
-        :disabled="player.marks.length == 0"
         class="mark-next"
         icon
         dark
@@ -66,6 +66,7 @@
     </v-btn-group>
 
     <v-btn
+      v-if="player.playlist.length > 1"
       @click="togglePlaylist"
       variant="tonal"
       :density="density"

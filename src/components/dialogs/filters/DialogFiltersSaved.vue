@@ -8,6 +8,7 @@
     >
       <v-card rounded="xl">
         <DialogHeader
+          icon="filter-outline"
           :header="t('filters.saved_filters')"
           closable
           @close="close"
@@ -104,6 +105,7 @@
     <v-dialog v-model="dialogEditing" max-width="600" scrollable>
       <v-card rounded="xl">
         <DialogHeader
+          icon="form-textbox"
           :header="t('filters.editing_filter_name')"
           closable
           :buttons="editButtons"

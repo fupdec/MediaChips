@@ -79,6 +79,9 @@ export const MediaSimilarHybridRequestSchema = z.object({
 export const MediaDuplicateGroupsRequestSchema = z.object({
   duplicates_by: z.string().trim().min(1).optional(),
   mediaTypeId: z.union([z.number(), z.string()]).optional().nullable(),
+  mediaIds: z.array(z.union([z.number(), z.string()])).optional().nullable(),
+  filters: z.array(FilterObjectSchema).optional(),
+  filtersJoin: z.enum(['and', 'or']).optional(),
 })
 
 export const MediaFolderBrowseRequestSchema = z.object({
@@ -228,6 +231,9 @@ export const GlobalSearchRequestSchema = z.object({
   limit: z.union([z.number(), z.string()]).optional(),
   metaId: z.union([z.number(), z.string()]).optional(),
   tagIds: z.array(z.union([z.number(), z.string()])).optional(),
+  mediaTypeId: z.number().int().positive().optional(),
+  offset: z.number().int().nonnegative().optional(),
+  countOnly: z.boolean().optional(),
   /** Include bookmark / text-content LIKE scans (slow on large libraries). */
   deep: z.boolean().optional(),
 }).passthrough()
@@ -483,30 +489,30 @@ export const PushToStashRequestSchema = z.object({
 
 export const ListJellyfinLibrariesRequestSchema = z.object({
   baseUrl: z.string().min(1),
-  apiKey: z.string().min(1),
+  apiKey: z.string(),
 }).passthrough()
 
 export const ImportFromJellyfinRequestSchema = z.object({
   baseUrl: z.string().min(1),
-  apiKey: z.string().min(1),
+  apiKey: z.string(),
   libraryIds: z.array(z.union([z.string(), z.number()])).optional(),
   createMissingMedia: optionalCoercedBoolean,
 }).passthrough()
 
 export const PushToJellyfinRequestSchema = z.object({
   baseUrl: z.string().min(1),
-  apiKey: z.string().min(1),
+  apiKey: z.string(),
   mediaIds: z.array(z.union([z.string(), z.number()])).optional(),
 }).passthrough()
 
 export const ListPlexLibrariesRequestSchema = z.object({
   baseUrl: z.string().min(1),
-  token: z.string().min(1),
+  token: z.string(),
 }).passthrough()
 
 export const ImportFromPlexRequestSchema = z.object({
   baseUrl: z.string().min(1),
-  token: z.string().min(1),
+  token: z.string(),
   libraryIds: z.array(z.union([z.string(), z.number()])).optional(),
   createMissingMedia: optionalCoercedBoolean,
 }).passthrough()
@@ -936,6 +942,12 @@ export const TagItemsRequestSchema = ItemsListRequestSchema.extend({
   colorFilter: z.string().optional(),
   find_duplicates: optionalCoercedBoolean,
 })
+
+export const TagSortedIdsRequestSchema = z.object({
+  metaId: coercedId,
+  sortBy: z.string().optional(),
+  direction: z.enum(['asc', 'desc']).optional(),
+}).passthrough()
 
 export const EntityUpdateRequestSchema = z.object({
   name: z.string().nullable().optional(),

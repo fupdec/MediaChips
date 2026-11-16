@@ -2,7 +2,9 @@
 
 html,
 body {
-  overflow: hidden;
+  // Root scrolling must stay disabled even when Vuetify reset loads later.
+  // Actual page scrolling is owned by .main-scroll and nested page containers.
+  overflow: hidden !important;
   height: 100%;
   background-color: rgb(var(--v-theme-background));
 }

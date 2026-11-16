@@ -1,0 +1,937 @@
+
+> mediachips@1.13.0 dist
+> node scripts/dist.mjs --mac --arm64 --publish never
+
+[dist] Standard channel — adult plugin bundled; activation key required
+
+> mediachips@1.13.0 build:app
+> vite build
+
+vite v8.1.0 building client environment for production...
+[2Ktransforming...✓ 2185 modules transformed.
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+3248 |    padding: 2px 0;
+3249 |  }
+3250 |  .tag-quick-filters__chips :deep(.v-chip) {
+     |                                  ^
+3251 |    margin: 0 !important;
+3252 |  }
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+8723 |    padding-bottom: 0;
+8724 |  }
+8725 |  .filter__switch :deep(.v-selection-control) {
+     |                        ^
+8726 |    min-height: auto;
+8727 |  }
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+300 |    height: 28px;
+301 |  }
+302 |  .editing--inspector .fav-btn :deep(.v-selection-control),
+    |                                     ^
+303 |  .editing--inspector .fav-btn :deep(.v-checkbox-btn) {
+304 |    min-height: 32px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+301 |  }
+302 |  .editing--inspector .fav-btn :deep(.v-selection-control),
+303 |  .editing--inspector .fav-btn :deep(.v-checkbox-btn) {
+    |                                     ^
+304 |    min-height: 32px !important;
+305 |    height: 32px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+305 |    height: 32px !important;
+306 |  }
+307 |  .editing--inspector .fav-btn :deep(.v-icon) {
+    |                                     ^
+308 |    font-size: 28px !important;
+309 |  }
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+308 |    font-size: 28px !important;
+309 |  }
+310 |  .editing--inspector :deep(.v-input),
+    |                            ^
+311 |  .editing--inspector :deep(.v-field) {
+312 |    --v-input-control-height: var(--inspector-control-h) !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+309 |  }
+310 |  .editing--inspector :deep(.v-input),
+311 |  .editing--inspector :deep(.v-field) {
+    |                            ^
+312 |    --v-input-control-height: var(--inspector-control-h) !important;
+313 |    font-size: 0.68rem !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+313 |    font-size: 0.68rem !important;
+314 |  }
+315 |  .editing--inspector :deep(.v-field) {
+    |                            ^
+316 |    --v-field-padding-start: 6px;
+317 |    --v-field-padding-end: 4px;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+319 |    border-radius: 6px !important;
+320 |  }
+321 |  .editing--inspector :deep(.v-field__outline) {
+    |                            ^
+322 |    --v-field-border-width: 1px;
+323 |    --v-field-border-opacity: 0.22;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+323 |    --v-field-border-opacity: 0.22;
+324 |  }
+325 |  .editing--inspector :deep(.v-field__field) {
+    |                            ^
+326 |    height: auto;
+327 |    min-height: var(--inspector-control-h);
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+327 |    min-height: var(--inspector-control-h);
+328 |  }
+329 |  .editing--inspector :deep(.v-field__input) {
+    |                            ^
+330 |    min-height: var(--inspector-control-h) !important;
+331 |    max-height: none;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+339 |    column-gap: 2px;
+340 |  }
+341 |  .editing--inspector :deep(.v-field__input input),
+    |                            ^
+342 |  .editing--inspector :deep(.v-field__input textarea) {
+343 |    font-size: 0.68rem !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+340 |  }
+341 |  .editing--inspector :deep(.v-field__input input),
+342 |  .editing--inspector :deep(.v-field__input textarea) {
+    |                            ^
+343 |    font-size: 0.68rem !important;
+344 |    line-height: 1.15 !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+344 |    line-height: 1.15 !important;
+345 |  }
+346 |  .editing--inspector :deep(.v-autocomplete .v-field__input),
+    |                            ^
+347 |  .editing--inspector :deep(.v-combobox .v-field__input),
+348 |  .editing--inspector :deep(.v-select .v-field__input) {
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+345 |  }
+346 |  .editing--inspector :deep(.v-autocomplete .v-field__input),
+347 |  .editing--inspector :deep(.v-combobox .v-field__input),
+    |                            ^
+348 |  .editing--inspector :deep(.v-select .v-field__input) {
+349 |    min-height: var(--inspector-control-h) !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+346 |  .editing--inspector :deep(.v-autocomplete .v-field__input),
+347 |  .editing--inspector :deep(.v-combobox .v-field__input),
+348 |  .editing--inspector :deep(.v-select .v-field__input) {
+    |                            ^
+349 |    min-height: var(--inspector-control-h) !important;
+350 |    padding-top: 1px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+351 |    padding-bottom: 1px !important;
+352 |  }
+353 |  .editing--inspector :deep(.v-textarea .v-field__input) {
+    |                            ^
+354 |    min-height: var(--inspector-control-h) !important;
+355 |    padding-block: 4px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+356 |    align-items: flex-start;
+357 |  }
+358 |  .editing--inspector :deep(.v-field__append-inner),
+    |                            ^
+359 |  .editing--inspector :deep(.v-field__prepend-inner),
+360 |  .editing--inspector :deep(.v-field__clearable) {
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+357 |  }
+358 |  .editing--inspector :deep(.v-field__append-inner),
+359 |  .editing--inspector :deep(.v-field__prepend-inner),
+    |                            ^
+360 |  .editing--inspector :deep(.v-field__clearable) {
+361 |    padding-top: 0 !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+358 |  .editing--inspector :deep(.v-field__append-inner),
+359 |  .editing--inspector :deep(.v-field__prepend-inner),
+360 |  .editing--inspector :deep(.v-field__clearable) {
+    |                            ^
+361 |    padding-top: 0 !important;
+362 |    align-self: center;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+362 |    align-self: center;
+363 |  }
+364 |  .editing--inspector :deep(.v-field__clearable .v-icon),
+    |                            ^
+365 |  .editing--inspector :deep(.v-field__append-inner .v-icon),
+366 |  .editing--inspector :deep(.v-field__prepend-inner .v-icon) {
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+363 |  }
+364 |  .editing--inspector :deep(.v-field__clearable .v-icon),
+365 |  .editing--inspector :deep(.v-field__append-inner .v-icon),
+    |                            ^
+366 |  .editing--inspector :deep(.v-field__prepend-inner .v-icon) {
+367 |    font-size: 14px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+364 |  .editing--inspector :deep(.v-field__clearable .v-icon),
+365 |  .editing--inspector :deep(.v-field__append-inner .v-icon),
+366 |  .editing--inspector :deep(.v-field__prepend-inner .v-icon) {
+    |                            ^
+367 |    font-size: 14px !important;
+368 |    width: 14px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+369 |    height: 14px !important;
+370 |  }
+371 |  .editing--inspector :deep(.v-number-input .v-btn) {
+    |                            ^
+372 |    width: 22px !important;
+373 |    height: 22px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+375 |    min-height: 22px !important;
+376 |  }
+377 |  .editing--inspector :deep(.v-number-input .v-btn .v-icon) {
+    |                            ^
+378 |    font-size: 14px !important;
+379 |  }
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+378 |    font-size: 14px !important;
+379 |  }
+380 |  .editing--inspector :deep(.v-chip) {
+    |                            ^
+381 |    --v-chip-height: 18px;
+382 |    height: 18px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+385 |    padding-inline: 4px !important;
+386 |  }
+387 |  .editing--inspector :deep(.v-chip.editing-tag-chip),
+    |                            ^
+388 |  .editing--inspector :deep(.v-chip.country-field-chip) {
+389 |    --v-chip-height: 10px;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+386 |  }
+387 |  .editing--inspector :deep(.v-chip.editing-tag-chip),
+388 |  .editing--inspector :deep(.v-chip.country-field-chip) {
+    |                            ^
+389 |    --v-chip-height: 10px;
+390 |    height: 10px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+392 |    padding-inline: 2px !important;
+393 |  }
+394 |  .editing--inspector :deep(.v-chip.editing-tag-chip .v-icon),
+    |                            ^
+395 |  .editing--inspector :deep(.v-chip.country-field-chip .v-icon) {
+396 |    font-size: 7px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+393 |  }
+394 |  .editing--inspector :deep(.v-chip.editing-tag-chip .v-icon),
+395 |  .editing--inspector :deep(.v-chip.country-field-chip .v-icon) {
+    |                            ^
+396 |    font-size: 7px !important;
+397 |    width: 7px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+398 |    height: 7px !important;
+399 |  }
+400 |  .editing--inspector :deep(.v-chip .v-icon) {
+    |                            ^
+401 |    font-size: 11px !important;
+402 |    width: 11px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+403 |    height: 11px !important;
+404 |  }
+405 |  .editing--inspector :deep(.v-chip__close) {
+    |                            ^
+406 |    margin-inline: 0 0 !important;
+407 |    font-size: 12px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+407 |    font-size: 12px !important;
+408 |  }
+409 |  .editing--inspector :deep(.v-checkbox .v-label),
+    |                            ^
+410 |  .editing--inspector :deep(.v-selection-control .v-label) {
+411 |    font-size: 0.68rem !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+408 |  }
+409 |  .editing--inspector :deep(.v-checkbox .v-label),
+410 |  .editing--inspector :deep(.v-selection-control .v-label) {
+    |                            ^
+411 |    font-size: 0.68rem !important;
+412 |  }
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+411 |    font-size: 0.68rem !important;
+412 |  }
+413 |  .editing--inspector :deep(.v-input--density-compact) {
+    |                            ^
+414 |    --v-input-padding-top: 0;
+415 |  }
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+414 |    --v-input-padding-top: 0;
+415 |  }
+416 |  .editing--inspector :deep(.v-messages),
+    |                            ^
+417 |  .editing--inspector :deep(.v-input__details) {
+418 |    display: none !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+415 |  }
+416 |  .editing--inspector :deep(.v-messages),
+417 |  .editing--inspector :deep(.v-input__details) {
+    |                            ^
+418 |    display: none !important;
+419 |    min-height: 0 !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+421 |    margin: 0 !important;
+422 |  }
+423 |  .editing--inspector :deep(.editing-field-restore) {
+    |                            ^
+424 |    transform: scale(0.85);
+425 |    transform-origin: center;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+519 |    transform-origin: left center;
+520 |  }
+521 |  .filters-edit-switch :deep(.v-selection-control) {
+    |                             ^
+522 |    min-height: 28px;
+523 |  }
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+522 |    min-height: 28px;
+523 |  }
+524 |  .filters-edit-switch :deep(.v-switch__thumb) {
+    |                             ^
+525 |    display: flex;
+526 |    align-items: center;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+531 |    height: 28px;
+532 |  }
+533 |  .filters-join-toggle :deep(.v-btn) {
+    |                             ^
+534 |    min-width: 0;
+535 |    padding-inline: 8px;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+588 |    margin: 0 !important;
+589 |  }
+590 |  .filters-panel--top .filters-panel__add :deep(.v-input__control) {
+    |                                                ^
+591 |    min-width: 0;
+592 |  }
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+591 |    min-width: 0;
+592 |  }
+593 |  .filters-panel--top .filters-panel__add :deep(.v-field) {
+    |                                                ^
+594 |    --v-input-control-height: 28px;
+595 |    border-radius: 999px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+596 |    font-size: 0.75rem;
+597 |  }
+598 |  .filters-panel--top .filters-panel__add :deep(.v-field__input) {
+    |                                                ^
+599 |    min-height: 28px !important;
+600 |    max-height: 28px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+608 |    align-items: center;
+609 |  }
+610 |  .filters-panel--top .filters-panel__add :deep(.v-autocomplete__selection) {
+    |                                                ^
+611 |    max-width: 100%;
+612 |    overflow: hidden;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+617 |    margin-inline-end: 0;
+618 |  }
+619 |  .filters-panel--top .filters-panel__add :deep(.v-autocomplete__selection .v-icon),
+    |                                                ^
+620 |  .filters-panel--top .filters-panel__add :deep(.v-autocomplete__selection .mr-1) {
+621 |    font-size: 14px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+618 |  }
+619 |  .filters-panel--top .filters-panel__add :deep(.v-autocomplete__selection .v-icon),
+620 |  .filters-panel--top .filters-panel__add :deep(.v-autocomplete__selection .mr-1) {
+    |                                                ^
+621 |    font-size: 14px !important;
+622 |    width: 14px;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+624 |    margin-inline-end: 4px !important;
+625 |  }
+626 |  .filters-panel--top .filters-panel__add :deep(.v-autocomplete__selection .text-body-2) {
+    |                                                ^
+627 |    font-size: 0.75rem !important;
+628 |    line-height: 1.2 !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+628 |    line-height: 1.2 !important;
+629 |  }
+630 |  .filters-panel--top .filters-panel__add :deep(.v-field__input input) {
+    |                                                ^
+631 |    min-width: 0 !important;
+632 |    font-size: 0.75rem !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+632 |    font-size: 0.75rem !important;
+633 |  }
+634 |  .filters-panel--top .filters-panel__add :deep(.v-field__append-inner .v-icon) {
+    |                                                ^
+635 |    font-size: 16px !important;
+636 |  }
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+635 |    font-size: 16px !important;
+636 |  }
+637 |  .filters-panel--top .filters-panel__add :deep(.v-input__append) {
+    |                                                ^
+638 |    margin-inline-start: 4px !important;
+639 |    padding: 0 !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+640 |    align-self: center;
+641 |  }
+642 |  .filters-panel--top .filters-panel__add :deep(.v-input__append .v-btn) {
+    |                                                ^
+643 |    width: 28px !important;
+644 |    height: 28px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+647 |    padding: 0 !important;
+648 |  }
+649 |  .filters-panel--top .filters-panel__add :deep(.v-input__append .v-btn .v-icon) {
+    |                                                ^
+650 |    margin: 0 !important;
+651 |    font-size: 16px !important;
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+651 |    font-size: 16px !important;
+652 |  }
+653 |  .filters-panel--top .filters-panel__add :deep(.v-label) {
+    |                                                ^
+654 |    font-size: 0.6875rem;
+655 |  }
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+1700 |    width: 100%;
+1701 |  }
+1702 |  .items-page-grid:not(.items-virtual-grid) :deep(.item) {
+     |                                                  ^
+1703 |    content-visibility: auto;
+1704 |    /* Prefer a tall estimate: undersized intrinsic size makes cards jump when painted. */
+[lightningcss minify] 'deep' is not recognized as a valid pseudo-class. Did you mean '::deep' (pseudo-element) or is this a typo?
+1705 |    contain-intrinsic-size: auto 360px;
+1706 |  }
+1707 |  .items-page-grid:not(.items-virtual-grid) :deep(.item-view-5) {
+     |                                                  ^
+1708 |    /* List rows are much shorter than cards — match their real height. */
+1709 |    contain-intrinsic-size: auto 90px;
+rendering chunks...
+computing gzip size...
+dist/manifest.webmanifest                                   0.49 kB
+dist/icons/site.webmanifest                                 0.61 kB
+dist/icons/favicon-16x16.png                                0.71 kB
+dist/icons/favicon-32x32.png                                1.46 kB
+dist/loading.html                                           1.81 kB │ gzip:   0.92 kB
+dist/icons/trayTemplate.png                                 1.83 kB
+dist/images/no-marks.svg                                    2.97 kB │ gzip:   1.29 kB
+dist/icons/icon32x32.png                                    3.46 kB
+dist/index.html                                             3.57 kB │ gzip:   1.08 kB
+dist/images/no-pinned.svg                                   4.15 kB │ gzip:   1.51 kB
+dist/images/filters/filters-none.svg                        4.27 kB │ gzip:   1.54 kB
+dist/images/bell.svg                                        4.36 kB │ gzip:   1.50 kB
+dist/images/filters/filters-no-results-marks.svg            4.83 kB │ gzip:   1.68 kB
+dist/images/cogs.svg                                        4.98 kB │ gzip:   2.16 kB
+dist/images/face-reference-tips.svg                         6.93 kB │ gzip:   1.53 kB
+dist/images/filters/filters-no-results-file.svg             7.02 kB │ gzip:   2.19 kB
+dist/images/filters/filters-no-results-meta.svg             7.21 kB │ gzip:   2.04 kB
+dist/images/no-saved-filters.svg                            8.75 kB │ gzip:   2.51 kB
+dist/images/filters/filters-no-results-tag.svg              9.31 kB │ gzip:   2.56 kB
+dist/images/no-data.svg                                     9.46 kB │ gzip:   2.15 kB
+dist/images/unavailable.png                                10.33 kB
+dist/icons/apple-touch-icon.png                            11.06 kB
+dist/images/filters/filters-no-results-video.svg           11.43 kB │ gzip:   4.37 kB
+dist/icons/android-chrome-192x192.png                      12.29 kB
+dist/icons/favicon.ico                                     15.40 kB
+dist/icons/logo.png                                        19.36 kB
+dist/icons/icon.png                                        20.50 kB
+dist/icons/android-chrome-512x512.png                      36.73 kB
+dist/images/onboarding/03-add-files.png                    57.74 kB
+dist/assets/RobotoMono-Regular-Bdp2M05j.ttf                86.90 kB
+dist/assets/RobotoMono-Bold-gL1XQ8pZ.ttf                   87.00 kB
+dist/icons/icons.icns                                     167.03 kB
+dist/assets/Roboto-Light-CZE1r6-S.ttf                     170.01 kB
+dist/assets/Roboto-Bold-D-aAu_L5.ttf                      170.34 kB
+dist/assets/Roboto-Regular-f0lhpOnz.ttf                   171.27 kB
+dist/images/onboarding/02-fields.png                      274.47 kB
+dist/assets/materialdesignicons-webfont-Dp5v-WZN.woff2    403.21 kB
+dist/images/onboarding/01-welcome.png                     418.66 kB
+dist/assets/materialdesignicons-webfont-PXm3-2wK.woff     587.98 kB
+dist/images/onboarding/04-ready.png                       704.27 kB
+dist/assets/materialdesignicons-webfont-B7mPwVP_.ttf    1,307.66 kB
+dist/assets/materialdesignicons-webfont-CSr8KVlo.eot    1,307.88 kB
+dist/assets/SettingsTmdb-D4d8lBQr.css                       0.04 kB │ gzip:   0.06 kB
+dist/assets/SettingsDataScraper-Bz7kwr2T.css                0.04 kB │ gzip:   0.06 kB
+dist/assets/DialogSceneScraperMultiple-CUf591sO.css         0.06 kB │ gzip:   0.08 kB
+dist/assets/DialogScraperMultiple-CcktMgS_.css              0.06 kB │ gzip:   0.08 kB
+dist/assets/DialogMediaMerge-C7YAMWpN.css                   0.06 kB │ gzip:   0.08 kB
+dist/assets/SettingsRegistration-BtK4jfBn.css               0.07 kB │ gzip:   0.07 kB
+dist/assets/SettingsLocale-DwtqKS7a.css                     0.07 kB │ gzip:   0.09 kB
+dist/assets/SettingsCategoryDivider-DMsDffmm.css            0.08 kB │ gzip:   0.09 kB
+dist/assets/DialogBulkEditingItems-CbfLFlQR.css             0.08 kB │ gzip:   0.10 kB
+dist/assets/SettingsSwitch-tG6djtjv.css                     0.08 kB │ gzip:   0.10 kB
+dist/assets/SettingsBackfillTask-vOf_GuT9.css               0.09 kB │ gzip:   0.09 kB
+dist/assets/SettingsGenerateVideoImages-Dj2L1Umg.css        0.09 kB │ gzip:   0.09 kB
+dist/assets/DialogRelinkMedia-DA7OcKxa.css                  0.09 kB │ gzip:   0.10 kB
+dist/assets/DialogProcess-Ci-RnbUa.css                      0.10 kB │ gzip:   0.11 kB
+dist/assets/FiltersChips-DgKNOPmK.css                       0.10 kB │ gzip:   0.10 kB
+dist/assets/DialogOnboarding-BBedYmWQ.css                   0.11 kB │ gzip:   0.11 kB
+dist/assets/DialogPaywall-DJlfVryG.css                      0.12 kB │ gzip:   0.10 kB
+dist/assets/AutoUpdater-N4myanO4.css                        0.12 kB │ gzip:   0.12 kB
+dist/assets/DialogWatchFolderRisk-DQ028Kcd.css              0.13 kB │ gzip:   0.13 kB
+dist/assets/ElementSpotlight-iqY371OC.css                   0.14 kB │ gzip:   0.14 kB
+dist/assets/DialogTagTrashConflict-CudRVar-.css             0.15 kB │ gzip:   0.12 kB
+dist/assets/SettingsGeneral-DhUC3tTX.css                    0.15 kB │ gzip:   0.15 kB
+dist/assets/SettingsQuickTags-CBqZr8y8.css                  0.16 kB │ gzip:   0.13 kB
+dist/assets/bulkScrapeStatusCounts-XwEKBDL-.css             0.17 kB │ gzip:   0.13 kB
+dist/assets/About-COtiFv8Z.css                              0.18 kB │ gzip:   0.14 kB
+dist/assets/ButtonDocumentation-CBBfIcIa.css                0.19 kB │ gzip:   0.12 kB
+dist/assets/SettingsSection-CspuZbAF.css                    0.21 kB │ gzip:   0.13 kB
+dist/assets/ItemPinnedMeta-DDShiCKs.css                     0.21 kB │ gzip:   0.14 kB
+dist/assets/PageDriveSpike-B9xm3ckb.css                     0.24 kB │ gzip:   0.18 kB
+dist/assets/DialogError-Dn0hf22t.css                        0.28 kB │ gzip:   0.21 kB
+dist/assets/SettingsFindMissingMedia-CYfwU0Bh.css           0.28 kB │ gzip:   0.18 kB
+dist/assets/MetaInputCountry-B8rDSZyT.css                   0.32 kB │ gzip:   0.19 kB
+dist/assets/Tabs-AlQMWdgh.css                               0.34 kB │ gzip:   0.19 kB
+dist/assets/DialogScraper-DTBaOFQe.css                      0.34 kB │ gzip:   0.20 kB
+dist/assets/DialogMetadataTransfer-CwWK0DM9.css             0.40 kB │ gzip:   0.26 kB
+dist/assets/WidgetLazyMount-CbVLMSIn.css                    0.46 kB │ gzip:   0.23 kB
+dist/assets/WidgetHomeSimilar-IU3oUVyl.css                  0.48 kB │ gzip:   0.26 kB
+dist/assets/DialogScraperConfig-LbNhhAJ1.css                0.48 kB │ gzip:   0.25 kB
+dist/assets/ItemPreviewVideo-afDfiz-8.css                   0.51 kB │ gzip:   0.33 kB
+dist/assets/DialogChangelog-DUxbBQF6.css                    0.54 kB │ gzip:   0.23 kB
+dist/assets/DialogVersionHistory-D5hKBru-.css               0.54 kB │ gzip:   0.23 kB
+dist/assets/MediaCopyDiscovery-Bf7xv-XW.css                 0.55 kB │ gzip:   0.27 kB
+dist/assets/Notifications-BM6b-izr.css                      0.55 kB │ gzip:   0.23 kB
+dist/assets/DialogSceneScraperConfig-CS7KVZfb.css           0.55 kB │ gzip:   0.28 kB
+dist/assets/DialogTmdbPersonConfig-ObHQn9V-.css             0.55 kB │ gzip:   0.28 kB
+dist/assets/DialogTmdbScraperConfig-DJDNKlDS.css            0.55 kB │ gzip:   0.28 kB
+dist/assets/DialogLocalAiAssistant-DCd_-2Kd.css             0.56 kB │ gzip:   0.27 kB
+dist/assets/FeatureHintOverlay-D-WtQwsJ.css                 0.59 kB │ gzip:   0.33 kB
+dist/assets/SettingsVideoPreview-Co4BH6uP.css               0.62 kB │ gzip:   0.27 kB
+dist/assets/DialogTagEditing-W1Ur46xJ.css                   0.65 kB │ gzip:   0.35 kB
+dist/assets/SettingsMediaTypes-DrlFUt3c.css                 0.66 kB │ gzip:   0.32 kB
+dist/assets/DialogIcons-C0cBXOl1.css                        0.68 kB │ gzip:   0.31 kB
+dist/assets/BulkEditFieldCard-BU31285O.css                  0.69 kB │ gzip:   0.27 kB
+dist/assets/DialogMediaInbox-B7Sv6ISV.css                   0.71 kB │ gzip:   0.34 kB
+dist/assets/DialogConfirm-s7VCcNbv.css                      0.71 kB │ gzip:   0.29 kB
+dist/assets/SettingsPlugins-JepgP78t.css                    0.73 kB │ gzip:   0.38 kB
+dist/assets/ContextMenu-DxZeV6uv.css                        0.74 kB │ gzip:   0.30 kB
+dist/assets/SettingsTabHeader-mM4_ajvk.css                  0.75 kB │ gzip:   0.31 kB
+dist/assets/DialogEnrollmentQuality-BMGFspC5.css            0.76 kB │ gzip:   0.34 kB
+dist/assets/DialogTagCategoryMerge-mqIgCVEi.css             0.81 kB │ gzip:   0.37 kB
+dist/assets/Loading-D8lWcshr.css                            0.81 kB │ gzip:   0.35 kB
+dist/assets/DialogSceneScraper-BKaLxTGy.css                 0.89 kB │ gzip:   0.37 kB
+dist/assets/AppBar-DkB_ZjvS.css                             0.90 kB │ gzip:   0.37 kB
+dist/assets/SessionFocusBar-CDbpSp6Z.css                    0.91 kB │ gzip:   0.36 kB
+dist/assets/ItemMarker-BIMG5fAr.css                         0.92 kB │ gzip:   0.38 kB
+dist/assets/SettingsMeta-7aKMMSeH.css                       0.93 kB │ gzip:   0.43 kB
+dist/assets/DialogMediaAdding-BkK64NcK.css                  0.95 kB │ gzip:   0.40 kB
+dist/assets/TagsAdd-DNDS21bn.css                            0.99 kB │ gzip:   0.37 kB
+dist/assets/ScraperDataTransfer-DWAgSAKH.css                1.00 kB │ gzip:   0.43 kB
+dist/assets/DialogTextPreview-DOvXtyaM.css                  1.08 kB │ gzip:   0.48 kB
+dist/assets/DialogCamGirlFinder-BCAAK7Uu.css                1.16 kB │ gzip:   0.46 kB
+dist/assets/WidgetRandomMarkers-D2AOWBvy.css                1.22 kB │ gzip:   0.46 kB
+dist/assets/DialogMediaTrash-BwZzDsl9.css                   1.26 kB │ gzip:   0.50 kB
+dist/assets/window-controls-DJxwjG00.css                    1.30 kB │ gzip:   0.35 kB
+dist/assets/HomeCardSkeleton-CLQZ8dE8.css                   1.52 kB │ gzip:   0.46 kB
+dist/assets/SettingsTagCategories-ChGtJnE9.css              1.54 kB │ gzip:   0.50 kB
+dist/assets/DialogDuplicateReview-D8e2p8oK.css              1.54 kB │ gzip:   0.62 kB
+dist/assets/SettingsClearGeneratedImages-DlqBDz2E.css       1.54 kB │ gzip:   0.55 kB
+dist/assets/SettingsLibraryReset-BRiojFS2.css               1.69 kB │ gzip:   0.61 kB
+dist/assets/BottomBar-BucOAuqZ.css                          1.71 kB │ gzip:   0.64 kB
+dist/assets/MetaInputArray-BgrpNyq2.css                     1.71 kB │ gzip:   0.56 kB
+dist/assets/SettingsHealthProgress-B9oUrOWQ.css             1.85 kB │ gzip:   0.59 kB
+dist/assets/useItemsThumbPrefetch-DS4Wyiw9.css              1.94 kB │ gzip:   0.60 kB
+dist/assets/DialogFolderTagsManager-B2ZxdtL3.css            2.03 kB │ gzip:   0.63 kB
+dist/assets/SettingsDetectFaces-BHZu5EJT.css                2.10 kB │ gzip:   0.63 kB
+dist/assets/ModelDownloadMenu-CqySAELW.css                  2.18 kB │ gzip:   0.61 kB
+dist/assets/Notification-CnavCqhT.css                       2.32 kB │ gzip:   0.82 kB
+dist/assets/WidgetTopTags-B9sjeOgj.css                      2.44 kB │ gzip:   0.74 kB
+dist/assets/SettingsChipRecipes-IpOMDd4y.css                2.47 kB │ gzip:   0.71 kB
+dist/assets/DialogMediaAddingProcess-BK97oTO7.css           2.69 kB │ gzip:   0.82 kB
+dist/assets/NotificationsPool-CExfQA6K.css                  2.82 kB │ gzip:   0.94 kB
+dist/assets/DialogHeader-CB8qR3l-.css                       2.82 kB │ gzip:   0.72 kB
+dist/assets/DialogDocumentation-DuEGddBY.css                3.10 kB │ gzip:   0.90 kB
+dist/assets/SettingsParseLibraryTags-C2FSZ0pJ.css           3.29 kB │ gzip:   0.83 kB
+dist/assets/WidgetTagSpotlight-BQyXeK1L.css                 3.42 kB │ gzip:   0.88 kB
+dist/assets/WidgetMediaCard-1HBg-NPf.css                    4.04 kB │ gzip:   1.06 kB
+dist/assets/PageAllTags-CG2nvovk.css                        4.04 kB │ gzip:   0.99 kB
+dist/assets/SettingsBulkPathEditing-Dyk3fp83.css            4.16 kB │ gzip:   1.08 kB
+dist/assets/cropper-vendor-47-yVckD.css                     4.18 kB │ gzip:   0.89 kB
+dist/assets/SettingsWatchedFolders-C_ElzScG.css             4.22 kB │ gzip:   1.06 kB
+dist/assets/WidgetHealthAlerts-BJoxB_jP.css                 4.65 kB │ gzip:   1.07 kB
+dist/assets/DialogSimilarMediaWall-D6jbgSPd.css             4.69 kB │ gzip:   1.29 kB
+dist/assets/SettingsHealthTask-Bn_qtLnd.css                 4.77 kB │ gzip:   0.94 kB
+dist/assets/DialogMediaEditing-CVsaBcBz.css                 5.36 kB │ gzip:   1.28 kB
+dist/assets/Player-Bi2TXqqC.css                             5.70 kB │ gzip:   1.53 kB
+dist/assets/PageMarkers-8oyngDx2.css                        6.15 kB │ gzip:   1.38 kB
+dist/assets/PagePlaylists-CXfidjax.css                      6.32 kB │ gzip:   1.57 kB
+dist/assets/SettingsLibraryHealthGuide-CYoqDvJM.css         6.54 kB │ gzip:   1.45 kB
+dist/assets/GlobalSearch-D6EpsTsm.css                       6.98 kB │ gzip:   1.50 kB
+dist/assets/PageSettings-CejnXN1A.css                       7.15 kB │ gzip:   1.64 kB
+dist/assets/InspectorPanel-D51Rx-JI.css                     7.28 kB │ gzip:   1.65 kB
+dist/assets/viewer-vendor-D015PhoK.css                      7.33 kB │ gzip:   2.39 kB
+dist/assets/PageHome-Bk3JMv8v.css                           7.37 kB │ gzip:   1.84 kB
+dist/assets/DialogMetaManager-ijWnVaNL.css                  7.41 kB │ gzip:   1.71 kB
+dist/assets/DialogFaceResults-Dz5XdHw3.css                  7.51 kB │ gzip:   1.60 kB
+dist/assets/DialogChangeHistory-CRzS92iZ.css                7.68 kB │ gzip:   1.54 kB
+dist/assets/ReviewMode-DTX9rdao.css                         8.20 kB │ gzip:   1.98 kB
+dist/assets/SideBarBrowser-CI9uCfxd.css                     8.32 kB │ gzip:   1.71 kB
+dist/assets/SettingsDatabases-D8HugJUE.css                  9.22 kB │ gzip:   1.66 kB
+dist/assets/EditPinnedMetaValues-7APy0ygw.css               9.72 kB │ gzip:   1.99 kB
+dist/assets/MediaFolderBrowser-AZVhVIz1.css                10.59 kB │ gzip:   2.09 kB
+dist/assets/DialogOriginalOperations-Cf7F0d0A.css          10.78 kB │ gzip:   1.96 kB
+dist/assets/DialogImageEditing-DKk48O9H.css                15.66 kB │ gzip:   3.27 kB
+dist/assets/SourcesPanel-Bm0TODES.css                      21.57 kB │ gzip:   3.19 kB
+dist/assets/LayoutItems-Bt5S5gAi.css                       40.77 kB │ gzip:   6.59 kB
+dist/assets/PageFolders-BWPaZUmX.css                       46.01 kB │ gzip:   6.34 kB
+dist/assets/vuetify-vendor-DK2n_mS3.css                   446.36 kB │ gzip:  57.66 kB
+dist/assets/index-BCfvvifB.css                            533.27 kB │ gzip:  87.72 kB
+dist/assets/itemsGroupBy-C5JJS6sR.js                        0.03 kB │ gzip:   0.05 kB
+dist/assets/useAdultOnboarding-tdm1DpO8.js                  0.14 kB │ gzip:   0.12 kB
+dist/assets/pageTagLayoutRemount-Bc7hViP0.js                0.18 kB │ gzip:   0.13 kB
+dist/assets/useFoldersBrowserFocus-BVrWImAe.js              0.19 kB │ gzip:   0.15 kB
+dist/assets/mediaPath-D1brsK9h.js                           0.22 kB │ gzip:   0.17 kB
+dist/assets/metaI18n-CCnqpG1f.js                            0.23 kB │ gzip:   0.18 kB
+dist/assets/libraryNavActive-ChfS28EP.js                    0.25 kB │ gzip:   0.20 kB
+dist/assets/itemsFiltersController-D9o3Khaj.js              0.25 kB │ gzip:   0.15 kB
+dist/assets/copyToClipboard-B_k3ei9w.js                     0.25 kB │ gzip:   0.21 kB
+dist/assets/openItemContextMenu-DyQcWN5e.js                 0.34 kB │ gzip:   0.25 kB
+dist/assets/useAutoListHeight-CGE07aFk.js                   0.37 kB │ gzip:   0.27 kB
+dist/assets/vue-BV9dsu7X.js                                 0.42 kB │ gzip:   0.25 kB
+dist/assets/keyboardTarget-Ci3_idng.js                      0.43 kB │ gzip:   0.27 kB
+dist/assets/freeLibraryCap-CdjhnKJA.js                      0.49 kB │ gzip:   0.27 kB
+dist/assets/itemsPageCommands-DRJNccWn.js                   0.52 kB │ gzip:   0.26 kB
+dist/assets/mediaMerge-cWEZvvQm.js                          0.52 kB │ gzip:   0.29 kB
+dist/assets/watchedFolderExcludes-QjD-Uak_.js               0.53 kB │ gzip:   0.30 kB
+dist/assets/tagClipsPlayback-6YiRoSXE.js                    0.55 kB │ gzip:   0.28 kB
+dist/assets/CountryFlagLazy-CI2oOS0i.js                     0.57 kB │ gzip:   0.38 kB
+dist/assets/tmdbApi-D74LMLuo.js                             0.58 kB │ gzip:   0.25 kB
+dist/assets/ItemsFilter-Iw1JgsPr.js                         0.58 kB │ gzip:   0.38 kB
+dist/assets/SettingsSection-PoxODxkX.js                     0.61 kB │ gzip:   0.42 kB
+dist/assets/typed-api-transcode-BW6QOeDT.js                 0.63 kB │ gzip:   0.32 kB
+dist/assets/translate-DMClrTbD.js                           0.66 kB │ gzip:   0.41 kB
+dist/assets/mediaBulkImport-CFcxo3wP.js                     0.67 kB │ gzip:   0.36 kB
+dist/assets/chipBarOverflow-2ZAXJcNy.js                     0.68 kB │ gzip:   0.35 kB
+dist/assets/Documentation-6UDQu9JC.js                       0.68 kB │ gzip:   0.44 kB
+dist/assets/registerPwa-Wq0NmGmv.js                         0.69 kB │ gzip:   0.44 kB
+dist/assets/playlistExport-DddaPnI0.js                      0.71 kB │ gzip:   0.49 kB
+dist/assets/changelogParser-Caiv0eSR.js                     0.73 kB │ gzip:   0.44 kB
+dist/assets/filterService-D61iIdKA.js                       0.75 kB │ gzip:   0.50 kB
+dist/assets/MediaTrash-CakdHsif.js                          0.76 kB │ gzip:   0.49 kB
+dist/assets/videoPreview-DDHFK2NQ.js                        0.76 kB │ gzip:   0.36 kB
+dist/assets/SettingsCategoryDivider--yZXMdiG.js             0.77 kB │ gzip:   0.51 kB
+dist/assets/contextMenu-MCdvHUvf.js                         0.79 kB │ gzip:   0.42 kB
+dist/assets/useHierarchyReparent-ewjsm7Op.js                0.80 kB │ gzip:   0.40 kB
+dist/assets/fsOperationsQueue-DNkq14ig.js                   0.82 kB │ gzip:   0.49 kB
+dist/assets/HomeCardSkeleton-DLlGBAt0.js                    0.82 kB │ gzip:   0.48 kB
+dist/assets/ButtonDocumentation-BrYfuxeI.js                 0.85 kB │ gzip:   0.54 kB
+dist/assets/SettingsOpenDataFolder-Blwtj-7Y.js              0.86 kB │ gzip:   0.52 kB
+dist/assets/openTextMedia-B_3Bhoh0.js                       0.86 kB │ gzip:   0.49 kB
+dist/assets/rolldown-runtime-CNC7AqOf.js                    0.87 kB │ gzip:   0.50 kB
+dist/assets/useMainScrollOverflow-CV0M4o2Y.js               0.88 kB │ gzip:   0.50 kB
+dist/assets/WidgetLazyMount-Br1svIrp.js                     0.89 kB │ gzip:   0.56 kB
+dist/assets/Loading-BrYnPnxX.js                             0.90 kB │ gzip:   0.52 kB
+dist/assets/liveTranscodeLifecycle-BIRVqYzf.js              0.97 kB │ gzip:   0.46 kB
+dist/assets/createTagsInteractive-Bwg3th7o.js               0.98 kB │ gzip:   0.55 kB
+dist/assets/sceneScraperMarkerSummary-FT-tek2q.js           0.98 kB │ gzip:   0.55 kB
+dist/assets/useFreeLibraryGate-DDWtTJO9.js                  0.99 kB │ gzip:   0.48 kB
+dist/assets/pinnedMetaOrder-Cmre17a1.js                     1.00 kB │ gzip:   0.44 kB
+dist/assets/useReviewModeLauncher-Zm4x3w18.js               1.02 kB │ gzip:   0.58 kB
+dist/assets/useStickyControlDeck-Dt8Dl39j.js                1.06 kB │ gzip:   0.60 kB
+dist/assets/PageItems-Dzdielc8.js                           1.08 kB │ gzip:   0.58 kB
+dist/assets/configService-BioDWQra.js                       1.08 kB │ gzip:   0.62 kB
+dist/assets/tagLookup-DDuCOR1k.js                           1.09 kB │ gzip:   0.58 kB
+dist/assets/mediaFileInfoService-BIMJFMK1.js                1.11 kB │ gzip:   0.63 kB
+dist/assets/organizeMediaByTag-C9Q24Olx.js                  1.14 kB │ gzip:   0.59 kB
+dist/assets/virtual_pwa-register-BhcgG_g3.js                1.15 kB │ gzip:   0.61 kB
+dist/assets/useLazyInView-DDiVzLC1.js                       1.15 kB │ gzip:   0.65 kB
+dist/assets/faceSettings-CzSUn2cX.js                        1.17 kB │ gzip:   0.52 kB
+dist/assets/SettingsHealthProgress-DqVGo7To.js              1.25 kB │ gzip:   0.63 kB
+dist/assets/ColorPicker-etraqXmF.js                         1.29 kB │ gzip:   0.71 kB
+dist/assets/useWatchFolderRiskGate-Cb7H1UBx.js              1.31 kB │ gzip:   0.61 kB
+dist/assets/thumbSource-DzSv3nlV.js                         1.33 kB │ gzip:   0.72 kB
+dist/assets/fsBrowseSelection-DeGXcXvx.js                   1.34 kB │ gzip:   0.54 kB
+dist/assets/tasks-WIH2Rfkd.js                               1.36 kB │ gzip:   0.75 kB
+dist/assets/DialogError-vluQDoyO.js                         1.41 kB │ gzip:   0.75 kB
+dist/assets/SettingsSwitch-IUDHGk6o.js                      1.41 kB │ gzip:   0.79 kB
+dist/assets/watcher-Cx9jiNw6.js                             1.43 kB │ gzip:   0.71 kB
+dist/assets/DialogProcess-C5BUU8Lm.js                       1.56 kB │ gzip:   0.84 kB
+dist/assets/SettingsFolderTags-3DOOgdc0.js                  1.58 kB │ gzip:   0.85 kB
+dist/assets/AppBarButton-t2OQVka_.js                        1.61 kB │ gzip:   0.75 kB
+dist/assets/homeMediaListFilters-nzGv09g7.js                1.61 kB │ gzip:   0.70 kB
+dist/assets/ElementSpotlight-CZUUlnwt.js                    1.64 kB │ gzip:   0.81 kB
+dist/assets/SettingsTabHeader-B7TOQCFw.js                   1.67 kB │ gzip:   0.77 kB
+dist/assets/reviewMode-CzQMh7e_.js                          1.67 kB │ gzip:   0.78 kB
+dist/assets/thumbDisplayCache-Droj1xuv.js                   1.69 kB │ gzip:   0.81 kB
+dist/assets/DialogOnboarding-C-cZKGgy.js                    1.73 kB │ gzip:   0.87 kB
+dist/assets/freeLibraryCapConfig-DDNnCI0i.js                1.79 kB │ gzip:   0.77 kB
+dist/assets/FilePreviewButton-N1Ahngae.js                   1.82 kB │ gzip:   1.00 kB
+dist/assets/openMediaList-C3lnn8IH.js                       1.85 kB │ gzip:   0.97 kB
+dist/assets/tmdbFieldMapping-B3fnH_6h.js                    1.86 kB │ gzip:   0.89 kB
+dist/assets/sessionFocus-DcGPQiip.js                        1.92 kB │ gzip:   0.81 kB
+dist/assets/DialogTagTrashConflict-SW0dQ9A4.js              1.93 kB │ gzip:   0.89 kB
+dist/assets/LanPhoneAccessHints-c0rgTtfP.js                 2.02 kB │ gzip:   1.02 kB
+dist/assets/gridSprite-DK4nQ-gV.js                          2.04 kB │ gzip:   0.77 kB
+dist/assets/typed-api-home-19yLCd9Z.js                      2.05 kB │ gzip:   0.63 kB
+dist/assets/window-controls-BJLkQ1SF.js                     2.08 kB │ gzip:   0.90 kB
+dist/assets/faceDetectStreamUi-C36FJg4d.js                  2.15 kB │ gzip:   0.73 kB
+dist/assets/SettingsQuickTags-DgTXKqVY.js                   2.17 kB │ gzip:   1.15 kB
+dist/assets/DialogPlaylistAdd-DFVerhFo.js                   2.25 kB │ gzip:   1.17 kB
+dist/assets/tmdbFeatures-CccFzYH9.js                        2.25 kB │ gzip:   1.14 kB
+dist/assets/WidgetRandomMarkers-Cv--wE0b.js                 2.25 kB │ gzip:   1.10 kB
+dist/assets/markThumb-CcktOKol.js                           2.26 kB │ gzip:   1.12 kB
+dist/assets/widgets-ui-CTYMz2IC.js                          2.29 kB │ gzip:   0.71 kB
+dist/assets/elementSpotlight-CZjUJq58.js                    2.29 kB │ gzip:   1.13 kB
+dist/assets/DialogLogin-Dwf12krc.js                         2.33 kB │ gzip:   1.10 kB
+dist/assets/bulkScrapeStatusCounts-DCTfmePB.js              2.35 kB │ gzip:   0.77 kB
+dist/assets/marks-CSUtcD7D.js                               2.38 kB │ gzip:   0.93 kB
+dist/assets/SettingsLogin-CJZtuK22.js                       2.42 kB │ gzip:   1.00 kB
+dist/assets/ensureTmdbPersonMeta-CWswFzqR.js                2.48 kB │ gzip:   1.11 kB
+dist/assets/useMoveTagsToCategory-c4ohW6Fp.js               2.49 kB │ gzip:   1.16 kB
+dist/assets/DialogPaywall-CCkAYLZ7.js                       2.50 kB │ gzip:   1.11 kB
+dist/assets/SettingsLocale-B-M6Fer3.js                      2.51 kB │ gzip:   1.20 kB
+dist/assets/remoteSourceErrors-BJUad6Yb.js                  2.68 kB │ gzip:   1.13 kB
+dist/assets/DialogVersionHistory-w5EI-BV5.js                2.69 kB │ gzip:   1.29 kB
+dist/assets/sessionFocusDrag-dV0Hpubw.js                    2.71 kB │ gzip:   0.97 kB
+dist/assets/DialogTabEditing-DrQ9pq10.js                    2.76 kB │ gzip:   1.35 kB
+dist/assets/tmdbPersonApply-CO5dKhH-.js                     2.82 kB │ gzip:   1.40 kB
+dist/assets/ItemsEditMeta-CBiEMjHR.js                       2.84 kB │ gzip:   1.55 kB
+dist/assets/importPathAutoTag-D0ItZFVy.js                   2.84 kB │ gzip:   1.16 kB
+dist/assets/measurementUnits-RV0BVfCN.js                    2.85 kB │ gzip:   1.14 kB
+dist/assets/ItemPresetMeta-BC4WZiXR.js                      2.88 kB │ gzip:   1.06 kB
+dist/assets/SettingsHealthTask-D3fBgS7V.js                  2.88 kB │ gzip:   1.10 kB
+dist/assets/DialogChangelog-CCQDsI5y.js                     2.89 kB │ gzip:   1.39 kB
+dist/assets/metaSort-RWnwYBQp.js                            2.99 kB │ gzip:   0.82 kB
+dist/assets/scraperPerformerGender-kR7FVLcP.js              3.01 kB │ gzip:   1.24 kB
+dist/assets/DialogSceneScraperMultiple-BoSWFtd5.js          3.01 kB │ gzip:   1.32 kB
+dist/assets/SettingsFindDuplicates-D8jsPYCP.js              3.10 kB │ gzip:   1.22 kB
+dist/assets/loadLocale-CqYryJYJ.js                          3.13 kB │ gzip:   1.00 kB
+dist/assets/typed-api-media-B1p1nE7U.js                     3.24 kB │ gzip:   1.09 kB
+dist/assets/exportMarkClipsUi-DhWzbWLD.js                   3.35 kB │ gzip:   1.47 kB
+dist/assets/DialogTagMerge-BCkm0Dx5.js                      3.36 kB │ gzip:   1.59 kB
+dist/assets/DialogScraperMultiple-XTePlwjs.js               3.36 kB │ gzip:   1.45 kB
+dist/assets/typed-api-pages-BG3VzylK.js                     3.39 kB │ gzip:   0.88 kB
+dist/assets/DialogMediaTypeAdd-BP-shrnk.js                  3.57 kB │ gzip:   1.70 kB
+dist/assets/modelDownloadConsent-Z55EaXen.js                3.67 kB │ gzip:   1.46 kB
+dist/assets/imageViewer-Dad7sqED.js                         3.67 kB │ gzip:   1.25 kB
+dist/assets/mediaInbox-BIHZjxA1.js                          3.70 kB │ gzip:   1.29 kB
+dist/assets/tagThumbRefresh-Bzgr-L6g.js                     3.74 kB │ gzip:   1.83 kB
+dist/assets/DialogMediaMerge-B-9HIujX.js                    3.75 kB │ gzip:   1.82 kB
+dist/assets/DialogMigration-CztpIwxa.js                     3.79 kB │ gzip:   1.47 kB
+dist/assets/SettingsVideoPlayer-Y8agEYI8.js                 3.86 kB │ gzip:   1.49 kB
+dist/assets/ModelDownloadMenu-DmCM2e4h.js                   3.93 kB │ gzip:   1.79 kB
+dist/assets/DialogAdultOnboarding-h4TQH1lL.js               3.96 kB │ gzip:   1.37 kB
+dist/assets/MetaInputCountry-CkCBY7Dv.js                    3.97 kB │ gzip:   1.84 kB
+dist/assets/SettingsBackfillTask-t7ZD6tjn.js                4.00 kB │ gzip:   1.72 kB
+dist/assets/Tabs-DgNX9Vto.js                                4.16 kB │ gzip:   1.97 kB
+dist/assets/path-browserify-B1epc8rt.js                     4.21 kB │ gzip:   1.71 kB
+dist/assets/similarRadio-oFzI8vXC.js                        4.22 kB │ gzip:   1.78 kB
+dist/assets/NotificationsPool-CEV9AcPo.js                   4.24 kB │ gzip:   1.75 kB
+dist/assets/SettingsGeneral-DzgJj9Dj.js                     4.25 kB │ gzip:   1.63 kB
+dist/assets/gridLayout-BmO3zZ3n.js                          4.26 kB │ gzip:   1.91 kB
+dist/assets/DialogHeader-BalCtU_J.js                        4.29 kB │ gzip:   1.83 kB
+dist/assets/DialogConfirm-CYeVV6n3.js                       4.32 kB │ gzip:   1.65 kB
+dist/assets/WidgetHomeSimilar-B3ee0mFf.js                   4.43 kB │ gzip:   1.95 kB
+dist/assets/Notifications-tpsJQxUb.js                       4.49 kB │ gzip:   1.94 kB
+dist/assets/SettingsMediaTypes-DawPiBTB.js                  4.49 kB │ gzip:   2.18 kB
+dist/assets/DialogIcons-CRdCSNSz.js                         4.50 kB │ gzip:   2.04 kB
+dist/assets/DialogKeyboardShortcuts-b9kMuAOv.js             4.57 kB │ gzip:   1.38 kB
+dist/assets/DialogScraper-CnwAvMja.js                       4.63 kB │ gzip:   1.99 kB
+dist/assets/useChooseLibraryFolder-rNZI1PZp.js              4.64 kB │ gzip:   2.03 kB
+dist/assets/useSessionFocusActions-DM7V7Gos.js              4.72 kB │ gzip:   1.65 kB
+dist/assets/FeatureHintOverlay-Bdzg67iJ.js                  4.79 kB │ gzip:   2.20 kB
+dist/assets/useAutoSceneScrapeBatch-CtaRfF2D.js             4.85 kB │ gzip:   1.81 kB
+dist/assets/SessionFocusBar-WDi5GUrP.js                     4.87 kB │ gzip:   2.10 kB
+dist/assets/SettingsClearGeneratedImages-DBR8HC1o.js        4.90 kB │ gzip:   1.95 kB
+dist/assets/DialogFeedback-D6Ftvx1S.js                      5.25 kB │ gzip:   2.02 kB
+dist/assets/DialogLocalAiAssistant-BjU93VG0.js              5.27 kB │ gzip:   2.18 kB
+dist/assets/DialogFolder-SSvF1Sju.js                        5.27 kB │ gzip:   1.92 kB
+dist/assets/MediaCopyDiscovery-pOUcC4Id.js                  5.38 kB │ gzip:   2.18 kB
+dist/assets/DialogRelinkMedia-CW6LoC8J.js                   5.47 kB │ gzip:   2.22 kB
+dist/assets/useSettingsBackfillStream-lUd5HtkI.js           5.55 kB │ gzip:   2.11 kB
+dist/assets/SettingsGenerateAutoChapters-CgP1CrZu.js        5.60 kB │ gzip:   1.95 kB
+dist/assets/SettingsMetaAssignment-DRDZh2qf.js              5.64 kB │ gzip:   2.19 kB
+dist/assets/workbox-window.prod.es5-Bd17z0YL.js             5.65 kB │ gzip:   2.20 kB
+dist/assets/nlPlaylistMix-Dx28_bTL.js                       5.77 kB │ gzip:   2.45 kB
+dist/assets/DialogWatchFolderRisk-Ds1kL494.js               5.77 kB │ gzip:   2.47 kB
+dist/assets/BulkEditFieldCard-ChsGLxjC.js                   5.77 kB │ gzip:   1.91 kB
+dist/assets/BottomBar-2xQtngbS.js                           5.89 kB │ gzip:   1.95 kB
+dist/assets/DialogTmdbPersonScraper-BsJEp-sY.js             5.91 kB │ gzip:   2.36 kB
+dist/assets/player-store-B79LADH5.js                        5.96 kB │ gzip:   2.04 kB
+dist/assets/typed-api-meta-6tTubCir.js                      5.98 kB │ gzip:   1.64 kB
+dist/assets/DialogBrowseFolder-BCPtLWMZ.js                  6.01 kB │ gzip:   2.44 kB
+dist/assets/SettingsImportPlex-DQ6_fIwc.js                  6.03 kB │ gzip:   2.02 kB
+dist/assets/AutoUpdater-39ap3oYj.js                         6.04 kB │ gzip:   2.03 kB
+dist/assets/SettingsImportEmby-P46KyUR7.js                  6.04 kB │ gzip:   2.03 kB
+dist/assets/playerHotkeys-CcF1CuVj.js                       6.10 kB │ gzip:   2.04 kB
+dist/assets/SettingsVideoPreview-q215tgvD.js                6.11 kB │ gzip:   1.70 kB
+dist/assets/FiltersChips-BfAWqs37.js                        6.13 kB │ gzip:   2.49 kB
+dist/assets/SettingsPlugins-D0s2yAsM.js                     6.25 kB │ gzip:   2.22 kB
+dist/assets/WidgetMediaCard-foCUYP4J.js                     6.26 kB │ gzip:   2.56 kB
+dist/assets/DialogTagCategoryMerge-BWXeuCcy.js              6.32 kB │ gzip:   2.45 kB
+dist/assets/DialogMediaTypeEdit-Ck6v5JlL.js                 6.36 kB │ gzip:   2.73 kB
+dist/assets/DialogTmdbScraperConfig-ByO4w7L1.js             6.40 kB │ gzip:   2.69 kB
+dist/assets/DialogTextPreview-BpnXhaZO.js                   6.52 kB │ gzip:   2.65 kB
+dist/assets/ItemsSelection-CmW8V0uD.js                      6.63 kB │ gzip:   2.47 kB
+dist/assets/DialogOrganizeMediaByTag-C2Ma-W2i.js            6.74 kB │ gzip:   2.65 kB
+dist/assets/WidgetTopTags-DDNnAIPK.js                       6.84 kB │ gzip:   2.97 kB
+dist/assets/SettingsTagImageAiUpscale-DqBogSjb.js           6.95 kB │ gzip:   2.43 kB
+dist/assets/SettingsTmdb-Bz24bt32.js                        6.97 kB │ gzip:   2.87 kB
+dist/assets/DialogTmdbPersonConfig-Y0AoIoMX.js              7.02 kB │ gzip:   2.90 kB
+dist/assets/PageDriveSpike-CwIxHc1d.js                      7.05 kB │ gzip:   2.82 kB
+dist/assets/dayjs.min-B20a2GVr.js                           7.18 kB │ gzip:   3.09 kB
+dist/assets/ItemMarker-DwkIOoy-.js                          7.25 kB │ gzip:   2.85 kB
+dist/assets/Notification-C4dWmlRA.js                        7.49 kB │ gzip:   2.93 kB
+dist/assets/SettingsLocalAi-CZl1vQq-.js                     7.76 kB │ gzip:   2.50 kB
+dist/assets/SettingsBulkPathEditing-C_S91Fty.js             7.89 kB │ gzip:   2.80 kB
+dist/assets/countries-data-BgYdCWJS.js                      8.00 kB │ gzip:   2.52 kB
+dist/assets/SettingsGenerateVideoImages-DQkJQ1XQ.js         8.16 kB │ gzip:   2.54 kB
+dist/assets/EditDialogMediaPanel-bx7UXmXL.js                8.39 kB │ gzip:   3.03 kB
+dist/assets/format-utils-CY6cuwJG.js                        8.54 kB │ gzip:   3.31 kB
+dist/assets/ContextMenu-Db4wcN2p.js                         8.69 kB │ gzip:   2.97 kB
+dist/assets/DialogScraperConfig-CTdfrn-9.js                 8.87 kB │ gzip:   3.33 kB
+dist/assets/DialogVideoConversion-CEkkKQL-.js               9.04 kB │ gzip:   3.19 kB
+dist/assets/typed-api-core-j0k5h85q.js                      9.11 kB │ gzip:   3.07 kB
+dist/assets/router-DZ0Iwy5B.js                              9.44 kB │ gzip:   3.90 kB
+dist/assets/SettingsMeta-CclPo8oe.js                        9.49 kB │ gzip:   3.65 kB
+dist/assets/DialogMetadataTransfer-BvykDY1K.js              9.56 kB │ gzip:   3.33 kB
+dist/assets/SettingsTagCategories-H1FpodsP.js               9.72 kB │ gzip:   3.56 kB
+dist/assets/SettingsImportJellyfin-BnMUjsNr.js              9.73 kB │ gzip:   2.80 kB
+dist/assets/DialogMediaTrash-D7XQws80.js                    9.94 kB │ gzip:   3.36 kB
+dist/assets/DialogEnrollmentQuality-vsKY762l.js             9.97 kB │ gzip:   3.61 kB
+dist/assets/SettingsImportStash-C6FXA90K.js                10.00 kB │ gzip:   2.92 kB
+dist/assets/useLibrarySetupWizard-BiacCSSC.js              10.02 kB │ gzip:   3.31 kB
+dist/assets/SettingsFindMissingMedia-DQnasdS7.js           10.03 kB │ gzip:   3.27 kB
+dist/assets/HoverImage-Is0UXGnE.js                         10.07 kB │ gzip:   3.30 kB
+dist/assets/DialogFolderTagsManager-D8TQJXJ0.js            10.09 kB │ gzip:   3.73 kB
+dist/assets/DialogChangeHistory-Cb3VjNTd.js                10.19 kB │ gzip:   3.29 kB
+dist/assets/SettingsLibraryReset-Ca9Ms9ez.js               10.20 kB │ gzip:   3.01 kB
+dist/assets/DialogDuplicateReview-CPMnKCny.js              10.21 kB │ gzip:   3.68 kB
+dist/assets/DialogBulkEditingItems-4awvHkor.js             10.28 kB │ gzip:   3.97 kB
+dist/assets/DialogSceneScraperConfig-BgK915ZA.js           10.29 kB │ gzip:   3.98 kB
+dist/assets/DialogTmdbScraper-Ddo6S92e.js                  10.42 kB │ gzip:   4.02 kB
+dist/assets/DialogMediaInbox-B9lgNJYA.js                   10.51 kB │ gzip:   3.33 kB
+dist/assets/typed-api-tasks-SrGFeyOE.js                    10.64 kB │ gzip:   2.86 kB
+dist/assets/dialogs-D5vYS2vB.js                            10.67 kB │ gzip:   3.19 kB
+dist/assets/transcodeService-DAlPb8yD.js                   10.69 kB │ gzip:   3.86 kB
+dist/assets/ScraperDataTransfer-CRggM7-p.js                11.21 kB │ gzip:   3.93 kB
+dist/assets/About-Dz79mbF0.js                              11.35 kB │ gzip:   4.54 kB
+dist/assets/DialogSimilarMediaWall-CboH3bLa.js             11.73 kB │ gzip:   4.15 kB
+dist/assets/ru-C7TuP35l.js                                 11.77 kB │ gzip:   3.78 kB
+dist/assets/SettingsDataScraper-CqiRTG6I.js                12.11 kB │ gzip:   3.93 kB
+dist/assets/SettingsLibraryHealthGuide-CAi50Wag.js         12.14 kB │ gzip:   3.59 kB
+dist/assets/useBrowserLayoutHotkeys-CmNeFhJu.js            12.30 kB │ gzip:   3.92 kB
+dist/assets/itemsGroupBy-CNVkM1WE.js                       12.46 kB │ gzip:   3.74 kB
+dist/assets/WidgetHealthAlerts-DaUfMiFS.js                 12.77 kB │ gzip:   4.22 kB
+dist/assets/MetaAssignmentPanel-B5iIbl1G.js                12.94 kB │ gzip:   4.12 kB
+dist/assets/SettingsRegistration-CYEGA_3l.js               13.21 kB │ gzip:   3.62 kB
+dist/assets/DialogCamGirlFinder-DzUZeNaF.js                14.26 kB │ gzip:   4.97 kB
+dist/assets/AppBar-BOjZstq7.js                             14.44 kB │ gzip:   5.54 kB
+dist/assets/DialogTagEditing-BIROfaPB.js                   14.77 kB │ gzip:   5.24 kB
+dist/assets/SettingsWatchedFolders-D0IDTl9x.js             15.43 kB │ gzip:   4.73 kB
+dist/assets/SettingsChipRecipes-7Slc_bIL.js                15.44 kB │ gzip:   4.33 kB
+dist/assets/WidgetTagSpotlight-DR73DKjY.js                 15.54 kB │ gzip:   4.95 kB
+dist/assets/TagsAdd-CvFe_GaR.js                            15.55 kB │ gzip:   4.89 kB
+dist/assets/ItemPinnedMeta-BJhp-5F9.js                     15.79 kB │ gzip:   5.20 kB
+dist/assets/scraper-Dw6QpjjW.js                            15.92 kB │ gzip:   5.82 kB
+dist/assets/PageAllTags-EW0lEDnv.js                        16.66 kB │ gzip:   5.28 kB
+dist/assets/DialogOriginalOperations-D2mxYUiG.js           17.37 kB │ gzip:   5.51 kB
+dist/assets/MetaInputArray-DdeCFVzL.js                     17.39 kB │ gzip:   6.12 kB
+dist/assets/AddingMedia-CBKduOE-.js                        18.53 kB │ gzip:   5.87 kB
+dist/assets/DialogMediaAdding-B2G8IneS.js                  18.54 kB │ gzip:   6.56 kB
+dist/assets/sceneScraper-Bn_b_4--.js                       18.73 kB │ gzip:   6.04 kB
+dist/assets/DialogDocumentation-DnmDyHRU.js                19.19 kB │ gzip:   5.26 kB
+dist/assets/DialogMediaEditing-BhYJ3977.js                 20.48 kB │ gzip:   6.93 kB
+dist/assets/InspectorPanel-BcOYVvU2.js                     20.53 kB │ gzip:   6.86 kB
+dist/assets/plugins-iWGvh_o7.js                            20.56 kB │ gzip:   5.77 kB
+dist/assets/localAiAssistFilterGoal-Bdvvm-pL.js            21.77 kB │ gzip:   6.70 kB
+dist/assets/DialogSceneScraper-qTlbKetL.js                 22.44 kB │ gzip:   7.27 kB
+dist/assets/SettingsParseLibraryTags-B0-vVpU1.js           23.14 kB │ gzip:   6.17 kB
+dist/assets/PageMarkers-MWji-APm.js                        23.40 kB │ gzip:   7.70 kB
+dist/assets/vue-vendor-Bm0khyrG.js                         24.77 kB │ gzip:   9.56 kB
+dist/assets/SettingsDetectFaces-CAE0v6Qg.js                24.83 kB │ gzip:   6.13 kB
+dist/assets/MediaFolderBrowser-B5aGzHLp.js                 25.86 kB │ gzip:   7.41 kB
+dist/assets/ItemContextMenu-D-P6Q65k.js                    27.00 kB │ gzip:   8.17 kB
+dist/assets/ReviewMode-AxQ5g2Q2.js                         27.43 kB │ gzip:   9.14 kB
+dist/assets/lodash-vendor-dB2NTwTA.js                      27.76 kB │ gzip:   9.01 kB
+dist/assets/SettingsDatabases-DKKlqtPI.js                  28.06 kB │ gzip:   7.74 kB
+dist/assets/SideBarBrowser-BCXyu34X.js                     28.36 kB │ gzip:   8.45 kB
+dist/assets/Dialogs-CrONYt4L.js                            30.52 kB │ gzip:   9.53 kB
+dist/assets/DialogFaceResults-CE5PmrQD.js                  30.90 kB │ gzip:   8.40 kB
+dist/assets/ImageViewer-CaxEwSLV.js                        32.55 kB │ gzip:   9.87 kB
+dist/assets/PageTag-DHZjR_yH.js                            34.03 kB │ gzip:   9.92 kB
+dist/assets/PagePlaylists-wjlHWkPR.js                      39.10 kB │ gzip:  10.42 kB
+dist/assets/useItemsThumbPrefetch-BALPLk1t.js              41.14 kB │ gzip:  14.13 kB
+dist/assets/DialogMediaAddingProcess-C_-3BWRA.js           43.99 kB │ gzip:  10.57 kB
+dist/assets/viewer-vendor-Cdli_iG-.js                      45.91 kB │ gzip:  15.02 kB
+dist/assets/GlobalSearch-OTGjkk1Q.js                       49.81 kB │ gzip:  14.62 kB
+dist/assets/ItemPreviewVideo-Co6YxbtB.js                   55.57 kB │ gzip:  16.60 kB
+dist/assets/vue-i18n-BCx3vbsc.js                           55.93 kB │ gzip:  18.38 kB
+dist/assets/PageSettings-DuWh4QsD.js                       56.85 kB │ gzip:  15.24 kB
+dist/assets/EditPinnedMetaValues-Ckz-I1Vi.js               57.07 kB │ gzip:  16.71 kB
+dist/assets/version-history-data-BezfZXRj.js               61.36 kB │ gzip:  15.80 kB
+dist/assets/items-store-BIDDOtV0.js                        68.33 kB │ gzip:  20.62 kB
+dist/assets/gsap-vendor-wpuzD7jU.js                        69.66 kB │ gzip:  27.33 kB
+dist/assets/PageFolders-CTfpzGro.js                        71.87 kB │ gzip:  20.00 kB
+dist/assets/cropper-vendor-CeeVMn61.js                     82.12 kB │ gzip:  20.07 kB
+dist/assets/SourcesPanel-DYt-6O5Z.js                       87.59 kB │ gzip:  25.05 kB
+dist/assets/DialogMetaManager-D-ekPhYL.js                  93.27 kB │ gzip:  25.90 kB
+dist/assets/api-schemas-DS2DSFoC.js                        95.69 kB │ gzip:  21.36 kB
+dist/assets/DialogImageEditing-D7HcsIGr.js                141.47 kB │ gzip:  41.95 kB
+dist/assets/LayoutItems-BJw9aBi_.js                       152.51 kB │ gzip:  43.40 kB
+dist/assets/Player-DximKfXC.js                            158.10 kB │ gzip:  46.51 kB
+dist/assets/draggable-vendor-DjKZ0FcD.js                  176.74 kB │ gzip:  60.88 kB
+dist/assets/locale-cn-D8JYqHp7.js                         177.78 kB │ gzip:  58.28 kB
+dist/assets/api-client-CyEcWY9Y.js                        184.43 kB │ gzip:  70.21 kB
+dist/assets/index-DO6NFAyh.js                             196.53 kB │ gzip:  68.52 kB
+dist/assets/locale-pt-CiJfXkMQ.js                         199.51 kB │ gzip:  59.73 kB
+dist/assets/locale-es-DUA0mczV.js                         202.47 kB │ gzip:  59.49 kB
+dist/assets/locale-de-p9gYhI9P.js                         204.36 kB │ gzip:  61.53 kB
+dist/assets/locale-en-Dcd6veiq.js                         210.17 kB │ gzip:  63.86 kB
+dist/assets/locale-fr-CdcCRq3k.js                         212.00 kB │ gzip:  61.96 kB
+dist/assets/PageHome-BkvxKtdN.js                          214.18 kB │ gzip:  73.08 kB
+dist/assets/locale-ja-CyWNH3o_.js                         234.55 kB │ gzip:  64.36 kB
+dist/assets/country-flag-vendor-CxlPQPZX.js               304.43 kB │ gzip: 219.45 kB
+dist/assets/locale-ru-u-CS3SjW.js                         323.82 kB │ gzip:  80.21 kB
+dist/assets/documentation-data-DMiDTHl-.js                369.39 kB │ gzip: 108.99 kB
+dist/assets/material-icons-data-yweukK_o.js               373.53 kB │ gzip:  40.64 kB
+dist/assets/vuetify-vendor-Dm7cpu4u.js                    434.79 kB │ gzip: 135.42 kB
+dist/assets/hls-CpT9vgQK.js                               575.17 kB │ gzip: 179.11 kB
+
+[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0msrc/services/typedApi.ts is dynamically imported by src/services/freeLibraryCapConfig.ts, src/utils/fileExistenceBatcher.ts but also statically imported by packages/plugin-adult/src/components/DialogSceneScraperConfig.vue?vue&type=script&setup=true&lang.ts, packages/plugin-adult/src/components/DialogScraperConfig.vue?vue&type=script&setup=true&lang.ts, packages/plugin-adult/src/components/SettingsDataScraper.vue?vue&type=script&setup=true&lang.ts, packages/plugin-adult/src/components/scraper/ScraperDataTransfer.vue?vue&type=script&setup=true&lang.ts, packages/plugin-adult/src/composables/useAutoSceneScrapeBatch.ts, ..., dynamic import will not move module into another chunk.
+
+[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0msrc/stores/notifications.ts is dynamically imported by src/services/desktopChrome.ts but also statically imported by packages/plugin-adult/src/components/DialogCamGirlFinder.vue?vue&type=script&setup=true&lang.ts, packages/plugin-adult/src/components/DialogScraperConfig.vue?vue&type=script&setup=true&lang.ts, packages/plugin-adult/src/composables/useAutoSceneScrapeBatch.ts, packages/plugin-adult/src/composables/useAutoScrapeBatch.ts, packages/plugin-tmdb/src/composables/useTmdbPersonAutoScrapeBatch.ts, ..., dynamic import will not move module into another chunk.
+
+✓ built in 3.13s
+
+PWA v1.3.0
+mode      generateSW
+precache  477 entries (11070.32 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-98f7a950.js
+Parser model Xenova/all-MiniLM-L6-v2 is already cached at /Users/vit/Desktop/work/mediachips-legacy/mediaChips/models/Xenova/all-MiniLM-L6-v2
+Face models (SCRFD + R50 + genderage) are downloaded on demand; nothing to pre-bundle.
+Searching dependency tree
+Building modules: @parcel/watcher, better-sqlite3, cpu-features
+✔ Rebuild Complete
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/node_modules/better-sqlite3/build/Release/better_sqlite3.node: replacing existing signature
+Signed node_modules/better-sqlite3/build/Release/better_sqlite3.node
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/node_modules/better-sqlite3/build/Release/test_extension.node: replacing existing signature
+Signed node_modules/better-sqlite3/build/Release/test_extension.node
+/Users/vit/Desktop/work/mediachips-legacy/mediaChips/node_modules/@parcel/watcher-darwin-arm64/watcher.node: replacing existing signature
+Signed node_modules/@parcel/watcher-darwin-arm64/watcher.node
+[prune-native-binaries] nothing to remove for target=mac
+  • electron-builder  version=26.15.3 os=27.0.0
+  • loaded configuration  file=/Users/vit/Desktop/work/mediachips-legacy/mediaChips/.cache/electron-builder.dist.json
+  • @electron/rebuild already used by electron-builder, please consider to remove excess dependency from devDependencies
+
+To ensure your native dependencies are always matched electron version, simply add script `"postinstall": "electron-builder install-app-deps" to your `package.json`
+[prune-native-binaries] nothing to remove for target=mac
+  • executing @electron/rebuild  electronVersion=42.9.0 arch=arm64 buildFromSource=false workspaceRoot=/Users/vit/Desktop/work/mediachips-legacy/mediaChips projectDir=./ appDir=./
+  • installing native dependencies  arch=arm64
+  • preparing       moduleName=@parcel/watcher arch=arm64
+  • finished        moduleName=@parcel/watcher arch=arm64
+  • preparing       moduleName=better-sqlite3 arch=arm64
+  • finished        moduleName=better-sqlite3 arch=arm64
+  • preparing       moduleName=cpu-features arch=arm64
+  • finished        moduleName=cpu-features arch=arm64
+  • completed installing native dependencies
+  • packaging       platform=darwin arch=arm64 electron=42.9.0 appOutDir=release/mac-arm64
+  • downloaded      label=electron progress=100%
+  • downloaded electron zip extracted successfully  output=/Users/vit/Desktop/work/mediachips-legacy/mediaChips/release/mac-arm64
+  • searching for node modules  pm=npm searchDir=/Users/vit/Desktop/work/mediachips-legacy/mediaChips
+  • duplicate dependency references  dependencies=["@parcel/watcher@2.6.0","chokidar@5.0.0","@jridgewell/trace-mapping@0.3.31","@types/node@26.0.1","@types/chai@5.2.3","@vitest/spy@3.2.7","@vitest/utils@3.2.7","chai@5.3.3","@vitest/spy@3.2.7","magic-string@0.30.21","vite@6.4.3","@vitest/utils@3.2.7","@vitest/pretty-format@3.2.7","magic-string@0.30.21","@vitest/pretty-format@3.2.7","debug@4.4.3","css-tree@3.2.1","css-tree@3.2.1","css-tree@3.2.1","whatwg-url@16.0.1","tinyglobby@0.2.17","debug@4.4.3","@types/node@26.0.1","esbuild@0.28.2","lightningcss@1.32.0","postcss@8.5.26","rollup@4.62.2","sass-embedded@1.100.0","sass@1.101.0","terser@5.49.2","tinyglobby@0.2.17","tsx@4.22.4","vite@6.4.3","vue@3.5.38","@types/chai@5.2.3","@types/debug@4.1.13","@types/node@26.0.1","@types/chai@5.2.3","@vitest/spy@3.2.7","@vitest/utils@3.2.7","chai@5.3.3","@vitest/spy@3.2.7","magic-string@0.30.21","vite@7.3.6","@vitest/utils@3.2.7","strip-literal@3.1.0","@vitest/pretty-format@3.2.7","magic-string@0.30.21","@vitest/pretty-format@3.2.7","debug@4.4.3","jsdom@29.1.1","magic-string@0.30.21","tinyglobby@0.2.17","vite-node@3.2.4","@types/node@26.0.1","esbuild@0.28.2","lightningcss@1.32.0","postcss@8.5.26","rollup@4.62.2","sass-embedded@1.100.0","sass@1.101.0","terser@5.49.2","tinyglobby@0.2.17","tsx@4.22.4","why-is-node-running@2.3.0","vue@3.5.38","@types/chai@5.2.3","@types/debug@4.1.13","@types/node@26.0.1","@types/chai@5.2.3","@vitest/spy@3.2.7","@vitest/utils@3.2.7","chai@5.3.3","@vitest/spy@3.2.7","magic-string@0.30.21","vite@7.3.6","@vitest/utils@3.2.7","strip-literal@3.1.0","@vitest/pretty-format@3.2.7","magic-string@0.30.21","@vitest/pretty-format@3.2.7","debug@4.4.3","jsdom@29.1.1","magic-string@0.30.21","tinyglobby@0.2.17","vite-node@3.2.4","@types/node@26.0.1","esbuild@0.28.2","lightningcss@1.32.0","postcss@8.5.26","rollup@4.62.2","sass-embedded@1.100.0","sass@1.101.0","terser@5.49.2","tinyglobby@0.2.17","tsx@4.22.4","why-is-node-running@2.3.0","vue@3.5.38","@types/chai@5.2.3","@types/debug@4.1.13","@types/node@26.0.1","@types/chai@5.2.3","@vitest/spy@3.2.7","@vitest/utils@3.2.7","chai@5.3.3","@vitest/spy@3.2.7","magic-string@0.30.21","vite@7.3.6","@vitest/utils@3.2.7","strip-literal@3.1.0","@vitest/pretty-format@3.2.7","magic-string@0.30.21","@vitest/pretty-format@3.2.7","debug@4.4.3","jsdom@29.1.1","magic-string@0.30.21","tinyglobby@0.2.17","vite-node@3.2.4","@types/node@26.0.1","esbuild@0.28.2","lightningcss@1.32.0","postcss@8.5.26","rollup@4.62.2","sass-embedded@1.100.0","sass@1.101.0","terser@5.49.2","tinyglobby@0.2.17","tsx@4.22.4","why-is-node-running@2.3.0","vue@3.5.38","@types/chai@5.2.3","@types/debug@4.1.13","@types/node@26.0.1","@types/chai@5.2.3","@vitest/spy@3.2.7","@vitest/utils@3.2.7","chai@5.3.3","@vitest/spy@3.2.7","magic-string@0.30.21","vite@7.3.6","@vitest/utils@3.2.7","strip-literal@3.1.0","@vitest/pretty-format@3.2.7","magic-string@0.30.21","@vitest/pretty-format@3.2.7","debug@4.4.3","jsdom@29.1.1","magic-string@0.30.21","tinyglobby@0.2.17","vite-node@3.2.4","@types/node@26.0.1","esbuild@0.28.2","lightningcss@1.32.0","postcss@8.5.26","rollup@4.62.2","sass-embedded@1.100.0","sass@1.101.0","terser@5.49.2","tinyglobby@0.2.17","tsx@4.22.4","why-is-node-running@2.3.0","vue@3.5.38","@types/chai@5.2.3","@types/debug@4.1.13","@types/node@26.0.1","@types/chai@5.2.3","@vitest/spy@3.2.7","@vitest/utils@3.2.7","chai@5.3.3","@vitest/spy@3.2.7","magic-string@0.30.21","vite@7.3.6","@vitest/utils@3.2.7","strip-literal@3.1.0","@vitest/pretty-format@3.2.7","magic-string@0.30.21","@vitest/pretty-format@3.2.7","debug@4.4.3","jsdom@29.1.1","magic-string@0.30.21","tinyglobby@0.2.17","vite-node@3.2.4","@types/node@26.0.1","esbuild@0.28.2","lightningcss@1.32.0","postcss@8.5.26","rollup@4.62.2","sass-embedded@1.100.0","sass@1.101.0","terser@5.49.2","tinyglobby@0.2.17","tsx@4.22.4","why-is-node-running@2.3.0","vue@3.5.38","onnxruntime-node@1.14.0","cross-spawn@7.0.6","strip-ansi@7.2.0","strip-ansi@7.2.0","ansi-styles@4.3.0","strip-ansi@6.0.1","string-width@5.1.2","strip-ansi@7.2.0","readable-stream@4.7.0","streamx@2.28.0","streamx@2.28.0","bare-path@3.0.1","archiver-utils@5.0.2","readable-stream@4.7.0","readable-stream@4.7.0","readable-stream@4.7.0","call-bind-apply-helpers@1.0.2","es-object-atoms@1.1.2","hasown@2.0.4","hasown@2.0.4","debug@4.4.3","debug@4.4.3","once@1.4.0","once@1.4.0","once@1.4.0","pump@3.0.4","string_decoder@1.3.0","end-of-stream@1.4.5","string_decoder@1.3.0","@types/node@26.0.1","better-sqlite3@12.11.1","debug@4.4.3","express@5.2.1","mime-types@3.0.2","debug@4.4.3","http-errors@2.0.1","on-finished@2.4.1","qs@6.15.2","http-errors@2.0.1","iconv-lite@0.7.2","type-is@2.1.0","debug@4.4.3","on-finished@2.4.1","call-bind-apply-helpers@1.0.2","get-intrinsic@1.3.0","get-intrinsic@1.3.0","call-bound@1.0.4","get-intrinsic@1.3.0","side-channel-map@1.0.1","debug@4.4.3","debug@4.4.3","http-errors@2.0.1","mime-types@3.0.2","on-finished@2.4.1","send@1.2.1","mime-types@3.0.2","string_decoder@1.3.0","https-proxy-agent@5.0.1","@jimp/types@1.6.1","@jimp/utils@1.6.1","debug@4.4.3","token-types@6.1.2","@jimp/plugin-resize@1.6.1","@jimp/types@1.6.1","@jimp/utils@1.6.1","@jimp/core@1.6.1","@jimp/types@1.6.1","@jimp/utils@1.6.1","@jimp/core@1.6.1","@jimp/types@1.6.1","image-q@4.0.0","@jimp/core@1.6.1","@jimp/types@1.6.1","@jimp/core@1.6.1","@jimp/types@1.6.1","@jimp/core@1.6.1","@jimp/types@1.6.1","@jimp/types@1.6.1","@jimp/utils@1.6.1","@jimp/core@1.6.1","@jimp/utils@1.6.1","@jimp/types@1.6.1","@jimp/core@1.6.1","@jimp/types@1.6.1","@jimp/utils@1.6.1","@jimp/core@1.6.1","@jimp/plugin-blit@1.6.1","@jimp/plugin-resize@1.6.1","@jimp/types@1.6.1","@jimp/utils@1.6.1","@jimp/core@1.6.1","@jimp/plugin-crop@1.6.1","@jimp/plugin-resize@1.6.1","@jimp/types@1.6.1","@jimp/core@1.6.1","@jimp/types@1.6.1","@jimp/utils@1.6.1","@jimp/types@1.6.1","@jimp/utils@1.6.1","@jimp/types@1.6.1","@jimp/types@1.6.1","@jimp/utils@1.6.1","@jimp/types@1.6.1","@jimp/core@1.6.1","@jimp/js-bmp@1.6.1","@jimp/js-jpeg@1.6.1","@jimp/js-png@1.6.1","@jimp/js-tiff@1.6.1","@jimp/plugin-color@1.6.1","@jimp/plugin-resize@1.6.1","@jimp/types@1.6.1","@jimp/utils@1.6.1","@jimp/types@1.6.1","@jimp/core@1.6.1","@jimp/js-jpeg@1.6.1","@jimp/js-png@1.6.1","@jimp/plugin-blit@1.6.1","@jimp/types@1.6.1","@jimp/core@1.6.1","@jimp/types@1.6.1","@jimp/core@1.6.1","@jimp/plugin-crop@1.6.1","@jimp/plugin-resize@1.6.1","@jimp/types@1.6.1","@jimp/utils@1.6.1","@jimp/core@1.6.1","@jimp/plugin-color@1.6.1","@jimp/plugin-hash@1.6.1","@jimp/types@1.6.1","@jimp/utils@1.6.1","@jimp/types@1.6.1","debug@4.4.3","fs-extra@11.3.5","rc@1.2.8","yargs@17.7.2","fs-extra@11.3.5","async-retry@1.3.3","filenamify@6.0.0","fs-extra@11.3.5","stdout-update@4.0.1","strip-ansi@7.2.0","log-symbols@7.0.1","strip-ansi@7.2.0","debug@4.4.3","debug@4.4.3","strip-ansi@7.2.0","strip-ansi@7.2.0","strip-ansi@6.0.1","string-width@4.2.3","strip-ansi@6.0.1","vue@3.5.38","vue@3.5.38","vue@3.5.38","chart.js@4.5.1","vue@3.5.38","vue@3.5.38","vue@3.5.38","@intlify/devtools-types@11.4.6","@intlify/core-base@11.4.6","vue@3.5.38","vue@3.5.38","@babel/parser@7.29.8","@vue/compiler-core@3.5.38","@vue/compiler-dom@3.5.38","@vue/compiler-dom@3.5.38","magic-string@0.30.21","postcss@8.5.26","@vue/reactivity@3.5.38","@vue/compiler-ssr@3.5.38","vue@3.5.38","vue@3.5.38","vue@3.5.38","debug@4.4.3","@types/node@26.0.1","esbuild@0.28.2","lightningcss@1.32.0","postcss@8.5.26","sass-embedded@1.100.0","sass@1.101.0","terser@5.49.2","tinyglobby@0.2.17","tsx@4.22.4","vue@3.5.38","vue@3.5.38"]
+  • signing         file=release/mac-arm64/MediaChips.app platform=darwin type=distribution identityName=- identityHash=none provisioningProfile=none
+  • skipped macOS notarization  reason=`notarize` options were unable to be generated
+  • building        target=macOS zip arch=arm64 file=release/MediaChips.v1.13.0.Mac.arm64.zip
+  • building        target=DMG arch=arm64 file=release/MediaChips.v1.13.0.Mac.arm64.dmg
+  • building block map  blockMapFile=release/MediaChips.v1.13.0.Mac.arm64.dmg.blockmap
+  • building block map  blockMapFile=release/MediaChips.v1.13.0.Mac.arm64.zip.blockmap

@@ -1038,7 +1038,7 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 .markers-layout-container.v-container {
-  padding-top: 8px;
+  padding-top: 16px;
 }
 
 .markers-page--has-selection {

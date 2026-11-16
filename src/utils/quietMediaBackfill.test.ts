@@ -69,6 +69,8 @@ describe('quietMediaBackfill', () => {
     expect(needsQuietMetaBackfill({width: 0, height: 0})).toBe(true)
     expect(needsQuietMetaBackfill({width: 10, height: 0})).toBe(true)
     expect(needsQuietMetaBackfill({width: 10, height: 10})).toBe(false)
+    expect(needsQuietMetaBackfill({width: 10, height: 10, duration: 0}, true)).toBe(true)
+    expect(needsQuietMetaBackfill({width: 10, height: 10, duration: 20}, true)).toBe(false)
     expect(needsQuietMetaBackfill({width: 0, height: 0, filesize: 0})).toBe(false)
   })
 

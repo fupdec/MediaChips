@@ -1,3 +1,4 @@
+import {runLibraryOperation} from '../../api/services/libraryMaintenance'
 import type { ApiDb } from '../../api/types/db'
 import type {
   AppWebSocket,
@@ -24,8 +25,29 @@ import { normalizeMoveMessageItems } from './wsHelpers'
 
 export function createMovingWsHandler(db: ApiDb): WsHandler {
   return (ws: AppWebSocket, _req: Request) => {
-    const send = (payload: WsOutboundPayload) => {
+    const PROGRESS_MIN_MS = 100
+    let lastProgressAt = 0
+    let pendingProgress: WsOutboundPayload | null = null
+
+    const sendNow = (payload: WsOutboundPayload) => {
       if (ws.readyState === 1) ws.send(JSON.stringify(payload))
+    }
+
+    const flushProgress = () => {
+      if (!pendingProgress) return
+      sendNow(pendingProgress)
+      pendingProgress = null
+      lastProgressAt = Date.now()
+    }
+
+    const send = (payload: WsOutboundPayload) => {
+      if (payload.type === 'progress') {
+        pendingProgress = payload
+        if (Date.now() - lastProgressAt >= PROGRESS_MIN_MS) flushProgress()
+        return
+      }
+      flushProgress()
+      sendNow(payload)
     }
 
     const moveFiles = async (msg: MoveFilesWsMessage) => {
@@ -341,19 +363,21 @@ export function createMovingWsHandler(db: ApiDb): WsHandler {
 
     ws.on('message', async (rawMsg: unknown) => {
       try {
-        const parsed = JSON.parse(String(rawMsg)) as MovingWsMessage
-        switch (parsed.type) {
-          case 'move':
-            await moveFiles(parsed)
-            break
-          case 'rename':
-            await renameFileOnDisk(parsed)
-            break
-        }
+        await runLibraryOperation(async () => {
+          const parsed = JSON.parse(String(rawMsg)) as MovingWsMessage
+          switch (parsed.type) {
+            case 'move':
+              await moveFiles(parsed)
+              break
+            case 'rename':
+              await renameFileOnDisk(parsed)
+              break
+          }
+        })
       } catch (error: unknown) {
         console.error('Moving WebSocket error:', error)
         if (ws.readyState === 1) {
-          ws.send(JSON.stringify({ type: 'close', moved: 0, failed: 0, total: 0, error: true }))
+          ws.send(JSON.stringify({ type: 'close', moved: 0, failed: 0, total: 0, error: true, code: (error as {code?: string})?.code }))
         }
       }
     })

@@ -1,21 +1,34 @@
 <template>
-  <SettingsHealthTask :id="config.elementId" :status="taskStatus" compact>
+  <SettingsHealthTask :id="config.elementId" :status="taskStatus" compact class="maintenance-task--compact">
     <div>
       <SettingsHealthSectionHeader
         :title="t(titleKey)"
         :icon="config.icon"
-        :hint="t(hintKey)"
+        :documentation-id="documentationId"
         :status="taskStatus"
-        :status-label="statusChipLabel"
+        :show-status="false"
         compact
       />
 
       <SettingsHealthProgress
-        :label="statusText"
+        :label="compactStatusText"
         :percent="statusPercent"
         :active="active"
         :striped="active"
       />
+      <p class="maintenance-task__hint">{{ t(hintKey) }}</p>
+      <v-btn
+        v-if="config.prerequisite"
+        :to="{path: '/settings', query: {tab: 'maintenance', section: config.prerequisite.section}}"
+        color="primary"
+        rounded
+        size="small"
+        variant="tonal"
+        class="backfill-task__prerequisite pr-4"
+      >
+        <v-icon icon="mdi-view-grid-outline" start/>
+        {{ t(config.prerequisite.labelKey) }}
+      </v-btn>
       <div v-if="active && currentPath" class="text-caption text-medium-emphasis mb-3 selectable">
         {{ currentPath }}
       </div>
@@ -39,13 +52,19 @@
         <span class="text-caption">{{ missingHint }}</span>
       </v-alert>
 
-      <div class="d-flex flex-wrap ga-2">
+      <div class="d-flex flex-wrap align-center ga-2">
+        <ModelDownloadMenu v-if="config.kind === 'clipEmbedding'" :kinds="['clip']" size="default" :disabled="active || modelBusy" @installed="refreshStatus" v-slot="{importing}">
+          <v-btn color="primary" rounded :loading="modelBusy" :disabled="active || importing" @click="downloadClip">
+            <v-icon icon="mdi-download" start/>{{ t('media.adding.download_video_recognition_model') }}
+          </v-btn>
+        </ModelDownloadMenu>
         <v-btn
           v-if="!active"
           :disabled="!canStart"
           :loading="statusLoading"
           color="primary"
           rounded
+          size="small"
           variant="flat"
           class="pr-4"
           @click="startBackfill(false)"
@@ -59,6 +78,7 @@
           :disabled="!canRecalculate || statusLoading"
           color="secondary"
           rounded
+          size="small"
           variant="outlined"
           class="pr-4"
           @click="startBackfill(true)"
@@ -71,6 +91,7 @@
           v-else
           color="error"
           rounded
+          size="small"
           variant="flat"
           class="pr-4"
           @click="stopBackfill"
@@ -79,12 +100,19 @@
           {{ t('common.stop') }}
         </v-btn>
       </div>
+
+      <div v-if="$slots.default" class="backfill-task__extra">
+        <slot/>
+      </div>
     </div>
   </SettingsHealthTask>
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import ModelDownloadMenu from '@/components/ui/ModelDownloadMenu.vue'
+import {typedApi} from '@/services/typedApi'
+import {ensureModelsDownloaded} from '@/services/modelDownloadConsent'
+import {computed, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
 import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
@@ -99,6 +127,16 @@ const props = defineProps<{
 }>()
 
 const {t} = useI18n()
+const modelBusy = ref(false)
+async function downloadClip() {
+  modelBusy.value = true
+  try {
+    await ensureModelsDownloaded({explicit: true, t, models: [{kind: 'clip', name: t('ai.models.clip'), sizeMb: 150,
+      download: async onProgress => { await typedApi.downloadClipModel({}, onProgress) },
+    }]})
+    await refreshStatus()
+  } finally { modelBusy.value = false }
+}
 
 const {
   config,
@@ -108,6 +146,7 @@ const {
   progress,
   currentPath,
   lastSummary,
+  counters,
   progressText,
   summaryText,
   missingHint,
@@ -119,6 +158,8 @@ const {
   status,
   statusLoaded,
 } = useSettingsBackfillStream(props.config)
+
+const documentationId = computed(() => ({fingerprint: 'database.fingerprint', oshash: 'database.fingerprint', contentHash: 'database.fingerprint', videoCodec: 'database.video_codec', visualHash: 'settings.visual_hash', clipEmbedding: 'settings.semantic_index', mediaCreated: 'settings.media_created'}[props.config.kind]))
 
 const titleKey = computed(() => `settings_labels.database.${config.i18nKey}`)
 const hintKey = computed(() => `settings_labels.database.${config.i18nKey}_hint`)
@@ -133,14 +174,12 @@ const taskStatus = computed(() => {
   return 'done' as const
 })
 
-const statusChipLabel = computed(() => {
-  if (taskStatus.value === 'pending') {
-    return t('settings_labels.database.health_guide_pending', {count: pending.value})
-  }
-  if (taskStatus.value === 'done') {
-    return t('settings_labels.database.health_guide_done')
-  }
-  return undefined
+const compactStatusText = computed(() => {
+  if (!statusLoaded.value && !active.value) return statusText.value
+  return t('settings_labels.database.health_task_count', {
+    done: active.value ? counters.value.processed : status.value.done,
+    total: active.value ? counters.value.total : status.value.total,
+  })
 })
 
 const statusPercent = computed(() => {
@@ -162,6 +201,16 @@ void refreshStatus()
 </script>
 
 <style scoped>
+.backfill-task__prerequisite {
+  margin-bottom: 12px;
+}
+
+.backfill-task__extra {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), .06);
+}
+
 .selectable {
   user-select: text;
   word-break: break-all;

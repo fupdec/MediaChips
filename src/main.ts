@@ -113,6 +113,10 @@ router.isReady().then(async () => {
   const locale = await loadLocale(String(i18n.global.locale.value))
   i18n.global.locale.value = locale as typeof i18n.global.locale.value
 
+  if (import.meta.env.DEV) {
+    document.documentElement.classList.add('dev-text-selection')
+  }
+
   app.mount('#app')
 
   void import('@/services/registerPwa').then(({registerPwa}) => {

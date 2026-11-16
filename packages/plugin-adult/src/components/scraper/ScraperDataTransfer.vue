@@ -10,7 +10,7 @@
     {{ t('settings_labels.tools.scraper_configure_hint') }}
   </v-alert>
 
-  <v-card-actions class="px-0">
+  <v-card-actions class="px-0 flex-wrap">
     <v-btn @click="restoreAll" color="primary" class="px-4" rounded variant="flat">
       <v-icon icon="mdi-restore" start></v-icon>
       {{ t('common.restore_all') }}
@@ -27,54 +27,53 @@
       {{ t('common.transfer_all') }}
     </v-btn>
   </v-card-actions>
-  <v-table class="transfer-table" density="compact">
-    <thead>
-    <tr>
-      <th class="pl-8" style="width: 20%">{{ t('common.meta') }}</th>
-      <th style="width: 10%">{{ t('filters.parameter') }}</th>
-      <th class="text-right pr-12" style="width: 35%">{{ t('common.current') }}</th>
-      <th style="width: 35%">{{ t('common.found') }}</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr v-for="(item, index) in fields" :key="index">
-      <td class="pl-12">
+  <ul class="transfer-fields">
+    <li
+      v-for="(item, index) in fields"
+      :key="index"
+      class="transfer-field"
+      :class="{'transfer-field--changed': item.isTransfered}"
+    >
+      <div class="transfer-field__header">
+        <v-icon size="18" :icon="`mdi-${item.meta.icon}`" />
+        <div class="transfer-field__title">
+          <strong>{{ getMetaName(item.meta, t) }}</strong>
+          <div class="text-caption text-medium-emphasis">{{ getScraperFieldName(item.key) }}</div>
+        </div>
         <v-btn
-          @click="restore(item)"
+          :aria-label="t('common.restore')"
+          :title="t('common.restore')"
           :disabled="!item.isTransfered"
-          class="restore-btn"
+          icon="mdi-restore"
           color="primary"
           size="small"
           variant="text"
-          icon
-        >
-          <v-icon>mdi-restore</v-icon>
-        </v-btn>
-        <v-icon size="20"> mdi-{{ item.meta.icon }}</v-icon>
-        {{ getMetaName(item.meta, t) }}
-      </td>
-
-      <td>{{ getScraperFieldName(item.key) }}</td>
-
-      <td class="text-right pr-12">
-        <span> {{ item.valueCurrent }} </span>
+          @click="restore(item)"
+        />
         <v-btn
-          @click="transfer(item)"
+          :aria-label="t('common.apply')"
+          :title="t('common.apply')"
           :disabled="item.isTransfered || item.isAlreadyContain"
-          class="transfer-btn"
+          icon="mdi-transfer-left"
           color="primary"
           size="small"
-          variant="text"
-          icon
-        >
-          <v-icon>mdi-transfer-left</v-icon>
-        </v-btn>
-      </td>
+          variant="tonal"
+          @click="transfer(item)"
+        />
+      </div>
 
-      <td>{{ item.valueScraper }}</td>
-    </tr>
-    </tbody>
-  </v-table>
+      <dl class="transfer-field__values">
+        <div>
+          <dt>{{ t('common.current') }}</dt>
+          <dd>{{ formatTransferValue(item.valueCurrent) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t('common.found') }}</dt>
+          <dd>{{ formatTransferValue(item.valueScraper) }}</dd>
+        </div>
+      </dl>
+    </li>
+  </ul>
 
   <ScraperSelectImages v-if="selected" :selected="selected"></ScraperSelectImages>
 
@@ -106,6 +105,12 @@ import {
 } from '../../utils/measurementUnitPrompt'
 
 import ScraperSelectImages from './ScraperSelectImages.vue'
+
+function formatTransferValue(value: unknown): string {
+  if (Array.isArray(value)) return value.map(formatTransferValue).join(', ') || '—'
+  if (value == null || value === '') return '—'
+  return typeof value === 'object' ? JSON.stringify(value) : String(value)
+}
 
 function cloneTransferValue(value: unknown): unknown {
   if (Array.isArray(value)) return [...value]
@@ -245,30 +250,80 @@ watch(
 )
 </script>
 
-<style>
-.transfer-table {
-  .v-table__wrapper {
-    overflow: hidden;
+<style scoped>
+.transfer-fields {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.transfer-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  min-width: 0;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 12px;
+}
+
+.transfer-field--changed {
+  border-color: rgba(var(--v-theme-primary), 0.55);
+}
+
+.transfer-field__header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(var(--v-theme-primary), 0.06);
+  border-radius: 11px 0 0 11px;
+}
+
+.transfer-field__header .v-btn {
+  flex-shrink: 0;
+}
+
+.transfer-field__title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.transfer-field__values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.transfer-field__values dt {
+  font-size: 0.75rem;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.transfer-field__values dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 720px) {
+  .transfer-field {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  td {
-    position: relative;
+  .transfer-field__header {
+    border-radius: 11px 11px 0 0;
   }
+}
 
-  .restore-btn,
-  .transfer-btn {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    margin: auto;
-  }
-
-  .restore-btn {
-    left: 0;
-  }
-
-  .transfer-btn {
-    right: 0;
+@media (max-width: 420px) {
+  .transfer-field__values {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

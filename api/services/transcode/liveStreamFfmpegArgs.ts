@@ -58,13 +58,9 @@ export function buildFfmpegLiveArgs({
       args.push('-ss', String(cappedOutput))
     }
   } else if (start > 0.05) {
-    if (start > LIVE_INPUT_SEEK_MARGIN_SECONDS) {
-      args.push('-ss', String(start - LIVE_INPUT_SEEK_MARGIN_SECONDS))
-    }
-    args.push('-i', inputPath)
-    args.push('-copyts')
-    args.push('-ss', String(start))
-    useAbsoluteTimelineSeek = true
+    // FFmpeg's default accurate input seek decodes only from the nearest
+    // keyframe. A fixed 20s preroll made each scrub decode needless frames.
+    args.push('-ss', String(start), '-i', inputPath)
   } else {
     args.push('-i', inputPath)
   }
@@ -72,6 +68,7 @@ export function buildFfmpegLiveArgs({
   if (hasDuration) {
     args.push('-t', String(duration))
   }
+  args.push('-map', ...(audioOnly ? ['0:a:0'] : ['0:v:0', '-map', '0:a:0?']))
 
   if (audioOnly) {
     if (copyCodecs) {

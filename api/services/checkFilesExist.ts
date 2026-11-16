@@ -2,6 +2,7 @@ import { normalizeMediaPath } from '../utils/normalizeUserPath'
 import { resolveExistingPath } from './contentHash'
 import { isVirtualZipPath, zipEntryExists } from './zipGallery'
 import { mapWithConcurrency } from './thumbEncoding'
+import {isRemoteMediaPath} from '../../shared/remoteMedia'
 
 const MAX_BATCH_SIZE = 100
 /** Cap parallel FS checks so grid scroll cannot flood the disk/event loop. */
@@ -17,6 +18,10 @@ export async function checkFilesExist(paths: string[]): Promise<Record<string, b
   const results: Record<string, boolean> = {}
 
   await mapWithConcurrency(uniquePaths, CHECK_FILES_EXIST_CONCURRENCY, async (path) => {
+    if (isRemoteMediaPath(path)) {
+      results[path] = true
+      return
+    }
     const normalized = normalizeMediaPath(path)
     if (isVirtualZipPath(normalized)) {
       results[path] = await zipEntryExists(normalized)

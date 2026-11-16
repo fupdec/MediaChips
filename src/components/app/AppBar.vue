@@ -30,7 +30,7 @@
         style="height: 40px;"
       >
 
-        <DialogMediaAdding v-if="showAddMediaButton"/>
+        <AppBarButton v-if="showAddMediaButton" feature-hint="network-sources" :action="() => appShell.showAddMediaDialog()" :text="t('media.adding.add_media')" icon="plus"/>
         <TagsAdd v-if="itemsStore.type == 'tag'"/>
         <TagsAdd v-else :button="false"/>
 
@@ -45,8 +45,10 @@
         />
 
         <v-menu
+          v-model="moreMenuOpen"
           location="bottom"
           :transition="false"
+          :close-on-content-click="false"
           content-class="app-bar-more-menu"
         >
           <template #activator="{ props: menuProps }">
@@ -74,29 +76,70 @@
               link
               prepend-icon="mdi-tab"
               :title="t('appbar.buttons.create_tab')"
-              @click="createTab"
+              @click="runFromMoreMenu(createTab)"
             />
             <v-list-item
               v-if="itemsStore.type == 'tag'"
               link
               prepend-icon="mdi-wrench-cog"
               :title="t('appbar.buttons.edit_meta')"
-              @click="editMetaFromMenu"
+              @click="runFromMoreMenu(editMetaFromMenu)"
             />
             <v-list-item
               :disabled="randomItemLoading || itemsStore.totalFiltered == 0"
               link
               prepend-icon="mdi-dice-5"
               :title="t('appbar.buttons.open_random')"
-              @click="openRandomItem"
+              @click="runFromMoreMenu(openRandomItem)"
             />
             <v-list-item
               :disabled="itemsStore.entities.length == 0"
               link
               prepend-icon="mdi-card-search-outline"
               :title="t('review_mode.open')"
-              @click="openReviewFromMenu"
+              @click="runFromMoreMenu(openReviewFromMenu)"
             />
+            <v-list-item
+              v-if="itemsStore.type === 'media'"
+              link
+              class="pr-2"
+            >
+              <template #prepend>
+                <v-icon icon="mdi-content-duplicate"/>
+              </template>
+              <v-list-item-title class="d-flex align-center justify-space-between">
+                <span>{{ duplicatesMenuLabel }}</span>
+                <v-icon size="18">mdi-menu-right</v-icon>
+              </v-list-item-title>
+              <v-menu
+                activator="parent"
+                open-on-hover
+                submenu
+                location="end"
+                :open-delay="80"
+                :close-delay="120"
+                :close-on-content-click="false"
+                content-class="app-bar-more-menu"
+              >
+                <v-list
+                  density="compact"
+                  class="context-menu"
+                  :lines="false"
+                  nav
+                  rounded="lg"
+                  min-width="200"
+                >
+                  <v-list-item
+                    v-for="mode in duplicateMenuModes"
+                    :key="mode.value"
+                    link
+                    :prepend-icon="mode.icon"
+                    :title="t(mode.labelKey)"
+                    @click="runFromMoreMenu(() => findDuplicates(mode.value))"
+                  />
+                </v-list>
+              </v-menu>
+            </v-list-item>
           </v-list>
         </v-menu>
 
@@ -112,7 +155,7 @@
         class="d-flex align-center"
         style="height: 40px;"
       >
-        <DialogMediaAdding v-if="showAddMediaButton"/>
+        <AppBarButton v-if="showAddMediaButton" feature-hint="network-sources" :action="() => appShell.showAddMediaDialog()" :text="t('media.adding.add_media')" icon="plus"/>
 
         <AppBarButton
           v-if="itemsStore.type === 'playlist'"
@@ -135,13 +178,13 @@
         class="d-flex align-center"
         style="height: 40px;"
       >
-        <DialogMediaAdding/>
+        <AppBarButton feature-hint="network-sources" :action="() => appShell.showAddMediaDialog()" :text="t('media.adding.add_media')" icon="plus"/>
       </div>
 
       <v-spacer/>
 
       <!-- RIGHT AREA -->
-      <div class="d-flex align-center">
+      <div v-show="!itemsStore.isSelect" class="d-flex align-center">
         <v-tooltip v-if="showFreeLibraryLock"
           location="bottom">
           <template v-slot:activator="{ props: activatorProps }">
@@ -158,6 +201,13 @@
           <GlobalSearch/>
         </div>
         <MediaTrash/>
+        <DialogChangeHistory v-if="settingsStore.showHistoryInAppBar === '1'">
+          <template #activator="{open}">
+            <v-btn class="history-toolbar-trigger" icon :title="t('change_history.title')" :aria-label="t('change_history.title')" @click="open">
+              <v-icon>mdi-history</v-icon>
+            </v-btn>
+          </template>
+        </DialogChangeHistory>
         <Documentation/>
         <Notifications/>
       </div>
@@ -183,6 +233,8 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useRegistrationStore} from '@/stores/registration'
+import {useAppShell} from '@/composable/appShell'
+import {useSettingsStore} from '@/stores/settings'
 import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
 import {FREE_LIBRARY_CAP} from '@/utils/freeLibraryCap'
 import {useI18n} from 'vue-i18n'
@@ -193,7 +245,8 @@ import {useHeaderBarStyle} from '@/composable/useHeaderBarStyle'
 import {useAppPlatform} from '@/composable/useAppPlatform'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
 import {typedApi} from '@/services/typedApi'
-import {getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
+import {getDuplicateMenuModes, getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
+import {getCurrentMediaType} from '@/utils/mediaType'
 import {getTabUrl} from '@/services/routeService'
 import {reloadTabsCatalog} from '@/composable/appCatalogs'
 import {copyCurrentPageSettingsToTab} from '@/utils/tabPageSettings'
@@ -203,17 +256,19 @@ import type { TabLike } from '@/types/common'
 const ItemsSelection = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsSelection.vue'))
 const ItemsFilter = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsFilter.vue'))
 const TagsAdd = defineAsyncComponent(() => import('@/components/app/appbar/elements/TagsAdd.vue'))
-const DialogMediaAdding = defineAsyncComponent(() => import('@/components/dialogs/DialogMediaAdding.vue'))
+const appShell = useAppShell()
 const ItemsEditMeta = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsEditMeta.vue'))
 const AppBarButton = defineAsyncComponent(() => import('@/components/app/appbar/AppBarButton.vue'))
 const Tabs = defineAsyncComponent(() => import('@/components/app/appbar/Tabs.vue'))
 const GlobalSearch = defineAsyncComponent(() => import('@/components/app/appbar/GlobalSearch.vue'))
 const Documentation = defineAsyncComponent(() => import('@/components/app/appbar/Documentation.vue'))
 const MediaTrash = defineAsyncComponent(() => import('@/components/app/appbar/MediaTrash.vue'))
+const DialogChangeHistory = defineAsyncComponent(() => import('@/components/dialogs/DialogChangeHistory.vue'))
 const Notifications = defineAsyncComponent(() => import('@/components/app/appbar/Notifications.vue'))
 const DialogTabEditing = defineAsyncComponent(() => import('@/components/dialogs/DialogTabEditing.vue'))
 
 /* Stores */
+const settingsStore = useSettingsStore()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const app = useAppStore()
@@ -312,6 +367,51 @@ async function syncFullscreenState() {
 }
 
 const randomItemLoading = ref(false)
+const moreMenuOpen = ref(false)
+
+const currentMediaType = computed(() =>
+  getCurrentMediaType(app.mediaTypes, itemsStore.environment.media_type_id),
+)
+
+const hasActiveScopeFilters = computed(() =>
+  (itemsStore.filters || []).some((filter) =>
+    filter.active !== false
+    && !filter.removed
+    && filter.cond != null
+    && filter.cond !== '',
+  ),
+)
+
+const duplicatesMenuLabel = computed(() =>
+  hasActiveScopeFilters.value || Boolean(itemsStore.listScopeIds?.length)
+    ? t('filters.find_duplicates_within_filtered')
+    : t('filters.find_duplicates'),
+)
+
+const duplicateMenuModes = computed(() => getDuplicateMenuModes(currentMediaType.value))
+
+function runFromMoreMenu(action: () => void | Promise<void>) {
+  moreMenuOpen.value = false
+  void action()
+}
+
+function findDuplicates(mode: string) {
+  const mediaTypeId = Number(itemsStore.environment.media_type_id)
+  const scopeIds = Array.isArray(itemsStore.listScopeIds) && itemsStore.listScopeIds.length
+    ? itemsStore.listScopeIds.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+    : null
+  const useFilters = !scopeIds && hasActiveScopeFilters.value
+
+  dialogsStore.openDuplicateReview({
+    mediaTypeId: Number.isFinite(mediaTypeId) && mediaTypeId > 0 ? mediaTypeId : null,
+    duplicatesBy: mode,
+    mediaIds: scopeIds,
+    filters: useFilters ? itemsStore.filters : null,
+    filtersJoin: useFilters
+      ? (itemsStore.filtersJoin === 'or' ? 'or' : 'and')
+      : null,
+  })
+}
 
 async function openRandomItem() {
   // If already loading, skip to avoid double-clicks.
@@ -443,6 +543,7 @@ onUnmounted(() => {
 }
 
 .extension-tabs {
+  padding-inline: 8px;
   min-height: 28px;
   height: auto;
   width: 100%;

@@ -20,6 +20,7 @@ export {
   areVisuallySimilar,
   averageHashFromBitmap,
   clusterVisualNearDuplicates,
+  clusterVisualMatches,
   collectVisualNearNeighborIds,
   countMatchingTiles,
   decodeVisualHashTiles,

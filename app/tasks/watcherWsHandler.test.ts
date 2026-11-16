@@ -144,7 +144,7 @@ describe('createWatcherWsHandler', () => {
     await triggerWatcherEvent('ready')
     expect(fullSync).toHaveBeenCalledWith(folders)
     expect(ws.messages.some((message) => message.type === 'scanStart')).toBe(true)
-    expect(ws.messages.some((message) => message.type === 'scanComplete')).toBe(true)
+    await vi.waitFor(() => expect(ws.messages.some((message) => message.type === 'scanComplete')).toBe(true))
     expect(ws.messages.some((message) => message.type === 'files')).toBe(true)
     expect(ws.messages[ws.messages.length - 1]?.type).toBe('scanComplete')
   })
@@ -246,7 +246,7 @@ describe('createWatcherWsHandler', () => {
 
     expect(fullSync).toHaveBeenCalledWith(folders)
     expect(ws.messages.some((message) => message.type === 'scanStart')).toBe(true)
-    expect(ws.messages.some((message) => message.type === 'scanComplete')).toBe(true)
+    await vi.waitFor(() => expect(ws.messages.some((message) => message.type === 'scanComplete')).toBe(true))
     expect(ws.messages.some((message) => message.type === 'files')).toBe(true)
   })
 

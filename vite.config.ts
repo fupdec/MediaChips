@@ -5,7 +5,9 @@ import vue from '@vitejs/plugin-vue'
 import vuetify from 'vite-plugin-vuetify'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import fs from 'node:fs'
 import { stripMdiLegacyFontUrls } from './scripts/strip-mdi-legacy-fonts.mjs'
+import { staticPublicAssets } from './scripts/public-assets.mjs'
 
 function normalizePlugins(...items: Array<Plugin | Plugin[]>): Plugin[] {
   return items.flat()
@@ -46,6 +48,9 @@ function stripMdiLegacyFonts(): Plugin {
 }
 
 export default defineConfig(async ({ mode }): Promise<UserConfig> => {
+  for (const name of ['drive-oauth-tokens.json']) {
+    if (fs.existsSync(path.resolve('public', name))) throw new Error(`Remove private OAuth data from public/${name} before starting or building MediaChips.`)
+  }
   // MEDIA_CHIPS_SFW: adult API stripped from asar; UI stays for host:bundled after zip install.
   // MEDIA_CHIPS_MSSTORE: same strip + license bypass (official AppX only).
   // MEDIA_CHIPS_MAS=1 additionally stubs UI (stricter strip).
@@ -66,6 +71,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     vuetify({ autoImport: true }),
     invalidUrlMiddleware(),
     stripMdiLegacyFonts(),
+    staticPublicAssets(path.resolve('public')),
     VitePWA({
       // Manual register in src/services/registerPwa.ts — skip Electron hosts.
       injectRegister: false,
@@ -207,6 +213,8 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       'packages/**/*.test.ts',
       'scripts/**/*.test.{mjs,ts}',
     ],
+    // Release validation uses node:test and runs separately in CI.
+    exclude: ['**/node_modules/**', '**/.git/**', 'scripts/release.test.mjs'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
@@ -221,6 +229,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     },
   },
   build: {
+    copyPublicDir: false,
     outDir: 'dist',
     assetsDir: 'assets',
     // Production builds skip sourcemaps unless ANALYZE=1 (bundle visualizer needs them).

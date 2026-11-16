@@ -9,7 +9,6 @@
 @use "./screen.scss";
 
 html {
-  //overflow-y: hidden !important;
   -webkit-font-smoothing: subpixel-antialiased !important;
   // Prevent Chrome/macOS trackpad "swipe between pages" from stealing horizontal gestures.
   overscroll-behavior-x: none;
@@ -44,10 +43,35 @@ header {
   outline: none;
 }
 
+// Keep the label notch's bottom border level with the rest of the outline,
+// including when focus increases the border width.
+.v-field--variant-outlined .v-field__outline__notch::after {
+  top: auto;
+  height: 0;
+}
+
 .v-tab,
 .v-btn {
   text-transform: none !important;
   letter-spacing: normal !important;
+}
+
+// Text buttons shrink to their container instead of overflowing it;
+// a label that does not fit is truncated with an ellipsis.
+// Buttons with block-level markup in the default slot keep Vuetify's
+// own flex layout, otherwise their children would stack vertically.
+.v-btn:not(.v-btn--icon):not(.v-tab):not(:has(> .v-btn__content > div)) {
+  max-width: 100%;
+  grid-template-columns: max-content minmax(0, auto) max-content;
+
+  > .v-btn__content {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+  }
 }
 
 .user-select {
@@ -57,6 +81,12 @@ header {
 .v-application {
   user-select: none;
   font-family: Helvetica, Roboto, sans-serif;
+}
+
+html.dev-text-selection body,
+html.dev-text-selection body * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
 }
 
 .v-progress-linear {
@@ -628,7 +658,8 @@ header {
 
     .item-hover-card__content {
       min-height: 0;
-      overflow: auto;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
   }
 }
@@ -1774,4 +1805,105 @@ header {
 // Near-white tag fills vanish on light surfaces — keep a readable edge.
 .v-chip.tag-chip--light {
   box-shadow: inset 0 0 0 1px rgba(var(--v-theme-on-surface), 0.28);
+}
+
+// These menus teleport outside the compact media dialogs.
+.media-detail-select-menu {
+  .v-list { padding-block: 4px; border-radius: 10px !important; }
+  .v-list-item { min-height: 28px; padding: 4px 10px; }
+  .v-list-item-title { font-size: .75rem; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+  .v-list-item-subtitle { font-size: .6875rem; line-height: 1.3; }
+  .v-list-item__prepend > .v-icon, .v-list-item__append > .v-icon { font-size: 16px; }
+  .v-list-item__spacer { width: 6px; }
+}
+
+
+// Match the segmented controls while retaining tab navigation and scrolling.
+.v-tabs.v-slide-group:not(.app-navigation-tabs) {
+  width: fit-content;
+  align-self: flex-start;
+  margin-block: 12px;
+  height: auto;
+  min-height: 48px;
+  flex: 0 0 auto;
+  max-width: 100%;
+  padding: 4px;
+  border: 1px solid rgba(var(--v-theme-on-surface), .07);
+  border-radius: 14px;
+  background: rgba(var(--v-theme-on-surface), .035);
+
+  .v-slide-group__content {
+    gap: 4px;
+    flex: 0 1 auto;
+  }
+
+  .v-slide-group__content > .v-tab {
+    flex: 0 0 auto;
+    margin-inline: 0;
+  }
+
+  .v-tab.v-btn {
+    height: 38px;
+    min-width: 0;
+    padding-inline: 14px;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: 10px !important;
+    background: transparent;
+    color: rgba(var(--v-theme-on-surface), .7);
+    font-size: .875rem;
+    font-weight: normal;
+    transition: background-color .15s, color .15s, box-shadow .15s;
+
+    &:hover {
+      background: rgba(var(--v-theme-primary), .05);
+    }
+
+    &.v-tab--selected {
+      background: rgb(var(--v-theme-surface));
+      border-color: rgba(var(--v-theme-primary), .18);
+      color: rgb(var(--v-theme-primary));
+      box-shadow: 0 1px 4px rgb(0 0 0 / 7%);
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgb(var(--v-theme-primary));
+      outline-offset: -2px;
+    }
+
+    .v-btn__overlay {
+      opacity: 0;
+    }
+  }
+
+  .v-tab__slider {
+    display: none;
+  }
+
+  &.v-slide-group--vertical .v-tab.v-btn {
+    flex: 0 0 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v-tabs.v-slide-group:not(.app-navigation-tabs) .v-tab.v-btn {
+    transition: none;
+  }
+}
+
+.theme-neutral {
+  .dialog-header,
+  .items-control-deck__header,
+  .global-search__header,
+  .notifications-header,
+  .shortcut-section--player,
+  .relink-dialog__body,
+  .settings-history,
+  .settings-page--styled-sections .settings-section,
+  .settings-page--styled-sections .health-task,
+  .settings-page--styled-sections .health-guide__hero,
+  .settings-page--styled-sections .settings-meta-assignment,
+  .settings-page--styled-sections .settings-list > .settings-switch {
+    background-image: none !important;
+  }
 }

@@ -22,7 +22,7 @@ test.describe('Navigation', () => {
   test('switches settings to database tab', async ({ page }) => {
     await openSettingsTab(page, 'settings-doc-tab-database')
 
-    await expect(page.locator('#database_backups')).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('.databases-card--active .databases-card__backups')).toBeVisible({ timeout: 30_000 })
   })
 
   test('switches settings to about tab', async ({ page }) => {

@@ -94,6 +94,10 @@ const widgetMeta = computed(() => ({
     title: t('settings_labels.general.home_widget_quick_actions'),
     icon: 'mdi-flash',
   },
+  recommendedColors: {
+    title: t('settings_labels.appearance.recommended_colors'),
+    icon: 'mdi-palette-swatch',
+  },
   inbox: {
     title: t('home.widgets.inbox'),
     icon: 'mdi-inbox-arrow-down',

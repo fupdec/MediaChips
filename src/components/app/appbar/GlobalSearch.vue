@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {ref, computed, nextTick, onMounted, onBeforeUnmount, watch, triggerRef} from 'vue'
+import Documentation from '@/assets/Documentation'
+import {localizeDocumentation} from '@/assets/DocumentationTranslations'
+import {buildDocumentationSearchItems} from '@/utils/documentationSearch'
+import {useSettingsSearch} from '@/composable/useSettingsSearch'
+import {highlightSettingsMatch, settingsMatchContext, searchSettings, type SettingsSearchItem} from '@/utils/settingsNavigation'
 import {useRouter} from 'vue-router'
 import {useHotkey} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
-import {registerAppShellHandler} from '@/composable/appShell'
+import {registerAppShellHandler, useAppShell} from '@/composable/appShell'
 import AppBarButton from '@/components/app/appbar/AppBarButton.vue'
 import GlobalSearchCommands from '@/components/app/appbar/GlobalSearchCommands.vue'
 import {useAppStore} from '@/stores/app'
@@ -85,10 +91,15 @@ interface SearchGroup {
   metaId?: number
   is_media: boolean
   group_id: string
+  nextOffset?: number | null
+  totalMatches?: number
+  loadingMore?: boolean
 }
 
 type FlatResultRow =
-  | { kind: 'section'; section: 'tags' | 'filtered'; title: string; id: string }
+  | { kind: 'documentation'; item: SettingsSearchItem; id: string }
+  | { kind: 'setting'; item: SettingsSearchItem; id: string }
+  | { kind: 'section'; section: 'tags' | 'filtered' | 'settings' | 'documentation'; title: string; id: string }
   | { kind: 'header'; group: SearchGroup; id: string }
   | { kind: 'item'; group: SearchGroup; item: GlobalSearchMedia | GlobalSearchTag; id: string }
   | { kind: 'show-more'; group: SearchGroup; hiddenCount: number; id: string }
@@ -130,6 +141,16 @@ const aiError = ref('')
 
 const isCommandsMode = computed(() => paletteMode.value === 'commands')
 const isSearchMode = computed(() => paletteMode.value === 'search')
+
+const NAVIGATION_RESULT_LIMIT = 20
+const {items: settingsSearchItems} = useSettingsSearch()
+const settingsMatches = computed(() => isSearchMode.value && !pinnedTags.value.length
+  ? searchSettings(settingsSearchItems.value, query.value).slice(0, NAVIGATION_RESULT_LIMIT) : [])
+
+const documentationSearchItems = computed(() => buildDocumentationSearchItems(localizeDocumentation(Documentation, locale.value)))
+const documentationMatches = computed(() => isSearchMode.value && !pinnedTags.value.length
+  ? searchSettings(documentationSearchItems.value, query.value).slice(0, NAVIGATION_RESULT_LIMIT) : [])
+const appShell = useAppShell()
 
 const inputPlaceholder = computed(() => {
   if (isCommandsMode.value) return t('commandPalette.placeholder')
@@ -181,8 +202,14 @@ watch(query, (value) => {
 })
 
 const totalResults = computed(() =>
-  results.value.reduce((sum, group) => sum + group.data.length, 0),
+  results.value.reduce((sum, group) => sum + group.data.length, 0) + settingsMatches.value.length + documentationMatches.value.length,
 )
+
+function visibleGroupCount(group: SearchGroup) {
+  return expandedGroupIds.value.has(group.group_id)
+    ? group.data.length
+    : Math.min(group.data.length, GROUP_PREVIEW_LIMIT)
+}
 
 const flatResults = computed((): FlatResultRow[] => {
   const flat: FlatResultRow[] = []
@@ -196,10 +223,8 @@ const flatResults = computed((): FlatResultRow[] => {
   const appendGroup = (group: SearchGroup) => {
     flat.push({kind: 'header', group, id: `h-${group.group_id}`})
 
-    const isExpanded = expandedGroupIds.value.has(group.group_id)
-    const visibleItems = isExpanded || group.data.length <= GROUP_PREVIEW_LIMIT
-      ? group.data
-      : group.data.slice(0, GROUP_PREVIEW_LIMIT)
+    const visibleCount = visibleGroupCount(group)
+    const visibleItems = group.data.slice(0, visibleCount)
 
     for (const item of visibleItems) {
       flat.push({
@@ -210,11 +235,12 @@ const flatResults = computed((): FlatResultRow[] => {
       })
     }
 
-    if (!isExpanded && group.data.length > GROUP_PREVIEW_LIMIT) {
+    const hiddenCount = group.data.length - visibleCount
+    if (hiddenCount || group.nextOffset != null) {
       flat.push({
         kind: 'show-more',
         group,
-        hiddenCount: group.data.length - GROUP_PREVIEW_LIMIT,
+        hiddenCount,
         id: `more-${group.group_id}`,
       })
     }
@@ -243,6 +269,14 @@ const flatResults = computed((): FlatResultRow[] => {
   }
 
   for (const group of groupsToRender) appendGroup(group)
+  if (settingsMatches.value.length) {
+    flat.push({kind: 'section', section: 'settings', title: t('common.settings'), id: 'section-settings'})
+    for (const item of settingsMatches.value) flat.push({kind: 'setting', item, id: `setting-${item.tab}-${item.section}`})
+  }
+  if (documentationMatches.value.length) {
+    flat.push({kind: 'section', section: 'documentation', title: t('documentation.title'), id: 'section-documentation'})
+    for (const item of documentationMatches.value) flat.push({kind: 'documentation', item, id: `doc-${item.section}`})
+  }
   return flat
 })
 
@@ -253,7 +287,7 @@ const resultsScrollHeight = computed(() => {
 
 const navigableIndices = computed(() =>
   flatResults.value.reduce<number[]>((indices, row, index) => {
-    if (row.kind === 'item' || row.kind === 'show-more') indices.push(index)
+    if (row.kind === 'item' || row.kind === 'setting' || row.kind === 'documentation' || row.kind === 'show-more') indices.push(index)
     return indices
   }, []),
 )
@@ -297,6 +331,8 @@ const canRunSemanticOnEnter = computed(() =>
   !loading.value
   && Boolean(query.value.trim())
   && !results.value.length
+  && !settingsMatches.value.length
+  && !documentationMatches.value.length
   && !pinnedTags.value.length
   && !semanticHealth.value?.searched,
 )
@@ -551,6 +587,43 @@ function expandGroup(groupId: string) {
   if (expandedGroupIds.value.has(groupId)) return
   expandedGroupIds.value.add(groupId)
   triggerRef(expandedGroupIds)
+}
+
+async function showMoreResults(row: Extract<FlatResultRow, {kind: 'show-more'}>) {
+  const {group, hiddenCount} = row
+  if (hiddenCount) {
+    expandGroup(group.group_id)
+    return
+  }
+
+  const {mediaTypeId} = group
+  const signal = abortController?.signal
+  if (mediaTypeId == null || group.nextOffset == null || group.loadingMore || !signal || signal.aborted || loading.value) return
+
+  const q = query.value.trim()
+  const tagIds = pinnedTags.value.map((tag) => tag.id)
+  const seen = new Set(group.data.map((item) => item.id))
+  group.loadingMore = true
+  try {
+    while (group.nextOffset != null) {
+      const {data} = await typedApi.searchGlobalMediaPage({
+        q, mediaTypeId, offset: group.nextOffset, limit: RESULT_LIMIT, tagIds,
+      }, {signal})
+      if (signal.aborted || q !== query.value.trim()) return
+
+      group.nextOffset = data.nextOffset
+      const newItems = normalizeSearchMedia(data.items).filter((item) => !seen.has(item.id))
+      if (newItems.length) {
+        expandGroup(group.group_id)
+        group.data.push(...newItems)
+        return
+      }
+    }
+  } catch (error) {
+    if (!signal.aborted) console.error(error)
+  } finally {
+    group.loadingMore = false
+  }
 }
 
 function resetState() {
@@ -1020,6 +1093,23 @@ function formatSceneSeekTime(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+async function loadGroupMatchCounts(q: string, tagIds: number[], signal: AbortSignal) {
+  await Promise.all(results.value.map(async (group) => {
+    if (group.nextOffset === undefined || group.mediaTypeId == null) return
+    try {
+      const {data} = await typedApi.searchGlobalMediaPage({
+        q, tagIds, mediaTypeId: group.mediaTypeId, offset: 0, limit: RESULT_LIMIT, countOnly: true,
+      }, {signal})
+      if (!signal.aborted && q === query.value.trim() && data.total != null) {
+        group.totalMatches = data.total
+        if (group.data.length === data.total) group.nextOffset = null
+      }
+    } catch (error) {
+      if (!signal.aborted) console.error(error)
+    }
+  }))
+}
+
 async function search() {
   const q = query.value.trim()
   const tagIds = pinnedTags.value.map((tag) => tag.id)
@@ -1056,8 +1146,10 @@ async function search() {
     if (signal.aborted) return
 
     const mediaGroups = buildMediaGroups(normalizeSearchMedia(searchRes.data.media || []))
+    for (const group of mediaGroups) group.nextOffset = 0
     const tagGroups = buildTagGroups(normalizeSearchTags(searchRes.data.tags || []))
     results.value = sortGroups([...mediaGroups, ...tagGroups])
+    void loadGroupMatchCounts(q, tagIds, signal)
   } catch (e: unknown) {
     const err = e as { code?: string; name?: string }
     if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') return
@@ -1187,10 +1279,28 @@ function openTag(tag: Tag) {
   })
 }
 
+function openSetting(item: SettingsSearchItem) {
+  closeThenNavigate(() => { void router.push({path: '/settings', query: {tab: item.tab, section: item.section}}) })
+}
+
+function openDocumentation(item: SettingsSearchItem) {
+  closeThenNavigate(() => appShell.showDocumentation(item.section))
+}
+
+function openNavigationResult(row: Extract<FlatResultRow, {kind: 'setting' | 'documentation'}>) {
+  if (row.kind === 'documentation') openDocumentation(row.item)
+  else openSetting(row.item)
+}
+
+function settingContext(item: SettingsSearchItem) {
+  return settingsMatchContext(item, query.value)
+}
+
 function openFirstResult() {
-  const row = flatResults.value.find(entry => entry.kind === 'item')
+  const row = flatResults.value.find(entry => entry.kind === 'item' || entry.kind === 'setting' || entry.kind === 'documentation')
   if (!row) return
 
+  if (row.kind === 'setting' || row.kind === 'documentation') { openNavigationResult(row); return }
   if (row.group.is_media) openMedia(row.item as GlobalSearchMedia, row.group.mediaTypeId)
   else openTag(row.item as Tag)
 }
@@ -1203,10 +1313,11 @@ function openSelectedResult() {
   }
 
   if (row.kind === 'show-more') {
-    expandGroup(row.group.group_id)
+    void showMoreResults(row)
     return
   }
 
+  if (row.kind === 'setting' || row.kind === 'documentation') { openNavigationResult(row); return }
   if (row.group.is_media) openMedia(row.item as GlobalSearchMedia, row.group.mediaTypeId)
   else openTag(row.item as Tag)
 }
@@ -1315,6 +1426,8 @@ function onSearchKeydown(e: KeyboardEvent) {
       !loading.value
       && query.value.trim()
       && !results.value.length
+      && !settingsMatches.value.length
+      && !documentationMatches.value.length
       && !pinnedTags.value.length
     ) {
       void searchSemantic()
@@ -1536,24 +1649,17 @@ function getNameHighlighted(text: string) {
             </v-chip>
           </div>
           <div class="d-flex align-center ga-2 flex-shrink-0">
-            <v-btn-toggle
+            <SettingsSegmentedControl
               :model-value="paletteMode"
-              mandatory
-              density="compact"
-              variant="outlined"
-              divided
               class="global-search__mode-toggle"
               @update:model-value="onModeToggle"
-            >
-              <v-btn value="search" size="small">
-                <v-icon start size="16">mdi-magnify</v-icon>
-                {{ t('globalSearch.modeSearch') }}
-              </v-btn>
-              <v-btn value="commands" size="small">
-                <v-icon start size="16">mdi-console-line</v-icon>
-                {{ t('globalSearch.modeCommands') }}
-              </v-btn>
-            </v-btn-toggle>
+              :label="t('globalSearch.modeSearch')"
+              :items="[
+                {value: 'search', title: t('globalSearch.modeSearch'), icon: 'mdi-magnify'},
+                {value: 'commands', title: t('globalSearch.modeCommands'), icon: 'mdi-console-line'},
+              ]"
+              compact
+            />
             <v-hotkey :keys="isCommandsMode ? 'meta+k' : 'slash'" variant="flat"/>
           </div>
         </div>
@@ -1697,7 +1803,7 @@ function getNameHighlighted(text: string) {
         />
 
         <div
-          v-if="!loading && (!hasActiveSearch || !results.length)"
+          v-if="!loading && (!hasActiveSearch || !flatResults.length)"
           class="global-search__status text-center text-medium-emphasis py-6 px-4"
         >
           <v-icon
@@ -1892,10 +1998,25 @@ function getNameHighlighted(text: string) {
                   size="16"
                   class="global-search__category-icon"
                 >
-                  {{ row.section === 'tags' ? 'mdi-tag-multiple-outline' : 'mdi-filter-outline' }}
+                  {{ row.section === 'documentation' ? 'mdi-book-open-page-variant-outline' : row.section === 'settings' ? 'mdi-cog-outline' : row.section === 'tags' ? 'mdi-tag-multiple-outline' : 'mdi-filter-outline' }}
                 </v-icon>
                 <span class="global-search__category-title">{{ row.title }}</span>
               </div>
+            </div>
+
+            <div v-else-if="row.kind === 'setting' || row.kind === 'documentation'"
+              class="global-search__item d-flex align-center px-3 text-caption"
+              :class="[row.kind === 'documentation' ? 'global-search__documentation' : 'global-search__setting', {'global-search__item--active': index === selectedIndex}]"
+              :title="settingContext(row.item)" role="button" tabindex="0"
+              @mouseenter="onItemMouseenter(row, index)" @click="openNavigationResult(row)"
+              @keydown.enter.prevent="openNavigationResult(row)">
+              <v-icon size="16" class="mr-2" color="primary">{{ row.kind === 'documentation' ? 'mdi-book-open-page-variant-outline' : 'mdi-cog-outline' }}</v-icon>
+              <span class="global-search__setting-copy">
+                <template v-for="(part, i) in highlightSettingsMatch(row.item.title, query)" :key="`t-${i}`"><mark v-if="part.matched">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template>
+                <span class="text-medium-emphasis"> · <template v-for="(part, i) in highlightSettingsMatch(row.item.category, query)" :key="`c-${i}`"><mark v-if="part.matched">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
+                <span v-if="settingContext(row.item)" class="text-medium-emphasis"> · <template v-for="(part, i) in highlightSettingsMatch(settingContext(row.item), query)" :key="`h-${i}`"><mark v-if="part.matched">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></span>
+              </span>
+              <v-icon size="14" class="ml-2">mdi-arrow-top-right</v-icon>
             </div>
 
             <div
@@ -1917,7 +2038,8 @@ function getNameHighlighted(text: string) {
                   variant="tonal"
                   color="primary"
                 >
-                  {{ row.group.data.length }}
+                  {{ visibleGroupCount(row.group) }}<template v-if="row.group.nextOffset !== undefined && row.group.totalMatches !== visibleGroupCount(row.group)"> / {{ row.group.totalMatches ?? '…' }}</template>
+                  <template v-else-if="!row.group.is_media && visibleGroupCount(row.group) < row.group.data.length"> / {{ row.group.data.length }}</template>
                 </v-chip>
                 <v-spacer/>
                 <v-icon
@@ -1934,10 +2056,11 @@ function getNameHighlighted(text: string) {
               class="global-search__show-more d-flex align-center px-3 text-caption"
               :class="{'global-search__item--active': index === selectedIndex}"
               @mouseenter="onItemMouseenter(row, index)"
-              @click.stop="expandGroup(row.group.group_id)"
+              @click.stop="showMoreResults(row)"
             >
               <v-icon size="14" class="text-medium-emphasis mr-2">mdi-dots-horizontal</v-icon>
-              <span>{{ t('globalSearch.showMore', {count: row.hiddenCount}) }}</span>
+              <v-progress-circular v-if="row.group.loadingMore" indeterminate size="14" width="2"/>
+              <span v-else>{{ t('globalSearch.loadMoreMatches') }}</span>
             </div>
 
             <div
@@ -2082,7 +2205,9 @@ function getNameHighlighted(text: string) {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: rgb(var(--v-theme-surface));
+  background:
+    linear-gradient(135deg, rgba(var(--v-theme-primary), 0.14), transparent 75%),
+    rgb(var(--v-theme-surface));
 }
 
 .global-search__mode-toggle {
@@ -2387,4 +2512,9 @@ function getNameHighlighted(text: string) {
   bottom: 0;
   background: rgb(var(--v-theme-surface));
 }
+</style>
+
+<style scoped>
+.global-search__setting-copy { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.global-search__setting mark, .global-search__documentation mark { color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .16); border-radius: 3px; font-weight: 600; }
 </style>

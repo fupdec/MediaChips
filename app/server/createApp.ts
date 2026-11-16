@@ -1,3 +1,4 @@
+import {libraryMaintenanceMiddleware} from './libraryMaintenance'
 import type { Express, Request, Response, NextFunction } from 'express'
 import {projectPath} from '../../shared/projectRoot'
 import history from 'connect-history-api-fallback'
@@ -33,7 +34,7 @@ function createExpressApp() {
       return
     }
 
-    const url = req.originalUrl || req.url
+    const url = (req.originalUrl || req.url).replace(/([?&](?:token|session|code|state|oauthState)=)[^&]*/gi, '$1[redacted]')
     const isTranscodeStream = req.method === 'GET' && /\/api\/video\/\d+\/transcode\/stream(?:\?|$)/.test(url)
     const isQuietRoute = /^\/api\/(?:get-file|check-file|check-files|health|ping|auth\/status)(?:\?|$)/.test(url.split('?')[0])
 
@@ -46,6 +47,7 @@ function createExpressApp() {
     next()
   })
 
+  app.use(libraryMaintenanceMiddleware)
   app.use(router)
 
   return {app, router}

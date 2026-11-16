@@ -12,6 +12,7 @@
         :header="t('media_trash.title')"
         :subheader="t('media_trash.subtitle', {days: retentionDays})"
         icon="delete-outline"
+        tone="error"
         closable
         @close="close"
       />
@@ -27,26 +28,24 @@
           {{ error }}
         </v-alert>
 
-        <v-chip-group
+        <v-tabs
           v-model="activeKind"
-          mandatory
-          selected-class="text-primary"
+          color="primary"
+          show-arrows
           class="mb-3"
+          :aria-label="t('media_trash.title')"
         >
-          <v-chip
+          <v-tab
             v-for="tab in kindTabs"
             :key="tab.value"
             :value="tab.value"
-            filter
-            variant="tonal"
             :prepend-icon="kindIcon(tab.value)"
           >
             {{ tab.label }}
-            <span v-if="counts[tab.value]" class="ml-1 text-medium-emphasis">
-              ({{ counts[tab.value] }})
-            </span>
-          </v-chip>
-        </v-chip-group>
+            <v-badge v-if="counts[tab.value]" inline color="primary" class="ms-2"
+                     :content="counts[tab.value]" />
+          </v-tab>
+        </v-tabs>
 
         <div class="d-flex flex-wrap ga-2 mb-3">
           <v-btn
@@ -91,15 +90,15 @@
 
         <div
           v-if="!loading && !visibleItems.length"
-          class="text-center pa-8"
+          class="media-trash__empty text-center pa-6"
         >
           <v-img
             src="/images/no-data.svg"
-            max-height="160"
+            max-height="112"
             class="mx-auto mb-2"
             contain
           />
-          <div class="text-h6 mt-2">{{ t('media_trash.empty') }}</div>
+          <div class="text-subtitle-2 mt-2">{{ t('media_trash.empty') }}</div>
         </div>
 
         <div
@@ -119,6 +118,7 @@
               density="compact"
               color="primary"
               class="flex-grow-0"
+              :aria-label="itemLabel(item)"
               @click.stop
               @update:model-value="toggleSelect(item)"
             />
@@ -147,7 +147,6 @@
             </div>
             <div class="media-trash__meta min-width-0">
               <div class="media-trash__name text-truncate" :title="itemLabel(item)">
-                <span class="media-trash__kind">{{ kindLabel(item.kind) }}</span>
                 {{ itemLabel(item) }}
               </div>
               <div
@@ -167,20 +166,24 @@
                 size="small"
                 variant="text"
                 color="primary"
+                icon="mdi-restore"
+                rounded="lg"
+                :aria-label="t('media_trash.restore')"
+                v-tooltip:top="t('media_trash.restore')"
                 :disabled="busy"
                 @click="restoreItems([item])"
-              >
-                {{ t('media_trash.restore') }}
-              </v-btn>
+              />
               <v-btn
                 size="small"
                 variant="text"
                 color="error"
+                icon="mdi-delete-forever"
+                rounded="lg"
+                :aria-label="t('media_trash.purge')"
+                v-tooltip:top="t('media_trash.purge')"
                 :disabled="busy"
                 @click="confirmPurgeItems([item])"
-              >
-                {{ t('media_trash.purge') }}
-              </v-btn>
+              />
             </div>
           </div>
         </div>
@@ -317,16 +320,6 @@ const selectedIds = computed(() =>
 
 function itemKey(item: Pick<TrashItem, 'kind' | 'id'>) {
   return `${item.kind}:${item.id}`
-}
-
-function kindLabel(kind: TrashKind) {
-  switch (kind) {
-    case 'tag': return t('media_trash.kind_tag')
-    case 'mark': return t('media_trash.kind_mark')
-    case 'playlist': return t('media_trash.kind_playlist')
-    case 'savedFilter': return t('media_trash.kind_saved_filter')
-    default: return t('media_trash.kind_media')
-  }
 }
 
 function itemLabel(item: TrashItem) {
@@ -512,6 +505,12 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.media-trash__empty {
+  border: 1px dashed rgba(var(--v-theme-on-surface), .16);
+  border-radius: 12px;
+}
+
+
 .media-trash__list {
   display: flex;
   flex-direction: column;
@@ -522,9 +521,11 @@ onMounted(() => {
 
 .media-trash__row {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid rgba(var(--v-theme-on-surface), .08);
+  background: rgba(var(--v-theme-on-surface), .025);
   border-radius: 12px;
   cursor: pointer;
 }
@@ -557,6 +558,10 @@ onMounted(() => {
   background: rgba(var(--v-theme-primary), 0.08);
 }
 
+.media-trash__row--selected {
+  border-color: rgba(var(--v-theme-primary), .28);
+}
+
 .media-trash__meta {
   flex: 1;
   min-width: 0;
@@ -566,23 +571,8 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.media-trash__kind {
-  display: inline-block;
-  margin-right: 6px;
-  padding: 0 6px;
-  border-radius: 6px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  background: rgba(var(--v-theme-on-surface), 0.08);
-  color: rgba(var(--v-theme-on-surface), 0.7);
-  vertical-align: middle;
-}
-
 .media-trash__actions {
   display: flex;
-  flex-wrap: wrap;
   gap: 2px;
   flex-shrink: 0;
 }

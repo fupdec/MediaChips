@@ -6,6 +6,7 @@ import {
   getMediaTypeKey,
   isAudioMediaType,
   isImageMediaType,
+  isTextMediaType,
   isVideoMediaType,
   matchesMediaTypeFilter,
 } from '@/utils/mediaType'
@@ -390,12 +391,67 @@ export function sanitizeFiltersForMediaType(
   })
 }
 
+export type DuplicateMenuMode = {
+  value: string
+  labelKey: string
+  icon: string
+}
+
+/** Modes available for the current media type (review dialog / app-bar menu). */
+export function getDuplicateMenuModes(
+  mediaType: MediaType | null | undefined,
+): DuplicateMenuMode[] {
+  if (isImageMediaType(mediaType)) {
+    return [
+      {value: 'path', labelKey: 'filters.duplicates_menu_path', icon: 'mdi-folder'},
+      {value: 'filesize', labelKey: 'filters.duplicates_menu_filesize', icon: 'mdi-harddisk'},
+    ]
+  }
+  if (isVideoMediaType(mediaType)) {
+    return [
+      {value: 'fingerprint', labelKey: 'filters.duplicates_menu_fingerprint', icon: 'mdi-fingerprint'},
+      {value: 'visualHash', labelKey: 'filters.duplicates_menu_visual', icon: 'mdi-view-grid-outline'},
+      {value: 'filesize', labelKey: 'filters.duplicates_menu_filesize', icon: 'mdi-harddisk'},
+      {value: 'path', labelKey: 'filters.duplicates_menu_path', icon: 'mdi-folder'},
+    ]
+  }
+  if (isAudioMediaType(mediaType)) {
+    return [
+      {value: 'fingerprint', labelKey: 'filters.duplicates_menu_fingerprint', icon: 'mdi-fingerprint'},
+      {value: 'filesize', labelKey: 'filters.duplicates_menu_filesize', icon: 'mdi-harddisk'},
+      {value: 'path', labelKey: 'filters.duplicates_menu_path', icon: 'mdi-folder'},
+    ]
+  }
+  // Text and any other media types.
+  return [
+    {value: 'path', labelKey: 'filters.duplicates_menu_path', icon: 'mdi-folder'},
+    {value: 'filesize', labelKey: 'filters.duplicates_menu_filesize', icon: 'mdi-harddisk'},
+  ]
+}
+
 export function getDuplicatesGroupKey(
   mediaType: MediaType | null | undefined,
   override?: string | null,
 ) {
   if (override) return override
-  return isImageMediaType(mediaType) ? 'path' : 'fingerprint'
+  if (isImageMediaType(mediaType) || isTextMediaType(mediaType)) return 'path'
+  if (isAudioMediaType(mediaType) || isVideoMediaType(mediaType)) return 'fingerprint'
+  return 'filesize'
+}
+
+export function isDuplicateModeActive(
+  mediaType: MediaType | null | undefined,
+  mode: string,
+  override?: string | null,
+) {
+  const current = getDuplicatesGroupKey(mediaType, override)
+  if (mode === 'visualHash') {
+    return current === 'visualHash' || current === 'visual' || current === 'visualHashNear'
+  }
+  if (mode === 'fingerprint') {
+    return current === 'fingerprint' || current === 'oshash'
+  }
+  return current === mode
 }
 
 export function getDuplicatesModeLabelKey(
@@ -405,6 +461,7 @@ export function getDuplicatesModeLabelKey(
 ) {
   const key = getDuplicatesGroupKey(mediaType, override)
   const within = Boolean(options.withinFilter)
+  if (key === 'similarity') return 'duplicateSimilarity.title'
   if (key === 'visualHash' || key === 'visual' || key === 'visualHashNear') {
     return within
       ? 'filters.show_only_duplicates_by_visual_within_filter'

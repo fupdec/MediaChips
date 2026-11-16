@@ -31,11 +31,13 @@ export function needsQuietMetaBackfill(item: {
   width?: unknown
   height?: unknown
   filesize?: unknown
-} | null | undefined): boolean {
+  duration?: unknown
+} | null | undefined, includeDuration = false): boolean {
   if (!item) return false
   // 0-byte stubs can never yield dims/thumbs — skip the API storm.
   if (Number(item.filesize) === 0) return false
   return (Number(item.width) || 0) <= 0 || (Number(item.height) || 0) <= 0
+    || (includeDuration && (Number(item.duration) || 0) <= 0)
 }
 
 /** True when the source file is known empty / unreadable for previews. */

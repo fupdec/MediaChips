@@ -303,6 +303,17 @@ export const metaApi = {
     return apiClient.post(API_ROUTES.taskApplyParseLibraryTags, body)
   },
 
+  postTagSortedIds(body: {metaId: number; sortBy?: string; direction?: 'asc' | 'desc'}) {
+    return apiClient.post<{ids?: unknown}>(API_ROUTES.tagSortedIds, body).then((res) => ({
+      ...res,
+      data: {
+        ids: Array.isArray(res.data?.ids)
+          ? res.data.ids.map((id) => Number(id)).filter((id) => Number.isFinite(id))
+          : [],
+      },
+    }))
+  },
+
   postTagItems(body: PostTagItemsPayload) {
     return apiClient.post(`${API_ROUTES.tag}/items`, body).then((res) => ({
       ...res,

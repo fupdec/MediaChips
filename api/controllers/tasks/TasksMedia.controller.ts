@@ -1,3 +1,6 @@
+import {isNasMediaPath} from '../../../shared/remoteMedia'
+import {isCloudMediaPath} from '../../../shared/cloudAccounts'
+import {isDriveMediaPath} from '../../../shared/cloudDrive'
 import type { TaskControllerShared, FfprobeInfo } from '../../types/tasks'
 import type { AnyRecord } from '../../types/db'
 import {
@@ -38,15 +41,14 @@ import {
 } from '../../utils/normalizeUserPath'
 import { invalidateMediaDerivedCaches } from '../../services/mediaCacheInvalidation'
 import { applyFolderTagsOnMediaAdd } from '../../services/applyFolderTagsOnMediaAdd'
-import {
-  buildBulkPathUpdatePatch,
-  normalizeBulkPathUpdateInputs,
-} from '../../services/mediaBulkPathUpdate'
+import {applyMediaRelinks} from '../../services/mediaRelink'
 import { runMediaBulkLiteImport } from '../../services/mediaBulkLiteImport'
 import { ffprobe, resolveFfprobeDuration } from '../../utils/ffmpeg'
 import { isUsableDuration } from '../../utils/ffprobeMath'
 import { probeVideoMetadata } from '../../services/videoMetadataProbe'
 import { isImageMediaType } from '../../utils/mediaType'
+import {requestAutomaticCopyDiscovery} from '../../services/mediaSources/copyDiscoveryTriggers'
+import {pinSourceDb} from '../../services/mediaSources/context'
 import { mapWithConcurrency } from '../../services/thumbEncoding'
 
 /** Parallel ffprobe / image-meta reads inside one bulk request. */
@@ -293,11 +295,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       }
     }
 
-    if (!is_check_duplicates) {
-      return processAdd()
-    }
-
-    return withDuplicateLookupLock(duplicateKey, processAdd)
+    return is_check_duplicates ? withDuplicateLookupLock(duplicateKey, processAdd) : processAdd()
   }
 
   // ffprobe concurrency is enforced inside api/utils/ffmpeg.
@@ -371,6 +369,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
       const mediaType = req.body.type
       const is_check_duplicates = req.body.is_check_duplicates
 
+      const autoTarget = pinSourceDb(db)
       const result = await addMediaToDb(pathToFile, mediaType, is_check_duplicates)
 
       if (result.isCreated && result.media) {
@@ -385,6 +384,10 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         }
       }
 
+      try {
+        autoTarget.assertCurrent()
+        requestAutomaticCopyDiscovery(autoTarget.db, [{key: ('media' in result ? result.media?.path : undefined) || normalizeMediaPath(pathToFile)}], 'import')
+      } catch { /* Ignore a completed import's event after a library switch. */ }
       sendAddMediaResponse(res, result)
     } catch (error) {
       console.error('addMedia failed:', error)
@@ -409,6 +412,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         throw new HttpError(400, 'Provide files and/or roots')
       }
 
+      const autoTarget = pinSourceDb(db)
       const result = await runMediaBulkLiteImport(db.drizzle, {
         mediaType: mediaType && typeof mediaType === 'object'
           ? mediaType as {id?: unknown; type?: unknown; extensions?: unknown}
@@ -419,6 +423,11 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         expandZips,
       })
 
+      try {
+        autoTarget.assertCurrent()
+        requestAutomaticCopyDiscovery(autoTarget.db, (roots || []).map((key: string) => ({key, excluded})), 'import', {monitor: true})
+        requestAutomaticCopyDiscovery(autoTarget.db, (files || []).map((key: string) => ({key})), 'import')
+      } catch { /* A new active library must not receive an old import's event. */ }
       sendOk(res, result)
     } catch (error) {
       console.error('addMediaBulk failed:', error)
@@ -434,6 +443,12 @@ export default function createTasksMediaController(shared: TaskControllerShared)
 
       if (media) {
         const mediaPath = String(media.path || '')
+        if (isCloudMediaPath(mediaPath) || isDriveMediaPath(mediaPath) || isNasMediaPath(mediaPath)) {
+          const {refreshCloudMediaMetadata} = await import('../../services/cloudAccounts/metadataBackfill')
+          await refreshCloudMediaMetadata(db, Number(media_id))
+          sendOk(res, 'success')
+          return
+        }
         // Inspector (and other callers) re-probe on every open — skip quietly when
         // the file is missing so we do not spam ffprobe / fail on statSync.
         if (!mediaPath || !(await fileExists(mediaPath))) {
@@ -518,6 +533,15 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         if (!media) return null
 
         const mediaPath = String(media.path || '')
+        if (isCloudMediaPath(mediaPath) || isDriveMediaPath(mediaPath) || isNasMediaPath(mediaPath)) {
+          const {pinSourceDb} = await import('../../services/mediaSources/context')
+          const pinned = pinSourceDb(db)
+          const {refreshCloudMediaMetadata} = await import('../../services/cloudAccounts/metadataBackfill')
+          try { await refreshCloudMediaMetadata(db, mediaId) } catch { /* Keep known metadata while a source is offline. */ }
+          pinned.assertCurrent()
+          const {readCloudMediaMetadata} = await import('../../services/cloudAccounts/libraryMetadata')
+          return readCloudMediaMetadata(pinned.db, mediaId)
+        }
         if (!mediaPath || !(await fileExists(mediaPath))) return null
 
         const typeId = Number(media.mediaTypeId) || 0
@@ -573,32 +597,16 @@ export default function createTasksMediaController(shared: TaskControllerShared)
   const updateMediaMultiple = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const mediaFiles = Array.isArray(req.body.mediaFiles) ? req.body.mediaFiles : []
-      const updates = normalizeBulkPathUpdateInputs(mediaFiles)
-      if (!updates.length) {
-        sendOk(res)
-        return
-      }
-
-      const existingById = new Map(
-        mediaRepo.findByIds(updates.map((item) => item.id)).map((row) => [row.id, row]),
-      )
-      const patches = updates.map((item) => (
-        buildBulkPathUpdatePatch(item, existingById.get(item.id))
-      ))
-
-      db.sqlite.transaction(() => {
-        for (const patch of patches) {
-          mediaRepo.updateById(patch.id, {
-            path: patch.path,
-            basename: patch.basename,
-            name: patch.name,
-            ext: patch.ext,
-          })
+      const matches = mediaFiles.map((item: Record<string, unknown>) => {
+        const existing = mediaRepo.findById(Number(item.id))
+        return {
+          id: Number(item.id),
+          oldPath: existing?.path || '',
+          newPath: String(item.path || ''),
+          confirmedOriginal: item.confirmedOriginal === true,
         }
-      })()
-
-      invalidateMediaDerivedCaches()
-      sendOk(res)
+      })
+      sendOk(res, await applyMediaRelinks(db, matches))
     } catch (err: unknown) {
       sendControllerError(res, err, 'Some error occurred while updating media paths.')
     }

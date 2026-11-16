@@ -8,6 +8,7 @@
   >
     <v-card rounded="xl">
       <DialogHeader
+        icon="playlist-plus"
         @close="close"
         :header="t('playlists.new_playlist')"
         :buttons="buttons"

@@ -6,41 +6,292 @@
     width="800"
     persistent
   >
-    <v-card rounded="xl">
+    <v-card rounded="xl" class="media-adding-process">
       <DialogHeader
+        icon="progress-upload"
         @close="closeProcessDialog"
-        :header="t('media.adding.files')"
+        :header="t('media.adding.title')"
+        :subheader="t('media.adding.process_source', {source: task.remoteImport?.source || t('media.adding.source_local')})"
         :buttons="buttons"
         closable
       />
 
       <v-card-actions class="pa-4">
         <v-progress-linear
-          v-model="task.progress"
+          :model-value="task.progress"
+          :indeterminate="progressIndeterminate"
           :striped="task.active && !task.stopped"
-          height="20"
+          height="26"
           color="primary"
           rounded
         >
           <template v-slot:default="{ value }">
-            <strong class="process-percents">{{ Math.ceil(value) }} %</strong>
+            <strong class="process-percents">{{ progressIndeterminate ? t('common.loading') : `${Math.ceil(value)} %` }}</strong>
           </template>
         </v-progress-linear>
       </v-card-actions>
 
-      <div class="d-flex justify-space-between px-4">
-        <div>{{ task.status }}</div>
-        <v-card class="text-medium-emphasis text-caption" variant="flat">
-          <v-progress-linear v-if="task.active && !task.stopped" height="3" indeterminate reverse/>
+      <div class="d-flex justify-space-between ga-3 px-4" role="status" aria-live="polite">
+        <div class="media-adding-process__status">{{ task.status }}</div>
+        <div class="text-medium-emphasis text-caption text-end flex-shrink-0">
+          <v-progress-linear
+            v-if="task.active && !task.stopped"
+            height="3"
+            color="primary"
+            rounded
+            indeterminate
+            reverse
+            class="mb-1"
+          />
           {{ task.processed }}
-        </v-card>
+        </div>
       </div>
 
-      <v-card-text class="pa-4 process-dialog-body">
+      <!-- Side padding lives on a wrapper: the global tab style caps width at 100%, which ignores inline margins. -->
+      <div class="px-4 mt-3">
+      <v-tabs
+        v-model="activeResult"
+        color="primary"
+        show-arrows
+        :aria-label="t('media.adding.title')"
+      >
+        <v-tab value="added" prepend-icon="mdi-plus">
+          {{ t('common.added') }}
+          <v-badge v-if="addedTotal > 0" inline color="primary" class="ms-2" :content="addedTotal" />
+        </v-tab>
+        <v-tab value="existing" :prepend-icon="duplicateMarkers.inLibrary.icon">
+          {{ t('common.existing') }}
+          <v-badge v-if="existingTotal > 0" inline color="primary" class="ms-2" :content="existingTotal" />
+        </v-tab>
+        <v-tab v-if="task.remoteImport" value="skipped" prepend-icon="mdi-skip-next-outline">
+          {{ t('media.adding.skipped') }}
+          <v-badge v-if="task.remoteImport.skipped > 0" inline color="primary" class="ms-2" :content="task.remoteImport.skipped" />
+        </v-tab>
+        <v-tab value="errors" prepend-icon="mdi-alert-circle-outline">
+          {{ t('common.errors') }}
+          <v-badge v-if="task.errors.length > 0" inline color="primary" class="ms-2" :content="task.errors.length" />
+        </v-tab>
+      </v-tabs>
+      </div>
+
+      <v-card-text class="px-4 pb-4 pt-0 process-dialog-body">
+        <v-tabs-window v-model="activeResult">
+          <v-tabs-window-item value="added">
+            <v-card v-if="task.added.length" variant="outlined" class="pa-0">
+              <v-virtual-scroll
+                :height="Math.min(task.added.length, 10) * 20"
+                :items="task.added"
+                class="virtual-scroller"
+                item-height="20"
+              >
+                <template v-slot:default="{ item, index }">
+                  <div class="text-caption selectable px-2" :class="{'process-file-row--striped': index % 2 === 1}">{{ item }}</div>
+                </template>
+              </v-virtual-scroll>
+              <div
+                v-if="addedListCapped"
+                class="text-caption text-medium-emphasis pa-2"
+              >
+                {{ t('media.adding.added_list_capped', {
+                  shown: task.added.length,
+                  total: addedTotal,
+                }) }}
+              </div>
+            </v-card>
+            <div v-else class="text-body-2 text-medium-emphasis">{{ t('common.no_results') }}</div>
+          </v-tabs-window-item>
+
+          <v-tabs-window-item value="existing">
+            <section class="process-dialog-section process-dialog-section--lists">
+              <div
+                v-if="existingTotal === 0"
+                class="text-body-2 text-medium-emphasis"
+              >
+                {{ t('common.no_results') }}
+              </div>
+              <!-- Existing files (by path) -->
+              <div v-if="duplicates_by_path.length" class="process-list-item">
+                <v-card variant="outlined" class="pa-2">
+                  <v-virtual-scroll
+                    :height="duplicates_by_path.length > 10 ? 150 : duplicates_by_path.length * 22"
+                    :items="duplicates_by_path"
+                    class="virtual-scroller"
+                    item-height="22"
+                  >
+                    <template v-slot:default="{ item, index }">
+                      <DuplicatePathRow
+                        :class="{'process-file-row--striped': index % 2 === 1}"
+                        :icon="duplicateMarkers.inLibrary.icon"
+                        :color="duplicateMarkers.inLibrary.color"
+                        :label="t('media.adding.duplicate_file_in_library')"
+                        :path="item"
+                      />
+                    </template>
+                  </v-virtual-scroll>
+                </v-card>
+              </div>
+
+              <!-- Moved files (same content, old path missing) -->
+              <div v-if="moved_files.length" class="process-list-item">
+                <div class="process-list-row">
+                  <v-chip
+                    @click="is_show_moved_files = !is_show_moved_files"
+                    :text="t('media.adding.moved_files_count', {count: moved_files.length})"
+                    :prepend-icon="duplicateMarkers.moved.icon"
+                    color="secondary"
+                    size="small"
+                  />
+                  <div class="process-list-row__actions">
+                    <v-btn
+                      @click="relinkMovedFiles"
+                      :disabled="task.active"
+                      color="primary"
+                      variant="flat"
+                      rounded
+                      size="small"
+                    >
+                      <v-icon icon="mdi-folder-move" start/>
+                      {{ t('media.adding.relink_moved_files') }}
+                    </v-btn>
+                  </div>
+                </div>
+                <v-card v-if="is_show_moved_files" variant="outlined" class="pa-2 mt-2">
+                  <v-virtual-scroll
+                    :height="moved_files.length > 10 ? 150 : moved_files.length * 44"
+                    :items="moved_files"
+                    class="virtual-scroller"
+                    item-height="44"
+                  >
+                    <template v-slot:default="{ item, index }">
+                      <div class="duplicate-entry selectable" :class="{'process-file-row--striped': index % 2 === 1}">
+                        <DuplicatePathRow
+                          :icon="duplicateMarkers.incoming.icon"
+                          :color="duplicateMarkers.incoming.color"
+                          :label="t('media.adding.duplicate_file_incoming')"
+                          :path="item.path"
+                        />
+                        <DuplicatePathRow
+                          :icon="duplicateMarkers.movedOld.icon"
+                          :color="duplicateMarkers.movedOld.color"
+                          :label="t('media.adding.duplicate_file_old_path')"
+                          :path="item.duplicate?.path"
+                        />
+                      </div>
+                    </template>
+                  </v-virtual-scroll>
+                </v-card>
+              </div>
+
+              <!-- Duplicates by content hash -->
+              <div v-if="duplicates_by_content_hash.length" class="process-list-item">
+                <div class="process-list-row">
+                  <v-chip
+                    @click="is_show_duplicates_by_content_hash = !is_show_duplicates_by_content_hash"
+                    :text="t('media.adding.duplicates_by_content_count', {count: duplicates_by_content_hash.length})"
+                    :prepend-icon="duplicateMarkers.contentDuplicate.icon"
+                    color="warning"
+                    size="small"
+                  />
+                  <div class="process-list-row__actions">
+                    <v-btn
+                      @click="deleteDuplicates('incoming')"
+                      :disabled="task.active"
+                      color="error"
+                      variant="flat"
+                      rounded
+                      size="small"
+                    >
+                      <v-icon :icon="duplicateMarkers.incomingDelete.icon" start/>
+                      {{ t('media.adding.delete_incoming_files') }}
+                    </v-btn>
+                    <v-btn
+                      @click="deleteDuplicates('existing')"
+                      :disabled="task.active"
+                      color="error"
+                      variant="flat"
+                      rounded
+                      size="small"
+                    >
+                      <v-icon :icon="duplicateMarkers.inLibraryDelete.icon" start/>
+                      {{ t('media.adding.delete_existing_files') }}
+                    </v-btn>
+                  </div>
+                </div>
+                <v-card v-if="is_show_duplicates_by_content_hash" variant="outlined" class="pa-2 mt-2">
+                  <v-virtual-scroll
+                    :height="duplicates_by_content_hash.length > 10 ? 150 : duplicates_by_content_hash.length * 44"
+                    :items="duplicates_by_content_hash"
+                    class="virtual-scroller"
+                    item-height="44"
+                  >
+                    <template v-slot:default="{ item, index }">
+                      <div class="duplicate-entry selectable" :class="{'process-file-row--striped': index % 2 === 1}">
+                        <DuplicatePathRow
+                          v-if="pathsLookSame(item.path, item.duplicate?.path)"
+                          :icon="duplicateMarkers.inLibrary.icon"
+                          :color="duplicateMarkers.inLibrary.color"
+                          :label="t('media.adding.duplicate_file_in_library')"
+                          :path="item.path"
+                        />
+                        <template v-else>
+                          <DuplicatePathRow
+                            :icon="duplicateMarkers.incoming.icon"
+                            :color="duplicateMarkers.incoming.color"
+                            :label="t('media.adding.duplicate_file_incoming')"
+                            :path="item.path"
+                          />
+                          <DuplicatePathRow
+                            :icon="duplicateMarkers.inLibrary.icon"
+                            :color="duplicateMarkers.inLibrary.color"
+                            :label="t('media.adding.duplicate_file_in_library')"
+                            :path="item.duplicate?.path"
+                          />
+                        </template>
+                      </div>
+                    </template>
+                  </v-virtual-scroll>
+                </v-card>
+              </div>
+            </section>
+          </v-tabs-window-item>
+
+          <v-tabs-window-item v-if="task.remoteImport" value="skipped">
+            <div class="text-body-2 text-medium-emphasis">
+              {{ task.remoteImport.skipped ? t('media.adding.skipped_count', {count: task.remoteImport.skipped}) : t('common.no_results') }}
+            </div>
+          </v-tabs-window-item>
+
+          <v-tabs-window-item value="errors">
+            <v-card v-if="task.errors.length" variant="outlined" class="pa-2">
+              <v-virtual-scroll
+                :height="Math.min(task.errors.length, 10) * 20"
+                :items="task.errors"
+                class="virtual-scroller"
+                item-height="20"
+              >
+                <template v-slot:default="{ item, index }">
+                  <div class="text-caption selectable px-2" :class="{'process-file-row--striped': index % 2 === 1}">{{ item }}</div>
+                </template>
+              </v-virtual-scroll>
+            </v-card>
+            <div v-else class="text-body-2 text-medium-emphasis">{{ t('common.no_results') }}</div>
+          </v-tabs-window-item>
+        </v-tabs-window>
+
+        <section
+          v-if="task.finished && task.remoteImport?.retry && task.remoteImport.remaining"
+          class="process-dialog-section"
+        >
+          <v-btn color="primary" variant="tonal" rounded="lg" @click="task.remoteImport.retry()">
+            {{ t('media.adding.retry_remaining', {count: task.remoteImport.remaining}) }}
+          </v-btn>
+          <div class="text-caption text-medium-emphasis mt-2">{{ t('media.adding.retry_remaining_hint') }}</div>
+        </section>
+
         <!-- Process added files -->
         <section
-          v-if="task.added.length > 0 && canMakeLibrarySmart"
-          class="process-dialog-section"
+          v-if="activeResult === 'added' && task.added.length > 0 && canMakeLibrarySmart"
+          class="mt-4 process-dialog-section"
         >
           <v-card
             variant="tonal"
@@ -339,7 +590,7 @@
 
         <!-- Suggested tags -->
         <section
-          v-if="task.added.length > 0 && task.finished && pendingReviewTagCount"
+          v-if="activeResult === 'added' && task.added.length > 0 && task.finished && pendingReviewTagCount"
           class="process-dialog-section process-dialog-section--panel process-dialog-section--review"
         >
           <div class="text-body-2 font-weight-medium mb-1">
@@ -382,7 +633,7 @@
 
         <!-- Other actions -->
         <section
-          v-if="task.added.length > 0 && task.finished && (canReparseTags || canDetectFaces)"
+          v-if="activeResult === 'added' && task.added.length > 0 && task.finished && (canReparseTags || canDetectFaces)"
           class="process-dialog-section process-dialog-section--panel"
         >
           <div class="text-caption text-medium-emphasis text-uppercase mb-2">
@@ -462,220 +713,6 @@
             </div>
           </div>
         </section>
-
-        <!-- File lists -->
-        <section
-          v-if="task.added.length > 0 || duplicates_by_path.length || moved_files.length || duplicates_by_content_hash.length"
-          class="process-dialog-section process-dialog-section--lists"
-        >
-          <div v-if="task.added.length > 0" class="process-list-item">
-            <div class="process-list-row">
-              <v-chip
-                @click="is_show_added = !is_show_added"
-                :text="addedCountLabel"
-                prepend-icon="mdi-plus"
-                color="success"
-                size="small"
-              />
-            </div>
-            <v-card v-if="is_show_added" variant="outlined" class="pa-2 mt-2">
-              <div
-                v-if="addedListCapped"
-                class="text-caption text-medium-emphasis mb-2"
-              >
-                {{ t('media.adding.added_list_capped', {
-                  shown: task.added.length,
-                  total: addedTotal,
-                }) }}
-              </div>
-              <v-virtual-scroll
-                :height="task.added.length > 10 ? 150 : task.added.length * 15"
-                :items="task.added"
-                class="virtual-scroller"
-                item-height="15"
-              >
-                <template v-slot:default="{ item }">
-                  <div class="text-caption selectable">{{ item }}</div>
-                </template>
-              </v-virtual-scroll>
-            </v-card>
-          </div>
-
-          <!-- Existing files (by path) -->
-          <div v-if="duplicates_by_path.length" class="process-list-item">
-            <div class="process-list-row">
-              <v-chip
-                @click="is_show_duplicates_by_path = !is_show_duplicates_by_path"
-                :text="t('media.adding.existing_count', {count: duplicates_by_path.length})"
-                :prepend-icon="duplicateMarkers.inLibrary.icon"
-                color="info"
-                size="small"
-              />
-            </div>
-            <v-card v-if="is_show_duplicates_by_path" variant="outlined" class="pa-2 mt-2">
-              <v-virtual-scroll
-                :height="duplicates_by_path.length > 10 ? 150 : duplicates_by_path.length * 22"
-                :items="duplicates_by_path"
-                class="virtual-scroller"
-                item-height="22"
-              >
-                <template v-slot:default="{ item }">
-                  <DuplicatePathRow
-                    :icon="duplicateMarkers.inLibrary.icon"
-                    :color="duplicateMarkers.inLibrary.color"
-                    :label="t('media.adding.duplicate_file_in_library')"
-                    :path="item"
-                  />
-                </template>
-              </v-virtual-scroll>
-            </v-card>
-          </div>
-
-          <!-- Moved files (same content, old path missing) -->
-          <div v-if="moved_files.length" class="process-list-item">
-            <div class="process-list-row">
-              <v-chip
-                @click="is_show_moved_files = !is_show_moved_files"
-                :text="t('media.adding.moved_files_count', {count: moved_files.length})"
-                :prepend-icon="duplicateMarkers.moved.icon"
-                color="secondary"
-                size="small"
-              />
-              <div class="process-list-row__actions">
-                <v-btn
-                  @click="relinkMovedFiles"
-                  :disabled="task.active"
-                  color="primary"
-                  variant="flat"
-                  rounded
-                  size="small"
-                >
-                  <v-icon icon="mdi-folder-move" start/>
-                  {{ t('media.adding.relink_moved_files') }}
-                </v-btn>
-              </div>
-            </div>
-            <v-card v-if="is_show_moved_files" variant="outlined" class="pa-2 mt-2">
-              <v-virtual-scroll
-                :height="moved_files.length > 10 ? 150 : moved_files.length * 44"
-                :items="moved_files"
-                class="virtual-scroller"
-                item-height="44"
-              >
-                <template v-slot:default="{ item }">
-                  <div class="duplicate-entry selectable">
-                    <DuplicatePathRow
-                      :icon="duplicateMarkers.incoming.icon"
-                      :color="duplicateMarkers.incoming.color"
-                      :label="t('media.adding.duplicate_file_incoming')"
-                      :path="item.path"
-                    />
-                    <DuplicatePathRow
-                      :icon="duplicateMarkers.movedOld.icon"
-                      :color="duplicateMarkers.movedOld.color"
-                      :label="t('media.adding.duplicate_file_old_path')"
-                      :path="item.duplicate?.path"
-                    />
-                  </div>
-                </template>
-              </v-virtual-scroll>
-            </v-card>
-          </div>
-
-          <!-- Duplicates by content hash -->
-          <div v-if="duplicates_by_content_hash.length" class="process-list-item">
-            <div class="process-list-row">
-              <v-chip
-                @click="is_show_duplicates_by_content_hash = !is_show_duplicates_by_content_hash"
-                :text="t('media.adding.duplicates_by_content_count', {count: duplicates_by_content_hash.length})"
-                :prepend-icon="duplicateMarkers.contentDuplicate.icon"
-                color="warning"
-                size="small"
-              />
-              <div class="process-list-row__actions">
-                <v-btn
-                  @click="deleteDuplicates('incoming')"
-                  :disabled="task.active"
-                  color="error"
-                  variant="flat"
-                  rounded
-                  size="small"
-                >
-                  <v-icon :icon="duplicateMarkers.incomingDelete.icon" start/>
-                  {{ t('media.adding.delete_incoming_files') }}
-                </v-btn>
-                <v-btn
-                  @click="deleteDuplicates('existing')"
-                  :disabled="task.active"
-                  color="error"
-                  variant="flat"
-                  rounded
-                  size="small"
-                >
-                  <v-icon :icon="duplicateMarkers.inLibraryDelete.icon" start/>
-                  {{ t('media.adding.delete_existing_files') }}
-                </v-btn>
-              </div>
-            </div>
-            <v-card v-if="is_show_duplicates_by_content_hash" variant="outlined" class="pa-2 mt-2">
-              <v-virtual-scroll
-                :height="duplicates_by_content_hash.length > 10 ? 150 : duplicates_by_content_hash.length * 44"
-                :items="duplicates_by_content_hash"
-                class="virtual-scroller"
-                item-height="44"
-              >
-                <template v-slot:default="{ item }">
-                  <div class="duplicate-entry selectable">
-                    <DuplicatePathRow
-                      v-if="pathsLookSame(item.path, item.duplicate?.path)"
-                      :icon="duplicateMarkers.inLibrary.icon"
-                      :color="duplicateMarkers.inLibrary.color"
-                      :label="t('media.adding.duplicate_file_in_library')"
-                      :path="item.path"
-                    />
-                    <template v-else>
-                      <DuplicatePathRow
-                        :icon="duplicateMarkers.incoming.icon"
-                        :color="duplicateMarkers.incoming.color"
-                        :label="t('media.adding.duplicate_file_incoming')"
-                        :path="item.path"
-                      />
-                      <DuplicatePathRow
-                        :icon="duplicateMarkers.inLibrary.icon"
-                        :color="duplicateMarkers.inLibrary.color"
-                        :label="t('media.adding.duplicate_file_in_library')"
-                        :path="item.duplicate?.path"
-                      />
-                    </template>
-                  </div>
-                </template>
-              </v-virtual-scroll>
-            </v-card>
-          </div>
-        </section>
-
-        <!-- Errors -->
-        <section v-if="task.errors.length > 0" class="process-dialog-section process-dialog-section--panel">
-          <v-chip
-            @click="is_show_errors = !is_show_errors"
-            :text="t('media.adding.errors_count', {count: task.errors.length})"
-            color="error"
-            class="mb-2"
-            size="small"
-          />
-          <v-card v-if="is_show_errors" variant="outlined" class="pa-2">
-            <v-virtual-scroll
-              :height="task.errors.length > 10 ? 150 : task.errors.length * 15"
-              :items="task.errors"
-              class="virtual-scroller"
-              item-height="15"
-            >
-              <template v-slot:default="{ item }">
-                <div class="text-caption selectable">{{ item }}</div>
-              </template>
-            </v-virtual-scroll>
-          </v-card>
-        </section>
       </v-card-text>
     </v-card>
   </v-dialog>
@@ -730,7 +767,6 @@ import {useSettingsStore} from '@/stores/settings'
 import {useOperationsStore} from '@/stores/operations'
 import {parseMatchAutoBlindTagsForm} from '@/utils/faceSettingsForm'
 import {buildVideoGridTaskParams} from '@shared/videoPreview'
-import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {MEDIA_BULK_LITE_ADDED_CAP} from '@shared/mediaBulkImport'
 import {useAutoSceneScrapeBatch} from '@mediachips/plugin-adult/composables/useAutoSceneScrapeBatch'
 
@@ -794,11 +830,9 @@ const {reparseTagsForAddedMedia} = useMediaAdding()
 
 // Reactive state
 const buttons = ref<DialogHeaderButton[]>([])
-const is_show_added = ref(false)
+const activeResult = ref('added')
 const is_show_duplicates_by_content_hash = ref(false)
 const is_show_moved_files = ref(false)
-const is_show_duplicates_by_path = ref(false)
-const is_show_errors = ref(false)
 const {
   clipModelStatus,
   clipModelDownloading,
@@ -921,12 +955,14 @@ const duplicateMarkers = {
 
 // Computed properties
 const task = computed(() => tasksStore.mediaAdding)
+const progressIndeterminate = computed(() => task.value.active && ['scanning', 'resolving'].includes(task.value.remoteImport?.phase || ''))
 const addedTotal = computed(() => {
   const total = Number(task.value.addedTotal || 0)
   return total > 0 ? total : task.value.added.length
 })
-const addedCountLabel = computed(() =>
-  t('media.adding.added_count', {count: addedTotal.value}),
+const existingTotal = computed(() =>
+  Math.max(duplicates_by_path.value.length, task.value.remoteImport?.inLibrary || 0)
+  + moved_files.value.length + duplicates_by_content_hash.value.length,
 )
 const addedListCapped = computed(() =>
   addedTotal.value > task.value.added.length
@@ -938,14 +974,14 @@ const isAddedVideo = computed(() =>
 const canDetectFaces = computed(() => (
   task.value.finished &&
   task.value.added.length > 0 &&
-  isAddedVideo.value
+  isAddedVideo.value && !task.value.remoteImport
 ))
 const canReparseTags = computed(() => (
   task.value.finished &&
   task.value.addedMedia.length > 0
 ))
 const canMakeLibrarySmart = computed(() => (
-  task.value.finished &&
+  !task.value.remoteImport && task.value.finished &&
   task.value.addedMedia.length > 0
 ))
 
@@ -1244,7 +1280,7 @@ const clearStopButton = () => {
 }
 
 const syncStopButton = () => {
-  const running = Boolean(task.value?.active && !task.value?.finished && !task.value?.stopped)
+  const running = Boolean(task.value?.active && !task.value?.finished && !task.value?.stopped && !task.value.remoteImport?.stopping)
   if (running) {
     if (!buttons.value.length) initButtons()
     return
@@ -1253,6 +1289,11 @@ const syncStopButton = () => {
 }
 
 const stop = () => {
+  if (task.value.remoteImport) {
+    task.value.remoteImport.stop()
+    clearStopButton()
+    return
+  }
   tasksStore.mediaAdding.stopped = true
   clearStopButton()
   const notificationTaskId = task.value.notificationTaskId
@@ -1294,17 +1335,14 @@ const deleteDuplicates = async (delete_type: DeleteDuplicateType) => {
 
         if (!file_path) continue
 
+        // Verify and link before deleting the old original, while both can be compared.
+        if (delete_type === 'existing' && duplicate?.id) {
+          await typedApi.updateMediaPath({id: duplicate.id, path: dupe.path})
+        }
         try {
           await deleteLocalFile(file_path)
         } catch (error) {
           console.error('Error deleting local file:', error)
-        }
-
-        if (delete_type === 'existing' && duplicate?.id) {
-          await typedApi.updateMediaPath({
-            id: duplicate.id,
-            path: dupe.path,
-          })
         }
       }
 
@@ -2077,7 +2115,12 @@ onUnmounted(() => {
 })
 
 // Watchers
+watch(() => Boolean(task.value.remoteImport), (remote) => {
+  if (!remote && activeResult.value === 'skipped') activeResult.value = 'added'
+})
+
 watch(() => tasksStore.mediaAdding.dialogProcess, (open, wasOpen) => {
+  if (open && !wasOpen) activeResult.value = 'added'
   if (wasOpen && !open) {
     stopBackgroundJobs()
     if (!task.value.active) {
@@ -2091,7 +2134,7 @@ watch(() => tasksStore.mediaAdding.dialogProcess, (open, wasOpen) => {
 })
 
 watch(
-  () => [task.value?.active, task.value?.finished, task.value?.stopped] as const,
+  () => [task.value?.active, task.value?.finished, task.value?.stopped, task.value.remoteImport?.stopping] as const,
   () => {
     syncStopButton()
   },
@@ -2100,7 +2143,7 @@ watch(
 watch(() => task.value?.finished, (finished) => {
   if (finished) {
     clearStopButton()
-    if (task.value) {
+    if (task.value && !task.value.stopped) {
       task.value.progress = 100
     }
     const notificationTaskId = task.value?.notificationTaskId
@@ -2112,7 +2155,7 @@ watch(() => task.value?.finished, (finished) => {
     }
     if (
       task.value.added.length > 0 &&
-      String(task.value.addedMediaType || '').toLowerCase() === 'video'
+      !task.value.remoteImport && String(task.value.addedMediaType || '').toLowerCase() === 'video'
     ) {
       fetchClipModelStatus()
       fetchFaceModelStatus()
@@ -2147,6 +2190,10 @@ watch(canDetectFaces, (enabled) => {
       background-color: rgba(0, 0, 0, 0.05);
     }
   }
+}
+
+.process-file-row--striped {
+  background-color: rgba(var(--v-theme-on-surface), 0.04);
 }
 
 .duplicate-entry {
@@ -2275,5 +2322,10 @@ watch(canDetectFaces, (enabled) => {
   line-height: 1.3;
   max-width: 36rem;
   font-size: 0.75rem;
+}
+/* Long file paths in the status must wrap instead of widening the dialog on phones. */
+.media-adding-process__status {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 </style>

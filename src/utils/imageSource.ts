@@ -1,4 +1,8 @@
+import {isCloudMediaPath} from '@shared/cloudAccounts'
+import {mediaCopyStreamUrl} from '@/services/typedApi/mediaCopies'
 import path from 'path-browserify'
+import {isDriveMediaPath} from '@shared/cloudDrive'
+import {isNasMediaPath} from '@shared/remoteMedia'
 import { buildLocalFileUrl } from '@/services/fileService'
 import {
   getCachedThumb,
@@ -12,6 +16,7 @@ export const IMAGE_UNAVAILABLE_URL = '/images/unavailable.png'
 interface MediaWithPath {
   id?: number
   path?: string
+  hasCopies?: boolean | number
 }
 
 export async function loadImageDisplayUrl(
@@ -20,6 +25,9 @@ export async function loadImageDisplayUrl(
   { preferFull = false, cacheBust = false } = {},
 ): Promise<string> {
   if (!media?.id) return IMAGE_UNAVAILABLE_URL
+  if (isNasMediaPath(media.path) && !preferFull) return buildLocalFileUrl(path.join(mediaPath, 'images/thumbs', `${media.id}.jpg`), false, cacheBust)
+  if (media.hasCopies) return mediaCopyStreamUrl(media.id)
+  if (isCloudMediaPath(media.path) || isDriveMediaPath(media.path) || isNasMediaPath(media.path)) return buildLocalFileUrl(media.path!, true)
 
   if (!cacheBust && !preferFull) {
     const cached = getCachedThumb(mediaThumbKey('images', media.id))
@@ -40,6 +48,9 @@ export async function loadThumbDisplayUrl(
   mediaPath: string,
 ): Promise<string> {
   if (!media?.id) return IMAGE_UNAVAILABLE_URL
+  if (isNasMediaPath(media.path)) return buildLocalFileUrl(path.join(mediaPath, 'images/thumbs', `${media.id}.jpg`))
+  if (media.hasCopies) return mediaCopyStreamUrl(media.id)
+  if (isCloudMediaPath(media.path) || isDriveMediaPath(media.path) || isNasMediaPath(media.path)) return buildLocalFileUrl(media.path!, true)
 
   const key = mediaThumbKey('images', media.id)
   const cached = getCachedThumb(key)
@@ -63,6 +74,9 @@ export async function loadFilmstripThumbDisplayUrl(
   {cacheBust = false as boolean | number} = {},
 ): Promise<string> {
   if (!media?.id) return IMAGE_UNAVAILABLE_URL
+  if (isNasMediaPath(media.path)) return buildLocalFileUrl(path.join(mediaPath, 'images/thumbs', `${media.id}.jpg`), false, cacheBust, {maxEdge: FILMSTRIP_THUMB_MAX_EDGE})
+  if (media.hasCopies) return mediaCopyStreamUrl(media.id)
+  if (isCloudMediaPath(media.path) || isDriveMediaPath(media.path) || isNasMediaPath(media.path)) return buildLocalFileUrl(media.path!, true)
 
   const key = mediaThumbKey('images-filmstrip', media.id)
   if (!cacheBust) {
@@ -88,6 +102,7 @@ export async function loadFullImageDisplayUrl(
   {maxEdge = VIEWER_MAX_EDGE as number | false} = {},
 ): Promise<string> {
   if (!media?.path) return IMAGE_UNAVAILABLE_URL
+  if (media.hasCopies && media.id) return mediaCopyStreamUrl(media.id)
 
   if (maxEdge === false) {
     return buildLocalFileUrl(media.path, true)

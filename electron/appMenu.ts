@@ -1,4 +1,5 @@
 import {app, ipcMain, Menu, type BrowserWindow, type IpcMainInvokeEvent, type MenuItemConstructorOptions} from 'electron'
+import {recommendedThemePalettes} from '../shared/recommendedThemePalettes'
 import {LOCAL_AI_UI_ENABLED} from '../shared/features'
 import {
   APP_MENU_GAP_SIZE_LABELS,
@@ -6,7 +7,7 @@ import {
   APP_MENU_LOCALES,
   getAppMenuLabels,
   normalizeAppMenuLocale,
-  type AppMenuLabels,
+  type LocalizedAppMenuLabels,
 } from '../shared/electron/appMenuI18n'
 import {
   APP_MENU_GAP_SIZES,
@@ -29,7 +30,7 @@ export function buildAppMenuTemplate(options: {
   isMac: boolean
   localAiEnabled: boolean
   appName: string
-  labels: AppMenuLabels
+  labels: LocalizedAppMenuLabels
   state: AppMenuCheckedState
   sendMenuAction: (action: string) => void
   onLock: () => void
@@ -169,6 +170,12 @@ export function buildAppMenuTemplate(options: {
       {
         label: labels.theme,
         submenu: themeSubmenu,
+      },
+      {
+        label: labels.recommendedPalettes,
+        submenu: recommendedThemePalettes.map(({id}) =>
+          menuActionItem(labels.paletteNames[id], `setPalette:${id}`),
+        ),
       },
       {
         label: labels.language,
@@ -314,7 +321,7 @@ export function createAppMenuController(deps: {
 }): AppMenuController {
   const localAiEnabled = deps.localAiEnabled ?? LOCAL_AI_UI_ENABLED
   const isMac = process.platform === 'darwin'
-  let labels: AppMenuLabels = getAppMenuLabels('en')
+  let labels: LocalizedAppMenuLabels = getAppMenuLabels('en')
   let state: AppMenuCheckedState = {...DEFAULT_APP_MENU_STATE}
 
   function sendMenuAction(action: string) {

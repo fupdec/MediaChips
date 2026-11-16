@@ -1,6 +1,10 @@
 import {describe, expect, it, vi, beforeEach} from 'vitest'
 import {ref, nextTick} from 'vue'
 import {useVideoPreviewThumb} from './useVideoPreviewThumb'
+import {typedApi} from '@/services/typedApi'
+import {probeDisplayImageUrl} from '@/utils/probeImageUrl'
+
+const settings = vi.hoisted(() => ({videoPreviewStatic: 'thumb'}))
 
 vi.mock('@/stores/items', () => ({
   useItemsStore: () => ({
@@ -10,9 +14,7 @@ vi.mock('@/stores/items', () => ({
 }))
 
 vi.mock('@/stores/settings', () => ({
-  useSettingsStore: () => ({
-    videoPreviewStatic: 'thumb',
-  }),
+  useSettingsStore: () => settings,
 }))
 
 vi.mock('@/services/typedApi', () => ({
@@ -36,6 +38,28 @@ vi.mock('@/utils/thumbSource', async () => {
 describe('useVideoPreviewThumb', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    settings.videoPreviewStatic = 'thumb'
+    vi.mocked(probeDisplayImageUrl).mockResolvedValue(true)
+  })
+
+  it.each([
+    'https://example.com/watch/123',
+    'gdrive://file123',
+    'nas://11111111-1111-4111-8111-111111111111/movie.mp4',
+    'onedrive://11111111-1111-4111-8111-111111111111/movie',
+  ])('uses a static poster without local generation for %s', async path => {
+    settings.videoPreviewStatic = 'grid'
+    vi.mocked(probeDisplayImageUrl).mockResolvedValue(false)
+    const api = useVideoPreviewThumb({
+      media: () => ({id: 101, path} as never),
+      previewActive: () => true, isFileExists: () => true,
+      thumbUrl: () => undefined, isViewCard: () => true,
+      isEmbeddedHost: () => false, isMounted: () => true,
+      mediaPath: () => '/media',
+    })
+    expect(api.getStaticPreviewSubfolder()).toBe('thumbs')
+    await api.getImg()
+    expect(typedApi.taskCreateThumbForVideo).not.toHaveBeenCalled()
   })
 
   it('uses thumbs subfolder by default', () => {

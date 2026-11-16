@@ -6,9 +6,11 @@ import { computeOshashForPath } from './oshash'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import { buildExtensionRegexFromMediaTypes } from '../utils/mediaExtensions'
-import { buildMissingIndexes, pickWeakCandidate } from './missingMediaMatch'
+import { buildMissingIndexes, findWeakCandidates } from './missingMediaMatch'
 import {walkMatchedMediaFiles} from './mediaFileWalk'
 import {collectMissingMediaByPathExist} from './missingMediaExistScan'
+import {remapMediaRoot} from '../../shared/mediaRelink'
+import {normalizeUserPath} from '../utils/normalizeUserPath'
 
 async function loadMissingMedia(db: ApiDb, options: MissingMediaSearchOptions = {}) {
   const mediaRepo = createMediaRepository(db.drizzle)
@@ -67,7 +69,19 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
 
   yield {type: 'phase', phase: 'loading_missing'}
 
-  const allMedia = mediaRepo.findAllForMissingScanOrderedById()
+  const originalFolder = normalizeUserPath(options.originalFolder)
+  if (options.originalFolder !== undefined && (
+    typeof originalFolder !== 'string' || !originalFolder ||
+    (!path.posix.isAbsolute(originalFolder) && !path.win32.isAbsolute(originalFolder)) ||
+    /^[\\/]+$/.test(originalFolder)
+  )) {
+    yield {type: 'error', message: 'Enter the absolute original folder path stored in the library'}
+    return
+  }
+  const scopedFolder = typeof originalFolder === 'string' ? originalFolder : undefined
+  const allMedia = mediaRepo.findAllForMissingScanOrderedById(scopedFolder)
+    // LIKE is only a prefilter: verify the literal directory boundary before any disk access.
+    .filter(item => !scopedFolder || remapMediaRoot(item.path || '', scopedFolder, '/candidate') !== null)
   const missingMedia = []
   // Chunked concurrent existence checks so the UI still gets progress events.
   const existChunkSize = 200
@@ -115,12 +129,10 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
   const mediaTypes = mediaTypesRepo.findAll()
   const {byOshash, bySizeNoHash, targetSizes} = buildMissingIndexes(missingMedia)
   const extensionRegex = buildExtensionRegexFromMediaTypes(mediaTypes as Array<{ extensions?: string }>)
-  const knownPaths = new Set(
-    mediaRepo.findPaths().map((item: string) => String(item || '').toLowerCase()),
-  )
+  const pathKey = (value: string) => process.platform === 'win32' ? value.toLowerCase() : value
+  const knownPaths = new Set(mediaRepo.findPaths().map((item: string) => pathKey(String(item || ''))))
 
-  const matchedMediaIds = new Set()
-  const matches = []
+  const candidatesById = new Map<number, {id: number; oldPath: string; confidence: string; candidatePaths: string[]}>()
   let scanned = 0
   let sizeMatched = 0
 
@@ -138,7 +150,7 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
 
     scanned += 1
 
-    if (knownPaths.has(filePath.toLowerCase())) {
+    if (knownPaths.has(pathKey(filePath))) {
       if (scanned % 100 === 0) {
         yield {
           type: 'progress',
@@ -146,7 +158,7 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
           scanned,
           sizeMatched,
           missing: missingMedia.length,
-          matched: matches.length,
+          matched: candidatesById.size,
           current: filePath,
         }
       }
@@ -171,7 +183,7 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
           scanned,
           sizeMatched,
           missing: missingMedia.length,
-          matched: matches.length,
+          matched: candidatesById.size,
           current: filePath,
         }
       }
@@ -190,74 +202,49 @@ async function* iterateMissingMediaSearch(db: ApiDb, options: MissingMediaSearch
       // continue with size/name matching
     }
 
-    let match = null
-    let confidence = null
-
-    if (oshash && byOshash.has(oshash)) {
-      const candidates = (byOshash.get(oshash) || [])
-        .filter((item: AnyRecord) => !matchedMediaIds.has(item.id))
-      if (candidates.length === 1) {
-        match = candidates[0]
-        confidence = 'oshash'
-      } else if (candidates.length > 1) {
-        const weak = pickWeakCandidate(candidates, filePath)
-        if (weak) {
-          match = weak
-          confidence = 'oshash'
-        }
+    const strongCandidates = oshash ? byOshash.get(oshash) || [] : []
+    const weakCandidates = findWeakCandidates(bySizeNoHash.get(filesize) || [], filePath)
+    // Keep every candidate; filesystem traversal order must never choose the original.
+    const candidates = strongCandidates.length ? strongCandidates : weakCandidates
+    for (const candidate of candidates) {
+      const id = Number(candidate.id)
+      const entry = candidatesById.get(id) || {
+        id,
+        oldPath: String(candidate.path),
+        confidence: strongCandidates.length ? 'oshash' : 'size',
+        candidatePaths: [],
       }
+      if (!entry.candidatePaths.includes(filePath)) entry.candidatePaths.push(filePath)
+      candidatesById.set(id, entry)
     }
 
-    if (!match) {
-      const candidates = (bySizeNoHash.get(filesize) || [])
-        .filter((item: AnyRecord) => !matchedMediaIds.has(item.id))
-      const weak = pickWeakCandidate(candidates, filePath)
-
-      if (weak) {
-        match = weak
-        confidence = 'size'
-      }
-    }
-
-    if (match && !matchedMediaIds.has(match.id)) {
-      matchedMediaIds.add(match.id)
-
-      const matchItem = {
-        id: match.id,
-        oldPath: match.path,
-        newPath: filePath,
-        confidence,
-        oshash: oshash || match.oshash || null,
-      }
-
-      matches.push(matchItem)
-
-      yield {
-        type: 'match',
-        match: matchItem,
-        scanned,
-        matched: matches.length,
-      }
-    }
-
-    if (scanned % 20 === 0 || match) {
+    if (scanned % 20 === 0 || candidates.length) {
       yield {
         type: 'progress',
         phase: 'scanning',
         scanned,
         sizeMatched,
         missing: missingMedia.length,
-        matched: matches.length,
+        matched: candidatesById.size,
         current: filePath,
       }
     }
   }
 
+  const pathCounts = new Map<string, number>()
+  for (const entry of candidatesById.values()) {
+    for (const candidatePath of entry.candidatePaths) pathCounts.set(candidatePath, (pathCounts.get(candidatePath) || 0) + 1)
+  }
+  const matches = [...candidatesById.values()].map((entry) => {
+    const ambiguous = shouldStop() || entry.candidatePaths.length > 1 || entry.candidatePaths.some((p) => (pathCounts.get(p) || 0) > 1)
+    return {...entry, ambiguous, newPath: ambiguous ? '' : entry.candidatePaths[0]}
+  })
+
   yield {
     type: 'complete',
     scanned,
     sizeMatched,
-    matched: matches.length,
+    matched: candidatesById.size,
     matches,
     missing: missingMedia.length,
     stopped: shouldStop(),

@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-4 pb-2">
+  <div class="mx-4">
     <v-alert
       type="info"
       variant="tonal"

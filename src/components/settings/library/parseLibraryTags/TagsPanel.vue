@@ -25,22 +25,15 @@
     />
 
     <div class="panel-card__toolbar">
-      <v-btn-toggle
+      <SettingsSegmentedControl
         :model-value="tagSortMode"
         @update:model-value="emit('update:tagSortMode', $event)"
-        density="compact"
-        mandatory
-        divided
-        rounded="lg"
-        color="primary"
-      >
-        <v-btn value="count" size="small">
-          {{ t('settings_labels.library.parse_library_tags_sort_count') }}
-        </v-btn>
-        <v-btn value="alphabet" size="small">
-          {{ t('settings_labels.library.parse_library_tags_sort_alphabet') }}
-        </v-btn>
-      </v-btn-toggle>
+        :label="t('filters.sort_by')"
+        :items="[
+          {value: 'count', title: t('settings_labels.library.parse_library_tags_sort_count')},
+          {value: 'alphabet', title: t('settings_labels.library.parse_library_tags_sort_alphabet')},
+        ]"
+      />
     </div>
 
     <div class="panel-card__filters">
@@ -123,6 +116,7 @@
 </template>
 
 <script setup lang="ts">
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAutoListHeight } from '@/composable/useAutoListHeight'

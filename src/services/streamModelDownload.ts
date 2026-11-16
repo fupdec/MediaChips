@@ -80,5 +80,9 @@ export async function streamModelDownload(
     throw error
   }
   if (streamError) throw new Error(streamError)
+  const finalStatus = status && typeof status === 'object' ? (status as {status?: unknown}).status : status
+  if (!['downloaded', 'loaded', 'ready'].includes(String(finalStatus || ''))) {
+    throw new Error(options.errorMessage || 'Model download did not complete')
+  }
   return {status}
 }

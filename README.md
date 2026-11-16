@@ -30,7 +30,7 @@
 MediaChips is an open-source desktop app for local **videos, images, audio, and text**.  
 You shape the library: define **chips** (custom metadata), keep rich **tags**, filter by anything, and browse with **previews and view modes** that make the collection readable — not just a folder tree.
 
-> **Private. Local. Yours.** Nothing is uploaded to the cloud. Inspect the code, extend it with plugins, or self-host on your LAN / NAS.
+> **Private. Local. Yours.** Your library stays on your computer. Connect remote sources and transfer originals when you choose. Inspect the code, extend it with plugins, or self-host on your LAN / NAS.
 
 ---
 
@@ -43,6 +43,22 @@ You shape the library: define **chips** (custom metadata), keep rich **tags**, f
 - **View modes** — browser layout (sidebar + grid + inspector), media / tags / folders, cards you can tune
 - **Stays usable at scale** — the same workflow on small libraries and on hundreds of thousands of files
 - **Windows · macOS · Linux · Docker / NAS**
+
+### Remote media
+
+Browse and import originals from Google Drive, SFTP, FTP and WebDAV, keep
+metadata available offline, and manage verified copies on one media card.
+Google Drive, OneDrive and Dropbox need your own OAuth client from each
+provider; publisher-managed sign-in is not included. Sign-in is handled by the
+server, so it also works on a NAS or in Docker: a browser on another device
+finishes it by pasting the return link, with no public address required.
+Extra Google Drive accounts can reuse the main Google Drive client. OneDrive
+and Dropbox are **beta**: they pass fixture-based tests, but live acceptance
+against real accounts is not finished. See the
+[cloud setup and acceptance guide](docs/cloud-oauth-release.md) and the
+[Docker / NAS guide](DOCKER.md#cloud-accounts-on-a-nas).
+Web-video extraction supports compatible public sources; see the
+[support limits](docs/web-video-release.md) before relying on a particular site.
 
 ---
 
@@ -270,3 +286,5 @@ Community builds use **ad-hoc signing**. First launch: right-click → **Open**.
 MediaChips is licensed under the [GNU General Public License v3.0](./LICENSE).
 
 Copyright © 2020–2026 [MediaChips contributors](https://github.com/fupdec/mediaChips/graphs/contributors)
+
+See [Settings navigation](docs/settings.md) for sections, search and compatible section links.

@@ -206,6 +206,14 @@
         transform: scale(1.1);
       }
     }
+
+    &--placeholder {
+      width: 100%;
+      height: 100%;
+      min-height: 1px;
+      background-color: #7878782b;
+      cursor: default;
+    }
   }
   .video-preview-container.is-video-preview-enabled .thumb {
     .v-image__image,
@@ -308,7 +316,9 @@
   .item_preview {
     position: relative;
     overflow: hidden;
-    //border-radius: 4px 4px 0 0;
+    // Match .v-card top corners — needed when .item_wrapper is overflow:visible
+    // (virtual grid keeps shadows) so the thumb does not paint sharp square edges.
+    border-radius: 17px 17px 0 0;
     background-color: #7878782b;
     flex: 1 0 auto;
 
@@ -1852,7 +1862,10 @@ body > .video-preview-container.video-preview-container--expanded {
 
 .item-media.item-view-4,
 .item-tag.item-view-4 {
+  align-self: flex-start;
+
   .item_wrapper {
+    height: auto !important;
     overflow: hidden;
     background: transparent !important;
     background-color: transparent !important;
@@ -1868,8 +1881,17 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 
   .item_preview {
-    border-radius: inherit;
+    aspect-ratio: 16 / 9;
+    flex: 0 0 auto;
+    border-radius: 12px;
     background-color: transparent;
+    overflow: hidden;
+  }
+
+  .video-preview-host,
+  .video-preview-container:not(.video-preview-container--expanded) {
+    border-radius: inherit;
+    overflow: hidden;
   }
 
   .video-preview-container,
@@ -1879,8 +1901,10 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 
   .item-minimal-filename {
+    flex: 0 0 auto;
     margin-top: 6px;
     min-width: 0;
+    max-height: 22px;
     padding-left: 10px;
     padding-right: 10px;
     cursor: pointer;
@@ -2466,8 +2490,7 @@ body > .video-preview-container.video-preview-container--expanded {
       flex: 0 0 auto;
     }
 
-    .v-chip:not(.tag-chip--colored),
-    .v-chip.tag-chip--colored {
+    .v-chip {
       margin: 0 !important;
       padding: 0 !important;
       min-height: 22px;
@@ -2491,13 +2514,13 @@ body > .video-preview-container.video-preview-container--expanded {
       }
     }
 
-    .v-chip:not(.tag-chip--colored) {
+    .v-chip:not(.tag-chip--colored, .tag-chip--muted) {
       background: rgba(255, 255, 255, 0.92) !important;
       color: rgba(0, 0, 0, 0.87) !important;
       border: 1px solid rgba(255, 255, 255, 0.35);
     }
 
-    .v-chip.tag-chip--colored {
+    .v-chip.tag-chip--colored:not(.tag-chip--muted) {
       border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
@@ -2518,6 +2541,93 @@ body > .video-preview-container.video-preview-container--expanded {
 }
 
 // END VIDEOS
+
+/* Standard cards: natural height so all tags stay visible. */
+.item-media.item-view-1 {
+  display: flex;
+  flex-direction: column;
+  /* height stays auto so row stretch can equalize cards in a natural row */
+  align-self: stretch;
+  min-height: 0;
+
+  .item_preview {
+    aspect-ratio: 16 / 9;
+    flex: 0 0 auto;
+    border-radius: 17px 17px 0 0;
+    overflow: hidden;
+  }
+
+  .video-preview-host,
+  .video-preview-container:not(.video-preview-container--expanded) {
+    border-radius: inherit;
+    overflow: hidden;
+  }
+
+  .video-preview-container:not(.video-preview-container--expanded) .thumb {
+    border-radius: inherit;
+    overflow: hidden;
+  }
+
+  .item_wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    align-self: stretch;
+  }
+
+  .description {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    box-sizing: border-box;
+  }
+
+  .rating-favorite-in-description,
+  .item-title,
+  .synonyms {
+    flex: 0 0 auto;
+  }
+
+  .rating-favorite-in-description {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .item-title {
+    margin: 0 0 0.25em;
+    line-height: 1.15;
+  }
+
+  .nested-tags {
+    flex: 0 0 auto;
+
+    .category {
+      margin-top: 0.15em;
+    }
+
+    .category:first-child {
+      margin-top: 0;
+    }
+  }
+}
+
+/* Equal-height cards inside a measured natural virtual row. */
+.virtual-grid-row--natural.card-grid {
+  align-items: stretch;
+
+  > .item.item-media.item-view-1 {
+    align-self: stretch;
+    height: auto;
+  }
+
+  > .item.item-media.item-view-1 .item_wrapper {
+    height: 100%;
+    flex: 1 1 auto;
+  }
+}
 
 .item__size {
   &-1 {
@@ -2570,6 +2680,29 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 }
 
+/* Media titles: one line + ellipsis; scales with s…xxl. */
+.item-media {
+  .item-title {
+    line-height: 1.15;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .item-title > span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &.item__size-1 .item-title { font-size: 0.9em; }
+  &.item__size-2 .item-title { font-size: 0.92em; }
+  &.item__size-3 .item-title { font-size: 0.94em; }
+  &.item__size-4 .item-title { font-size: 0.95em; }
+  &.item__size-5 .item-title { font-size: 0.96em; }
+  &.item__size-6 .item-title { font-size: 0.97em; }
+}
+
 // layouts
 .card-grid {
   display: flex;
@@ -2593,6 +2726,14 @@ body > .video-preview-container.video-preview-container--expanded {
   gap: 0 var(--grid-gap-x, 10px);
   margin-bottom: var(--grid-gap-y, 15px);
   overflow: visible;
+
+  > .item {
+    overflow: visible;
+  }
+
+  .item_wrapper {
+    overflow: visible;
+  }
 }
 
 .virtual-grid-row.chips-grid {
@@ -2612,12 +2753,14 @@ body > .video-preview-container.video-preview-container--expanded {
 .line-grid {
   .item-media {
     margin-bottom: 15px;
+
     .content {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
     }
   }
+
   .item__size {
     &-1 {
       .item-media {
@@ -2659,6 +2802,51 @@ body > .video-preview-container.video-preview-container--expanded {
         font-size: 2.6rem !important;
       }
     }
+  }
+}
+
+.virtual-grid-row.line-grid {
+  flex-wrap: nowrap;
+  margin-bottom: var(--grid-gap-y, 15px);
+  overflow: visible;
+
+  > .item.item-media {
+    margin-bottom: 0;
+    width: 100%;
+    min-height: 0;
+  }
+
+  > .item.item-media .item_wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  > .item.item-media .item_preview {
+    flex: 0 0 auto;
+  }
+
+  > .item.item-media .description {
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+}
+
+/* Natural timeline rows: content defines height (story CSS size + meta). */
+.virtual-grid-row--natural.line-grid {
+  align-items: stretch;
+
+  > .item.item-media {
+    height: auto;
+    align-self: stretch;
+  }
+
+  > .item.item-media .item_wrapper {
+    height: auto;
+  }
+
+  > .item.item-media .description {
+    overflow: visible;
   }
 }
 
@@ -2960,9 +3148,15 @@ body > .video-preview-container.video-preview-container--expanded {
     white-space: nowrap;
   }
 
+  // Overlay at the bottom of the field card (positioned): shown on hover/focus
+  // without changing the field height, like Vuetify hints of other meta fields.
   &__hint {
-    display: none;
-    max-width: 100%;
+    position: absolute;
+    bottom: 1px;
+    inset-inline: 14px;
+    visibility: hidden;
+    max-width: none;
+    pointer-events: none;
     font-size: 0.6875rem;
     line-height: 1.2;
     color: rgba(var(--v-theme-on-surface), 0.5);
@@ -2971,11 +3165,9 @@ body > .video-preview-container.video-preview-container--expanded {
     white-space: nowrap;
   }
 
-  // Keep the resting row height in sync with other fields; reveal the hint
-  // only while interacting, matching the show-on-focus hint fields elsewhere.
   .editing-field-card:hover &__hint,
   .editing-field-card:focus-within &__hint {
-    display: block;
+    visibility: visible;
   }
 
   .v-rating {
@@ -3057,12 +3249,6 @@ body > .video-preview-container.video-preview-container--expanded {
     gap: 8px;
     min-width: 0;
 
-    & + & {
-      margin-left: 10px;
-      padding-left: 10px;
-      border-left: 1px solid rgba(var(--v-theme-on-surface), 0.14);
-    }
-
     &--search {
       flex: 1 1 auto;
       margin-left: 0;
@@ -3116,7 +3302,8 @@ body > .video-preview-container.video-preview-container--expanded {
   --edit-deck-radius: 16px;
   // Tall enough for filled floating labels above the value.
   --edit-deck-control-h: 40px;
-  --edit-deck-search-h: 28px;
+  // Same height as the compact segmented filter next to it (28 + 2×3 + 2).
+  --edit-deck-search-h: 36px;
 
   display: flex;
   flex-direction: column;
@@ -3127,37 +3314,39 @@ body > .video-preview-container.video-preview-container--expanded {
     --edit-deck-pad-y: 8px;
     --edit-deck-gap: 8px;
     --edit-deck-control-h: 36px;
-    --edit-deck-search-h: 26px;
+    --edit-deck-search-h: 36px;
   }
 
   &__body {
     padding: var(--edit-deck-pad-y) var(--edit-deck-pad-x) !important;
   }
 
+  .editing-form {
+    padding-bottom: 0;
+  }
+
   .editing-section__toolbar {
-    gap: var(--edit-deck-gap);
-    margin-bottom: 12px;
-    padding: 2px 8px;
-    border: 1px solid rgba(var(--v-theme-primary), 0.16);
-    border-radius: var(--edit-deck-radius);
-    background: rgb(var(--v-theme-surface));
-    box-shadow:
-      0 1px 0 rgba(var(--v-theme-primary), 0.04),
-      0 8px 22px -16px rgba(0, 0, 0, 0.22);
+    margin-block: 12px 16px;
   }
 
   .editing-section__search {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
 
     .v-field {
       --v-input-control-height: var(--edit-deck-search-h);
-      font-size: 0.75rem;
+      font-size: 0.875rem;
+      border-radius: 11px;
+    }
+
+    .v-field__prepend-inner .v-icon {
+      font-size: 20px;
+      opacity: 0.7;
     }
 
     .v-field__input {
       min-height: var(--edit-deck-search-h) !important;
       max-height: var(--edit-deck-search-h);
-      font-size: 0.75rem !important;
+      font-size: 0.875rem !important;
       line-height: 1.2 !important;
       padding-top: 0 !important;
       padding-bottom: 0 !important;
@@ -3306,7 +3495,7 @@ body > .video-preview-container.video-preview-container--expanded {
       min-height: 14px;
     }
 
-    .v-btn:not(.v-btn--icon):not(.restore) {
+    .v-btn:not(.v-btn--icon):not(.restore):not(.edit-dialog-media-action) {
       min-height: var(--edit-deck-control-h);
       font-size: 0.8125rem;
     }
@@ -3531,9 +3720,49 @@ body > .video-preview-container.video-preview-container--expanded {
     }
   }
 
+  &__media--collapsed {
+    width: auto;
+  }
+
+  &__media--outlined {
+    position: relative;
+
+    .edit-dialog-hero__media-toggle {
+      position: absolute;
+      inset-block-start: 8px;
+      inset-inline-end: 0;
+      transform: translateX(25%);
+      z-index: 1;
+    }
+
+    @media (hover: hover) {
+      &:not(:hover):not(:focus-within) .edit-dialog-hero__media-toggle {
+        opacity: 0;
+        pointer-events: none;
+      }
+    }
+  }
+
   &__overview {
     flex: 1 1 280px;
     min-width: 0;
+  }
+}
+
+// Quick actions under the media in every edit dialog (history, originals, …).
+.edit-dialog-media-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.edit-dialog-media-action {
+  width: 100%;
+  justify-content: flex-start;
+
+  > .v-btn__content {
+    text-align: start;
   }
 }
 
@@ -3565,11 +3794,22 @@ body > .video-preview-container.video-preview-container--expanded {
     .v-img__img {
       object-position: top center;
     }
+
+    &--viewable {
+      cursor: zoom-in;
+    }
   }
 
   &__image-wrap {
     position: relative;
     background: rgb(var(--v-theme-surface-variant));
+
+    // Tag images follow the category aspect ratio, so the 200px cap
+    // would squash portrait categories into a near-square frame.
+    &--tag,
+    &--tag .edit-dialog-media-panel__image {
+      max-height: none;
+    }
 
     &--video {
       max-height: none;
@@ -3670,6 +3910,10 @@ body > .video-preview-container.video-preview-container--expanded {
         color: rgb(var(--v-theme-on-primary));
       }
 
+      .edit-dialog-media-panel__thumb-label {
+        color: rgb(var(--v-theme-on-primary));
+      }
+
       .edit-dialog-media-panel__thumb-dot {
         background: rgb(var(--v-theme-on-primary));
       }
@@ -3698,6 +3942,8 @@ body > .video-preview-container.video-preview-container--expanded {
   // Contain nested thumb z-index so card rating/favorite overlays can sit above.
   z-index: 0;
   width: 100%;
+  border-radius: inherit;
+  overflow: hidden;
 
   .video-preview-host__anchor {
     position: absolute;
@@ -4007,6 +4253,7 @@ body > .video-preview-container.video-preview-container--expanded {
 .tag-page-params {
   display: flex;
   flex-wrap: wrap;
+  gap: 16px;
 }
 
 .tag-page-param {
@@ -4015,8 +4262,6 @@ body > .video-preview-container.video-preview-container--expanded {
   justify-content: space-between;
   min-height: 100%;
   border-radius: 16px;
-  margin-right: 16px;
-  margin-bottom: 16px;
   background: none !important;
   backdrop-filter: blur(1px);
   &__value,
@@ -4051,5 +4296,216 @@ body > .video-preview-container.video-preview-container--expanded {
   img,
   .v-img__img {
     filter: saturate(0.1) opacity(50%);
+  }
+}
+
+// ─── Grid cards (view 1, media + tag): inspector-style description ─────────
+// Same visual language as the inspector: clear title, quiet synonyms, small
+// muted field labels. Kept compact — a label column made every chip wrap onto
+// its own line, so the label now sits inline at the start of the chip flow
+// (identical for media and tag cards, whatever the card width). em units
+// follow the s…xxl card size scale.
+.item.item-view-1 {
+  .description {
+    padding: 0.5em 0.55em 0.55em;
+  }
+
+  // L…XXL cards are 1.2–2× wider than M, but the base item font only grows
+  // ~8% per step, so title and meta chips looked tiny on big cards. Scale the
+  // description (title, synonyms, chips, labels) on its own so preview
+  // overlays keep their size. Keep in sync with DESCRIPTION_HEIGHT.
+  &.item__size-4 .description { font-size: 1.26rem; }
+  &.item__size-5 .description { font-size: 1.46rem; }
+  &.item__size-6 .description { font-size: 1.66rem; }
+
+  .item-title {
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0 0 0.15em !important;
+    padding-inline: 0.15em;
+  }
+
+  .synonyms {
+    padding: 0 0.15em !important;
+    margin-bottom: 0.15em;
+    font-size: 0.82em;
+    line-height: 1.3 !important;
+    color: rgba(var(--v-theme-on-surface), 0.6);
+  }
+
+  .nested-tags {
+    margin-top: 0.1em;
+
+    // Chips: one compact size, uniform gaps instead of per-chip margins.
+    .v-chip {
+      margin: 0 !important;
+      min-height: 0 !important;
+      height: 1.6em !important;
+      font-size: 0.82em !important;
+      line-height: 1.2;
+
+      .v-chip__content {
+        padding-inline: 0.55em !important;
+      }
+    }
+
+    .nested-tag-chip-wrap {
+      display: inline-flex;
+    }
+
+    // Plain values (numbers, sizes, short text): same chip as tags, but
+    // neutral and centred so "3" or "C" don't read as stray dots.
+    .nested-value-chip {
+      min-width: 1.9em;
+      justify-content: center;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    // Flat mode.
+    > div:not(.tag-page-params):not(:has(> .category)) {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.2em;
+      padding-inline: 0.1em;
+    }
+
+    // Grouped mode: label inline, chips continue on the same line and wrap.
+    .category {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.2em;
+      margin: 0 !important;
+      padding: 0.12em 0.1em !important;
+    }
+
+    .category + .category {
+      margin-top: 0.1em !important;
+    }
+
+    .category-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25em !important;
+      margin: 0 0.2em 0 0 !important;
+      font-size: 0.76em;
+      font-weight: 500;
+      line-height: 1.2;
+      white-space: nowrap;
+      color: rgba(var(--v-theme-on-surface), 0.55);
+
+      .v-icon {
+        font-size: 1.15em !important;
+        width: 1.15em;
+        height: 1.15em;
+        margin: 0 !important;
+        opacity: 0.7;
+      }
+    }
+
+    .nested-tags__toggle {
+      margin: 0 !important;
+    }
+  }
+}
+
+// ── Quiet card overlays ─────────────────────────────────────────────────────
+// Stars and the heart are noise when repeated on every card. On the preview
+// they stay hidden until hover/focus; a rated card shows a compact "★ 4" chip
+// instead, and a favorite is signalled by the card's permanent pink outline.
+.item {
+  .item_preview > .rating,
+  .item_preview > .fav-btn {
+    opacity: 0;
+  }
+
+  &:hover,
+  &:focus-within {
+    .item_preview > .rating {
+      opacity: 0.95;
+    }
+
+    .item_preview > .fav-btn {
+      opacity: 0.9;
+    }
+
+    .item_preview > .item-rating-badge {
+      opacity: 0;
+    }
+  }
+
+  .item_preview > .item-rating-badge {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 22px;
+    padding: 0 8px 0 6px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+
+    .v-icon {
+      color: #ffc107;
+    }
+  }
+
+  // Touch screens have no hover: keep the controls reachable.
+  @media (hover: none) {
+    .item_preview > .rating,
+    .item_preview > .fav-btn {
+      opacity: 0.9;
+    }
+
+    .item_preview > .item-rating-badge {
+      display: none;
+    }
+  }
+
+  // Long alias lists: two lines max, full list in the tooltip (grid cards).
+  &.item-view-1 .description > .synonyms {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+}
+
+// Tag card without a photo: calm tile with initials (not an "error" glyph).
+.item .tag-thumb-placeholder {
+  cursor: pointer;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(var(--v-theme-primary), 0.14), transparent 60%),
+    rgba(var(--v-theme-on-surface), 0.06);
+
+  .v-responsive__content {
+    display: flex;
+  }
+
+  &__inner {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__initials {
+    font-size: 3.4em;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: rgba(var(--v-theme-primary), 0.35);
+    user-select: none;
   }
 }

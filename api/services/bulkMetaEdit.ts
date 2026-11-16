@@ -13,6 +13,7 @@ import { createTagsInTagRepository } from '../db/repositories/tagsInTag'
 import { createValuesInMediaRepository } from '../db/repositories/valuesInMedia'
 import { createValuesInTagRepository } from '../db/repositories/valuesInTag'
 import { chunkArray } from '../db/utils/chunk'
+import {withChangeOperation} from '../db/changeHistory'
 import {
   PRESET_FIELDS,
   buildMediaValueRows,
@@ -24,7 +25,7 @@ import {
 type MediaTagLinkRow = { mediaId: number; metaId: number; tagId: number }
 type TagTagLinkRow = { parentTagId: number; metaId: number; tagId: number }
 
-async function applyPresetBulkEdit(
+function applyPresetBulkEdit(
   db: ApiDb,
   itemType: BulkItemType,
   itemIds: number[],
@@ -58,7 +59,7 @@ async function applyPresetBulkEdit(
   return appliedChanges
 }
 
-async function applyBulkMetaEdit(db: ApiDb, options: BulkMetaEditOptions): Promise<BulkMetaEditResult> {
+function applyBulkMetaEditSync(db: ApiDb, options: BulkMetaEditOptions): BulkMetaEditResult {
   const {itemType, itemIds = [], changes = [], presetChanges = []} = options
 
   const uniqueItemIds = [...new Set(itemIds.filter(Boolean).map((id) => Number(id)))]
@@ -146,7 +147,7 @@ async function applyBulkMetaEdit(db: ApiDb, options: BulkMetaEditOptions): Promi
     appliedChanges += 1
   }
 
-  const presetApplied = await applyPresetBulkEdit(
+  const presetApplied = applyPresetBulkEdit(
     db,
     itemType,
     uniqueItemIds,
@@ -157,6 +158,10 @@ async function applyBulkMetaEdit(db: ApiDb, options: BulkMetaEditOptions): Promi
     updated: uniqueItemIds.length,
     changes: appliedChanges + presetApplied,
   }
+}
+
+async function applyBulkMetaEdit(db: ApiDb, options: BulkMetaEditOptions): Promise<BulkMetaEditResult> {
+  return withChangeOperation('bulk-edit', () => db.sqlite.transaction(() => applyBulkMetaEditSync(db, options))())
 }
 
 export {

@@ -12,7 +12,7 @@
     :placeholder="fieldPlaceholder"
     :persistent-placeholder="Boolean(fieldPlaceholder)"
     :hide-details="fieldHideDetails"
-    :rounded="view.rounded"
+    :rounded="view.rounded || undefined"
     :variant="fieldVariant"
     :density="fieldDensity"
     :append-icon="undefined"
@@ -36,7 +36,10 @@
         closable
         close-icon="mdi-close"
       >
-        <country-flag :country="item.raw.code" size="normal" class="lang-flag"/>
+        <country-flag v-if="purpose === 'filter'" :country="item.raw.code" size="normal" class="lang-flag"/>
+        <span v-else class="country-chip__flag" aria-hidden="true">
+          <country-flag :country="item.raw.code" size="normal" class="lang-flag"/>
+        </span>
         <span>{{ item.value }}</span>
       </v-chip>
     </template>
@@ -240,6 +243,33 @@ defineExpose({
 .lang-flag {
   display: block;
   line-height: 0;
+}
+
+/* Chip flag: the sprite element is much larger than the visible flag and
+   transform: scale() doesn't shrink its layout box, so clip it into a fixed
+   frame (like the dropdown rows) and centre it vertically in the chip. */
+.country-chip__flag {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 20px;
+  height: 14px;
+  /* chip has 6px start padding: pull the flag closer to the edge */
+  margin-inline: -2px 6px;
+  overflow: hidden;
+  border-radius: 2px;
+  align-self: center;
+}
+
+/* Centre the sprite by its own box, whatever margins the flag library adds. */
+.country-chip__flag :deep(.lang-flag) {
+  position: absolute !important;
+  top: 50%;
+  left: 50%;
+  margin: 0 !important;
+  transform: translate(-50%, -50%) scale(0.5) !important;
+  transform-origin: center center;
+  box-shadow: none;
 }
 
 .country-dropdown__row {

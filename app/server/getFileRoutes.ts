@@ -9,7 +9,10 @@ import { isAllowedOrigin } from './constants'
 import { isClientAbortError, safeJsonError } from './fileResolver'
 import { checkFilesExist } from '../../api/services/checkFilesExist'
 import { resolveVideoThumbFilePath } from '../../api/services/videoPreviewThumb'
+import { createRequestAbortSignal } from '../../api/services/requestAbortSignal'
 import { isVirtualZipPath, readZipEntryBuffer } from '../../api/services/zipGallery'
+import { parseVirtualZipPath } from '../../api/services/zipVirtualPath'
+import { evaluateFileServe } from '../../api/services/fileServePolicy'
 import { resizeImageToMaxEdge } from '../../api/services/imageMedia'
 
 const FILE_MIME_TYPES = {
@@ -25,10 +28,18 @@ const FILE_MIME_TYPES = {
   '.heic': 'image/heic',
   '.avif': 'image/avif',
   '.mp4': 'video/mp4',
+  '.m4v': 'video/mp4',
+  '.mov': 'video/quicktime',
+  '.mkv': 'video/x-matroska',
   '.webm': 'video/webm',
-  '.ogg': 'video/ogg',
+  '.ogg': 'audio/ogg',
+  '.ogv': 'video/ogg',
   '.mp3': 'audio/mpeg',
   '.wav': 'audio/wav',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
+  '.flac': 'audio/flac',
+  '.opus': 'audio/ogg',
 } as const
 
 const VIEWER_RESIZE_EXTS = new Set([
@@ -71,14 +82,25 @@ function parseMaxEdge(req: ApiRequest): number | null {
   return edge
 }
 
+function rejectBlockedFile(res: ApiResponse, filePath: string, trustedRoots: string[]): boolean {
+  const decision = evaluateFileServe(filePath, {trustedRoots})
+  if (decision.allowed) return false
+  console.warn(`[get-file] refused ${decision.reason}: ${filePath}`)
+  res.status(403).json({error: 'File type is not served', reason: decision.reason})
+  return true
+}
+
 export function registerGetFileRoutes({
   app,
   db,
   resolveFilePath,
+  trustedRoots = [],
 }: {
   app: Express
   db: ApiDb
   resolveFilePath: ResolveFilePathFn
+  /** App-managed folders (thumbs, meta images) exempt from hidden/extensionless checks. */
+  trustedRoots?: string[]
 }) {
   async function handleGetFile(req: ApiRequest, res: ApiResponse, {headOnly = false} = {}) {
     applyCorsHeaders(req, res)
@@ -91,6 +113,8 @@ export function registerGetFileRoutes({
 
     try {
       if (isVirtualZipPath(originalFilePath)) {
+        const zipPath = parseVirtualZipPath(originalFilePath)?.zipPath
+        if (zipPath && rejectBlockedFile(res, zipPath, trustedRoots)) return
         const entry = await readZipEntryBuffer(originalFilePath)
         if (!entry) {
           console.error('ZIP entry not found:', originalFilePath)
@@ -143,7 +167,12 @@ export function registerGetFileRoutes({
         return res.status(200).end(payload)
       }
 
-      const resolvedPath = await resolveVideoThumbFilePath(originalFilePath, db, resolveFilePath)
+      const resolvedPath = await resolveVideoThumbFilePath(
+        originalFilePath,
+        db,
+        resolveFilePath,
+        {signal: createRequestAbortSignal(req, res)},
+      )
 
       if (!resolvedPath) {
         console.error('File not found:', originalFilePath)
@@ -152,6 +181,8 @@ export function registerGetFileRoutes({
           resolved: false,
         })
       }
+
+      if (rejectBlockedFile(res, resolvedPath, trustedRoots)) return
 
       const ext = path.extname(resolvedPath).toLowerCase()
       const contentType = FILE_MIME_TYPES[ext as keyof typeof FILE_MIME_TYPES] || 'application/octet-stream'

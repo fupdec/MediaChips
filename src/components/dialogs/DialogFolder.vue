@@ -7,6 +7,7 @@
   >
     <v-card rounded="xl">
       <DialogHeader
+        icon="folder-eye-outline"
         @close="closeDialog"
         :header="t('watcher.folder.title')"
         closable

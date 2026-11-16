@@ -6,7 +6,7 @@
         icon="database-remove-outline"
         :hint="t('settings_labels.database.library_reset_hint')"
         status="error"
-        :status-label="t('settings_labels.database.library_reset_not_trash')"
+        :show-status="false"
         compact
       />
 
@@ -104,6 +104,16 @@
                 <div class="library-reset__count text-caption text-medium-emphasis">
                   {{ formatCount(tagCount(category.id)) }}
                 </div>
+              </div>
+              <div
+                v-if="tagShare(category.id) != null"
+                class="library-reset__bar"
+                aria-hidden="true"
+              >
+                <div
+                  class="library-reset__bar-fill"
+                  :style="{width: `${tagShare(category.id)}%`}"
+                />
               </div>
             </div>
             <v-btn
@@ -258,6 +268,12 @@ function mediaShare(id: number | string | undefined): number | null {
   const size = mediaCount(id)
   if (countsLoading.value || total <= 0) return null
   return Math.max(0, Math.min(100, (size / total) * 100))
+}
+
+function tagShare(id: number | string | undefined): number | null {
+  const total = counts.value.tagsTotal
+  if (countsLoading.value || total <= 0) return null
+  return Math.max(0, Math.min(100, (tagCount(id) / total) * 100))
 }
 
 function formatCount(value: number) {
@@ -574,7 +590,7 @@ onMounted(loadCounts)
 
 .library-reset__title {
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.3;
 }
 

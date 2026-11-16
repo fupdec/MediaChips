@@ -51,12 +51,12 @@
           {{ t('player.trim.cancel') }}
         </v-btn>
         <v-btn
+          v-if="canTrim && !player.trimBusy"
           class="player-trim-studio__apply"
           size="small"
           color="primary"
           variant="flat"
           rounded="xl"
-          :disabled="!canTrim || player.trimBusy"
           @click="applyTrim"
         >
           <v-icon start size="16">mdi-content-cut</v-icon>

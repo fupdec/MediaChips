@@ -65,7 +65,7 @@
             v-if="filter.active"
             @update:model-value="setCondition"
             :model-value="condition"
-            :items="getListCond(filter.type)"
+            :items="conditionOptions"
             :rules="[(v) => !!v || t('validation.condition_required')]"
             item-value="cond"
             class="filter__cond mt-0 pt-0"
@@ -109,6 +109,23 @@
       </div>
 
       <div v-if="showsFilterValue" class="filter__body">
+        <v-autocomplete
+          v-if="isCatalogFilter"
+          :model-value="filterValArray"
+          :items="catalogOptions"
+          :label="title"
+          :disabled="is_locked"
+          :hint="parameter === 'availability' ? t('sources.catalog.observation_hint') : undefined"
+          :persistent-hint="parameter === 'availability'"
+          class="ma-1 pt-0"
+          density="compact"
+          variant="outlined"
+          rounded
+          multiple
+          chips
+          closable-chips
+          @update:model-value="setValue"
+        />
         <v-text-field
           v-if="is_value_required && isPathFilter && !isRegexFilter"
           v-model="filterValue"
@@ -325,6 +342,7 @@ import MetaInputRating from '@/components/meta/input/MetaInputRating.vue'
 import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import DialogRegexBuilder from '@/components/dialogs/DialogRegexBuilder.vue'
 import {validateRegexPattern} from '@shared/pathParser/regexMeta'
+import {useCatalogSources} from '@/composable/useCatalogSources'
 // Props
 const props = defineProps({
   filter: {
@@ -371,6 +389,12 @@ const {t, locale} = useI18n()
 const modelFilter = computed(() => props.filter)
 const removed = computed(() => modelFilter.value.removed)
 const parameter = computed(() => modelFilter.value.param)
+const isCatalogFilter = computed(() => parameter.value === 'source' || parameter.value === 'availability')
+const {sourceOptions, availabilityOptions} = useCatalogSources(computed(() => parameter.value === 'source'))
+const catalogOptions = computed(() => parameter.value === 'source' ? sourceOptions.value : availabilityOptions.value)
+const conditionOptions = computed(() => isCatalogFilter.value
+  ? getListCond('array').filter(option => ['in', 'not in'].includes(option.cond))
+  : getListCond(modelFilter.value.type))
 const condition = computed(() => modelFilter.value.cond)
 const is_locked = computed(() => modelFilter.value.lock)
 const isDisabled = computed(() => !!is_locked.value)
@@ -434,6 +458,7 @@ const showsFilterValue = computed(() => {
   const param = parameter.value
 
   if (type === 'boolean') return false
+  if (isCatalogFilter.value) return true
 
   if (type === 'string' || type === null) return true
   if (type === 'number' || type === 'date' || type === 'rating') return true

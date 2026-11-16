@@ -22,17 +22,14 @@
         {{ t('settings_labels.database.add_new_database') }}
       </v-btn>
 
-      <div
+      <StorageSummary
         v-if="databases.length"
-        class="databases__summary text-caption text-medium-emphasis"
-      >
-        <span class="databases__summary-count">{{ databases.length }}</span>
-        <span>{{ formatTotalSize }}</span>
-      </div>
+        :count="databases.length"
+        :size="formatTotalSize"
+        :label="t('settings.groups.storage')"
+        icon="mdi-database-outline"
+      />
 
-      <div class="databases__toolbar-actions">
-        <SettingsBackups/>
-      </div>
     </div>
 
     <div class="databases__list">
@@ -81,21 +78,6 @@
               <v-icon icon="mdi-harddisk" size="14" class="mr-1"/>
               {{ formatDbSize(item.id) }}
             </span>
-            <span
-              class="databases-card__stat"
-              :class="{
-                'databases-card__stat--warn': backupCountOf(item.id) === 0,
-                'databases-card__stat--ok': (backupCountOf(item.id) ?? 0) > 0,
-              }"
-            >
-              <v-icon icon="mdi-backup-restore" size="14" class="mr-1"/>
-              <template v-if="backupCountOf(item.id) == null">…</template>
-              <template v-else>
-                {{ t('settings_labels.database.database_backups_count', {
-                  count: backupCountOf(item.id),
-                }) }}
-              </template>
-            </span>
           </div>
 
           <div
@@ -110,62 +92,79 @@
           </div>
         </div>
 
-        <div class="databases-card__actions" @click.stop>
+        <div class="databases-card__actions" @click.stop @keydown.stop>
           <v-btn
-            v-if="!item.active"
-            icon
-            variant="text"
+            class="databases-card__backups"
             size="small"
             rounded="pill"
-            :aria-label="t('settings_labels.database.import_into_active')"
-            v-tooltip:top="t('settings_labels.database.import_into_active')"
-            @click="confirmImportIntoActive(item)"
-          >
-            <v-icon icon="mdi-database-import-outline" size="18"/>
-          </v-btn>
-          <v-btn
-            icon
             variant="text"
-            size="small"
-            rounded="pill"
-            :aria-label="t('settings_labels.database.duplicate_database')"
-            v-tooltip:top="t('settings_labels.database.duplicate_database')"
-            @click="openDuplicate(item)"
+            color="primary"
+            prepend-icon="mdi-backup-restore"
+            @click="backupsDialog?.open(item.id)"
           >
-            <v-icon icon="mdi-content-copy" size="18"/>
+            {{ t('settings_labels.database.backups_button') }}
+            <span class="databases-card__backup-count">{{ backupCountOf(item.id) ?? '…' }}</span>
           </v-btn>
-          <v-btn
-            icon
-            variant="text"
-            size="small"
-            rounded="pill"
-            :aria-label="t('common.edit')"
-            v-tooltip:top="t('common.edit')"
-            @click="openEdit(item)"
-          >
-            <v-icon icon="mdi-pencil" size="18"/>
-          </v-btn>
-          <v-btn
-            v-if="!item.active"
-            icon
-            variant="text"
-            size="small"
-            rounded="pill"
-            color="error"
-            :aria-label="t('common.remove')"
-            v-tooltip:top="t('common.remove')"
-            @click="confirmRemoving(item)"
-          >
-            <v-icon icon="mdi-delete-outline" size="18"/>
-          </v-btn>
+          <div class="databases-card__action-group">
+            <v-btn
+              v-if="!item.active"
+              icon
+              variant="text"
+              size="small"
+              rounded="pill"
+              :aria-label="t('settings_labels.database.import_into_active')"
+              v-tooltip:top="t('settings_labels.database.import_into_active')"
+              @click="confirmImportIntoActive(item)"
+            >
+              <v-icon icon="mdi-database-import-outline" size="18"/>
+            </v-btn>
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              rounded="pill"
+              :aria-label="t('settings_labels.database.duplicate_database')"
+              v-tooltip:top="t('settings_labels.database.duplicate_database')"
+              @click="openDuplicate(item)"
+            >
+              <v-icon icon="mdi-content-copy" size="18"/>
+            </v-btn>
+            <v-btn
+              icon
+              variant="text"
+              size="small"
+              rounded="pill"
+              :aria-label="t('common.edit')"
+              v-tooltip:top="t('common.edit')"
+              @click="openEdit(item)"
+            >
+              <v-icon icon="mdi-pencil" size="18"/>
+            </v-btn>
+            <v-btn
+              v-if="!item.active"
+              icon
+              variant="text"
+              size="small"
+              rounded="pill"
+              color="error"
+              :aria-label="t('common.remove')"
+              v-tooltip:top="t('common.remove')"
+              @click="confirmRemoving(item)"
+            >
+              <v-icon icon="mdi-delete-outline" size="18"/>
+            </v-btn>
+          </div>
         </div>
       </div>
     </div>
+
+    <SettingsBackups ref="backupsDialog" hide-activator @changed="loadDatabaseSizes"/>
 
     <!-- Add / Edit dialog -->
     <v-dialog v-model="dialogDb" max-width="600">
       <v-card rounded="xl">
         <DialogHeader
+          icon="database-edit-outline"
           :header="headerText"
           :buttons="buttons"
           closable
@@ -240,7 +239,10 @@ import {useDialogsStore} from '@/stores/dialogs'
 import type { DatabaseEntry } from '@/types/settings'
 import type {VFormInstance} from '@/types/vue'
 
-import SettingsBackups from '@/components/settings/database/SettingsBackups.vue'
+import StorageSummary from './StorageSummary.vue'
+import SettingsBackups from './SettingsBackups.vue'
+const backupsDialog = ref<InstanceType<typeof SettingsBackups> | null>(null)
+
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
@@ -735,28 +737,6 @@ watch(databases, loadDatabaseSizes)
   gap: 10px 12px;
 }
 
-.databases__summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-right: auto;
-  font-variant-numeric: tabular-nums;
-}
-
-.databases__summary-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 999px;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: rgb(var(--v-theme-primary));
-  background: rgba(var(--v-theme-primary), 0.12);
-}
-
 .databases__toolbar-actions {
   margin-left: auto;
 }
@@ -912,11 +892,51 @@ watch(databases, loadDatabaseSizes)
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 2px;
+  gap: 10px;
+}
+
+.databases-card__action-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 4px;
   border-radius: 999px;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
-  background: rgba(var(--v-theme-surface), 0.85);
+  border: 1px solid rgba(var(--v-theme-on-surface), .08);
+  background: rgba(var(--v-theme-surface), .85);
+}
+
+.databases-card__backups {
+  height: 34px;
+  padding-inline: 12px 6px;
+  border: 1px solid rgba(var(--v-theme-primary), .14);
+  background: rgba(var(--v-theme-primary), .06);
+  font-size: .8125rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.databases-card__backups :deep(.v-btn__prepend) {
+  margin-inline-end: 6px;
+}
+
+.databases-card__backups :deep(.v-icon) {
+  font-size: 18px;
+}
+
+.databases-card__backup-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  margin-inline-start: 10px;
+  padding-inline: 6px;
+  border-radius: 999px;
+  background: rgba(var(--v-theme-primary), .1);
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 @media (max-width: 700px) {

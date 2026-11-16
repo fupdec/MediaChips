@@ -3,7 +3,7 @@ import type { createVuetify } from 'vuetify'
 import { en } from 'vuetify/locale'
 import en_custom from '@/i18n/en'
 
-type AppLocale = 'en' | 'cn' | 'de' | 'es' | 'fr' | 'ja' | 'pt' | 'ru'
+type AppLocale = 'en' | 'cn' | 'de' | 'es' | 'fr' | 'it' | 'ja' | 'ko' | 'pl' | 'pt' | 'ru' | 'tr' | 'tw'
 type NonEnglishLocale = Exclude<AppLocale, 'en'>
 type VuetifyInstance = ReturnType<typeof createVuetify>
 type LocaleMessages = Record<string, unknown>
@@ -17,9 +17,14 @@ const customLocaleLoaders: Record<NonEnglishLocale, () => Promise<{ default: Rec
   de: () => import('@/i18n/de'),
   es: () => import('@/i18n/es'),
   fr: () => import('@/i18n/fr'),
+  it: () => import('@/i18n/it'),
   ja: () => import('@/i18n/ja'),
+  ko: () => import('@/i18n/ko'),
+  pl: () => import('@/i18n/pl'),
   pt: () => import('@/i18n/pt'),
   ru: () => import('@/i18n/ru'),
+  tr: () => import('@/i18n/tr'),
+  tw: () => import('@/i18n/tw'),
 }
 
 const vuetifyLocaleLoaders: Record<NonEnglishLocale, () => Promise<LocaleMessages>> = {
@@ -27,13 +32,22 @@ const vuetifyLocaleLoaders: Record<NonEnglishLocale, () => Promise<LocaleMessage
   de: () => import('vuetify/locale').then((m) => m.de),
   es: () => import('vuetify/locale').then((m) => m.es),
   fr: () => import('vuetify/locale').then((m) => m.fr),
+  it: () => import('vuetify/locale').then((m) => m.it),
   ja: () => import('vuetify/locale').then((m) => m.ja),
+  ko: () => import('vuetify/locale').then((m) => m.ko),
+  pl: () => import('vuetify/locale').then((m) => m.pl),
   pt: () => import('vuetify/locale').then((m) => m.pt),
   ru: () => import('vuetify/locale').then((m) => m.ru),
+  tr: () => import('vuetify/locale').then((m) => m.tr),
+  tw: () => import('vuetify/locale').then((m) => m.zhHant),
 }
 
 function normalizeLocale(locale: string): AppLocale {
-  if (locale === 'cn' || locale === 'de' || locale === 'es' || locale === 'fr' || locale === 'ja' || locale === 'pt' || locale === 'ru') return locale
+  if (
+    locale === 'cn' || locale === 'de' || locale === 'es' || locale === 'fr' || locale === 'it' ||
+    locale === 'ja' || locale === 'ko' || locale === 'pl' || locale === 'pt' || locale === 'ru' ||
+    locale === 'tr' || locale === 'tw'
+  ) return locale
   return 'en'
 }
 
@@ -161,6 +175,11 @@ if (import.meta.hot) {
     '@/i18n/fr',
     '@/i18n/ja',
     '@/i18n/pt',
+    '@/i18n/ko',
+    '@/i18n/pl',
+    '@/i18n/tr',
+    '@/i18n/it',
+    '@/i18n/tw',
   ], () => {
     void reloadActiveLocaleMessages()
   })

@@ -1,8 +1,10 @@
+import {isRemoteMediaPath} from '../../shared/remoteMedia'
 import fs from 'fs'
 import { access } from 'fs/promises'
 import { pathVariants } from '../utils/pathVariants'
 
 const resolveExistingPath = async (pathToFile: string): Promise<string | null> => {
+  if (isRemoteMediaPath(pathToFile)) return null
   // Virtual ZIP paths are not real filesystem paths.
   // Only consult zip helpers when `!/` is present — and require `.zip!/` (not `Folder!/file`).
   if (typeof pathToFile === 'string' && pathToFile.includes('!/')) {

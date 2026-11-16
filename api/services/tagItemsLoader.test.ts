@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import {INFINITE_SCROLL_FLAG_LIMIT, INFINITE_SCROLL_PAGE_SIZE} from '../../shared/listPagination'
 
 const getItemsForMeta = vi.fn()
 const queryAllAsync = vi.fn()
@@ -66,19 +67,19 @@ describe('loadTagItems', () => {
     expect(result.pages).toBe(3)
   })
 
-  it('maps infinite-scroll limit to page size 25', async () => {
+  it('maps the infinite-scroll sentinel to the shared page size', async () => {
     getItemsForMeta.mockReturnValue(
-      Array.from({length: 60}, (_, index) => ({id: index + 1, metaId: 17})),
+      Array.from({length: INFINITE_SCROLL_PAGE_SIZE * 2 + 5}, (_, index) => ({id: index + 1, metaId: 17})),
     )
 
     const result = await loadTagItems({} as never, {
       metaId: 17,
       page: 1,
-      limit: 101,
+      limit: INFINITE_SCROLL_FLAG_LIMIT,
     })
 
-    expect(result.items).toHaveLength(25)
-    expect(result.limit).toBe(25)
+    expect(result.items).toHaveLength(INFINITE_SCROLL_PAGE_SIZE)
+    expect(result.limit).toBe(INFINITE_SCROLL_PAGE_SIZE)
     expect(result.pages).toBe(3)
   })
 

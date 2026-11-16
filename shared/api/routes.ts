@@ -48,6 +48,7 @@ export const API_ROUTES = {
   mediaIds: '/api/Media/ids',
   mediaSimilarByVisual: '/api/Media/similarByVisual',
   mediaSuggestTagsFromSimilar: '/api/Media/suggestTagsFromSimilar',
+  mediaSimilarMarkerMoments: '/api/Media/similarMarkerMoments',
   mediaSemanticSearch: '/api/Media/semanticSearch',
   mediaSimilarByClip: '/api/Media/similarByClip',
   mediaSimilarHybrid: '/api/Media/similarHybrid',
@@ -120,9 +121,11 @@ export const API_ROUTES = {
   tasksBackupsImportBackup: '/api/TasksBackups/importBackup',
   tasksBackupsExportBackup: '/api/TasksBackups/exportBackup',
   homeExtendedStats: '/api/home/extended-stats',
+  homeNavCounts: '/api/home/nav-counts',
   homeChartStats: '/api/home/chart-stats',
   mediaGetStats: '/api/Media/get-stats',
   tagCount: '/api/Tag/count',
+  tagSortedIds: '/api/Tag/sortedIds',
   homeMarkers: '/api/home/markers',
   homeHealth: '/api/home/health',
   homeHealthLite: '/api/home/health-lite',
@@ -414,6 +417,23 @@ export function apiVideoStream(id: number | string) {
 
 export function apiVideoTranscodeStream(id: number | string) {
   return `/api/video/${id}/transcode/stream`
+}
+
+/** Phase 1 Google Drive spike helpers */
+export function apiDriveStatus() {
+  return '/api/drive/status'
+}
+
+export function apiDriveOAuthStart() {
+  return '/api/drive/oauth/start'
+}
+
+export function apiDriveFolder(folderId: string = 'root') {
+  return `/api/drive/folders/${encodeURIComponent(folderId)}`
+}
+
+export function apiDriveFileStream(fileId: string) {
+  return `/api/drive/files/${encodeURIComponent(fileId)}/stream`
 }
 
 export function apiTmdbMovie(id: number | string) {

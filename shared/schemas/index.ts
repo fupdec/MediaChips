@@ -14,6 +14,7 @@ import {
 import {
   ChartStatsSchema,
   ExtendedStatsSchema,
+  HomeNavCountsSchema,
   CreatedCalendarMonthSchema,
   GlobalSearchMediaResponseSchema,
   GlobalSearchTagsResponseSchema,
@@ -189,6 +190,10 @@ export function parseHomeTagCount(data: unknown) {
 
 export function parseExtendedStats(data: unknown) {
   return ExtendedStatsSchema.parse(data)
+}
+
+export function parseHomeNavCounts(data: unknown) {
+  return HomeNavCountsSchema.parse(data)
 }
 
 export function parseChartStats(data: unknown) {
@@ -505,6 +510,7 @@ export {
 export {
   ChartStatsSchema,
   ExtendedStatsSchema,
+  HomeNavCountsSchema,
   CreatedCalendarMonthSchema,
   HomeHealthSchema,
   HomeHealthLiteSchema,

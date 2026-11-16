@@ -1,0 +1,42 @@
+@mixin surface {
+  padding: 12px;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.10);
+  border-radius: 12px !important;
+}
+
+@mixin icon {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+@mixin title {
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+@mixin text {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0.7;
+}
+
+@mixin actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+
+  :deep(.v-btn) {
+    border-radius: 8px;
+    letter-spacing: normal;
+  }
+
+  :deep(.v-btn--variant-text) {
+    background: color-mix(in srgb, currentColor 8%, transparent);
+  }
+}

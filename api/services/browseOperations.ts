@@ -53,7 +53,7 @@ async function physicalPath(resolved: string): Promise<string> {
   }
 }
 
-async function checkAccess(entryPath: string, envValue?: string, allowMissing = false) {
+export async function checkAccess(entryPath: string, envValue?: string, allowMissing = false) {
   const resolved = path.resolve(normalizeMediaPath(entryPath))
   if (!isPathInsideMediaRoots(resolved, envValue)) throw accessError(resolved)
 

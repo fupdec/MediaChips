@@ -161,7 +161,7 @@ function createLiveStreamRegistry() {
       outputSeekTime,
     })
 
-    const proc = spawn(getFfmpegPath(), args, {stdio: ['ignore', 'pipe', 'pipe']})
+    const proc = spawn(getFfmpegPath(), args, {stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true})
     let stderr = ''
 
     const active: ActiveStream = {

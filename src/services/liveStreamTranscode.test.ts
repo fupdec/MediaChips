@@ -3,7 +3,7 @@ import {
   buildFfmpegLiveArgs,
   buildSessionKey,
   shouldRejectDuplicateStream,
-} from '../../api/services/transcode/liveStreamFfmpegArgs.js'
+} from '../../api/services/transcode/liveStreamFfmpegArgs'
 
 describe('liveStreamTranscode session keys', () => {
   it('includes start time and max height in the session key', () => {
@@ -44,7 +44,7 @@ describe('buildFfmpegLiveArgs', () => {
     expect(args).not.toContain('-vf')
   })
 
-  it('uses absolute timeline seek when accurateSeek is set without keyframe', () => {
+  it('uses accurate input seeking without an extra decode window', () => {
     const args = buildFfmpegLiveArgs({
       inputPath: '/videos/sample.mp4',
       startTime: 641,
@@ -57,11 +57,9 @@ describe('buildFfmpegLiveArgs', () => {
     const preInputSs = args.slice(0, inputIndex).lastIndexOf('-ss')
     const postInputSs = args.indexOf('-ss', inputIndex)
 
-    expect(args[preInputSs + 1]).toBe('621')
-    expect(args).toContain('-copyts')
-    expect(postInputSs).toBeGreaterThan(inputIndex)
-    expect(args[postInputSs + 1]).toBe('641')
-    expect(args).toContain('setpts=PTS-STARTPTS')
+    expect(args[preInputSs + 1]).toBe('641')
+    expect(args).not.toContain('-copyts')
+    expect(postInputSs).toBe(-1)
   })
 
   it('caps huge keyframe output skips so startup stays fast', () => {
@@ -86,7 +84,7 @@ describe('buildFfmpegLiveArgs', () => {
     expect(args[postInputSs + 1]).toBe('641')
   })
 
-  it('uses absolute timeline seek when re-encoding from a mid-file mark', () => {
+  it('seeks to a mid-file mark before opening the input', () => {
     const args = buildFfmpegLiveArgs({
       inputPath: '/videos/sample.mp4',
       startTime: 368,
@@ -98,16 +96,15 @@ describe('buildFfmpegLiveArgs', () => {
     const preInputSs = args.slice(0, inputIndex).lastIndexOf('-ss')
     const postInputSs = args.indexOf('-ss', inputIndex)
 
-    expect(args[preInputSs + 1]).toBe('348')
-    expect(args).toContain('-copyts')
-    expect(postInputSs).toBeGreaterThan(inputIndex)
-    expect(args[postInputSs + 1]).toBe('368')
+    expect(args[preInputSs + 1]).toBe('368')
+    expect(args).not.toContain('-copyts')
+    expect(postInputSs).toBe(-1)
     expect(args[args.indexOf('-t') + 1]).toBe('30')
-    expect(args).toContain('setpts=PTS-STARTPTS')
-    expect(args).toContain('asetpts=PTS-STARTPTS')
+    expect(args).not.toContain('setpts=PTS-STARTPTS')
+    expect(args).not.toContain('asetpts=PTS-STARTPTS')
   })
 
-  it('uses absolute output seek for early marks while re-encoding', () => {
+  it('also uses fast input seeks for early marks', () => {
     const args = buildFfmpegLiveArgs({
       inputPath: '/videos/sample.mp4',
       startTime: 8,
@@ -115,8 +112,8 @@ describe('buildFfmpegLiveArgs', () => {
       copyCodecs: false,
     })
 
-    expect(args.indexOf('-ss')).toBeGreaterThan(args.indexOf('-i'))
-    expect(args).toContain('-copyts')
+    expect(args.indexOf('-ss')).toBeLessThan(args.indexOf('-i'))
+    expect(args).not.toContain('-copyts')
     expect(args[args.indexOf('-ss') + 1]).toBe('8')
   })
 

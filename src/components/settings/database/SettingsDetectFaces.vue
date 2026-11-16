@@ -7,12 +7,8 @@
       :hint="t('settings_labels.database.face_workflow_intro')"
       :status="taskStatus"
       :status-label="statusChipLabel"
-    >
-      <template #actions>
-        <v-spacer/>
-        <ButtonDocumentation id="media.face_recognition"/>
-      </template>
-    </SettingsHealthSectionHeader>
+      documentation-id="media.face_recognition"
+    />
 
     <v-alert
       v-if="statusError"
@@ -38,20 +34,22 @@
       <div class="text-caption mb-3">
         {{ nextStep.text }}
       </div>
-      <v-btn
-        v-if="nextStep.action"
-        :color="nextStep.alertType === 'success' ? 'secondary' : 'primary'"
-        rounded
-        variant="flat"
-        size="small"
-        class="pr-3"
-        :loading="nextStep.loading"
-        :disabled="busy && !nextStep.allowWhileBusy"
-        @click="nextStep.action"
-      >
-        <v-icon :icon="nextStep.icon" start/>
-        {{ nextStep.actionLabel }}
-      </v-btn>
+      <ModelDownloadMenu :kinds="['faceDetect', 'faceEmbed', 'faceAlign', 'faceGender']" :disabled="busy" @installed="refreshStatus" v-slot="{importing}">
+        <v-btn
+          v-if="nextStep.action"
+          :color="nextStep.alertType === 'success' ? 'secondary' : 'primary'"
+          rounded
+          variant="flat"
+          size="small"
+          class="pr-3"
+          :loading="nextStep.loading"
+          :disabled="importing || (busy && !nextStep.allowWhileBusy)"
+          @click="nextStep.action"
+        >
+          <v-icon :icon="nextStep.icon" start/>
+          {{ nextStep.actionLabel }}
+        </v-btn>
+      </ModelDownloadMenu>
     </v-alert>
 
     <div class="face-steps mb-6">
@@ -488,6 +486,7 @@
 </template>
 
 <script setup lang="ts">
+import ModelDownloadMenu from '@/components/ui/ModelDownloadMenu.vue'
 import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
@@ -501,7 +500,6 @@ import {applyFaceDetectStatusEvent} from '@/utils/faceDetectStreamUi'
 import SettingsHealthSectionHeader from '@/components/settings/database/SettingsHealthSectionHeader.vue'
 import SettingsHealthTask from '@/components/settings/database/SettingsHealthTask.vue'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
-import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import {setNotification} from '@/services/notificationService'
 import {
   ensureModelsDownloaded,

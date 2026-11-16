@@ -6,9 +6,9 @@ const LEGACY_IMAGE_EXTENSIONS = 'jpg,jpeg,bmp,png'
 
 function backfillMediaNames(sqlite: Database.Database) {
   const rows = sqlite.prepare(`
-    SELECT id, path FROM media
-    WHERE path IS NOT NULL AND (name IS NULL OR name = '' OR ext IS NULL OR ext = '' OR basename IS NULL OR basename = '')
-  `).all() as Array<{id: number; path: string}>
+    SELECT id, path, basename, name, ext FROM media
+    WHERE path IS NOT NULL AND path NOT LIKE '%://%' AND (name IS NULL OR name = '' OR ext IS NULL OR ext = '' OR basename IS NULL OR basename = '')
+  `).all() as Array<{id: number; path: string; basename: string | null; name: string | null; ext: string | null}>
 
   if (!rows.length) {
     return
@@ -16,7 +16,8 @@ function backfillMediaNames(sqlite: Database.Database) {
 
   const update = sqlite.prepare(`
     UPDATE media
-    SET basename = ?, name = ?, ext = ?, updatedAt = CURRENT_TIMESTAMP
+    SET basename = COALESCE(NULLIF(basename, ''), ?),
+      name = COALESCE(NULLIF(name, ''), ?), ext = COALESCE(NULLIF(ext, ''), ?), updatedAt = CURRENT_TIMESTAMP
     WHERE id = ?
   `)
 
@@ -26,6 +27,8 @@ function backfillMediaNames(sqlite: Database.Database) {
     const dotIndex = basename.lastIndexOf('.')
     const name = dotIndex > 0 ? basename.slice(0, dotIndex) : basename
     const ext = dotIndex > 0 ? basename.slice(dotIndex + 1).toLowerCase() : ''
+    if (row.basename === (row.basename || basename) && row.name === (row.name || name)
+      && row.ext === (row.ext || ext)) continue
     update.run(basename, name, ext, row.id)
   }
 }

@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: release requires reusable CI and all platform builds, with scoped downloads and serialization
+ok 1 - release requires reusable CI and all platform builds, with scoped downloads and serialization
+  ---
+  duration_ms: 7.730125
+  type: 'test'
+  ...
+# Subtest: validates versions, hashes, missing files and colliding platform assets before publication
+ok 2 - validates versions, hashes, missing files and colliding platform assets before publication
+  ---
+  duration_ms: 18.519125
+  type: 'test'
+  ...
+# Subtest: draft created first; installers uploaded and verified before metadata; publish last
+ok 3 - draft created first; installers uploaded and verified before metadata; publish last
+  ---
+  duration_ms: 6.611584
+  type: 'test'
+  ...
+# Subtest: public or foreign draft rejected without mutations; failed upload stays draft; retry cleans metadata first
+ok 4 - public or foreign draft rejected without mutations; failed upload stays draft; retry cleans metadata first
+  ---
+  duration_ms: 6.490333
+  type: 'test'
+  ...
+# Subtest: metadata upload failure and mismatched remote bytes never publish
+ok 5 - metadata upload failure and mismatched remote bytes never publish
+  ---
+  duration_ms: 14.738583
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 146.903709

@@ -1,4 +1,6 @@
+import {notifyMediaAdded} from './mediaAddedSync'
 import {computed, nextTick} from 'vue'
+import {resetMediaAddingRun, mediaAddingOutcome} from '@/services/mediaAddingRun'
 import {i18n} from '@/i18n/loadLocale'
 import {typedApi} from '@/services/typedApi'
 import {setNotification} from '@/services/notificationService'
@@ -29,7 +31,6 @@ import {
 import {ensureStarterMeta} from '@/services/ensureStarterMeta'
 import {getApiErrorMessage} from '@/types/vue'
 import {
-  FAST_IMPORT_AUTO_THRESHOLD,
   MEDIA_BULK_LITE_ADDED_CAP,
   MEDIA_BULK_LITE_HTTP_CHUNK,
 } from '@shared/mediaBulkImport'
@@ -214,7 +215,7 @@ export const useMediaAdding = () => {
   })
 
   const addMedia = async () => {
-    if (addMediaInProgress) return
+    if (addMediaInProgress || (task.value.remoteImport && task.value.active && !task.value.finished)) return
 
     const {useFreeLibraryGate} = await import('@/composable/useFreeLibraryGate')
     const gate = useFreeLibraryGate()
@@ -232,30 +233,8 @@ export const useMediaAdding = () => {
     const fromInbox = Boolean(task.value.fromInbox)
     const watchFolderAfterImport = task.value.watchFolderAfterImport
 
-    task.value.active = true
+    resetMediaAddingRun(task.value)
     task.value.status = t('media.adding.scanning_files')
-    task.value.processed = ''
-    task.value.progress = 0
-    task.value.stopped = false
-    task.value.finished = false
-    task.value.current = 0
-    task.value.total = 0
-    task.value.errors = []
-    task.value.duplicates = []
-    task.value.added = []
-    task.value.addedTotal = 0
-    task.value.addedMedia = []
-    task.value.parsingTags = false
-    task.value.suggestedTags = []
-    task.value.addedMediaTypeId = null
-    task.value.addedMediaType = null
-    task.value.detectingFaces = false
-    task.value.faceDetectionProgress = 0
-    task.value.faceDetectionProcessed = 0
-    task.value.faceDetectionTotal = 0
-    task.value.faceDetectionRemaining = 0
-    task.value.facesFound = 0
-    task.value.notificationTaskId = null
     task.value.skipFileScan = false
     task.value.directFiles = []
     task.value.fromInbox = false
@@ -264,7 +243,7 @@ export const useMediaAdding = () => {
     scheduleDesktopChromeSync()
 
     const taskData = {
-      title: 'Adding files',
+      title: t('media.adding.title'),
       icon: 'file-plus',
       click: () => {
         task.value.dialogProcess = true
@@ -291,6 +270,7 @@ export const useMediaAdding = () => {
       tasksStore.removeTask(taskId)
       task.value.notificationTaskId = null
       setNotification({
+          scope: 'media-adding',
         title: t('common.error'),
         text: t('media.adding.media_type_not_found'),
       })
@@ -345,7 +325,6 @@ export const useMediaAdding = () => {
     try {
       if (useRootsFastImport) {
         task.value.is_parsing = false
-        task.value.is_check_duplicates = false
         task.value.fast_import_locked = true
         task.value.status = t('media.adding.fast_import_roots_status', {
           count: paths.length,
@@ -385,7 +364,7 @@ export const useMediaAdding = () => {
               type: mediaType,
               roots: paths,
               files: typeFiles.length ? typeFiles : undefined,
-              excluded: task.value.is_exclude ? excluded : [],
+              excluded,
               expandZips: isImageMediaType(mediaType),
             })
             const data = response.data
@@ -439,20 +418,21 @@ export const useMediaAdding = () => {
           task.value.finished = true
           task.value.active = false
           task.value.media_type_id = null
-          task.value.status = t('media.adding.complete')
+          task.value.status = t(mediaAddingOutcome(task.value).status)
           keepTaskAfterComplete = true
 
           await tasksStore.updateTask(taskId, {
             subtitle: t('media.adding.added_count', {count: addedCount}),
             progress: 100,
-            color: 'success',
+            color: mediaAddingOutcome(task.value).color,
             done: true,
             action: undefined,
           })
 
           setNotification({
-            type: 'success',
-            title: t('media.adding.complete'),
+          scope: 'media-adding',
+            type: mediaAddingOutcome(task.value).color,
+            title: t(mediaAddingOutcome(task.value).status),
             text: t('media.adding.added_count', {count: addedCount}),
             actions: fromInbox
               ? [
@@ -485,11 +465,12 @@ export const useMediaAdding = () => {
           task.value.finished = true
           task.value.active = false
           task.value.media_type_id = null
-          task.value.status = t('media.adding.complete')
+          task.value.status = t(mediaAddingOutcome(task.value).status)
 
           setNotification({
-            type: 'info',
-            title: t('media.adding.complete'),
+          scope: 'media-adding',
+            type: task.value.stopped || task.value.errors.length ? mediaAddingOutcome(task.value).color : 'info',
+            title: t(mediaAddingOutcome(task.value).status),
             text: t('media.adding.no_new_media'),
             actions: [openProcessAction()],
           })
@@ -502,16 +483,7 @@ export const useMediaAdding = () => {
           })
         }
 
-        if (
-          !ENV.value.media_type_id
-          || targetTypes.some((item) => Number(item.id) === Number(ENV.value.media_type_id))
-        ) {
-          listSync.getItemsFromDb({
-            ids: [],
-            type: 'media',
-          })
-        }
-
+        notifyMediaAdded(task.value.addedMedia.map(entry => entry.mediaId))
         const resolvedWatcherPaths = [
           ...task.value.added,
           ...task.value.duplicates.map((entry) => entry.path),
@@ -546,7 +518,7 @@ export const useMediaAdding = () => {
           const response = await typedApi.getFileList({
             path: zipPath,
             filter: regexString,
-            excluded: task.value.is_exclude ? excluded : [],
+            excluded,
             expandZips: true,
             extensions: extensionList,
           })
@@ -568,7 +540,7 @@ export const useMediaAdding = () => {
           const response = await typedApi.getFileList({
             path: entryPath,
             filter: regexString,
-            excluded: task.value.is_exclude ? excluded : [],
+            excluded,
             expandZips,
             extensions: extensionList,
           })
@@ -585,7 +557,7 @@ export const useMediaAdding = () => {
               const response = await typedApi.getFileList({
                 path: zipPath,
                 filter: regexString,
-                excluded: task.value.is_exclude ? excluded : [],
+                excluded,
                 expandZips: true,
                 extensions: extensionList,
               })
@@ -617,13 +589,6 @@ export const useMediaAdding = () => {
         // Extensions matched scan but not bucket (shouldn't happen) — keep raw list
         // on primary type so we don't silently drop files.
         typedEntries.push({mediaType: primaryType, files})
-      }
-
-      if (allTypedFiles.length > FAST_IMPORT_AUTO_THRESHOLD) {
-        task.value.is_fast_import = true
-        task.value.fast_import_locked = true
-        task.value.is_parsing = false
-        task.value.is_check_duplicates = false
       }
 
       const useFastImport = Boolean(task.value.is_fast_import)
@@ -723,7 +688,7 @@ export const useMediaAdding = () => {
             const response = await typedApi.addMedia({
               path: filePath,
               type: mediaType,
-              is_check_duplicates: task.value.is_check_duplicates,
+              is_check_duplicates: true,
             })
 
             if (response.status === 202) {
@@ -805,22 +770,23 @@ export const useMediaAdding = () => {
         task.value.finished = true
         task.value.active = false
         task.value.media_type_id = null
-        task.value.status = t('media.adding.complete')
+        task.value.status = t(mediaAddingOutcome(task.value).status)
         keepTaskAfterComplete = true
 
         if (keepTaskAfterComplete) {
           await tasksStore.updateTask(taskId, {
             subtitle: t('media.adding.added_count', {count: addedCount}),
             progress: 100,
-            color: 'success',
+            color: mediaAddingOutcome(task.value).color,
             done: true,
             action: undefined,
           })
         }
 
         setNotification({
-          type: 'success',
-          title: t('media.adding.complete'),
+          scope: 'media-adding',
+          type: mediaAddingOutcome(task.value).color,
+          title: t(mediaAddingOutcome(task.value).status),
           text: t('media.adding.added_count', {count: addedCount}),
           actions: fromInbox
             ? [
@@ -853,11 +819,12 @@ export const useMediaAdding = () => {
         task.value.finished = true
         task.value.active = false
         task.value.media_type_id = null
-        task.value.status = t('media.adding.complete')
+        task.value.status = t(mediaAddingOutcome(task.value).status)
 
         setNotification({
-          type: 'info',
-          title: t('media.adding.complete'),
+          scope: 'media-adding',
+          type: task.value.stopped || task.value.errors.length ? mediaAddingOutcome(task.value).color : 'info',
+          title: t(mediaAddingOutcome(task.value).status),
           text: t('media.adding.no_new_media'),
           actions: [openProcessAction()],
         })
@@ -870,16 +837,7 @@ export const useMediaAdding = () => {
         })
       }
 
-      if (
-        !ENV.value.media_type_id
-        || targetTypes.some((item) => Number(item.id) === Number(ENV.value.media_type_id))
-      ) {
-        listSync.getItemsFromDb({
-          ids: [],
-          type: 'media',
-        })
-      }
-
+      notifyMediaAdded(task.value.addedMedia.map(entry => entry.mediaId))
       const resolvedWatcherPaths = [
         ...task.value.added,
         ...task.value.duplicates.map((entry) => entry.path),
@@ -897,6 +855,7 @@ export const useMediaAdding = () => {
       console.error('Error in addMedia process:', error)
       const message = getApiErrorMessage(error, t('media.adding.error_title'))
       setNotification({
+          scope: 'media-adding',
         title: t('media.adding.error_title'),
         text: message,
       })
@@ -904,6 +863,9 @@ export const useMediaAdding = () => {
       task.value.errors.push(message)
     } finally {
       addMediaInProgress = false
+      task.value.active = false
+      task.value.finished = true
+      task.value.status = t(mediaAddingOutcome(task.value).status)
       if (!keepTaskAfterComplete) {
         await tasksStore.removeTask(taskId)
         if (task.value.notificationTaskId === taskId) {
@@ -913,6 +875,9 @@ export const useMediaAdding = () => {
         await tasksStore.updateTask(taskId, {
           done: true,
           action: undefined,
+          progress: task.value.progress,
+          color: mediaAddingOutcome(task.value).color,
+          ...(task.value.stopped || task.value.errors.length ? {subtitle: task.value.status} : {}),
         })
       }
 
@@ -1059,7 +1024,7 @@ export const useMediaAdding = () => {
   }
 
   const scanFolderDuplicates = async (): Promise<void> => {
-    if (addMediaInProgress) return
+    if (addMediaInProgress || (task.value.remoteImport && task.value.active && !task.value.finished)) return
     addMediaInProgress = true
 
     const appStore = useAppStore()
@@ -1082,6 +1047,7 @@ export const useMediaAdding = () => {
       return
     }
 
+    task.value.remoteImport = null
     task.value.status = t('media.adding.scanning_files')
     task.value.progress = 0
     task.value.duplicates = []
@@ -1167,7 +1133,7 @@ export const useMediaAdding = () => {
       await typedApi.streamScanFolderDuplicates(
         {
           folders: paths,
-          excluded: task.value.is_exclude ? excluded : [],
+          excluded,
           mediaTypeId: mediaType.id,
         },
         {signal: abortController.signal},
@@ -1186,6 +1152,9 @@ export const useMediaAdding = () => {
       task.value.finished = true
     } finally {
       clearInterval(stopWatcher)
+      task.value.active = false
+      task.value.finished = true
+      if (task.value.stopped || task.value.errors.length) task.value.status = t(mediaAddingOutcome(task.value).status)
       addMediaInProgress = false
     }
   }

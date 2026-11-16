@@ -1,15 +1,19 @@
 <template>
   <v-dialog
     v-model="isDialogVisible"
+    class="align-start media-adding-overlay"
+    :style="{top: `${appLayoutRect.top}px`}"
     :fullscreen="xs"
     scrollable
+    :eager="keepSourcesMounted"
+    :persistent="sourceBusy"
     width="880"
   >
     <template v-if="!hideActivator" v-slot:activator="{ props: activatorProps }">
       <AppBarButton
         v-bind="activatorProps"
         :action="()=>isDialogVisible=true"
-        :text="t('appbar.buttons.add_files')"
+        :text="t('media.adding.add_media')"
         :color="buttonColor"
         :size="buttonSize"
         :variant="buttonVariant"
@@ -17,189 +21,91 @@
       />
     </template>
     <template #default>
-      <v-card rounded="xl">
+      <v-card rounded="xl" class="media-adding-dialog">
         <!-- Заголовок диалога с кнопками действий -->
         <DialogHeader
-          @close="isDialogVisible = false"
+          icon="plus-box-multiple-outline"
+          @close="closeDialog"
           :header="dialogHeader"
-          :buttons="dialogActionButtons"
-          closable
+          :subheader="selectionCount ? t('media.adding.browser_selected_count', {count: selectionCount}) : t('media.adding.select_source_hint')"
+          :buttons="headerButtons"
+          :closable="!sourceBusy"
         />
+
+        <div class="media-adding-dialog__navigation" :class="{'media-adding-dialog__navigation--sources': activeSource === 'sources'}">
+          <v-tabs v-model="activeSource" color="primary" grow class="media-adding-dialog__tabs" :aria-label="t('media.adding.source')">
+            <v-tab v-for="source in sources" :key="source.id" :value="source.id" :disabled="sourceBusy" :prepend-icon="source.icon">
+              {{ source.title }}
+            </v-tab>
+          </v-tabs>
+          <div v-show="activeSource === 'sources'" ref="providerTabsTarget" class="media-adding-dialog__providers" />
+        </div>
 
         <!-- Основное содержимое диалога -->
         <v-card-text
           @drop.prevent="handleFileDrop"
           @dragenter.prevent
           @dragover.prevent
-          class="pa-2 pa-sm-4"
+          class="pa-2 pa-sm-4 pt-0 pt-sm-0"
         >
-          <div class="media-adding-types mb-4">
-            <div class="text-caption text-medium-emphasis mb-2">
-              {{ t('media.adding.media_types') }}
-            </div>
-            <div class="d-flex flex-wrap ga-2">
-              <v-chip
-                v-for="item in mediaTypeSelectItems"
-                :key="item.value"
-                :prepend-icon="item.icon ? `mdi-${item.icon}` : undefined"
-                :variant="isMediaTypeChipActive(item.value) ? 'flat' : 'tonal'"
-                :color="isMediaTypeChipActive(item.value) ? 'primary' : undefined"
-                filter
-                label
-                @click="toggleMediaTypeChip(item.value)"
-              >
-                {{ item.title }}
-              </v-chip>
-            </div>
-            <div class="text-caption text-medium-emphasis mt-2">
-              {{ t('media.adding.media_types_hint') }}
-            </div>
-          </div>
-
-          <div
-            v-if="isElectron"
-            class="d-flex flex-wrap ga-2 mb-3"
-          >
-            <v-btn
-              @click="selectMultipleDirectories"
-              color="primary"
-              rounded="lg"
-              variant="flat"
+          <WebVideoImport v-model:import-options="importOptions" v-if="webVideoAvailable" v-show="activeSource === 'links'" ref="webVideoSource" @started="onRemoteImportStarted" embedded />
+          <SourcesPanel :provider-tabs-target="providerTabsTarget" v-model:import-options="importOptions" :extensions="browserExtensions" v-show="activeSource === 'sources'" ref="remoteSources" @started="onRemoteImportStarted" embedded>
+            <template #browser-footer>
+              <MediaImportTypes v-model="selectedMediaTypeIds" :disabled="sourceBusy"/>
+            </template>
+          </SourcesPanel>
+          <div v-show="activeSource === 'local'" class="media-adding-dialog__local">
+            <MediaFolderBrowser
+              :base-url="appStore.localhost || ''"
+              :path="browsePath"
+              :extensions="browserExtensions"
+              :selected-paths="selectedBrowserPaths"
+              :places="browsePlaces"
+              :active-place-id="activePlaceId"
+              :selection-hint="pathsHint"
+              :disabled="sourceBusy"
+              @update:path="browsePath = $event"
+              @update:selected-paths="onBrowserSelection"
+              @select-place="openBrowsePlace"
             >
-              <v-icon start>mdi-folder-open</v-icon>
-              {{ t('media.adding.select_folders') }}
-            </v-btn>
+              <template #footerActions>
+                <MediaImportTypes v-model="selectedMediaTypeIds" :disabled="sourceBusy"/>
+              </template>
+              <template #importSettings>
+                <MediaImportOptions v-model="importOptions" :disabled="sourceBusy"
+                                    :parse-disabled="mediaAddingState.is_fast_import"
+                                    :folder-browser="{baseUrl: appStore.localhost || '', path: browsePath, places: browsePlaces}">
+                  <template #before>
+                    <div class="import-option import-option--fast">
+                      <v-checkbox v-model="mediaAddingState.is_fast_import"
+                                  :disabled="sourceBusy || mediaAddingState.fast_import_locked"
+                                  :label="t('media.adding.fast_import')" color="primary"
+                                  hide-details class="mt-0" density="compact" @update:model-value="onFastImportToggle" />
+                      <p class="import-option__hint">{{ t('media.adding.fast_import_hint') }}</p>
+                    </div>
+                    <div v-if="isImageAdding" class="import-option__note">
+                      <v-icon icon="mdi-check-circle-outline" size="16" />
+                      <span>{{ t('media.adding.images_skip_by_path_hint') }}</span>
+                    </div>
+                  </template>
+                </MediaImportOptions>
+              </template>
+              <template #entryActions="{entry, loading}">
+                <FilePreviewButton :file="entry" :disabled="sourceBusy || loading" />
+              </template>
+            </MediaFolderBrowser>
+
+            <v-alert
+              v-if="browsePlacesLoaded && !browsePlaces.length && !browsePath"
+              type="info"
+              variant="tonal"
+              density="compact"
+              rounded="xl"
+              class="mt-4 text-caption"
+            >
+              {{ t('media.adding.mounted_roots_empty') }}
+            </v-alert>
           </div>
-
-          <MediaFolderBrowser
-            v-if="browsePath || browsePlaces.length"
-            class="mb-4"
-            :base-url="appStore.localhost || ''"
-            :path="browsePath"
-            :extensions="browserExtensions"
-            :selected-paths="selectedBrowserPaths"
-            :places="browsePlaces"
-            :active-place-id="activePlaceId"
-            @update:path="browsePath = $event"
-            @update:selected-paths="onBrowserSelection"
-            @select-place="openBrowsePlace"
-          />
-
-          <v-alert
-            v-if="browsePlacesLoaded && !browsePlaces.length && !browsePath"
-            type="info"
-            variant="tonal"
-            density="compact"
-            rounded="xl"
-            class="mb-4 text-caption"
-          >
-            {{ t('media.adding.mounted_roots_empty') }}
-          </v-alert>
-
-          <div class="media-adding-options mb-1">
-            <div class="text-caption text-medium-emphasis mb-2">
-              {{ t('media.adding.paths_section') }}
-            </div>
-
-            <v-form ref="mediaForm" v-model="isFormValid">
-              <v-textarea
-                :model-value="mediaAddingState.paths"
-                @update:model-value="onPathsInput"
-                :rules="[requiredPathRule]"
-                :label="t('media.adding.paths_label')"
-                :hint="pathsHint"
-                persistent-hint
-                variant="outlined"
-                no-resize
-                rounded="lg"
-                rows="2"
-                density="comfortable"
-              />
-            </v-form>
-
-            <div class="media-adding-options__checks mt-3">
-              <v-checkbox
-                v-model="mediaAddingState.is_fast_import"
-                :disabled="mediaAddingState.fast_import_locked"
-                :label="t('media.adding.fast_import')"
-                :hint="t('media.adding.fast_import_hint')"
-                persistent-hint
-                class="mt-0"
-                density="compact"
-                @update:model-value="onFastImportToggle"
-              />
-
-              <!-- Проверка дубликатов по содержимому файла -->
-              <v-checkbox
-                v-model="mediaAddingState.is_check_duplicates"
-                :disabled="mediaAddingState.is_fast_import"
-                :label="t('media.adding.check_duplicates')"
-                class="mt-0"
-                hide-details
-                density="compact"
-              />
-
-              <v-alert
-                v-if="isImageAdding"
-                type="info"
-                variant="tonal"
-                density="compact"
-                rounded="xl"
-                class="text-caption"
-              >
-                {{ t('media.adding.images_skip_by_path_hint') }}
-              </v-alert>
-
-              <!-- Опция парсинга тегов с кнопкой помощи -->
-              <div class="d-flex align-center">
-                <v-checkbox
-                  v-model="mediaAddingState.is_parsing"
-                  :disabled="mediaAddingState.is_fast_import"
-                  :label="t('media.adding.parse_tags')"
-                  class="mt-0"
-                  hide-details
-                  density="compact"
-                />
-                <ButtonDocumentation id="media.parser" dense/>
-              </div>
-
-              <!-- Опция исключения путей -->
-              <v-checkbox
-                v-model="tasksStore.mediaAdding.is_exclude"
-                :label="t('media.adding.exclude_paths')"
-                class="mt-0"
-                hide-details
-                density="compact"
-              />
-            </div>
-          </div>
-
-          <v-btn
-            v-if="tasksStore.mediaAdding.is_exclude && isElectron"
-            @click="selectMultipleDirectoriesExcluded"
-            color="primary"
-            rounded="lg"
-            variant="flat"
-            class="mb-2 mt-2"
-          >
-            <v-icon start>mdi-folder-open</v-icon>
-            {{ t('media.adding.select_folders') }}
-          </v-btn>
-
-          <!-- Поле для исключенных путей (показывается условно) -->
-          <v-textarea
-            v-if="tasksStore.mediaAdding.is_exclude"
-            :model-value="mediaAddingState.excluded"
-            @update:model-value="onExcludedInput"
-            :label="t('media.adding.excluded_paths_label')"
-            :hint="t('media.adding.excluded_paths_hint')"
-            variant="outlined"
-            rounded="lg"
-            no-resize
-            rows="3"
-            class="mt-2"
-            density="comfortable"
-          />
         </v-card-text>
       </v-card>
     </template>
@@ -208,20 +114,23 @@
 
 <script setup lang="ts">
 import {ref, computed, watch, onMounted} from 'vue'
+import {isSfwBuild} from '@shared/buildFlags'
+import WebVideoImport from '@/components/dialogs/WebVideoImport.vue'
+import SourcesPanel from '@/components/dialogs/SourcesPanel.vue'
+import {useRememberedTab} from '@/composable/useRememberedTab'
 import type {PropType} from 'vue'
-import type {VFormInstance} from '@/types/vue'
-import {useDisplay} from 'vuetify'
+import {useDisplay, useLayout} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
 import {useAppStore} from '@/stores/app'
-import {useItemsStore} from '@/stores/items'
-import {isImageMediaType, getMenuOrderedMediaTypes, isManagedMediaType, combineMediaTypeExtensions, resolveTargetMediaTypesForAdding} from '@/utils/mediaType'
-import {getMediaTypeName} from '@/utils/mediaTypeI18n'
+import {isImageMediaType, combineMediaTypeExtensions, resolveTargetMediaTypesForAdding} from '@/utils/mediaType'
+import MediaImportTypes from './MediaImportTypes.vue'
+import MediaImportOptions from './MediaImportOptions.vue'
+import type {RemoteImportOptions} from '@/services/remoteImportOptions'
 
 // Компоненты
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import AppBarButton from "@/components/app/appbar/AppBarButton.vue"
-import ButtonDocumentation from "@/components/ui/ButtonDocumentation.vue"
 import {useMediaAdding} from '@/composable/AddingMedia'
 import {normalizePastedFilePathsText} from '@/utils/filePathInput'
 import {collectDroppedPaths} from '@/utils/mediaDrop'
@@ -229,12 +138,15 @@ import {showOpenDialog} from '@/services/electronDialogService'
 import {typedApi} from '@/services/typedApi'
 import type {BrowsePlace} from '@/services/typedApi/browse'
 import MediaFolderBrowser from '@/components/dialogs/MediaFolderBrowser.vue'
+import FilePreviewButton from '@/components/dialogs/FilePreviewButton.vue'
 import {transformTextToArray} from '@/services/formatUtils'
 
 
 // Хуки
 const {t} = useI18n()
 const {xs} = useDisplay()
+const {mainRect: appLayoutRect} = useLayout()
+const webVideoAvailable = !isSfwBuild()
 
 const props = defineProps({
   buttonColor: {
@@ -272,20 +184,66 @@ const emit = defineEmits(['update:modelValue'])
 // Pinia stores
 const tasksStore = useTasksStore()
 const appStore = useAppStore()
-const itemsStore = useItemsStore()
 
 // Composable
 const mediaAdding = useMediaAdding()
 
 // Реактивные переменные
 const internalDialogVisible = ref(false)
-const isFormValid = ref(false)
-const mediaForm = ref<VFormInstance>(null)
+const keepSourcesMounted = ref(false)
+function onRemoteImportStarted() {
+  keepSourcesMounted.value = true
+  isDialogVisible.value = false
+}
 const browsePlaces = ref<BrowsePlace[]>([])
 const browsePlacesLoaded = ref(false)
 const isContainerRuntime = ref(false)
 const browsePath = ref('')
 const selectedBrowserPaths = ref<string[]>([])
+const {tab: activeSource, restore: restoreSourceTab} = useRememberedTab<'local' | 'links' | 'sources'>(
+  'mediachips.media-adding.source', webVideoAvailable ? ['local', 'sources', 'links'] : ['local', 'sources'], 'local',
+)
+const webVideoSource = ref<InstanceType<typeof WebVideoImport>>()
+const providerTabsTarget = ref<HTMLElement>()
+const remoteSources = ref<InstanceType<typeof SourcesPanel>>()
+const submitting = ref(false)
+const sources = computed(() => [
+  {id: 'local', title: t('media.adding.source_local'), icon: 'mdi-folder-outline'},
+  {id: 'sources', title: t('sources.title'), icon: 'mdi-server-network-outline'},
+  ...(webVideoAvailable ? [{id: 'links', title: t('media.adding.source_links'), icon: 'mdi-link-variant'}] : []),
+])
+watch(activeSource, source => {
+  if (source === 'sources') void remoteSources.value?.refresh()
+})
+const sourceBusy = computed(() => submitting.value || !!webVideoSource.value?.busy || !!remoteSources.value?.busy)
+const selectionCount = computed(() => {
+  if (activeSource.value === 'links') return webVideoSource.value?.selectionCount || 0
+  if (activeSource.value === 'sources') return remoteSources.value?.selectionCount || 0
+  return new Set(transformTextToArray(tasksStore.mediaAdding.paths || '')).size
+})
+const canSubmit = computed(() => {
+  if (activeSource.value === 'links') return !!webVideoSource.value?.canSubmit
+  if (activeSource.value === 'sources') return !!remoteSources.value?.canSubmit
+  return selectionCount.value > 0
+})
+async function scanDuplicates() {
+  if (tasksStore.mediaAdding.active || sourceBusy.value || !canSubmit.value) return
+  submitting.value = true
+  try { await startDuplicateScanProcess() }
+  finally { submitting.value = false }
+}
+function closeDialog() {
+  if (!sourceBusy.value) isDialogVisible.value = false
+}
+async function submitActiveSource() {
+  if (tasksStore.mediaAdding.active || sourceBusy.value || !canSubmit.value) return
+  submitting.value = true
+  try {
+    if (activeSource.value === 'links') await webVideoSource.value?.submit()
+    else if (activeSource.value === 'sources') await remoteSources.value?.submit()
+    else await startMediaAddingProcess()
+  } finally { submitting.value = false }
+}
 
 const activePlaceId = computed(() => {
   const current = browsePath.value
@@ -318,16 +276,18 @@ const isDialogVisible = computed({
 // Computed свойства
 const isElectron = computed(() => appStore.isElectron)
 const mediaAddingState = computed(() => tasksStore.mediaAdding)
-
-const mediaTypeSelectItems = computed(() => (
-  getMenuOrderedMediaTypes(appStore.mediaTypes)
-    .filter(isManagedMediaType)
-    .map((mediaType) => ({
-      title: getMediaTypeName(mediaType, t),
-      value: Number(mediaType.id),
-      icon: mediaType.icon || undefined,
-    }))
-))
+const headerButtons = computed(() => [
+  ...(activeSource.value === 'local' ? [
+    ...(isElectron.value ? [
+      {text: t('media.adding.select_files'), icon: 'file-outline', outlined: true, disabled: sourceBusy.value, action: selectMultipleFiles},
+      {text: t('media.adding.select_folders'), icon: 'folder-open-outline', outlined: true, disabled: sourceBusy.value, action: selectMultipleDirectories},
+    ] : []),
+    {text: t('media.adding.scan_duplicates'), icon: 'content-copy', outlined: true,
+      disabled: !canSubmit.value || sourceBusy.value, action: scanDuplicates},
+  ] : []),
+  {text: t('common.add'), icon: 'plus', color: 'primary', loading: sourceBusy.value,
+    disabled: !canSubmit.value || sourceBusy.value || tasksStore.mediaAdding.active, action: submitActiveSource},
+])
 
 const selectedMediaTypeIds = computed({
   get() {
@@ -339,37 +299,6 @@ const selectedMediaTypeIds = computed({
     tasksStore.mediaAdding.media_type_id = ids.length === 1 ? ids[0] : null
   },
 })
-
-const allManagedMediaTypeIds = computed(() => mediaTypeSelectItems.value.map((item) => item.value))
-
-function isMediaTypeChipActive(id: number): boolean {
-  const selected = selectedMediaTypeIds.value
-  if (!selected.length) return true
-  return selected.includes(id)
-}
-
-function toggleMediaTypeChip(id: number) {
-  const selected = [...selectedMediaTypeIds.value]
-  const allIds = allManagedMediaTypeIds.value
-
-  if (!selected.length) {
-    // "All" → narrow to this type only
-    selectedMediaTypeIds.value = [id]
-    return
-  }
-
-  const index = selected.indexOf(id)
-  if (index >= 0) {
-    selected.splice(index, 1)
-  } else {
-    selected.push(id)
-  }
-
-  // Empty or every type picked → back to "all types"
-  selectedMediaTypeIds.value = (
-    !selected.length || selected.length === allIds.length
-  ) ? [] : selected
-}
 
 const targetMediaTypes = computed(() => (
   resolveTargetMediaTypesForAdding(appStore.mediaTypes, selectedMediaTypeIds.value)
@@ -384,43 +313,26 @@ const pathsHint = computed(() => {
   return t('media.adding.paths_hint')
 })
 
-const dialogHeader = computed(() => t('media.adding.files'))
-
-// Кнопки действий в диалоге
-const dialogActionButtons = computed(() => [
-  {
-    icon: 'magnify',
-    text: t('media.adding.scan_duplicates'),
-    color: 'secondary',
-    variant: 'outlined',
-    action: startDuplicateScanProcess,
-  },
-  {
-    icon: 'plus',
-    text: t('common.add'),
-    color: 'success',
-    variant: 'flat',
-    action: startMediaAddingProcess
-  }
-])
-
-// Правило валидации для обязательного поля путей
-const requiredPathRule = (value: string) => {
-  if (!value || value.trim().length === 0) {
-    return t('validation.path_required')
-  }
-  return true
-}
+const dialogHeader = computed(() => t('media.adding.title'))
 
 const onPathsInput = (value: string) => {
   const normalized = String(normalizePastedFilePathsText(value) ?? '')
   tasksStore.mediaAdding.paths = normalized
+  tasksStore.mediaAdding.skipFileScan = false
+  tasksStore.mediaAdding.directFiles = []
   selectedBrowserPaths.value = transformTextToArray(normalized)
 }
 
-const onExcludedInput = (value: string) => {
-  tasksStore.mediaAdding.excluded = String(normalizePastedFilePathsText(value) ?? '')
-}
+const importOptions = computed<RemoteImportOptions>({
+  get: () => ({
+    parseTags: mediaAddingState.value.is_parsing,
+    excluded: mediaAddingState.value.excluded || '',
+  }),
+  set: value => {
+    tasksStore.mediaAdding.is_parsing = value.parseTags
+    tasksStore.mediaAdding.excluded = String(normalizePastedFilePathsText(value.excluded) ?? '')
+  },
+})
 
 const onFastImportToggle = (value: boolean | null) => {
   if (tasksStore.mediaAdding.fast_import_locked) {
@@ -431,7 +343,6 @@ const onFastImportToggle = (value: boolean | null) => {
   tasksStore.mediaAdding.is_fast_import = enabled
   if (enabled) {
     tasksStore.mediaAdding.is_parsing = false
-    tasksStore.mediaAdding.is_check_duplicates = false
   }
 }
 
@@ -474,36 +385,24 @@ function openBrowsePlace(nextPath: string) {
 
 function onBrowserSelection(paths: string[]) {
   selectedBrowserPaths.value = paths
-  tasksStore.mediaAdding.paths = String(normalizePastedFilePathsText(paths.join('\n')) ?? '')
-  // Folder picks are the large-library case — prefer server-side roots walk.
-  if (paths.length && !tasksStore.mediaAdding.fast_import_locked) {
-    tasksStore.mediaAdding.is_fast_import = true
-    tasksStore.mediaAdding.is_parsing = false
-    tasksStore.mediaAdding.is_check_duplicates = false
-  }
+  onPathsInput(paths.join('\n'))
+}
+
+const selectMultipleFiles = async () => {
+  const paths = await showOpenDialog(['openFile', 'multiSelections'])
+  if (!paths) return
+  appendLocalPaths(paths)
+}
+
+function appendLocalPaths(paths: string) {
+  const existing = (tasksStore.mediaAdding.paths || '').trim()
+  onPathsInput(existing ? `${existing}\n${paths}` : paths)
 }
 
 const selectMultipleDirectories = async () => {
   const paths = await showOpenDialog(['openDirectory', 'multiSelections'])
   if (!paths?.length) return
-  const existing = (tasksStore.mediaAdding.paths || '').trim()
-  const merged = existing ? `${existing}\n${paths}` : paths
-  const normalized = String(normalizePastedFilePathsText(merged) ?? '')
-  tasksStore.mediaAdding.paths = normalized
-  selectedBrowserPaths.value = transformTextToArray(normalized)
-  if (!tasksStore.mediaAdding.fast_import_locked) {
-    tasksStore.mediaAdding.is_fast_import = true
-    tasksStore.mediaAdding.is_parsing = false
-    tasksStore.mediaAdding.is_check_duplicates = false
-  }
-}
-
-const selectMultipleDirectoriesExcluded = async () => {
-  const paths = await showOpenDialog(['openDirectory', 'multiSelections'])
-  if (!paths?.length) return
-  const existing = (tasksStore.mediaAdding.excluded || '').trim()
-  const merged = existing ? `${existing}\n${paths}` : paths
-  tasksStore.mediaAdding.excluded = String(normalizePastedFilePathsText(merged) ?? '')
+  appendLocalPaths(paths)
 }
 
 const handleAddMedia = async () => {
@@ -519,6 +418,11 @@ const handleScanDuplicates = async () => {
  */
 watch(isDialogVisible, (newValue) => {
   if (newValue) {
+    if (tasksStore.mediaAdding.active) {
+      isDialogVisible.value = false
+      tasksStore.mediaAdding.dialogProcess = true
+      return
+    }
     resetDialogState()
     void loadBrowsePlaces()
   }
@@ -528,24 +432,25 @@ watch(isDialogVisible, (newValue) => {
  * Сбрасывает состояние диалога к начальным значениям
  */
 const resetDialogState = () => {
+  const previousSource = activeSource.value
+  restoreSourceTab()
+  if (isDialogVisible.value && (props.initialPaths || props.initialBrowsePath)) activeSource.value = 'local'
+  if (activeSource.value === 'sources' && previousSource === 'sources') void remoteSources.value?.refresh()
   syncMediaTypeFromContext()
   tasksStore.mediaAdding.paths = props.initialPaths || ''
-  tasksStore.mediaAdding.excluded = ''
   tasksStore.mediaAdding.skipFileScan = Boolean(props.initialPaths)
+  tasksStore.mediaAdding.is_fast_import = false
   tasksStore.mediaAdding.fast_import_locked = false
   tasksStore.mediaAdding.directFiles = props.initialPaths
     ? props.initialPaths.split('\n').map((row) => row.trim()).filter(Boolean)
     : []
-  selectedBrowserPaths.value = []
+  selectedBrowserPaths.value = transformTextToArray(props.initialPaths || '')
   if (props.initialBrowsePath) {
     browsePath.value = props.initialBrowsePath
   } else if (browsePlaces.value.length) {
     browsePath.value = defaultBrowsePath(browsePlaces.value)
   } else {
     browsePath.value = ''
-  }
-  if (mediaForm.value) {
-    mediaForm.value.reset()
   }
   tasksStore.mediaAdding.paths = props.initialPaths || ''
   tasksStore.mediaAdding.directFiles = props.initialPaths
@@ -560,22 +465,15 @@ const syncMediaTypeFromContext = () => {
 }
 
 /**
- * Запускает процесс добавления медиафайлов после валидации формы
+ * Запускает процесс добавления медиафайлов, если выбраны пути
  */
 const startMediaAddingProcess = async () => {
-  if (!mediaForm.value) return
-  const {valid} = await mediaForm.value.validate()
-
-  if (!valid) {
-    console.warn('Form validation failed')
-    return
-  }
+  if (!selectionCount.value) return
 
   const {useFreeLibraryGate} = await import('@/composable/useFreeLibraryGate')
   if (!(await useFreeLibraryGate().ensureCanImportMedia())) return
 
   // Активируем задачу и показываем диалог процесса
-  syncMediaTypeFromContext()
   tasksStore.mediaAdding.paths = String(normalizePastedFilePathsText(tasksStore.mediaAdding.paths || '') ?? '')
   tasksStore.mediaAdding.excluded = String(normalizePastedFilePathsText(tasksStore.mediaAdding.excluded || '') ?? '')
   tasksStore.mediaAdding.dialogProcess = true
@@ -586,11 +484,8 @@ const startMediaAddingProcess = async () => {
 }
 
 const startDuplicateScanProcess = async () => {
-  if (!mediaForm.value) return
-  const {valid} = await mediaForm.value.validate()
-  if (!valid) return
+  if (!selectionCount.value) return
 
-  syncMediaTypeFromContext()
   tasksStore.mediaAdding.paths = String(normalizePastedFilePathsText(tasksStore.mediaAdding.paths || '') ?? '')
   tasksStore.mediaAdding.excluded = String(normalizePastedFilePathsText(tasksStore.mediaAdding.excluded || '') ?? '')
   tasksStore.mediaAdding.dialogProcess = true
@@ -605,23 +500,41 @@ const startDuplicateScanProcess = async () => {
  * @param {DragEvent} event - Событие перетаскивания
  */
 const handleFileDrop = (event: DragEvent) => {
-  if (!isElectron.value) return
+  if (!isElectron.value || sourceBusy.value) return
 
   const existingPaths = tasksStore.mediaAdding.paths || ''
   const newPaths = collectDroppedPaths(event).join('\n')
 
   if (!newPaths) return
 
-  tasksStore.mediaAdding.paths = existingPaths
+  activeSource.value = 'local'
+  onPathsInput(existingPaths
     ? String(normalizePastedFilePathsText(`${existingPaths}\n${newPaths}`) ?? '')
-    : String(normalizePastedFilePathsText(newPaths) ?? '')
+    : String(normalizePastedFilePathsText(newPaths) ?? ''))
 }
 </script>
 
 <style scoped>
-.media-adding-options__checks {
+.media-adding-dialog__navigation {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 12px 16px;
+}
+.media-adding-dialog__tabs, .media-adding-dialog__providers { min-width: 0; max-width: 100%; }
+.media-adding-dialog__navigation > .media-adding-dialog__tabs { margin-block: 0; }
+.media-adding-dialog__providers { margin-inline-start: auto; }
+@media (max-width: 800px) {
+  .media-adding-dialog__navigation--sources .media-adding-dialog__tabs :deep(.v-tab) {
+    min-width: 0;
+    padding-inline: 8px;
+    font-size: .75rem;
+  }
+  .media-adding-dialog__navigation--sources .media-adding-dialog__tabs :deep(.v-btn__prepend) { display: none; }
+  .media-adding-dialog__providers :deep(.settings-segmented__option > .v-icon) { display: none; }
+}
+@media (max-width: 600px) {
+  .media-adding-dialog__tabs :deep(.v-tab) { min-width: 0; padding-inline: 10px; font-size: 0.75rem; }
 }
 </style>

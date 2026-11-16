@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { ApiRequest, ApiResponse } from '../types/http'
 
 const {
+  applyMediaRelinks,
   findById,
   updateById,
   deleteById,
@@ -18,6 +19,7 @@ const {
   mapWithConcurrency,
   readFirstExistingImageDataUrl,
 } = vi.hoisted(() => ({
+  applyMediaRelinks: vi.fn(),
   findById: vi.fn(),
   updateById: vi.fn(),
   deleteById: vi.fn(),
@@ -34,6 +36,8 @@ const {
   mapWithConcurrency: vi.fn(),
   readFirstExistingImageDataUrl: vi.fn(),
 }))
+
+vi.mock('../services/mediaRelink', () => ({applyMediaRelinks}))
 
 vi.mock('../db/repositories/media', () => ({
   createMediaRepository: () => ({
@@ -184,26 +188,28 @@ describe('Media.controller', () => {
     expect(res.body).toEqual({total: 10, size: 1024})
   })
 
-  it('updates media path fields and invalidates caches', () => {
-    const req = {
-      body: {
-        id: 9,
-        path: '/media/movies/clip.mp4',
-      },
-    } as ApiRequest
+  it('checks original identity before updating a path', async () => {
+    findById.mockReturnValue({id: 9, path: '/old/clip.mp4'})
+    applyMediaRelinks.mockResolvedValue({updated: 1})
+    const req = {body: {id: 9, path: '/media/movies/clip.mp4'}} as ApiRequest
     const res = createResponse()
-
-    controller.updatePath(req, res)
-
-    expect(updateById).toHaveBeenCalledWith(9, {
-      path: '/media/movies/clip.mp4',
-      basename: 'clip.mp4',
-      name: 'clip',
-      ext: '.mp4',
-    }, {silent: true})
-    expect(invalidateMediaDerivedCaches).toHaveBeenCalled()
+    await controller.updatePath(req, res)
+    expect(applyMediaRelinks).toHaveBeenCalledWith(db, [{
+      id: 9, oldPath: '/old/clip.mp4', newPath: '/media/movies/clip.mp4', confirmedOriginal: false,
+    }])
+    expect(updateById).not.toHaveBeenCalled()
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([1])
+  })
+
+  it('does not silently transfer marks when identity validation rejects a new path', async () => {
+    findById.mockReturnValue({id: 9, path: '/old/clip.mp4'})
+    const {HttpError} = await import('../types/errors')
+    applyMediaRelinks.mockRejectedValue(new HttpError(409, 'Different content'))
+    const res = createResponse()
+    await controller.updatePath({body: {id: 9, path: '/new/clip.mp4'}} as ApiRequest, res)
+    expect(updateById).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(409)
   })
 
   it('returns 404 when deleting missing media', async () => {

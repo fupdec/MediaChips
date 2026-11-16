@@ -1,0 +1,26 @@
+services:
+  nextcloud:
+    image: nextcloud:32-apache
+    environment:
+      NEXTCLOUD_ADMIN_USER: reader
+      NEXTCLOUD_ADMIN_PASSWORD: webdav-acceptance-password
+      NEXTCLOUD_TRUSTED_DOMAINS: 127.0.0.1 localhost
+      OVERWRITEPROTOCOL: https
+      SQLITE_DATABASE: acceptance
+    volumes:
+      - nextcloud:/var/www/html
+  dav:
+    image: httpd:2.4-alpine
+    ports:
+      - '127.0.0.1:18443:443'
+      - '127.0.0.1:18444:444'
+    volumes:
+      - ./httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
+      - ${WEBDAV_FIXTURE_DIR}/cert.pem:/usr/local/apache2/conf/cert.pem:ro
+      - ${WEBDAV_FIXTURE_DIR}/key.pem:/usr/local/apache2/conf/key.pem:ro
+      - ${WEBDAV_FIXTURE_DIR}/htpasswd:/usr/local/apache2/conf/htpasswd:ro
+      - ${WEBDAV_FIXTURE_DIR}/files:/srv/dav
+    depends_on:
+      - nextcloud
+volumes:
+  nextcloud:

@@ -24,4 +24,9 @@ export const tags = sqliteTable('tags', {
     .on(sql`lower(trim("name"))`)
     .where(sql`"deletedAt" IS NULL OR "deletedAt" = ''`),
   parentTagIdx: index('tags_parent_tag_id_idx').on(table.parentTagId),
+  metaIdIdx: index('tags_meta_id_id_idx').on(table.metaId, table.id),
+  metaNameIdx: index('tags_meta_id_name_idx').on(table.metaId, table.name),
+  metaCreatedAtIdx: index('tags_meta_id_created_at_idx').on(table.metaId, table.createdAt),
+  metaRatingIdx: index('tags_meta_id_rating_idx').on(table.metaId, table.rating),
+  metaFavoriteIdx: index('tags_meta_id_favorite_idx').on(table.metaId, table.favorite),
 }))

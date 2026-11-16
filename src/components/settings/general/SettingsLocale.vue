@@ -102,10 +102,40 @@ const locales = [
     flag: 'cn',
   },
   {
+    code: 'tw',
+    nameKey: 'settings_labels.general.languages.tw',
+    nativeName: '繁體中文',
+    flag: 'tw',
+  },
+  {
     code: 'ru',
     nameKey: 'settings_labels.general.languages.ru',
     nativeName: 'Русский',
     flag: 'ru',
+  },
+  {
+    code: 'ko',
+    nameKey: 'settings_labels.general.languages.ko',
+    nativeName: '한국어',
+    flag: 'kr',
+  },
+  {
+    code: 'pl',
+    nameKey: 'settings_labels.general.languages.pl',
+    nativeName: 'Polski',
+    flag: 'pl',
+  },
+  {
+    code: 'tr',
+    nameKey: 'settings_labels.general.languages.tr',
+    nativeName: 'Türkçe',
+    flag: 'tr',
+  },
+  {
+    code: 'it',
+    nameKey: 'settings_labels.general.languages.it',
+    nativeName: 'Italiano',
+    flag: 'it',
   },
 ] as const
 

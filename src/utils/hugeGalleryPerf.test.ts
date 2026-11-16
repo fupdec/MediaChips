@@ -14,9 +14,9 @@ import {
  * Manual checklist: card view scroll, masonry with dims, viewer filmstrip, flag off.
  */
 describe('huge gallery performance gates', () => {
-  it('raises the infinite-scroll data window above the old 500 cap', () => {
-    expect(INFINITE_SCROLL_MAX_ITEMS).toBeGreaterThanOrEqual(1500)
-    expect(INFINITE_SCROLL_MAX_ITEMS).toBeLessThanOrEqual(3000)
+  it('keeps a bounded infinite-scroll DOM window', () => {
+    expect(INFINITE_SCROLL_MAX_ITEMS).toBeGreaterThanOrEqual(80)
+    expect(INFINITE_SCROLL_MAX_ITEMS).toBeLessThanOrEqual(200)
 
     const items = Array.from({length: INFINITE_SCROLL_MAX_ITEMS + 50}, (_, i) => i)
     const trimmed = trimInfiniteScrollItems(items)
@@ -24,11 +24,12 @@ describe('huge gallery performance gates', () => {
     expect(trimmed.trimmedFromTop).toBe(50)
   })
 
-  it('keeps infinite card grids fully rendered; virtualizes large paginated grids', () => {
-    expect(shouldUseVirtualGrid(5_000, true, 'media')).toBe(false)
-    expect(shouldUseVirtualGrid(10_000, true, 'media')).toBe(false)
+  it('virtualizes infinite card grids from the first item', () => {
+    expect(shouldUseVirtualGrid(1, true, 'media')).toBe(true)
+    expect(shouldUseVirtualGrid(5_000, true, 'media')).toBe(true)
+    expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD - 1, false, 'media')).toBe(false)
     expect(shouldUseVirtualGrid(VIRTUAL_GRID_THRESHOLD, false, 'media')).toBe(true)
-    expect(shouldUseVirtualGrid(5_000, false, 'media', {enabled: false})).toBe(false)
+    expect(shouldUseVirtualGrid(5_000, true, 'media', {enabled: false})).toBe(false)
   })
 
   it('enables virtual masonry only with stable dimensions at scale', () => {

@@ -40,6 +40,9 @@ export type BrowseDirectoryResult = {
   entries: BrowseDirectoryEntry[]
 }
 
+export type BrowseDirectoryInput = {path: string; extensions?: string; showHidden?: boolean}
+export type BrowseDirectoryLoader = (input: BrowseDirectoryInput) => Promise<BrowseDirectoryResult>
+
 export type MediaRootEntry = {
   path: string
   name: string

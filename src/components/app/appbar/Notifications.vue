@@ -29,17 +29,17 @@
       scroll-strategy="reposition"
       @update:model-value="hideAll"
     >
-      <v-card width="400" class="notifications-wrap" rounded="lg">
-        <v-card-actions class="px-4">
-          <div class="d-flex align-center">
-            <v-icon size="20" start>mdi-bell</v-icon>
+      <v-card width="420" max-width="calc(100vw - 24px)" class="notifications-wrap" rounded="xl">
+        <v-card-actions class="notifications-header px-4">
+          <div class="d-flex align-center font-weight-medium">
+            <v-icon size="20" icon="mdi-bell" class="me-2" />
             {{ t("appbar.notifications") }}
           </div>
           <v-spacer></v-spacer>
           <v-btn
             v-if="notifications.length > 0"
             @click="closeAll"
-            variant="outlined"
+            variant="text"
             size="small"
           >
             <v-icon start>mdi-notification-clear-all</v-icon>
@@ -50,7 +50,26 @@
         <v-divider></v-divider>
 
         <div class="notifications-list">
-          <v-card-text class="py-2 px-1">
+          <v-card-text class="notifications-stack">
+            <v-card v-for="job in copyJobs" :key="job.id" class="task-notification">
+              <div class="task-notification__header">
+                <v-avatar size="32" color="primary" variant="tonal" icon="mdi-file-find-outline" />
+                <div class="task-notification__body">
+                  <div class="task-notification__title">{{ t('copyDiscovery.title') }}</div>
+                  <div class="task-notification__status">{{ t(`copyDiscovery.states.${job.state}`) }}</div>
+                </div>
+              </div>
+              <div class="task-notification__actions">
+                <v-btn size="small" variant="tonal" color="primary" :disabled="!!copyAction" @click="controlCopyJob(job, job.state === 'paused' ? 'resume' : 'pause')">
+                  {{ t(job.state === 'paused' ? 'copyDiscovery.resume' : 'copyDiscovery.pause') }}
+                </v-btn>
+                <v-btn size="small" variant="text" color="error" :disabled="!!copyAction" @click="controlCopyJob(job, 'cancel')">
+                  {{ t('copyDiscovery.cancel') }}
+                </v-btn>
+                <v-btn size="small" variant="text" :to="copySettings" @click="showMenu = false">{{ t('copyDiscovery.configure') }}</v-btn>
+              </div>
+            </v-card>
+            <v-alert v-if="copyError" type="error" density="compact">{{ t('copyDiscovery.states.failed') }}</v-alert>
             <template
               v-for="item in activityItems"
               :key="item.key"
@@ -58,38 +77,36 @@
               <v-card
                 v-if="item.kind === 'task'"
                 class="task-notification"
-                elevation="3"
-                rounded="lg"
               >
-                <template #prepend>
-                  <v-avatar :color="item.color || 'primary'">
-                    <v-icon :icon="`mdi-${item.icon || 'cog'}`" dark></v-icon>
-                  </v-avatar>
-                </template>
-
-                <template #title>
-                  {{ item.title }}
-                </template>
-
-                <template #subtitle>
-                  {{ item.subtitle }}
-                </template>
-
-                <template v-if="item.progress" #loader>
-                  <v-progress-linear
-                    :model-value="item.progress"
+                <div class="task-notification__header">
+                  <v-avatar
                     :color="item.color || 'primary'"
-                    height="2"
-                  ></v-progress-linear>
-                </template>
+                    :icon="`mdi-${item.icon || 'cog'}`"
+                    size="32"
+                    variant="tonal"
+                  />
+                  <div class="task-notification__body">
+                    <div class="task-notification__title">{{ item.title }}</div>
+                    <div v-if="item.subtitle" class="task-notification__status">{{ item.subtitle }}</div>
+                    <div v-if="item.progress != null" class="task-notification__progress">
+                      <v-progress-linear
+                        :model-value="item.progress"
+                        :color="item.color || 'primary'"
+                        height="5"
+                        rounded
+                      />
+                      <span class="task-notification__percent">{{ Math.round(item.progress) }}%</span>
+                    </div>
+                  </div>
+                </div>
 
-                <v-card-actions class="pt-0">
+                <div v-if="item.click || item.action || item.done" class="task-notification__actions">
                   <v-btn
                     v-if="item.click"
                     @click.stop="openTask(item.click)"
                     color="primary"
                     variant="text"
-                    class="px-4"
+                    size="small"
                   >
                     <v-icon start>mdi-open-in-new</v-icon>
                     {{ t('media.adding.open_process_dialog') }}
@@ -99,12 +116,12 @@
                     @click.stop="stopTask(item)"
                     :color="item.done ? 'secondary' : 'error'"
                     variant="text"
-                    class="px-4"
+                    size="small"
                   >
                     <v-icon start>{{ item.done ? 'mdi-close' : 'mdi-close-octagon' }}</v-icon>
                     {{ item.done ? t('common.close') : t('common.stop') }}
                   </v-btn>
-                </v-card-actions>
+                </div>
               </v-card>
 
               <Notification
@@ -113,7 +130,7 @@
               />
             </template>
 
-            <div v-if="activityItems.length === 0" class="text-center py-2">
+            <div v-if="activityItems.length === 0 && copyJobs.length === 0" class="text-center py-2">
               <div class="layout-img">
                 <v-img
                   src="/images/bell.svg"
@@ -134,13 +151,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useTasksStore } from '@/stores/tasks'
 import { useSceneScraperStore } from '@mediachips/plugin-adult/stores/sceneScraper'
 import { useScraperStore } from '@mediachips/plugin-adult/stores/scraper'
 import {useI18n} from "vue-i18n";
 import type { TaskItem } from '@/types/stores'
+
+import {copyDiscoveryApi} from '@/services/typedApi/copyDiscovery'
+import {useAppStore} from '@/stores/app'
+import type {CopyDiscoveryJob} from '@shared/copyDiscovery'
 
 import Notification from '@/components/app/Notification.vue'
 
@@ -190,7 +211,55 @@ const activityItems = computed((): Array<TaskActivityItem | NotificationActivity
   ]
 })
 
-const badge = computed(() => activityItems.value.length)
+type CopyActivity = Pick<CopyDiscoveryJob, 'id' | 'state'>
+const app = useAppStore()
+const copyJobs = ref<CopyActivity[]>([])
+const copyAction = ref(false)
+const copyError = ref(false)
+const copySettings = {name: 'Settings', query: {tab: 'maintenance', section: 'copy_discovery'}}
+const copyPolling = new AbortController()
+let copyTimer: ReturnType<typeof setTimeout> | undefined
+
+async function pollCopyJobs() {
+  const dbPath = app.dbPath
+  try {
+    if (!document.hidden && !copyAction.value) {
+      const {data} = await copyDiscoveryApi.activity(copyPolling.signal)
+      if (app.dbPath === dbPath && !copyAction.value) copyJobs.value = data
+    }
+  } catch {
+    // The backend can be briefly unavailable while switching libraries.
+  } finally {
+    const busy = copyJobs.value.some(job => job.state !== 'paused')
+    if (!copyPolling.signal.aborted) copyTimer = setTimeout(pollCopyJobs, busy ? 3000 : 30000)
+  }
+}
+
+async function controlCopyJob(job: CopyActivity, action: 'pause' | 'resume' | 'cancel') {
+  const dbPath = app.dbPath
+  copyAction.value = true
+  copyError.value = false
+  try {
+    const {data} = await copyDiscoveryApi[action](job.id)
+    if (app.dbPath !== dbPath) return
+    copyJobs.value = copyJobs.value.flatMap(item => item.id !== job.id ? [item] :
+      data.state === 'cancelled' ? [] : [{id: data.id, state: data.state}])
+  } catch {
+    if (app.dbPath === dbPath) copyError.value = true
+  } finally {
+    copyAction.value = false
+  }
+}
+
+watch(() => app.dbPath, () => { copyJobs.value = []; copyError.value = false })
+
+onMounted(pollCopyJobs)
+onBeforeUnmount(() => {
+  copyPolling.abort()
+  clearTimeout(copyTimer)
+})
+
+const badge = computed(() => activityItems.value.length + copyJobs.value.length)
 
 const showMenu = computed({
   get: () => notificationsStore.show,
@@ -237,37 +306,85 @@ const closeAll = () => {
 </script>
 
 <style lang="scss" scoped>
+@use "../../../assets/styles/notification-card" as card;
+
 .notifications-menu {
   display: inline-flex;
   align-items: center;
 }
 
-.notifications-wrap {
-  .notification {
-    width: calc(100% - 10px);
-    margin: 5px 5px 15px;
+.notifications-header {
+  min-height: 52px;
+  background: linear-gradient(
+    115deg,
+    rgba(var(--v-theme-primary), 0.15),
+    rgba(var(--v-theme-primary), 0.04) 72%,
+    rgba(var(--v-theme-secondary), 0.09)
+  );
+}
 
-    &:last-child {
-      margin-bottom: 0 !important;
-    }
-  }
-
-  .v-alert:last-of-type {
-    margin-bottom: 0 !important;
-  }
+.notifications-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px;
+  background: rgba(var(--v-theme-on-surface), 0.025);
 }
 
 .task-notification {
-  width: calc(100% - 10px);
-  margin: 5px 5px 15px;
+  @include card.surface;
+  box-shadow: 0 2px 5px rgba(var(--v-theme-on-surface), 0.04);
 
-  &:last-child {
-    margin-bottom: 0 !important;
+  :deep(.v-avatar) {
+    @include card.icon;
   }
 }
 
+.task-notification__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.task-notification__body {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.task-notification__title {
+  @include card.title;
+}
+
+.task-notification__status {
+  @include card.text;
+}
+
+.task-notification__progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-notification__percent {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(var(--v-theme-on-surface), 0.07);
+  font-weight: 600;
+}
+
+.task-notification__actions {
+  @include card.actions;
+  margin-inline-start: 44px;
+}
+
 .notifications-list {
-  max-height: calc(60vh - 60px);
+  max-height: min(65dvh, calc(100dvh - 112px));
   overflow: auto;
+  overscroll-behavior: contain;
 }
 </style>

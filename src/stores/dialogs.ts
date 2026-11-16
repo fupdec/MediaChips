@@ -43,6 +43,11 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       markSeenOnClose: false,
       seenVersion: '',
     },
+    mediaCardAction: {
+      kind: null as 'copies' | 'originals' | 'relink' | 'history' | 'metadata' | null,
+      mediaIds: [] as number[],
+      media: null as MediaItem | null,
+    },
     mediaEditing: { show: false, media: null as MediaItem | null, mediaType: {} as Partial<MediaType> },
     faceResults: { show: false, media: null as MediaItem | null, taskId: null as string | null },
     enrollmentQuality: { show: false, metaId: null as number | null },
@@ -54,6 +59,9 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       show: false,
       duplicatesBy: null as string | null,
       mediaTypeId: null as number | null,
+      mediaIds: null as number[] | null,
+      filters: null as unknown[] | null,
+      filtersJoin: null as 'and' | 'or' | null,
     },
     similarWall: {
       show: false,
@@ -279,17 +287,32 @@ export const useDialogsStore = defineStore('useDialogsStore', {
     openDuplicateReview(options?: {
       duplicatesBy?: string | null
       mediaTypeId?: number | null
+      mediaIds?: number[] | null
+      filters?: unknown[] | null
+      filtersJoin?: 'and' | 'or' | null
     }) {
       this.duplicateReview.duplicatesBy = options?.duplicatesBy ?? null
       this.duplicateReview.mediaTypeId = options?.mediaTypeId == null
         ? null
         : Number(options.mediaTypeId)
+      this.duplicateReview.mediaIds = Array.isArray(options?.mediaIds)
+        ? options.mediaIds.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+        : null
+      this.duplicateReview.filters = Array.isArray(options?.filters)
+        ? options.filters
+        : null
+      this.duplicateReview.filtersJoin = options?.filtersJoin === 'or' ? 'or' : (
+        options?.filtersJoin === 'and' ? 'and' : null
+      )
       this.duplicateReview.show = true
     },
     closeDuplicateReview() {
       this.duplicateReview.show = false
       this.duplicateReview.duplicatesBy = null
       this.duplicateReview.mediaTypeId = null
+      this.duplicateReview.mediaIds = null
+      this.duplicateReview.filters = null
+      this.duplicateReview.filtersJoin = null
     },
     openSimilarWall(options: {
       seedId: number

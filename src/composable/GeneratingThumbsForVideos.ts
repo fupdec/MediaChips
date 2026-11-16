@@ -13,6 +13,8 @@ import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import type { MediaItem } from '@/types/stores'
 
 const GENERATION_WINDOW_LIMIT = 24
+/** Cap queued ids so long scrolls cannot enqueue the whole library. */
+const PENDING_QUEUE_LIMIT = 48
 
 interface GeneratorState {
   active: boolean
@@ -44,19 +46,15 @@ export default function useVideoImageGenerator() {
   })
 
   const timeout = ref<ReturnType<typeof setTimeout> | null>(null)
+  /** Ids already completed or known present for this window. */
   const processedGridVideoIds = ref(new Set<number>())
+  /** Pending work — reordered toward currently visible ids on each pass. */
+  const pendingById = ref(new Map<number, MediaItem>())
   const lastItemsCount = ref(0)
+  let taskId: string | null = null
 
   const createVideoGrid = (input: string, output: string): Promise<unknown> => {
-    return new Promise((resolve, reject) => {
-      typedApi.taskCreateGrid(buildVideoGridTaskParams(input, output))
-        .then((res) => {
-          resolve(res)
-        })
-        .catch((e) => {
-          reject(e)
-        })
-    })
+    return typedApi.taskCreateGrid(buildVideoGridTaskParams(input, output))
   }
 
   const filterVideosMissingGrids = async (videos: MediaItem[]): Promise<MediaItem[]> => {
@@ -74,16 +72,36 @@ export default function useVideoImageGenerator() {
     }
   }
 
-  const createGrids = async (videos: MediaItem[]): Promise<void> => {
-    if (grid.value.active) return
+  const pickNextPending = (): MediaItem | null => {
+    if (!pendingById.value.size) return null
 
-    const missing = await filterVideosMissingGrids(videos)
-    if (!missing.length) return
+    const visible = visibleItemIds.value
+    if (visible.length) {
+      const visibleSet = new Set(visible.map((id) => Number(id)))
+      for (const id of visibleSet) {
+        const item = pendingById.value.get(id)
+        if (item) return item
+      }
+    }
+
+    return pendingById.value.values().next().value ?? null
+  }
+
+  const updateTaskProgress = (completed: number, total: number) => {
+    if (!taskId) return
+    tasksStore.updateTask(taskId, {
+      subtitle: t('tasks_text.of_total', {completed, total}),
+      progress: total > 0 ? (completed / total) * 100 : 0,
+    })
+  }
+
+  const drainPendingGrids = async (): Promise<void> => {
+    if (grid.value.active) return
 
     grid.value.active = true
     grid.value.stopped = false
 
-    const taskId = tasksStore.setTask({
+    taskId = tasksStore.setTask({
       key: 'generating_grid_images',
       title: t('tasks_text.generating_grid_images'),
       icon: 'apps',
@@ -92,22 +110,28 @@ export default function useVideoImageGenerator() {
       },
     })
 
-    try {
-      let completed = 0
-      for (const video of missing) {
-        if (grid.value.stopped) break
+    let completed = 0
 
-        completed++
-        tasksStore.updateTask(taskId, {
-          subtitle: t('tasks_text.of_total', {completed, total: missing.length}),
-          progress: (completed / missing.length) * 100,
-        })
+    try {
+      while (!grid.value.stopped) {
+        const video = pickNextPending()
+        if (!video?.id || !video.path) {
+          if (!pendingById.value.size) break
+          // Corrupt entry — drop and continue.
+          if (video?.id) pendingById.value.delete(Number(video.id))
+          else break
+          continue
+        }
+
+        const id = Number(video.id)
+        pendingById.value.delete(id)
+        const total = completed + pendingById.value.size + 1
+        completed += 1
+        updateTaskProgress(completed, total)
 
         try {
-          if (video.path) {
-            await createVideoGrid(video.path, `${video.id}.jpg`)
-          }
-
+          await createVideoGrid(video.path, `${video.id}.jpg`)
+          processedGridVideoIds.value.add(id)
           itemsStore.refreshThumb(video.id, {broadcast: false})
           eventBus.emit('updateVideoFrames', video.id)
           listSync.getItemsFromDb({
@@ -116,28 +140,55 @@ export default function useVideoImageGenerator() {
           })
         } catch (error) {
           if (isGridAlreadyExistsError(error)) {
+            processedGridVideoIds.value.add(id)
             continue
           }
           console.error(`Failed to create grid for video ${video.id}:`, error)
+          // Leave unprocessed so a later visible pass can retry.
         }
       }
     } catch (error) {
       console.error('Error in createGrids:', error)
     } finally {
       grid.value.active = false
-      tasksStore.removeTask(taskId)
+      if (taskId) {
+        tasksStore.removeTask(taskId)
+        taskId = null
+      }
+      // New ids may have arrived while we were finishing.
+      if (pendingById.value.size && !grid.value.stopped) {
+        void drainPendingGrids()
+      }
     }
   }
 
-  const getVideosToProcess = (videos: MediaItem[]): MediaItem[] => {
-    if (!Array.isArray(videos) || !videos.length) return []
+  const enqueueVideos = async (videos: MediaItem[]): Promise<void> => {
+    if (!videos.length) return
 
-    return videos.filter((video) => video?.id && !processedGridVideoIds.value.has(video.id))
-  }
+    const missing = await filterVideosMissingGrids(
+      videos.filter((video) => video?.id && !processedGridVideoIds.value.has(Number(video.id))),
+    )
 
-  const markVideosProcessed = (videos: MediaItem[]): void => {
-    for (const video of videos) {
-      if (video?.id) processedGridVideoIds.value.add(video.id)
+    for (const video of missing) {
+      const id = Number(video.id)
+      if (!Number.isFinite(id)) continue
+      pendingById.value.set(id, video)
+    }
+
+    // Prefer keeping visible ids when over cap.
+    if (pendingById.value.size > PENDING_QUEUE_LIMIT) {
+      const visible = new Set(visibleItemIds.value.map((id) => Number(id)))
+      const entries = [...pendingById.value.entries()]
+      entries.sort(([a], [b]) => {
+        const aVis = visible.has(a) ? 0 : 1
+        const bVis = visible.has(b) ? 0 : 1
+        return aVis - bVis
+      })
+      pendingById.value = new Map(entries.slice(0, PENDING_QUEUE_LIMIT))
+    }
+
+    if (pendingById.value.size) {
+      void drainPendingGrids()
     }
   }
 
@@ -154,10 +205,15 @@ export default function useVideoImageGenerator() {
       if (keep.has(id)) next.add(id)
     }
     processedGridVideoIds.value = next
+
+    for (const id of [...pendingById.value.keys()]) {
+      if (!keep.has(id)) pendingById.value.delete(id)
+    }
   }
 
   const resetProcessedVideos = (): void => {
     processedGridVideoIds.value = new Set()
+    pendingById.value = new Map()
   }
 
   const resolveVideosForGeneration = (videos: MediaItem[]): MediaItem[] => {
@@ -172,7 +228,7 @@ export default function useVideoImageGenerator() {
     return videos.slice(0, GENERATION_WINDOW_LIMIT)
   }
 
-  const shouldGenerateGrid = () => !grid.value.active && (
+  const shouldGenerateGrid = () => (
     settingsStore.videoPreviewStatic === 'grid' ||
     settingsStore.videoPreviewHover === 'timeline' ||
     Number(itemsStore.view) === 2
@@ -198,16 +254,9 @@ export default function useVideoImageGenerator() {
       timeout.value = null
     }
 
-    grid.value.stopped = false
-
     timeout.value = setTimeout(() => {
       if (!shouldGenerateGrid()) return
-
-      const gridVideos = getVideosToProcess(videos)
-      if (!gridVideos.length) return
-
-      markVideosProcessed(gridVideos)
-      void createGrids(gridVideos)
+      void enqueueVideos(videos)
     }, 3000)
   }
 
@@ -240,6 +289,7 @@ export default function useVideoImageGenerator() {
   const cleanup = (): void => {
     if (timeout.value) clearTimeout(timeout.value)
     grid.value.stopped = true
+    pendingById.value = new Map()
   }
 
   onBeforeUnmount(cleanup)
@@ -247,7 +297,7 @@ export default function useVideoImageGenerator() {
   return {
     grid,
     generateImages,
-    createGrids,
+    createGrids: enqueueVideos,
     cleanup,
   }
 }

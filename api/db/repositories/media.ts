@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, gt, inArray, isNull, like, or, sql } from 'drizzle-orm'
 import type { DrizzleClient } from '../client'
 import { media } from '../schema/media'
+import {verifiedMediaCopies} from '../schema/mediaCopies'
 import { tagsInMedia } from '../schema/tagsInMedia'
 import { folderPaths, tagsInFolders } from '../schema/folderPaths'
 import { nowIso } from '../utils/timestamps'
@@ -16,10 +17,63 @@ export type MediaPathEntry = Pick<MediaRow, 'id' | 'path' | 'mediaTypeId'>
 export type MediaIdPathRow = Pick<MediaRow, 'id' | 'path'>
 /** Missing-media recovery — existence + oshash/size matching fields. */
 export type MediaMissingScanRow = Pick<MediaRow, 'id' | 'path' | 'filesize' | 'oshash'>
+/**
+ * Library merge match + null-fill — omits trash-only / unused columns so large
+ * imports do not pin full SELECT * rows in the path/hash indexes.
+ */
+export type MediaMergeRow = Pick<MediaRow,
+  | 'id'
+  | 'path'
+  | 'basename'
+  | 'name'
+  | 'ext'
+  | 'filesize'
+  | 'contentHash'
+  | 'oshash'
+  | 'visualHash'
+  | 'visualHashTiles'
+  | 'rating'
+  | 'favorite'
+  | 'bookmark'
+  | 'views'
+  | 'oldId'
+  | 'viewedAt'
+  | 'mediaCreatedAt'
+  | 'deletedAt'
+  | 'mediaTypeId'
+  | 'createdAt'
+  | 'updatedAt'
+>
+
+const mediaMergeColumns = {
+  id: media.id,
+  path: media.path,
+  basename: media.basename,
+  name: media.name,
+  ext: media.ext,
+  filesize: media.filesize,
+  contentHash: media.contentHash,
+  oshash: media.oshash,
+  visualHash: media.visualHash,
+  visualHashTiles: media.visualHashTiles,
+  rating: media.rating,
+  favorite: media.favorite,
+  bookmark: media.bookmark,
+  views: media.views,
+  oldId: media.oldId,
+  viewedAt: media.viewedAt,
+  mediaCreatedAt: media.mediaCreatedAt,
+  deletedAt: media.deletedAt,
+  mediaTypeId: media.mediaTypeId,
+  createdAt: media.createdAt,
+  updatedAt: media.updatedAt,
+} as const
+
+const isActiveMedia = or(isNull(media.deletedAt), eq(media.deletedAt, ''))
 
 const MEDIA_MUTABLE_COLUMNS = new Set([
   'path', 'basename', 'name', 'ext', 'filesize', 'contentHash', 'oshash', 'visualHash',
-  'visualHashTiles', 'rating', 'favorite', 'bookmark', 'views', 'oldId', 'viewedAt',
+  'visualHashTiles', 'visualHashThumbnail', 'rating', 'favorite', 'bookmark', 'views', 'oldId', 'viewedAt',
   'mediaCreatedAt', 'deletedAt', 'trashOriginalPath', 'trashPurgeFile', 'mediaTypeId',
 ])
 
@@ -57,6 +111,31 @@ export function createMediaRepository(db: DrizzleClient) {
       return db.select().from(media).all()
     },
 
+    /** Lean active rows for import-from-library target indexes (no trash path payloads). */
+    findAllLeanForMerge(): MediaMergeRow[] {
+      return db.select(mediaMergeColumns)
+        .from(media)
+        .where(isActiveMedia)
+        .orderBy(asc(media.id))
+        .all()
+    },
+
+    /** Chunked lean source media cursor for import-from-library matching. */
+    findLeanForMergeAfterId(lastId: number, limit: number): MediaMergeRow[] {
+      const safeLimit = Math.max(1, Math.floor(limit) || 1)
+      return db.select(mediaMergeColumns)
+        .from(media)
+        .where(and(gt(media.id, lastId), isActiveMedia))
+        .orderBy(asc(media.id))
+        .limit(safeLimit)
+        .all()
+    },
+
+    countActiveForMerge(): number {
+      const row = db.select({value: count()}).from(media).where(isActiveMedia).get()
+      return Number(row?.value || 0)
+    },
+
     findAllOrderedById(): MediaRow[] {
       return db.select().from(media).orderBy(asc(media.id)).all()
     },
@@ -73,7 +152,9 @@ export function createMediaRepository(db: DrizzleClient) {
     },
 
     /** Ordered missing-media scan rows (path existence + size/oshash match). */
-    findAllForMissingScanOrderedById(): MediaMissingScanRow[] {
+    findAllForMissingScanOrderedById(folder?: string): MediaMissingScanRow[] {
+      const patterns = folder ? buildFolderPathLikePatterns(folder) : []
+      const inFolder = patterns.length ? or(...patterns.map(pattern => like(media.path, pattern))) : undefined
       return db.select({
         id: media.id,
         path: media.path,
@@ -81,6 +162,7 @@ export function createMediaRepository(db: DrizzleClient) {
         oshash: media.oshash,
       })
         .from(media)
+        .where(and(isActiveMedia, inFolder))
         .orderBy(asc(media.id))
         .all()
     },
@@ -204,9 +286,10 @@ export function createMediaRepository(db: DrizzleClient) {
     findByPathVariants(variants: string[]): MediaRow | undefined {
       if (!variants.length) return undefined
 
-      const conditions = variants.map((variant) =>
+      const conditions = variants.map((variant) => or(
         sql`lower(${media.path}) = ${variant.toLowerCase()}`,
-      )
+        sql`EXISTS (SELECT 1 FROM ${verifiedMediaCopies} WHERE ${verifiedMediaCopies.mediaId} = ${media.id} AND lower(${verifiedMediaCopies.path}) = ${variant.toLowerCase()})`,
+      ))
 
       return db.select()
         .from(media)
@@ -261,6 +344,15 @@ export function createMediaRepository(db: DrizzleClient) {
         .get()
     },
 
+    findWithoutOshashBySizeAndMediaType(filesize: number, mediaTypeId: number): MediaRow[] {
+      return db.select().from(media).where(and(
+        eq(media.filesize, filesize),
+        eq(media.mediaTypeId, mediaTypeId),
+        isNull(media.deletedAt),
+        or(isNull(media.oshash), eq(media.oshash, '')),
+      )).all()
+    },
+
     findLegacyHashCandidates(
       filesize: number,
       mediaTypeId: unknown,
@@ -283,7 +375,9 @@ export function createMediaRepository(db: DrizzleClient) {
     },
 
     findOrCreateByPath(pathValue: string, defaults: Partial<MediaInsert>): {row: MediaRow; created: boolean} {
-      const existing = db.select().from(media).where(eq(media.path, pathValue)).get()
+      const existing = db.select().from(media).where(or(eq(media.path, pathValue),
+        sql`EXISTS (SELECT 1 FROM ${verifiedMediaCopies} WHERE ${verifiedMediaCopies.mediaId} = ${media.id} AND ${verifiedMediaCopies.path} = ${pathValue})`,
+      )).get()
       if (existing) {
         return {row: existing, created: false}
       }
@@ -358,8 +452,12 @@ export function createMediaRepository(db: DrizzleClient) {
     bulkCreateLite(items: Array<Partial<MediaInsert>>): Array<Pick<MediaRow, 'id' | 'path'>> {
       if (!items.length) return []
 
+      const retainedPaths = new Set(mapChunks(items, chunk => db.select({path: verifiedMediaCopies.path})
+        .from(verifiedMediaCopies).where(inArray(verifiedMediaCopies.path, chunk.map(item => item.path ?? ''))).all()).map(row => row.path))
+      const newItems = items.filter(item => !retainedPaths.has(item.path ?? ''))
+      if (!newItems.length) return []
       const timestamp = nowIso()
-      return mapChunks(items, (chunk) => (
+      return mapChunks(newItems, (chunk) => (
         db.insert(media)
           .values(chunk.map((item) => ({
             path: item.path ?? '',

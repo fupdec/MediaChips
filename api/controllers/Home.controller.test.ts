@@ -7,6 +7,7 @@ const {
   getHomeHealth,
   getHomeHealthLite,
   getHomeExtendedStats,
+  getHomeNavCounts,
   getHomeSimilar,
   getCreatedCalendarMonth,
   searchMediaByName,
@@ -18,6 +19,7 @@ const {
   getHomeHealth: vi.fn(),
   getHomeHealthLite: vi.fn(),
   getHomeExtendedStats: vi.fn(),
+  getHomeNavCounts: vi.fn(),
   getHomeSimilar: vi.fn(),
   getCreatedCalendarMonth: vi.fn(),
   searchMediaByName: vi.fn(),
@@ -40,6 +42,10 @@ vi.mock('../services/homeHealth', () => ({
 
 vi.mock('../services/homeExtendedStats', () => ({
   getHomeExtendedStats,
+}))
+
+vi.mock('../services/homeNavCounts', () => ({
+  getHomeNavCounts,
 }))
 
 vi.mock('../services/homeSimilar', () => ({
@@ -203,6 +209,24 @@ describe('Home.controller', () => {
 
     expect(res.statusCode).toBe(500)
     expect(res.body).toEqual({message: 'db unavailable'})
+  })
+
+  it('returns slim nav counts', () => {
+    const payload = {
+      byType: [{mediaTypeId: 1, count: 12}],
+      markers: 4,
+      playlists: 3,
+    }
+    getHomeNavCounts.mockReturnValue(payload)
+
+    const req = {} as ApiRequest
+    const res = createResponse()
+
+    controller.getNavCounts(req, res)
+
+    expect(getHomeNavCounts).toHaveBeenCalledWith({})
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toEqual(payload)
   })
 
   it('searches globally using the request body query', async () => {

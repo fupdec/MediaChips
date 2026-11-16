@@ -15,7 +15,9 @@
         :variant="variant"
         color="primary"
         icon
-        v-tooltip:top="t('image.edit_image')"
+        rounded="lg"
+        :aria-label="t('image.edit_image')"
+        v-tooltip:[tooltipLocation]="t('image.edit_image')"
       >
         <v-icon :size="iconSize">mdi-image-edit-outline</v-icon>
       </v-btn>
@@ -34,6 +36,7 @@
     <template v-slot:default="{ isActive }">
       <v-card rounded="xl">
         <DialogHeader
+          icon="image-edit-outline"
           @close="isActive.value = false"
           :header="t('image.editing_image')"
           :buttons="buttons"
@@ -176,6 +179,10 @@ const props = defineProps({
   iconSize: {
     type: Number,
     default: 18,
+  },
+  tooltipLocation: {
+    type: String as PropType<'top' | 'bottom' | 'start' | 'end'>,
+    default: 'top',
   },
 })
 

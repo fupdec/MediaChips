@@ -19,13 +19,12 @@
           <!-- Левая колонка: TreeView -->
           <div class="treeview-column">
             <div class="sidebar-header">
-              <v-text-field
-                v-model="search"
-                density="compact"
+              <SettingsSearch
+                class="documentation-search"
+                input-id="documentation-search"
                 :placeholder="t('documentation.search')"
-                prepend-inner-icon="mdi-magnify"
-                variant="outlined"
-                hide-details
+                :items="searchItems"
+                @select="selectById($event.section, {scroll: true})"
               />
 
               <v-btn
@@ -34,7 +33,7 @@
                 v-tooltip:bottom="isOpenAll ? t('documentation.collapse_all') : t('documentation.expand_all')"
                 variant="text"
                 size="small"
-                class="ml-2"
+                class="documentation-expand"
                 @click="toggleOpenAll"
               />
             </div>
@@ -45,8 +44,7 @@
                 v-model:activated="activatedIds"
                 v-model:opened="openedIds"
                 @update:activated="updateActivated"
-                :items="filteredItems"
-                :search="search"
+                :items="items"
                 active-strategy="single-leaf"
                 open-on-click
                 item-title="name"
@@ -55,7 +53,7 @@
                 hoverable
                 density="comfortable"
                 color="primary"
-                shaped
+                rounded="lg"
                 class="styled-treeview"
               >
                 <template #prepend="{ item }">
@@ -91,13 +89,11 @@
               <!-- Заголовок -->
               <div class="content-header">
                 <div class="header-left">
-                  <v-icon :icon="selected.icon || 'mdi-file'" color="primary" class="mr-2" />
-                  <div>
-                    <div class="text-h5">{{ selected.name }}</div>
-                    <div v-if="selected.subtitle || selected.description"
-                      class="text-caption text-medium-emphasis mt-1">
-                      {{ selected.subtitle || selected.description }}
-                    </div>
+                  <v-icon :icon="selected.icon || 'mdi-file'" color="primary" />
+                  <div class="text-h5">{{ selected.name }}</div>
+                  <div v-if="selected.subtitle || selected.description"
+                    class="header-description text-caption text-medium-emphasis mt-1">
+                    {{ selected.subtitle || selected.description }}
                   </div>
                 </div>
 
@@ -160,6 +156,8 @@ import { registerAppShellHandler } from '@/composable/appShell'
 import { useDialogsStore } from '@/stores/dialogs'
 import { useElementSpotlightStore } from '@/stores/elementSpotlight'
 import DialogHeader from "@/components/elements/DialogHeader.vue"
+import SettingsSearch from '@/components/settings/SettingsSearch.vue'
+import {buildDocumentationSearchItems} from '@/utils/documentationSearch'
 import Documentation from "@/assets/Documentation"
 import { localizeDocumentation } from "@/assets/DocumentationTranslations"
 
@@ -193,41 +191,9 @@ const keepSelectionOnClose = ref(false)
 const activatedIds = ref<string[]>([])
 const openedIds = ref<string[]>([])
 const selected = ref<Partial<DocumentationItem>>({})
-const search = ref('')
 const items = computed((): DocumentationItem[] => localizeDocumentation(Documentation, locale.value))
 
-// Фильтрация по поиску
-// Фильтрация по поиску - НЕ МУТИРУЕМ исходные данные
-const filteredItems = computed(() => {
-  if (!search.value.trim()) return items.value
-
-  const searchTerm = search.value.toLowerCase()
-
-  const filterItemsRecursive = (itemsList: DocumentationItem[]): DocumentationItem[] => {
-    return itemsList.flatMap((item) => {
-      const matches =
-        item.name?.toLowerCase().includes(searchTerm) ||
-        item.title?.toLowerCase().includes(searchTerm) ||
-        item.description?.toLowerCase().includes(searchTerm) ||
-        item.content?.toLowerCase().includes(searchTerm)
-
-      if (item.children) {
-        const filteredChildren = filterItemsRecursive(item.children)
-        if (filteredChildren.length > 0 || matches) {
-          return [{
-            ...item,
-            children: filteredChildren,
-          }]
-        }
-        return []
-      }
-
-      return matches ? [item] : []
-    })
-  }
-
-  return filterItemsRecursive([...items.value])
-})
+const searchItems = computed(() => buildDocumentationSearchItems(items.value))
 
 // Вычисляемые свойства
 const dialogs = computed(() => dialogsStore)
@@ -335,7 +301,7 @@ const toggleOpenAll = () => {
     return
   }
 
-  openedIds.value = collectOpenableIds(filteredItems.value)
+  openedIds.value = collectOpenableIds(items.value)
   isOpenAll.value = true
 }
 
@@ -445,9 +411,18 @@ onBeforeUnmount(() => {
   height: 100%; /* Добавил 100% высоты */
 }
 
+.documentation-container .sidebar-header .documentation-search {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.sidebar-header .documentation-expand { flex-shrink: 0; }
+
 .sidebar-header {
   display: flex;
   align-items: center;
+  gap: 8px;
   padding: 12px 16px; /* Уменьшил padding */
   border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   background: rgba(0, 0, 0, 0.02);
@@ -468,6 +443,16 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   padding: 8px;
   max-height: 100%; /* Ограничиваем высоту */
+}
+
+.documentation-container .styled-treeview .v-treeview-item {
+  border-radius: 10px !important;
+  overflow: hidden;
+}
+
+.documentation-container .styled-treeview .v-treeview-item > .v-list-item__overlay,
+.documentation-container .styled-treeview .v-treeview-item > .v-list-item__underlay {
+  border-radius: inherit;
 }
 
 /* Правая колонка: Контент */
@@ -513,9 +498,14 @@ onBeforeUnmount(() => {
 }
 
 .header-left {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+}
+
+.header-description {
+  grid-column: 2;
 }
 
 .header-right {

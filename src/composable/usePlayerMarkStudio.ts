@@ -5,6 +5,8 @@ import { useEventBus } from '@/utils/eventBus'
 import { typedApi } from '@/services/typedApi'
 import { getMarkImagePath } from '@/utils/markThumb'
 import { invalidateFileExistsCache } from '@/services/fileService'
+import {isRemoteMediaPath} from '@shared/remoteMedia'
+import {saveWebVideoCurrentFrame} from '@/services/webVideoFrames'
 import { normalizeMarkTime } from '@/utils/markAdding'
 import { DEFAULT_BOOKMARK_ICON } from '@shared/markIcons'
 import { getMarkRangeDeltaFromWheel, preventWheelDefault } from '@/utils/playerWheel'
@@ -97,6 +99,7 @@ function scheduleScrub(time: number) {
 
 function scrubPlayhead(time: number) {
   const playerStore = usePlayerStore()
+  if (playerStore.webVideoLoading || playerStore.playbackError) return
   const clamped = Math.min(playerStore.duration, Math.max(0, time))
   if (playerStore.usesLiveTranscode && playerStore.liveStreamSeekHandler) {
     playerStore.liveStreamSeekHandler(clamped)
@@ -113,7 +116,11 @@ async function refreshThumb(markId: number) {
   const eventBus = useEventBus()
 
   try {
-    await typedApi.createMarkThumb({
+    if (isRemoteMediaPath(playerStore.media?.path)) {
+      const mark = playerStore.marks.find((item) => item.id === markId)
+      if (!mark || !await saveWebVideoCurrentFrame({video: playerStore.player, mediaId: Number(playerStore.media?.id),
+        markId, expectedTime: mark.time, mediaPath: playerStore.media?.path})) return
+    } else await typedApi.createMarkThumb({
       markId,
       mediaId: Number(playerStore.media?.id),
       overwrite: true,
@@ -326,7 +333,7 @@ export function usePlayerMarkStudio() {
   const dialogsStore = useDialogsStore()
 
   const startDrag = (mark: PlayerMark, mode: MarkDragMode, event: PointerEvent, controlsWidth: number) => {
-    if (mark.id == null) return
+    if (mark.id == null || playerStore.webVideoLoading) return
 
     event.preventDefault()
     event.stopPropagation()
@@ -348,7 +355,7 @@ export function usePlayerMarkStudio() {
   }
 
   const startCreateDrag = (event: PointerEvent, trackEl: HTMLElement) => {
-    if (event.button !== 0) return
+    if (event.button !== 0 || playerStore.webVideoLoading) return
 
     createStartClientX = event.clientX
     createTrackRect = trackEl.getBoundingClientRect()
@@ -359,7 +366,7 @@ export function usePlayerMarkStudio() {
   }
 
   const startAddingDrag = (mode: MarkDragMode, event: PointerEvent, controlsWidth: number) => {
-    if (event.button !== 0) return
+    if (event.button !== 0 || playerStore.webVideoLoading) return
 
     event.preventDefault()
     event.stopPropagation()

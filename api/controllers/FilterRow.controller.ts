@@ -9,6 +9,7 @@ import { serializeCountries } from '../utils/country'
 import { normalizeMetaIdParam, resolveMetaId } from '../utils/metaId'
 import { serializeExtList } from '../utils/ext'
 import { invalidateMediaDerivedCaches } from '../services/mediaCacheInvalidation'
+import {isCatalogSourceParam, parseCatalogSourceFilterValues} from '../utils/catalogSourceFilterValues'
 
 export default function (db: ApiDb) {
   const filterRowsRepo = createFilterRowsRepository(db.drizzle)
@@ -22,7 +23,7 @@ export default function (db: ApiDb) {
       const rowId = req.body.rowId || null
       const filterId = req.body.filterId
 
-      if (filterObj.type == 'array' && filterObj.param !== 'country' && filterObj.param !== 'ext') {
+      if (filterObj.type == 'array' && filterObj.param !== 'country' && filterObj.param !== 'ext' && !isCatalogSourceParam(filterObj.param)) {
         filterObj.val = null
       }
       if (filterObj.param == 'country' && val) {
@@ -30,6 +31,9 @@ export default function (db: ApiDb) {
       }
       if (filterObj.param == 'ext' && val) {
         filterObj.val = serializeExtList(val)
+      }
+      if (isCatalogSourceParam(filterObj.param)) {
+        filterObj.val = JSON.stringify(parseCatalogSourceFilterValues(val))
       }
 
       const allowedFields = ['param', 'type', 'cond', 'val', 'active', 'note', 'lock', 'order']
@@ -61,7 +65,7 @@ export default function (db: ApiDb) {
         filterRowsInSavedFiltersRepo.findOrCreate(Number(filterId), Number(filterRow.id))
       }
 
-      if (filterObj.type == 'array' && filterObj.param !== 'country' && filterObj.param !== 'ext') {
+      if (filterObj.type == 'array' && filterObj.param !== 'country' && filterObj.param !== 'ext' && !isCatalogSourceParam(filterObj.param)) {
         tagsInFilterRowsRepo.deleteByRowId(Number(filterRow.id))
 
         if (filterObj.cond?.includes('null') === false && val !== undefined && val !== null && val !== '') {
@@ -94,7 +98,12 @@ export default function (db: ApiDb) {
 
   const update = function (req: ApiRequest, res: ApiResponse) {
     try {
-      filterRowsRepo.updateById(Number(req.params.id), req.body)
+      const payload = {...req.body}
+      const param = payload.param ?? filterRowsRepo.findById(Number(req.params.id))?.param
+      if (isCatalogSourceParam(param) && Object.prototype.hasOwnProperty.call(payload, 'val')) {
+        payload.val = JSON.stringify(parseCatalogSourceFilterValues(payload.val))
+      }
+      filterRowsRepo.updateById(Number(req.params.id), payload)
       invalidateMediaDerivedCaches()
       sendOk(res)
     } catch (err: unknown) {

@@ -273,6 +273,66 @@ describe('schemaRepair', () => {
     expect(repairMissingIndexes(sqlite)).not.toContain('faces_tag_id_idx')
   })
 
+  it('adds missing list-path and 0001 sort indexes for legacy databases', () => {
+    sqlite.exec(`
+      CREATE TABLE media (
+        id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        path text NOT NULL,
+        name text,
+        ext text,
+        mediaTypeId integer,
+        mediaCreatedAt text,
+        createdAt text NOT NULL,
+        updatedAt text NOT NULL
+      );
+      CREATE TABLE videoMetadata (
+        mediaId integer PRIMARY KEY NOT NULL,
+        duration integer DEFAULT 0
+      );
+      CREATE TABLE tags (
+        id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        name text NOT NULL,
+        metaId integer,
+        rating integer DEFAULT 0,
+        favorite integer DEFAULT 0,
+        createdAt text NOT NULL,
+        updatedAt text NOT NULL
+      );
+    `)
+
+    const repaired = repairMissingIndexes(sqlite)
+
+    expect(repaired).toContain('media_media_type_id_id_idx')
+    expect(repaired).toContain('media_media_type_id_name_idx')
+    expect(repaired).toContain('media_media_type_id_path_idx')
+    expect(repaired).toContain('video_metadata_duration_idx')
+    expect(repaired).toContain('tags_meta_id_id_idx')
+    expect(repaired).toContain('tags_meta_id_name_idx')
+    expect(repairMissingIndexes(sqlite)).not.toContain('media_media_type_id_name_idx')
+  })
+
+  it('adds missing basename/filesize and oshash indexes for legacy media tables', () => {
+    sqlite.exec(`
+      CREATE TABLE media (
+        id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+        path text NOT NULL,
+        basename text,
+        filesize integer,
+        oshash text,
+        mediaTypeId integer,
+        createdAt text NOT NULL,
+        updatedAt text NOT NULL
+      );
+    `)
+
+    const repaired = repairMissingIndexes(sqlite)
+
+    expect(repaired).toContain('media_media_type_id_basename_filesize_idx')
+    expect(repaired).toContain('media_media_type_id_oshash_idx')
+    expect(repairMissingIndexes(sqlite)).not.toContain('media_media_type_id_basename_filesize_idx')
+    expect(repairMissingIndexes(sqlite)).not.toContain('media_media_type_id_oshash_idx')
+  })
+
   it('adds missing filterRows.order column for legacy databases', () => {
     sqlite.exec(`
       CREATE TABLE filterRows (

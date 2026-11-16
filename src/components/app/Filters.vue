@@ -22,64 +22,33 @@
               <v-icon size="18">mdi-filter</v-icon>
               <span class="filters-top__chrome-title">{{ t('filters.title') }}</span>
 
-              <v-btn-toggle
+              <SettingsSegmentedControl
                 :model-value="filtersViewMode"
-                class="filters-top__mode"
-                color="primary"
-                density="compact"
-                variant="outlined"
-                divided
-                mandatory
+                class="filters-top__mode-segmented"
                 @update:model-value="setFiltersViewMode"
-              >
-                <v-btn
-                  value="simple"
-                  size="small"
-                  :disabled="!showTopChips && isPanelView"
-                >
-                  {{ t('filters.simple') }}
-                </v-btn>
-                <v-btn
-                  value="advanced"
-                  size="small"
-                >
-                  {{ t('filters.advanced') }}
-                </v-btn>
-                <v-btn
-                  value="full"
-                  size="small"
-                  v-tooltip:top="t('filters.edit_mode_hint')"
-                >
-                  {{ t('filters.full') }}
-                </v-btn>
-              </v-btn-toggle>
+                :label="t('filters.simple')"
+                :items="[
+                  {value: 'simple', title: t('filters.simple'), disabled: !showTopChips && isPanelView},
+                  {value: 'advanced', title: t('filters.advanced')},
+                  {value: 'full', title: t('filters.full'), tooltip: t('filters.edit_mode_hint')},
+                ]"
+                compact
+              />
 
-              <v-btn-toggle
+              <SettingsSegmentedControl
                 v-if="isPanelView && filters.length >= 2"
                 :model-value="filtersJoin"
-                class="filters-top__join"
-                color="primary"
-                density="compact"
-                variant="outlined"
-                divided
-                mandatory
+                class="filters-top__join-segmented"
                 @update:model-value="onFiltersJoinChange"
-              >
-                <v-btn
-                  value="and"
-                  size="small"
-                  v-tooltip:top="t('filters.join_and_hint')"
-                >
-                  {{ t('filters.join_and') }}
-                </v-btn>
-                <v-btn
-                  value="or"
-                  size="small"
-                  v-tooltip:top="t('filters.join_or_hint')"
-                >
-                  {{ t('filters.join_or') }}
-                </v-btn>
-              </v-btn-toggle>
+                :label="t('filters.join_and')"
+                :items="[
+                  {value: 'and', title: t('filters.join_and'), tooltip: t('filters.join_and_hint')},
+                  {value: 'or', title: t('filters.join_or'), tooltip: t('filters.join_or_hint')},
+                ]"
+                compact
+              />
+
+              <slot name="quick-settings"/>
             </div>
 
             <div class="filters-top__chrome-end">
@@ -127,6 +96,17 @@
                 <v-icon size="16">mdi-close</v-icon>
               </v-btn>
             </div>
+          </div>
+
+          <div
+            v-if="filtersVisible && $slots.quick"
+            class="filters-top__quick"
+          >
+            <slot name="quick"/>
+            <EditingSectionHeader
+              icon="mdi-filter-variant"
+              :title="t('filters.quick_conditions')"
+            />
           </div>
 
           <v-expand-transition>
@@ -245,6 +225,8 @@
 </template>
 
 <script setup lang="ts">
+import EditingSectionHeader from '@/components/items/EditingSectionHeader.vue'
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {ref, computed, watch, onMounted, onUnmounted} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useDisplay} from 'vuetify'
@@ -1035,6 +1017,21 @@ watch(filtersVisible, (visible) => {
   border-top: 1px solid rgba(var(--v-theme-primary), 0.18);
 }
 
+.filters-top__quick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0 12px;
+
+  > .editing-group-header {
+    align-self: stretch;
+  }
+}
+
+.filters-top__quick:empty {
+  display: none;
+}
+
 .filters-top__chrome {
   display: flex;
   align-items: center;
@@ -1089,41 +1086,6 @@ watch(filtersVisible, (visible) => {
   min-width: 24px !important;
   min-height: 24px !important;
   padding: 0 !important;
-}
-
-.filters-top__mode {
-  align-self: center;
-  height: 28px !important;
-  min-height: 28px !important;
-  flex-shrink: 0;
-
-  .v-btn {
-    height: 28px !important;
-    min-height: 28px !important;
-    min-width: 0;
-    padding-inline: 10px;
-    font-size: 0.75rem;
-    text-transform: none;
-    letter-spacing: normal;
-  }
-}
-
-.filters-top__join {
-  align-self: center;
-  height: 28px !important;
-  min-height: 28px !important;
-  flex-shrink: 0;
-
-  .v-btn {
-    height: 28px !important;
-    min-height: 28px !important;
-    min-width: 0;
-    padding-inline: 10px;
-    font-size: 0.75rem;
-    text-transform: none;
-    letter-spacing: normal;
-    font-weight: 600;
-  }
 }
 
 .filters-top__brief {
@@ -1230,5 +1192,10 @@ watch(filtersVisible, (visible) => {
   &:not(.temporary) {
     padding: 16px 0 16px 16px;
   }
+}
+.filters-top__mode-segmented,
+.filters-top__join-segmented {
+  align-self: center;
+  flex-shrink: 0;
 }
 </style>

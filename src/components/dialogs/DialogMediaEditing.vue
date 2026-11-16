@@ -1,34 +1,51 @@
 <template>
-  <v-dialog
-    :model-value="dialogsStore.mediaEditing.show"
-    :fullscreen="xs"
-    :width="xl ? 1400 : 1000"
+  <EditDialogShell
+    :show="dialogsStore.mediaEditing.show"
+    :subheader="fileName"
+    :breadcrumbs="currentMediaType?.name ? [currentMediaType.name] : []"
+    :dirty="formDirty"
+    :loading="saving"
+    :buttons="buttons"
     :persistent="keepDialogOpen"
-    scrollable
-    @update:model-value="onDialogVisibilityChange"
+    v-model:unsaved-confirm="unsavedConfirm"
+    @visibility-change="onDialogVisibilityChange"
+    @request-close="requestClose"
+    @discard="forceClose"
   >
-    <v-card class="edit-dialog-card">
-      <DialogHeader
-        @close="requestClose"
-        :header="t('common.editing')"
-        :subheader="fileName"
-        :subheader-copy-text="fileName"
-        :buttons="buttons"
-        icon="pencil"
-        compact
-        closable
-      />
-
-      <v-card-text class="edit-dialog-card__body">
+        <DialogOriginalOperations v-if="media" v-model="originalsOpen" :media-ids="[media.id]" @changed="mediaCopies?.refresh()" />
         <EditPinnedMetaValues
           v-if="media"
           :key="media.id"
           layout="hero"
+          v-model:hide-media-panel="mediaPanelHidden"
           @close="requestClose"
           @dirty-change="formDirty = $event"
           :media="media"
           ref="editingComponent"
         >
+          <template #after-overview>
+            <MediaCopies v-if="media" ref="mediaCopies" :media-id="media.id" class="mt-2">
+              <template #source><MediaCatalogSourceInfo :media="media" /></template>
+            </MediaCopies>
+          </template>
+          <template v-if="!isAudioMedia && !isTextMedia && (isVideoMedia || thumb)" #rail-media>
+            <EditDialogMediaPanel
+              rail
+              mode="media"
+              :is-video-media="isVideoMedia"
+              :media="media"
+              :is-file-exists="isFileExists"
+              :image-src="thumb ?? undefined"
+              :image-path="imgPath ?? undefined"
+              :cropper-options="cropperOps"
+              :min-width="500"
+              @edited="onImageEdited"
+            />
+          </template>
+          <template #rail>
+            <EditDialogHistoryAction entity-type="media" :entity-id="Number(media?.id)" placement="rail" :disabled="formDirty" @restored="requestClose" />
+            <EditDialogQuickAction icon="mdi-file-cog-outline" :label="t('originals.title')" placement="rail" @click="originalsOpen = true" />
+          </template>
           <template #media>
             <EditDialogMediaPanel
               v-if="isImageMedia"
@@ -79,28 +96,20 @@
               :min-width="500"
               @edited="onImageEdited"
             />
+            <div class="edit-dialog-media-actions">
+              <EditDialogHistoryAction entity-type="media" :entity-id="Number(media?.id)" placement="media" :disabled="formDirty" @restored="requestClose" />
+              <EditDialogQuickAction icon="mdi-file-cog-outline" :label="t('originals.title')" placement="media" @click="originalsOpen = true" />
+            </div>
           </template>
         </EditPinnedMetaValues>
-      </v-card-text>
-    </v-card>
-
-    <DialogConfirm
-      v-if="is_show_unsaved_confirm"
-      variant="confirm"
-      :dialog="is_show_unsaved_confirm"
-      @confirm="forceClose"
-      @close="is_show_unsaved_confirm = false"
-      :text="t('editing.discard_unsaved_confirm')"
-    />
-  </v-dialog>
+  </EditDialogShell>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onBeforeUnmount, watch, defineAsyncComponent} from 'vue'
+import {ref, computed, onMounted, watch, defineAsyncComponent} from 'vue'
 import type {MediaItem} from '@/types/stores'
 import type {MediaType} from '@/types/media'
 import {useI18n} from 'vue-i18n'
-import {useDisplay} from 'vuetify'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
@@ -113,10 +122,14 @@ import {buildLocalFileUrl, checkFileExists as checkPathExists} from '@/services/
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import EditPinnedMetaValues from "@/components/items/EditPinnedMetaValues.vue"
+import MediaCopies from '@/components/items/MediaCopies.vue'
+import MediaCatalogSourceInfo from '@/components/items/MediaCatalogSourceInfo.vue'
 import EditDialogMediaPanel from "@/components/items/EditDialogMediaPanel.vue"
-import DialogConfirm from "@/components/dialogs/DialogConfirm.vue"
+import EditDialogShell from '@/components/dialogs/editing/EditDialogShell.vue'
+import EditDialogHistoryAction from '@/components/dialogs/editing/EditDialogHistoryAction.vue'
+import EditDialogQuickAction from '@/components/dialogs/editing/EditDialogQuickAction.vue'
+import {useEditDialogGuard, type EditDialogHeaderButton} from '@/composable/useEditDialog'
 import {useItemsListSync} from '@/composable/itemsListSync'
-import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import path from 'path-browserify'
 import {
   getCurrentMediaType,
@@ -126,17 +139,9 @@ import {
   isTextMediaType,
   isVideoMediaType,
 } from '@/utils/mediaType'
-const DialogHeader = defineAsyncComponent(() => import("@/components/elements/DialogHeader.vue"))
-
-interface DialogHeaderButton {
-  icon?: string
-  text?: string
-  title?: string
-  color?: string
-  outlined?: boolean
-  order?: number
-  action?: () => void | Promise<void>
-}
+const DialogOriginalOperations = defineAsyncComponent(() => import('@/components/dialogs/DialogOriginalOperations.vue'))
+const originalsOpen = ref(false)
+const mediaCopies = ref<InstanceType<typeof MediaCopies>>()
 
 interface EditComponentInstance {
   save?: () => Promise<boolean>
@@ -149,7 +154,6 @@ const props = defineProps<{
   mediaType?: MediaType | null
 }>()
 
-const {xs, xl} = useDisplay()
 const listSync = useItemsListSync()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
@@ -160,10 +164,15 @@ const thumb = ref<string | null>(null)
 const imgPath = ref<string | null>(null)
 const isFileExists = ref(true)
 const bigPreviewOpen = ref(false)
-const buttons = ref<DialogHeaderButton[]>([])
+const buttons = ref<EditDialogHeaderButton[]>([])
+const mediaPanelHidden = ref(false)
 const editingComponent = ref<EditComponentInstance | null>(null)
-const formDirty = ref(false)
-const is_show_unsaved_confirm = ref(false)
+const {formDirty, unsavedConfirm, forceClose, requestClose, onVisibilityChange: onDialogVisibilityChange} = useEditDialogGuard({
+  isOpen: () => dialogsStore.mediaEditing.show,
+  setOpen: (show) => { dialogsStore.mediaEditing.show = show },
+  editingComponent,
+  save: () => save(),
+})
 const cropperOps = ref({
   aspectRatio: 16 / 9,
 })
@@ -229,6 +238,7 @@ function initButtons() {
     text: t('common.save'),
     color: "success",
     outlined: false,
+    shortcut: 'mod+s',
     action: save,
   })
 }
@@ -306,13 +316,16 @@ async function onImageEdited() {
   })
 }
 
+const saving = ref(false)
+
 async function save() {
   if (!editingComponent.value?.save) {
     console.error('Component or method not available')
     return
   }
 
-  const saved = await editingComponent.value.save()
+  saving.value = true
+  const saved = await editingComponent.value.save().finally(() => { saving.value = false })
   if (!saved) return
 
   const mediaId = media.value?.id
@@ -327,33 +340,8 @@ async function save() {
     }
   }
 
-  if (itemsStore.type === 'media') {
-    void reloadTagsCatalog()
-  }
-
+  // Tags catalog + wall-card tags/values are already synced inside editingComponent.save().
   forceClose()
-}
-
-function forceClose() {
-  is_show_unsaved_confirm.value = false
-  formDirty.value = false
-  dialogsStore.mediaEditing.show = false
-}
-
-function requestClose() {
-  if (formDirty.value || editingComponent.value?.isDirty?.()) {
-    is_show_unsaved_confirm.value = true
-    return
-  }
-  forceClose()
-}
-
-function onDialogVisibilityChange(show: boolean) {
-  if (show) {
-    dialogsStore.mediaEditing.show = true
-    return
-  }
-  requestClose()
 }
 
 function deleteMedia() {
@@ -389,21 +377,9 @@ function deleteMedia() {
   }
 }
 
-function onSaveHotkey(event: KeyboardEvent) {
-  if (!dialogsStore.mediaEditing.show) return
-  if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 's') return
-  event.preventDefault()
-  void save()
-}
-
 onMounted(() => {
   initButtons()
   void getImage()
-  window.addEventListener('keydown', onSaveHotkey)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onSaveHotkey)
 })
 
 watch(() => media.value?.id, (mediaId, previousId) => {
@@ -445,3 +421,4 @@ watch(
   {immediate: true},
 )
 </script>
+

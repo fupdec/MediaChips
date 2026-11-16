@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import Database from 'better-sqlite3'
 import { bootstrapDatabase } from './migrationRunner'
 import { runPostMigrations } from './postMigrations'
+import {projectPath} from '../../shared/projectRoot'
 
 describe('postMigrations', () => {
   const tempFiles: string[] = []
@@ -43,7 +44,8 @@ describe('postMigrations', () => {
       ).toMatch(/deletedAt/i)
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='media_fts'`).get()).toBeTruthy()
       expect(sqlite.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='tags_fts'`).get()).toBeTruthy()
-      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: 31})
+      const journal = JSON.parse(fs.readFileSync(projectPath('api', 'db', 'migrations-drizzle', 'meta', '_journal.json'), 'utf8'))
+      expect(sqlite.prepare(`SELECT COUNT(*) as count FROM __drizzle_migrations`).get()).toEqual({count: journal.entries.length})
 
       const mediaMeta = (
         sqlite.prepare(`

@@ -454,8 +454,93 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
       {shouldPaginate, pageLimit, safePage},
     )
 
-    const idRows = await queryAllAsync(db, idQuery, queryReplacements)
-    pageIds = idRows.map((row: AnyRecord) => row.id as MediaId)
+    const totalsCacheKey = buildFilteredTotalsCacheKey({
+      mediaTypeId,
+      filters,
+      filtersJoin: options.filtersJoin,
+      find_duplicates: options.find_duplicates,
+      duplicates_by: options.duplicates_by,
+    })
+
+    const shouldTotals = shouldComputeListTotals({skipTotals, ids})
+    const cachedTotals = shouldTotals
+      ? resolveCachedListTotals({
+          cachedFilteredTotals: getCachedFilteredTotals(totalsCacheKey),
+          cachedUnfilteredTotal: getCachedUnfilteredTotal(mediaTypeId as number | string),
+        })
+      : null
+
+    const fetchTotals = async () => {
+      const [totalsRows, unfilteredRows] = await Promise.all([
+        queryAllAsync(db, buildFilteredTotalsSql(fromForCount, whereClause, needsDistinct), replacements),
+        queryAllAsync(db, `SELECT COUNT(*) AS totalUnfiltered
+           FROM media
+           WHERE media.mediaTypeId = :mediaTypeId`, {mediaTypeId}),
+      ])
+      const parsed = parseListTotalsRows(totalsRows?.[0], unfilteredRows?.[0])
+      setCachedFilteredTotals(totalsCacheKey, {
+        totalFiltered: parsed.totalFiltered,
+        totalFilesize: parsed.totalFilesize,
+      })
+      setCachedUnfilteredTotal(mediaTypeId as number | string, parsed.totalUnfiltered)
+      return parsed
+    }
+
+    let totalUnfiltered: number | null = null
+    let totalFiltered: number | null = null
+    let totalFilesize: number | null = null
+
+    if (shouldTotals && cachedTotals) {
+      const idRows = await queryAllAsync(db, idQuery, queryReplacements)
+      pageIds = idRows.map((row: AnyRecord) => row.id as MediaId)
+      totalUnfiltered = cachedTotals.totalUnfiltered
+      totalFiltered = cachedTotals.totalFiltered
+      totalFilesize = cachedTotals.totalFilesize
+    } else if (shouldTotals) {
+      const [idRows, totals] = await Promise.all([
+        queryAllAsync(db, idQuery, queryReplacements),
+        fetchTotals(),
+      ])
+      pageIds = idRows.map((row: AnyRecord) => row.id as MediaId)
+      totalUnfiltered = totals.totalUnfiltered
+      totalFiltered = totals.totalFiltered
+      totalFilesize = totals.totalFilesize
+    } else {
+      const idRows = await queryAllAsync(db, idQuery, queryReplacements)
+      pageIds = idRows.map((row: AnyRecord) => row.id as MediaId)
+    }
+
+    let navigation
+    if (includeNavigation) {
+      const navSelect = needsDistinct
+        ? getNavigationSelect().replace('SELECT', 'SELECT DISTINCT')
+        : getNavigationSelect()
+      const navRows = await queryAllAsync(db, `${navSelect}
+        ${fromForSort}
+        ${whereClause}
+        ORDER BY ${sortExpr} ${sortDir}`, replacements)
+      navigation = navRows.map(toNavigationItem)
+    }
+
+    const rows = pageIds.length
+      ? await fetchBaseMediaRows(db, mediaTypeId, pageIds)
+      : []
+    const orderedRows = orderRowsByIds(rows, pageIds)
+    const items = orderedRows.map(createItemShell)
+    await attachMediaRelations(db, items, mediaTypeId, pageIds)
+
+    return assembleMediaListResult({
+      items,
+      totalUnfiltered,
+      totalFiltered,
+      totalFilesize,
+      navigation,
+      groups,
+      shouldPaginate,
+      safePage,
+      pageLimit,
+      skipTotals,
+    })
   }
 
   const totalsCacheKey = buildFilteredTotalsCacheKey({

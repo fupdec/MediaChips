@@ -1,7 +1,19 @@
 <template>
   <!-- GRID / IMAGE-ONLY VIEW -->
   <div v-if="Number(ITEMS.view) === 1 || Number(ITEMS.view) === 4">
+      <!-- No photo yet: soft initials tile instead of the "unavailable" glyph. -->
+      <v-responsive
+        v-if="isMainImageMissing"
+        :aspect-ratio="meta?.imageAspectRatio || 1"
+        class="main-img tag-thumb-placeholder"
+        @click="openTagPage"
+      >
+        <div class="tag-thumb-placeholder__inner">
+          <span class="tag-thumb-placeholder__initials">{{ initials }}</span>
+        </div>
+      </v-responsive>
       <v-img
+        v-else
         :src="mainImageSrc"
         :aspect-ratio="meta?.imageAspectRatio"
         class="main-img"
@@ -154,6 +166,17 @@ const mainImageSrc = computed(() => {
   }
 
   return IMAGE_UNAVAILABLE_URL
+})
+
+// Only after the lookup finished — avoids a placeholder flash while loading.
+const isMainImageMissing = computed(() => mainImageSrc.value === IMAGE_UNAVAILABLE_URL && images.main !== null)
+
+const initials = computed(() => {
+  const words = String(props.tag.name ?? '').trim().split(/\s+/).filter(Boolean)
+  const letters = words.length > 1
+    ? [words[0], words[words.length - 1]].map(w => Array.from(w)[0])
+    : Array.from(words[0] ?? '').slice(0, 2)
+  return letters.join('').toUpperCase() || '?'
 })
 
 const avatar = computed(() => {

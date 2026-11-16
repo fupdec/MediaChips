@@ -16,7 +16,7 @@
         class="mark-inspector__caret"
         :style="{'--mark-caret': `${caret}px`, '--mark-accent': accentColor}"
       />
-      <MarkAddingForm compact @addMark="emit('saveMark', $event)"/>
+      <MarkAddingForm compact hide-disabled-buttons @addMark="emit('saveMark', $event)"/>
     </div>
   </div>
 </template>

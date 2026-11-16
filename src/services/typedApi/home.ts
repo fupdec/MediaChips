@@ -1,9 +1,11 @@
+import { GlobalSearchMediaPageSchema } from '@shared/schemas/home'
 import { apiClient } from '../apiClient'
 import { API_ROUTES } from '@shared/api/routes'
 import type { HomeMediaResponse } from '@shared/api/responses'
 import type { AxiosRequestConfig } from 'axios'
 import {
   parseExtendedStats,
+  parseHomeNavCounts,
   parseChartStats,
   parseCreatedCalendarMonth,
   parseGlobalSearchMediaResponse,
@@ -49,6 +51,13 @@ export const homeApi = {
     return apiClient.get(API_ROUTES.homeExtendedStats).then((res) => ({
       ...res,
       data: validated(parseExtendedStats, res.data),
+    }))
+  },
+
+  getHomeNavCounts() {
+    return apiClient.get(API_ROUTES.homeNavCounts).then((res) => ({
+      ...res,
+      data: validated(parseHomeNavCounts, res.data),
     }))
   },
 
@@ -114,6 +123,16 @@ export const homeApi = {
     return apiClient.post(API_ROUTES.globalSearch, body, config).then((res) => ({
       ...res,
       data: validated(parseGlobalSearchResponse, res.data),
+    }))
+  },
+
+  searchGlobalMediaPage(
+    body: {q: string; limit: number; mediaTypeId: number; offset: number; tagIds: number[]; countOnly?: boolean},
+    config?: AxiosRequestConfig,
+  ) {
+    return apiClient.post(API_ROUTES.globalSearchMedia, body, config).then((res) => ({
+      ...res,
+      data: validated(GlobalSearchMediaPageSchema.parse, res.data),
     }))
   },
 

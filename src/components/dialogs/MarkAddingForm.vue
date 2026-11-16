@@ -15,11 +15,14 @@
           <v-btn
             v-for="item in mark_types"
             :key="item.value"
-            :variant="isTypeSelected(item.value) ? 'flat' : 'tonal'"
+            variant="text"
             :color="isTypeSelected(item.value) ? typeChipColor(item) : undefined"
             size="x-small"
             rounded="lg"
             class="mark-menu__type"
+            :class="{'is-selected': isTypeSelected(item.value)}"
+            role="tab"
+            :aria-selected="isTypeSelected(item.value)"
             @click="changeType(item.value)"
           >
             <v-icon start size="16">mdi-{{ item.icon }}</v-icon>
@@ -29,7 +32,7 @@
 
         <div class="mark-menu__actions">
           <v-btn
-            v-if="isEditing"
+            v-if="isEditing && (!hideDisabledButtons || !markAdding.submitting)"
             v-tooltip="formTooltip(t('common.delete'))"
             color="error"
             :disabled="markAdding.submitting"
@@ -43,6 +46,7 @@
             <v-icon size="16">mdi-delete-outline</v-icon>
           </v-btn>
           <v-btn
+            v-if="!hideDisabledButtons || canSubmit"
             color="success"
             :disabled="!canSubmit"
             :loading="markAdding.submitting"
@@ -55,6 +59,8 @@
             <v-icon start size="16">mdi-{{ isEditing ? 'content-save' : 'plus' }}</v-icon>
             {{ submitLabel }}
           </v-btn>
+          <v-progress-circular v-if="hideDisabledButtons && markAdding.submitting" indeterminate size="18" width="2"
+            :aria-label="submitLabel"/>
           <v-btn
             v-tooltip="formTooltip(t('common.close'))"
             variant="text"
@@ -166,6 +172,7 @@
             @update:model-value="onEndTimeChange"
           />
           <v-btn
+            v-if="!hideDisabledButtons || markAdding.is_end_time_active"
             :disabled="!markAdding.is_end_time_active"
             v-tooltip="formTooltip(t('player.mark_dialog.jump_to_time'))"
             size="x-small"
@@ -177,6 +184,7 @@
             <v-icon size="16">mdi-skip-forward</v-icon>
           </v-btn>
           <v-btn
+            v-if="!hideDisabledButtons || markAdding.is_end_time_active"
             :disabled="!markAdding.is_end_time_active"
             v-tooltip="formTooltip(t('player.mark_dialog.sync_with_player'))"
             size="x-small"
@@ -279,8 +287,9 @@ interface MarkAddingData {
 
 type MarkTypeItem = ReturnType<typeof buildMarkTypes>[number]
 
-const {compact = false} = defineProps<{
+const {compact = false, hideDisabledButtons = false} = defineProps<{
   compact?: boolean
+  hideDisabledButtons?: boolean
 }>()
 
 const emit = defineEmits(['addMark'])
@@ -675,6 +684,10 @@ watch(
 }
 
 .mark-menu__types {
+  padding: 3px;
+  border: 1px solid rgba(var(--v-theme-on-surface), .07);
+  border-radius: 11px;
+  background: rgba(var(--v-theme-on-surface), .035);
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -683,9 +696,22 @@ watch(
 }
 
 .mark-menu__type {
+  border: 1px solid transparent;
+  border-radius: 8px !important;
   flex: 0 0 auto;
   text-transform: none;
   letter-spacing: 0;
+}
+
+.mark-menu__type.is-selected {
+  background: rgb(var(--v-theme-surface));
+  border-color: currentColor;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 7%);
+}
+
+.mark-menu__type:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
 }
 
 .mark-menu__icons {

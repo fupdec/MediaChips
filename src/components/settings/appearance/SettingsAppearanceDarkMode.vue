@@ -5,12 +5,10 @@ import {useTheme} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
 import SettingsGroupPanel from '@/components/ui/SettingsGroupPanel.vue'
-import {useLibraryNavItems} from '@/composable/useLibraryNavItems'
 
 const settingsStore = useSettingsStore()
 const theme = useTheme()
 const {t} = useI18n()
-const {syncLibraryNavFromLegacyFlags} = useLibraryNavItems()
 
 const SETTINGS = computed(() => settingsStore)
 
@@ -33,7 +31,7 @@ async function toggleDarkMode(value: string) {
 </script>
 
 <template>
-  <SettingsGroupPanel :title="t('settings_labels.appearance.group_theme')">
+  <SettingsGroupPanel icon="theme-light-dark" :title="t('settings_labels.appearance.group_theme')">
     <settings-switch
       @update="syncDarkModeWithSystem"
       option="system_dark_mode"
@@ -70,29 +68,7 @@ async function toggleDarkMode(value: string) {
         </v-icon>
       </template>
     </settings-switch>
+    <slot/>
   </SettingsGroupPanel>
 
-  <SettingsGroupPanel :title="t('settings_labels.appearance.group_navigation')">
-    <settings-switch
-      option="bottomBar"
-      :title="t('settings_labels.appearance.nav_bottom')"
-    />
-
-    <settings-switch
-      option="showPlaylistsInNavigation"
-      :title="t('settings_labels.appearance.show_playlists')"
-      @update="syncLibraryNavFromLegacyFlags"
-    />
-
-    <settings-switch
-      option="showMarkersInNavigation"
-      :title="t('settings_labels.appearance.show_markers')"
-      @update="syncLibraryNavFromLegacyFlags"
-    />
-
-    <settings-switch
-      option="showTrashInNavigation"
-      :title="t('settings_labels.appearance.show_trash')"
-    />
-  </SettingsGroupPanel>
 </template>

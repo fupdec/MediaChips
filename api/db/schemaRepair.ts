@@ -38,6 +38,14 @@ function addColumnIfMissing(
 }
 
 const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
+  {table: 'offlineCopies', column: 'invalidated', definition: 'integer NOT NULL DEFAULT 0'},
+  {table: 'copyDiscoveryJobs', column: 'triggers', definition: "text NOT NULL DEFAULT '[]'"},
+  {table: 'verifiedMediaCopies', column: 'oshash', definition: 'text'},
+  {table: 'verifiedMediaCopies', column: 'relationship', definition: "text NOT NULL DEFAULT 'copy'"},
+  {table: 'verifiedMediaCopies', column: 'verificationMethod', definition: "text NOT NULL DEFAULT 'sha256'"},
+  {table: 'sourceConnections', column: 'provider', definition: "text NOT NULL DEFAULT 'nas'"},
+  {table: 'mediaLocations', column: 'availability', definition: "text NOT NULL DEFAULT 'unknown'"},
+  {table: 'mediaLocations', column: 'lastVerifiedAt', definition: 'text'},
   {table: 'meta', column: 'icon', definition: 'text'},
   {table: 'meta', column: 'hint', definition: 'text'},
   {table: 'meta', column: 'order', definition: 'integer'},
@@ -83,6 +91,7 @@ const SCHEMA_REPAIRS: ColumnRepairSpec[] = [
   {table: 'media', column: 'oshash', definition: 'text'},
   {table: 'media', column: 'visualHash', definition: 'text'},
   {table: 'media', column: 'visualHashTiles', definition: 'text'},
+  {table: 'media', column: 'visualHashThumbnail', definition: 'text'},
   {table: 'media', column: 'rating', definition: 'integer DEFAULT 0'},
   {table: 'media', column: 'favorite', definition: 'integer DEFAULT 0'},
   {table: 'media', column: 'bookmark', definition: 'text'},
@@ -172,6 +181,81 @@ export function repairSchemaColumns(sqlite: Database.Database): string[] {
 }
 
 const MISSING_TABLE_DDL: Record<string, string> = {
+  copyDiscoveryAutoRoots: `CREATE TABLE copyDiscoveryAutoRoots (
+    id TEXT PRIMARY KEY NOT NULL, connectionId TEXT, key TEXT NOT NULL, excluded TEXT NOT NULL DEFAULT '[]',
+    origin TEXT NOT NULL, monitor INTEGER NOT NULL DEFAULT 1, available INTEGER, identity TEXT, observedAt INTEGER)`,
+  copyDiscoveryAutoRequests: `CREATE TABLE copyDiscoveryAutoRequests (
+    rootId TEXT PRIMARY KEY NOT NULL REFERENCES copyDiscoveryAutoRoots(id) ON DELETE CASCADE,
+    reasons TEXT NOT NULL, generation INTEGER NOT NULL DEFAULT 1, firstAt INTEGER NOT NULL, dueAt INTEGER NOT NULL,
+    expanded INTEGER NOT NULL DEFAULT 0, jobId TEXT, submittedGeneration INTEGER)`,
+  copyDiscoveryJobs: `CREATE TABLE copyDiscoveryJobs (
+    id TEXT PRIMARY KEY NOT NULL, state TEXT NOT NULL, method TEXT NOT NULL, roots TEXT NOT NULL,
+    mediaId INTEGER, listingComplete INTEGER NOT NULL DEFAULT 0, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, error TEXT, triggers TEXT NOT NULL DEFAULT '[]')`,
+  copyDiscoveryItems: `CREATE TABLE copyDiscoveryItems (
+    id TEXT PRIMARY KEY NOT NULL, jobId TEXT NOT NULL REFERENCES copyDiscoveryJobs(id) ON DELETE CASCADE,
+    path TEXT NOT NULL, name TEXT NOT NULL, size INTEGER NOT NULL, version TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'candidate', candidateIds TEXT NOT NULL DEFAULT '[]', mediaId INTEGER, copyId TEXT, error TEXT)`,
+  copyDiscoveryIgnored: `CREATE TABLE copyDiscoveryIgnored (
+    path TEXT NOT NULL, version TEXT NOT NULL, mediaId INTEGER NOT NULL, PRIMARY KEY(path, version, mediaId))`,
+  changeHistory: `CREATE TABLE "changeHistory" (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT, "operationId" TEXT NOT NULL,
+    "source" TEXT NOT NULL, "occurredAt" TEXT NOT NULL, "entityType" TEXT NOT NULL,
+    "entityId" INTEGER NOT NULL, "field" TEXT NOT NULL, "beforeValue" TEXT NOT NULL,
+    "afterValue" TEXT NOT NULL, "restoredAt" TEXT)`,
+  originalOperationJobs: `CREATE TABLE "originalOperationJobs" ("id" text PRIMARY KEY NOT NULL, "payload" text NOT NULL)`,
+  sourceCatalogRoots: `CREATE TABLE "sourceCatalogRoots" (
+  "id" text PRIMARY KEY NOT NULL,
+  "name" text NOT NULL DEFAULT '',
+  "connectionId" text NOT NULL REFERENCES "sourceConnections"("id"),
+  "rootKey" text NOT NULL,
+  "intervalMinutes" integer NOT NULL DEFAULT 0,
+  "nextRunAt" integer,
+  "lastCompletedAt" text,
+  "lastResult" text,
+  "lastError" text
+
+  )`,
+  sourceCatalogEntries: `CREATE TABLE "sourceCatalogEntries" (
+  "rootId" text NOT NULL REFERENCES "sourceCatalogRoots"("id") ON DELETE CASCADE,
+  "resourceKey" text NOT NULL,
+  "version" text NOT NULL,
+  "name" text NOT NULL
+
+  )`,
+  offlineCopies: `CREATE TABLE "offlineCopies" (
+  "locationId" text PRIMARY KEY NOT NULL REFERENCES "mediaLocations"("id") ON DELETE CASCADE,
+  "version" text NOT NULL,
+  "size" integer NOT NULL,
+  "fileName" text NOT NULL,
+  "invalidated" integer NOT NULL DEFAULT 0,
+  "contentType" text NOT NULL
+
+  )`,
+  sourceCacheSettings: `CREATE TABLE "sourceCacheSettings" (
+  "id" integer PRIMARY KEY NOT NULL,
+  "limitBytes" integer NOT NULL DEFAULT 5368709120
+
+  )`,
+  sourceConnections: `CREATE TABLE "sourceConnections" (
+    "id" text PRIMARY KEY NOT NULL, "config" text NOT NULL,
+    "credentialRef" text NOT NULL, "createdAt" text NOT NULL, "provider" text NOT NULL DEFAULT 'nas'
+  )`,
+  verifiedMediaCopies: `CREATE TABLE "verifiedMediaCopies" (
+    "id" text PRIMARY KEY NOT NULL, "mediaId" integer NOT NULL REFERENCES "media"("id") ON DELETE CASCADE,
+    "path" text NOT NULL, "version" text NOT NULL, "sha256" text NOT NULL, "oshash" text,
+    "verificationMethod" text NOT NULL DEFAULT 'sha256', "relationship" text NOT NULL DEFAULT 'copy', "size" integer NOT NULL,
+    "contentType" text NOT NULL, "availability" text NOT NULL DEFAULT 'unknown', "verifiedAt" text NOT NULL
+  )`,
+  mediaCopyPreferences: `CREATE TABLE "mediaCopyPreferences" (
+    "mediaId" integer PRIMARY KEY NOT NULL REFERENCES "media"("id") ON DELETE CASCADE, "copyId" text NOT NULL
+  )`,
+  mediaLocations: `CREATE TABLE "mediaLocations" (
+    "id" text PRIMARY KEY NOT NULL,
+    "mediaId" integer NOT NULL REFERENCES "media"("id") ON DELETE CASCADE,
+    "connectionId" text NOT NULL REFERENCES "sourceConnections"("id"),
+    "resourceKey" text NOT NULL, "version" text NOT NULL,
+    "availability" text NOT NULL DEFAULT 'unknown', "lastVerifiedAt" text
+  )`,
   imageMetadata: `CREATE TABLE "imageMetadata" (
     "mediaId" integer PRIMARY KEY NOT NULL,
     "width" integer DEFAULT 0,
@@ -353,6 +437,194 @@ function dedupeJoinTableRows(sqlite: Database.Database, table: string, columns: 
 export function repairMissingIndexes(sqlite: Database.Database): string[] {
   const repaired: string[] = []
 
+  const ensureIndex = (
+    table: string,
+    indexName: string,
+    createSql: string,
+    options?: {requireColumns?: string[]},
+  ) => {
+    if (!hasTable(sqlite, table)) return
+    if (options?.requireColumns?.some((column) => !hasColumn(sqlite, table, column))) return
+    if (hasIndex(sqlite, indexName)) return
+    sqlite.exec(createSql)
+    repaired.push(indexName)
+  }
+
+  ensureIndex('changeHistory', 'change_history_operation_idx',
+    'CREATE INDEX IF NOT EXISTS change_history_operation_idx ON changeHistory(operationId, id)')
+  ensureIndex('changeHistory', 'change_history_entity_idx',
+    'CREATE INDEX IF NOT EXISTS change_history_entity_idx ON changeHistory(entityType, entityId, id)')
+  ensureIndex('sourceCatalogRoots', 'source_catalog_root_idx',
+    'CREATE UNIQUE INDEX IF NOT EXISTS "source_catalog_root_idx" ON "sourceCatalogRoots" ("connectionId", "rootKey")')
+  ensureIndex('sourceCatalogEntries', 'source_catalog_entry_idx',
+    'CREATE UNIQUE INDEX IF NOT EXISTS "source_catalog_entry_idx" ON "sourceCatalogEntries" ("rootId", "resourceKey")')
+  ensureIndex('mediaLocations', 'media_locations_resource_idx',
+    'CREATE UNIQUE INDEX IF NOT EXISTS "media_locations_resource_idx" ON "mediaLocations" ("connectionId", "resourceKey", "version")')
+  ensureIndex('mediaLocations', 'media_locations_media_idx',
+    'CREATE INDEX IF NOT EXISTS "media_locations_media_idx" ON "mediaLocations" ("mediaId")')
+
+  // 0001 performance / list-sort suite
+  ensureIndex(
+    'media',
+    'media_content_hash_idx',
+    'CREATE INDEX IF NOT EXISTS "media_content_hash_idx" ON "media" ("contentHash")',
+    {requireColumns: ['contentHash']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_idx" ON "media" ("mediaTypeId")',
+    {requireColumns: ['mediaTypeId']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_id_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_id_idx" ON "media" ("mediaTypeId", "id")',
+    {requireColumns: ['mediaTypeId', 'id']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_created_at_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_created_at_idx" ON "media" ("mediaTypeId", "createdAt")',
+    {requireColumns: ['mediaTypeId', 'createdAt']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_updated_at_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_updated_at_idx" ON "media" ("mediaTypeId", "updatedAt")',
+    {requireColumns: ['mediaTypeId', 'updatedAt']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_rating_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_rating_idx" ON "media" ("mediaTypeId", "rating")',
+    {requireColumns: ['mediaTypeId', 'rating']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_viewed_at_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_viewed_at_idx" ON "media" ("mediaTypeId", "viewedAt")',
+    {requireColumns: ['mediaTypeId', 'viewedAt']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_views_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_views_idx" ON "media" ("mediaTypeId", "views")',
+    {requireColumns: ['mediaTypeId', 'views']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_favorite_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_favorite_idx" ON "media" ("mediaTypeId", "favorite")',
+    {requireColumns: ['mediaTypeId', 'favorite']},
+  )
+  ensureIndex(
+    'valuesInMedia',
+    'values_in_media_media_id_idx',
+    'CREATE INDEX IF NOT EXISTS "values_in_media_media_id_idx" ON "valuesInMedia" ("mediaId")',
+    {requireColumns: ['mediaId']},
+  )
+  ensureIndex(
+    'valuesInMedia',
+    'values_in_media_meta_media_idx',
+    'CREATE INDEX IF NOT EXISTS "values_in_media_meta_media_idx" ON "valuesInMedia" ("metaId", "mediaId")',
+    {requireColumns: ['metaId', 'mediaId']},
+  )
+  ensureIndex(
+    'mediaInPlaylists',
+    'media_in_playlists_playlist_id_idx',
+    'CREATE INDEX IF NOT EXISTS "media_in_playlists_playlist_id_idx" ON "mediaInPlaylists" ("playlistId")',
+    {requireColumns: ['playlistId']},
+  )
+  ensureIndex(
+    'filterRowsInSavedFilters',
+    'filter_rows_in_saved_filter_filter_id_idx',
+    'CREATE INDEX IF NOT EXISTS "filter_rows_in_saved_filter_filter_id_idx" ON "filterRowsInSavedFilters" ("filterId")',
+    {requireColumns: ['filterId']},
+  )
+  ensureIndex(
+    'tagsInFilterRows',
+    'tags_in_filter_row_row_id_idx',
+    'CREATE INDEX IF NOT EXISTS "tags_in_filter_row_row_id_idx" ON "tagsInFilterRows" ("rowId")',
+    {requireColumns: ['rowId']},
+  )
+
+  // 0031 list-path sorts / tag category lists
+  ensureIndex(
+    'media',
+    'media_media_type_id_name_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_name_idx" ON "media" ("mediaTypeId", "name")',
+    {requireColumns: ['mediaTypeId', 'name']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_path_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_path_idx" ON "media" ("mediaTypeId", "path")',
+    {requireColumns: ['mediaTypeId', 'path']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_ext_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_ext_idx" ON "media" ("mediaTypeId", "ext")',
+    {requireColumns: ['mediaTypeId', 'ext']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_media_created_at_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_media_created_at_idx" ON "media" ("mediaTypeId", "mediaCreatedAt")',
+    {requireColumns: ['mediaTypeId', 'mediaCreatedAt']},
+  )
+  ensureIndex(
+    'videoMetadata',
+    'video_metadata_duration_idx',
+    'CREATE INDEX IF NOT EXISTS "video_metadata_duration_idx" ON "videoMetadata" ("duration")',
+    {requireColumns: ['duration']},
+  )
+  ensureIndex(
+    'tags',
+    'tags_meta_id_id_idx',
+    'CREATE INDEX IF NOT EXISTS "tags_meta_id_id_idx" ON "tags" ("metaId", "id")',
+    {requireColumns: ['metaId', 'id']},
+  )
+  ensureIndex(
+    'tags',
+    'tags_meta_id_name_idx',
+    'CREATE INDEX IF NOT EXISTS "tags_meta_id_name_idx" ON "tags" ("metaId", "name")',
+    {requireColumns: ['metaId', 'name']},
+  )
+  ensureIndex(
+    'tags',
+    'tags_meta_id_created_at_idx',
+    'CREATE INDEX IF NOT EXISTS "tags_meta_id_created_at_idx" ON "tags" ("metaId", "createdAt")',
+    {requireColumns: ['metaId', 'createdAt']},
+  )
+  ensureIndex(
+    'tags',
+    'tags_meta_id_rating_idx',
+    'CREATE INDEX IF NOT EXISTS "tags_meta_id_rating_idx" ON "tags" ("metaId", "rating")',
+    {requireColumns: ['metaId', 'rating']},
+  )
+  ensureIndex(
+    'tags',
+    'tags_meta_id_favorite_idx',
+    'CREATE INDEX IF NOT EXISTS "tags_meta_id_favorite_idx" ON "tags" ("metaId", "favorite")',
+    {requireColumns: ['metaId', 'favorite']},
+  )
+
+  // 0004 / 0007 — duplicate-scan helpers (migrations exist; repair for legacy DBs)
+  ensureIndex(
+    'media',
+    'media_media_type_id_basename_filesize_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_basename_filesize_idx" ON "media" ("mediaTypeId", "basename", "filesize")',
+    {requireColumns: ['mediaTypeId', 'basename', 'filesize']},
+  )
+  ensureIndex(
+    'media',
+    'media_media_type_id_oshash_idx',
+    'CREATE INDEX IF NOT EXISTS "media_media_type_id_oshash_idx" ON "media" ("mediaTypeId", "oshash")',
+    {requireColumns: ['mediaTypeId', 'oshash']},
+  )
+
   if (hasTable(sqlite, 'videoMetadata') && !hasIndex(sqlite, 'video_metadata_media_id_idx')) {
     sqlite.exec(
       'CREATE UNIQUE INDEX IF NOT EXISTS "video_metadata_media_id_idx" ON "videoMetadata" ("mediaId")',
@@ -395,14 +667,22 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
     repaired.push('face_enrollments_meta_id_idx')
   }
 
-  if (hasTable(sqlite, 'media') && !hasIndex(sqlite, 'media_media_type_id_visual_hash_idx')) {
+  if (
+    hasTable(sqlite, 'media')
+    && hasColumn(sqlite, 'media', 'visualHash')
+    && !hasIndex(sqlite, 'media_media_type_id_visual_hash_idx')
+  ) {
     sqlite.exec(
       'CREATE INDEX IF NOT EXISTS "media_media_type_id_visual_hash_idx" ON "media" ("mediaTypeId", "visualHash")',
     )
     repaired.push('media_media_type_id_visual_hash_idx')
   }
 
-  if (hasTable(sqlite, 'media') && !hasIndex(sqlite, 'media_favorite_id_idx')) {
+  if (
+    hasTable(sqlite, 'media')
+    && hasColumn(sqlite, 'media', 'favorite')
+    && !hasIndex(sqlite, 'media_favorite_id_idx')
+  ) {
     sqlite.exec(
       'CREATE INDEX IF NOT EXISTS "media_favorite_id_idx" ON "media" ("favorite", "id")',
     )
@@ -471,6 +751,39 @@ export function repairMissingIndexes(sqlite: Database.Database): string[] {
       `CREATE UNIQUE INDEX IF NOT EXISTS "${spec.indexName}" ON "${spec.table}" (${quotedCols})`,
     )
     repaired.push(removed > 0 ? `${spec.indexName} (deduped ${removed})` : spec.indexName)
+  }
+
+  if (hasColumn(sqlite, 'media', 'filesize') && !hasIndex(sqlite, 'media_filesize_copy_discovery_idx')) {
+    sqlite.exec('CREATE INDEX media_filesize_copy_discovery_idx ON media(filesize)')
+    repaired.push('media_filesize_copy_discovery_idx')
+  }
+
+  ensureIndex(
+    'media',
+    'media_trash_original_path_idx',
+    'CREATE INDEX IF NOT EXISTS media_trash_original_path_idx ON media(trashOriginalPath)',
+    {requireColumns: ['trashOriginalPath']},
+  )
+  ensureIndex(
+    'verifiedMediaCopies',
+    'verified_media_copies_lookup_path_idx',
+    'CREATE INDEX IF NOT EXISTS verified_media_copies_lookup_path_idx ON verifiedMediaCopies(path)',
+    {requireColumns: ['path']},
+  )
+
+  const discoveryIndexes = [
+    ['copyDiscoveryAutoRequests', 'copy_discovery_auto_due_idx', 'CREATE INDEX copy_discovery_auto_due_idx ON copyDiscoveryAutoRequests(jobId, dueAt)'],
+    ['copyDiscoveryItems', 'copy_discovery_item_path_idx', 'CREATE UNIQUE INDEX copy_discovery_item_path_idx ON copyDiscoveryItems(jobId, path)'],
+    ['copyDiscoveryItems', 'copy_discovery_pending_idx', 'CREATE INDEX copy_discovery_pending_idx ON copyDiscoveryItems(jobId, state)'],
+    ['verifiedMediaCopies', 'verified_media_copies_size_idx', 'CREATE INDEX verified_media_copies_size_idx ON verifiedMediaCopies(size)'],
+  ]
+  for (const [table, name, ddl] of discoveryIndexes) {
+    if (hasTable(sqlite, table) && !hasIndex(sqlite, name)) { sqlite.exec(ddl); repaired.push(name) }
+  }
+
+  if (hasTable(sqlite, 'verifiedMediaCopies') && !hasIndex(sqlite, 'verified_media_copies_path_idx')) {
+    sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS verified_media_copies_path_idx ON verifiedMediaCopies (mediaId, path)')
+    repaired.push('verified_media_copies_path_idx')
   }
 
   return repaired

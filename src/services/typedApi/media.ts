@@ -1,3 +1,4 @@
+import type {CloudMediaMetadataSnapshot} from '@shared/cloudAccounts'
 import type { AxiosRequestConfig } from 'axios'
 import { apiClient } from '../apiClient'
 import {
@@ -37,6 +38,7 @@ import {
   parseVideoMetadata,
 } from '@shared/schemas'
 import { validated } from './validate'
+import type {MediaRelinkCandidate, MediaRelinkInput} from '@shared/mediaRelink'
 
 export type MediaFolderBrowseRequest = {
   path?: string | null
@@ -44,6 +46,19 @@ export type MediaFolderBrowseRequest = {
 }
 
 export const mediaApi = {
+  getCloudMediaMetadata(ids: number[], config?: AxiosRequestConfig) {
+    return apiClient.post<{items: CloudMediaMetadataSnapshot[]}>('/api/cloud-accounts/metadata/snapshot', {ids}, config)
+  },
+  previewMediaRelink(body: {id: number; oldPath: string; newPath: string} | {oldRoot: string; newRoot: string}) {
+    return apiClient.post<{candidates: MediaRelinkCandidate[]}>('/api/Media/relink/preview', body)
+  },
+
+  applyMediaRelinks(matches: MediaRelinkInput[]) {
+    return apiClient.post<{updated: number}>('/api/Media/relink/apply', {matches})
+  },
+  getCatalogSources() {
+    return apiClient.get<Array<{value: string; name: string}>>('/api/Media/catalogSources')
+  },
   getMediaItems(body: ItemsListRequest) {
     return apiClient.post<MediaListResponseData>(API_ROUTES.mediaItems, body).then((res) => ({
       ...res,
@@ -206,6 +221,16 @@ export const mediaApi = {
     }>(API_ROUTES.mediaSuggestTagsFromSimilar, body)
   },
 
+  similarMarkerMoments(tagId: number, rejected: string[]) {
+    return apiClient.post<{
+      markCount: number
+      seedCount: number
+      indexedCount: number
+      modelStatus: string
+      hits: Array<{id: number; time: number; markId?: number}>
+    }>(API_ROUTES.mediaSimilarMarkerMoments, {tagId, rejected})
+  },
+
   semanticSearch(body: {query: string, mediaTypeId?: number | null, limit?: number, locale?: string | null}) {
     return apiClient.post<{
       ids: number[]
@@ -250,7 +275,7 @@ export const mediaApi = {
   },
 
   mergeMedia(body: MergeMediaPayload) {
-    return apiClient.post<MergeMediaResult>(API_ROUTES.mediaMerge, body)
+    return apiClient.post<MergeMediaResult>(API_ROUTES.mediaMerge, body, {timeout: 30 * 60_000})
   },
 
   getMediaDuplicateGroups(body: MediaDuplicateGroupsPayload) {

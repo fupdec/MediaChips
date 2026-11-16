@@ -1,5 +1,5 @@
-import path from 'path'
 import type {AnyRecord} from '../types/db'
+import {parseMediaFilePath} from '../../shared/mediaPath'
 
 export type MissingMediaIndexes = {
   byOshash: Map<string, AnyRecord[]>
@@ -34,19 +34,8 @@ export function buildMissingIndexes(missingMedia: AnyRecord[]): MissingMediaInde
   return {byOshash, bySizeNoHash, targetSizes}
 }
 
-/** Prefer unique basename match when multiple weak (size-only) candidates exist. */
-export function pickWeakCandidate(candidates: AnyRecord[], foundPath: string) {
-  if (!candidates.length) return null
-  if (candidates.length === 1) return candidates[0]
-
-  const foundBasename = path.basename(foundPath).toLowerCase()
-  const basenameMatches = candidates.filter(
-    (item) => path.basename(String(item.path)).toLowerCase() === foundBasename,
-  )
-
-  if (basenameMatches.length === 1) {
-    return basenameMatches[0]
-  }
-
-  return null
+/** Size alone is insufficient; retain every filename match for the user's choice. */
+export function findWeakCandidates(candidates: AnyRecord[], foundPath: string) {
+  const foundBasename = parseMediaFilePath(foundPath).basename.toLowerCase()
+  return candidates.filter((item) => parseMediaFilePath(String(item.path)).basename.toLowerCase() === foundBasename)
 }

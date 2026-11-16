@@ -39,9 +39,15 @@ export interface ItemValueRef {
 }
 
 export interface MediaItem {
+  /** Positive IDs belong to the library; 0 is a temporary playback-only item. */
   id: number
   name?: string
   path?: string
+  /** Persisted catalog observations; reading these never contacts the original. */
+  hasCopies?: boolean | number
+  sourceTokens?: string
+  sourceNames?: string | null
+  availability?: 'available' | 'unavailable' | 'unknown'
   basename?: string
   ext?: string
   mediaTypeId?: number

@@ -899,7 +899,7 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 .playlists-layout-container.v-container {
-  padding-top: 8px;
+  padding-top: 16px;
 }
 
 .playlists-grid {

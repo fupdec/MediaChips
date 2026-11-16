@@ -33,7 +33,7 @@ async function pathExists(filePath: string): Promise<boolean> {
 async function which(command: string): Promise<string | null> {
   try {
     const binary = process.platform === 'win32' ? 'where' : 'which'
-    const {stdout} = await execFileAsync(binary, [command], {timeout: 3000})
+    const {stdout} = await execFileAsync(binary, [command], {timeout: 3000, windowsHide: true})
     const first = String(stdout || '')
       .split(/\r?\n/)
       .map((line) => line.trim())

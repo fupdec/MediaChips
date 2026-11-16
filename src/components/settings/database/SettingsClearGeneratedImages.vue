@@ -6,7 +6,7 @@
         icon="delete-sweep"
         :hint="t('settings_labels.database.clear_generated_images_hint')"
         status="error"
-        :status-label="t('settings_labels.database.health_guide_optional')"
+        :show-status="false"
         compact
       />
 
@@ -281,7 +281,7 @@ onMounted(loadFolderSizes)
 
 .clear-gen__title {
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.3;
 }
 

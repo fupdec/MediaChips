@@ -13,6 +13,7 @@ export const HOME_WIDGET_IDS = [
   'health',
   'topTags',
   'tagSpotlight',
+  'recommendedColors',
 ] as const
 
 export type HomeWidgetId = typeof HOME_WIDGET_IDS[number]
@@ -41,6 +42,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
     'chartStats',
     'createdCalendar',
     'quickActions',
+    'recommendedColors',
     'inbox',
     'tagSpotlight',
     'continue',
@@ -59,6 +61,7 @@ export const DEFAULT_HOME_WIDGETS_CONFIG: HomeWidgetsConfig = {
     chartStats: true,
     createdCalendar: true,
     quickActions: true,
+    recommendedColors: true,
     inbox: true,
     tagSpotlight: true,
     continue: true,

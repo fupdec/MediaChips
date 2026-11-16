@@ -1,3 +1,4 @@
+import {isRemoteMediaPath} from '../../shared/remoteMedia'
 import type { ApiDb } from '../types/db'
 import fs from 'fs'
 import path from 'path'
@@ -18,6 +19,7 @@ function unlinkIfExists(filePath: string) {
 }
 
 async function unlinkResolvedPath(filePath: string) {
+  if (isRemoteMediaPath(filePath)) return false
   const resolvedPath = await resolveExistingPath(filePath)
   if (!resolvedPath) return false
 

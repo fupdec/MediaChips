@@ -1,3 +1,6 @@
+import {isNasMediaPath} from '../../../shared/remoteMedia'
+import {createNasVideoThumbnail} from '../../services/nas/videoThumbnail'
+import {runLibraryOperation} from '../../services/libraryMaintenance'
 import type { TaskControllerShared } from '../../types/tasks'
 import { HttpError, sendAsClientError, sendBadRequest, sendControllerError, sendNotFound, sendOk, sendCreated } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
@@ -14,12 +17,12 @@ import {
   VIDEO_MARK_HEIGHT,
   VIDEO_MARK_JPEG_QUALITY,
 } from '../../../shared/videoPreview'
-import { upsertVisualHashForMedia } from '../../services/visualHashBackfill'
+import { upsertVisualHashForMedia, upsertThumbnailVisualHash } from '../../services/visualHashBackfill'
 import { upsertClipEmbeddingForMedia } from '../../services/mediaClipEmbeddings'
 import { formatMarkTimestamp } from '../../../shared/markTimestamp'
-import { generateVideoGrid } from '../../services/videoGrid'
+import { ensureVideoGrid } from '../../services/videoGrid'
 import { resolveMediaIdFromGridRequest } from '../../services/videoGridRequest'
-import { isUsableVideoThumbFile } from '../../services/videoPreviewThumb'
+import { isUsableVideoThumbFile, parseVideoThumbMediaId } from '../../services/videoPreviewThumb'
 
 export default function createTasksVideoPreviewController(shared: TaskControllerShared) {
   const {db, dbPath, createThumbMiddle, createThumbCustom, getImageMedia} = shared
@@ -27,20 +30,26 @@ export default function createTasksVideoPreviewController(shared: TaskController
   const mediaRepo = createMediaRepository(db.drizzle)
 
   const createThumbForVideo = async function (req: ApiRequest, res: ApiResponse) {
-    const seekRatio = req.body.seekRatio != null ? Number(req.body.seekRatio) : 0.5
-    const resolvedInputPath = resolveActiveDbFilePath(req.body.path, dbPath)
-    if (!resolvedInputPath) {
-      sendBadRequest(res, 'The video does not exist.')
-      return
+    try {
+      const seekRatio = req.body.seekRatio != null ? Number(req.body.seekRatio) : 0.5
+      if (isNasMediaPath(req.body.path)) {
+        try {
+          sendOk(res, await createNasVideoThumbnail(db, Number(req.body.id), req.body.path, seekRatio))
+        } catch (error) {
+          sendControllerError(res, error, 'Failed to create NAS video thumbnail')
+        }
+        return
+      }
+      const resolvedInputPath = resolveActiveDbFilePath(req.body.path, dbPath)
+      if (!resolvedInputPath) {
+        sendBadRequest(res, 'The video does not exist.')
+        return
+      }
+      const result = await createThumbMiddle(resolvedInputPath, req.body.id, seekRatio)
+      sendOk(res, result)
+    } catch (e) {
+      sendAsClientError(res, e, 'Failed to create video thumbnail')
     }
-
-    createThumbMiddle(resolvedInputPath, req.body.id, seekRatio)
-      .then((result: string) => {
-        sendOk(res, result)
-      })
-      .catch((e: unknown) => {
-        sendAsClientError(res, e, 'Failed to create video thumbnail')
-      })
   }
 
   const createThumb = async function (req: ApiRequest, res: ApiResponse) {
@@ -72,6 +81,8 @@ export default function createTasksVideoPreviewController(shared: TaskController
         outputPath,
         req.body.width,
       )
+      const thumbnailId = parseVideoThumbMediaId(outputPath)
+      if (thumbnailId) await upsertThumbnailVisualHash(db, thumbnailId).catch(() => {})
       sendOk(res, outputPath)
     } catch (e) {
       sendAsClientError(res, e, 'Failed to create thumbnail')
@@ -113,15 +124,15 @@ export default function createTasksVideoPreviewController(shared: TaskController
 
     if (!fs.existsSync(gridPath)) {
       try {
-        const result = await generateVideoGrid(req.body, dbPath ?? '')
+        const result = await ensureVideoGrid(req.body, dbPath ?? '')
         if (result) {
           // Respond as soon as the sprite is on disk. Visual hash / CLIP can take
           // much longer (and block the ffmpeg queue for the next Review item).
           sendOk(res, result)
-          void Promise.all([
+          void runLibraryOperation(() => Promise.all([
             ensureVisualHash(true),
             ensureClipEmbedding(),
-          ]).catch(() => undefined)
+          ])).catch(() => undefined)
         } else {
           sendBadRequest(res, 'Unable to probe video duration')
         }
@@ -131,10 +142,10 @@ export default function createTasksVideoPreviewController(shared: TaskController
     } else {
       // Small on-scroll batches often recreate/skip existing grids — still fill missing hashes.
       sendBadRequest(res, 'Grid already exists')
-      void Promise.all([
+      void runLibraryOperation(() => Promise.all([
         ensureVisualHash(false),
         ensureClipEmbedding(),
-      ]).catch(() => undefined)
+      ])).catch(() => undefined)
     }
   }
 
@@ -180,6 +191,8 @@ export default function createTasksVideoPreviewController(shared: TaskController
         outputPath,
         sizes,
       })
+      const thumbnailId = parseVideoThumbMediaId(outputPath)
+      if (thumbnailId) await upsertThumbnailVisualHash(db, thumbnailId).catch(() => {})
       sendCreated(res, {outputPath: result})
     } catch (e) {
       console.log(e)

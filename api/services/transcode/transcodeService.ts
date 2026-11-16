@@ -3,16 +3,13 @@ import fs from 'fs'
 import path from 'path'
 import { ffprobe, ffprobePlayability, resolveFfprobeDuration } from '../../utils/ffmpeg'
 import { isUsableDuration } from '../../utils/ffprobeMath'
-import {
-  DIRECT_VIDEO_CONTAINERS,
-  DIRECT_AUDIO_CONTAINERS,
-  analyzeProbeResult,
-} from './codecCompatibility'
+import {analyzeProbeResult} from './codecCompatibility'
 import { needsBrowserRemuxForMp4 } from './mp4ContainerLayout'
 import {
   resolveExistingCache,
   getCacheStats,
   clearCache,
+  trimCacheToLimit,
 } from './transcodeCache'
 import {ensureProgressiveRemux, lookupRemuxCache} from './remuxCache'
 import {
@@ -101,37 +98,8 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
       const audioOnly = isAudioFilePath(filePath)
       const extension = path.extname(filePath).toLowerCase()
 
-      // Fast path: containers Chromium can't play directly always need
-      // live transcoding — skip ffprobe entirely for playback planning.
-      if (audioOnly) {
-        if (!DIRECT_AUDIO_CONTAINERS.has(extension)) {
-          const result: PlayabilityResult = {
-            playable: false,
-            reason: 'container',
-            videoCodec: null,
-            audioCodec: null,
-            duration: 0,
-            needsRemux: false,
-          }
-          setPlayabilityCacheEntry(cacheKey, result)
-          return result
-        }
-      } else if (!DIRECT_VIDEO_CONTAINERS.has(extension)) {
-        const result: PlayabilityResult = {
-          playable: false,
-          reason: 'container',
-          videoCodec: null,
-          audioCodec: null,
-          duration: 0,
-          needsRemux: false,
-        }
-        setPlayabilityCacheEntry(cacheKey, result)
-        return result
-      }
-
-      // Codec probe only — do not await the MP4 layout scan here. Direct-first
-      // playback means needsRemux is advisory; scanning 8MB on NAS made every
-      // hover /playable check take 0.5–1.5s before the first video byte.
+      // Probe every container: skipping MKV hid unsupported audio tracks and
+      // made it impossible for the client to avoid silent native playback.
       let probe = await ffprobePlayability(filePath)
       if (isPlayabilityProbeIncomplete(probe, {audioOnly})) {
         probe = await ffprobe(filePath)
@@ -193,10 +161,8 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
     }
 
     const playability = await analyzePlayability(filePath)
-    // Pathological MP4 layouts use live re-encode when transcoding is enabled.
-    // Progressive remux is scheduled only when a stream is actually opened
-    // (resolveStreamPath / streamLive) so /playable checks cannot fill the
-    // remux queue and contend with live playback.
+    const dbId = getActiveDbId()
+    if (dbId) trimCacheToLimit(databasesPath, dbId, Number(settings.transcodeCacheMaxGb))
     return resolvePlaybackPlanFromPlayability({playability, transcodeEnabled})
   }
 
@@ -232,7 +198,8 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
           if (cached?.ready) {
             return {filePath: cached.outputPath, contentType: 'video/mp4', plan}
           }
-          scheduleLayoutRemux(filePath, settings)
+          // A layout warning alone is not a playback failure. Build a disk
+          // copy only after the client actually requests a fallback stream.
         }
       }
       return {filePath, contentType: null, plan}
@@ -343,9 +310,11 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
       if (!dbId) return {removed: 0, bytes: 0}
       return clearCache(databasesPath, dbId)
     },
-    getCacheStatsForActiveDb() {
+    async getCacheStatsForActiveDb() {
       const dbId = getActiveDbId()
       if (!dbId) return {bytes: 0, files: 0, entries: 0}
+      const settings = await getTranscodeSettings(db)
+      trimCacheToLimit(databasesPath, dbId, Number(settings.transcodeCacheMaxGb))
       return getCacheStats(databasesPath, dbId)
     },
   }

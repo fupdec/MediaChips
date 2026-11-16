@@ -1,0 +1,13 @@
+
+> mediachips@1.12.0 test
+> node scripts/ensure-sqlite-tests.mjs && vitest run
+
+
+ RUN  v4.1.9 /Users/vit/Desktop/work/mediachips-legacy/mediaChips
+
+
+ Test Files  677 passed | 1 skipped (678)
+      Tests  3846 passed | 4 skipped (3850)
+   Start at  14:40:37
+   Duration  115.59s (transform 63.47s, setup 0ms, import 262.03s, tests 87.88s, environment 546.48s)
+

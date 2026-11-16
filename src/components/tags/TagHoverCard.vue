@@ -88,6 +88,7 @@
       class="item-hover-card__meta"
     >
       <ItemPinnedMeta
+        muted-tags
         :item="tag"
         :tags="tag.tags"
         :values="tag.values"
@@ -177,6 +178,10 @@ const hasPinnedMeta = computed(() =>
 )
 
 const resolvedImageRatio = computed(() => {
+  if (src.value && activeThumbType.value === 'avatar') {
+    return 1
+  }
+
   if (props.imageAspectRatio && props.imageAspectRatio > 0) {
     return props.imageAspectRatio
   }

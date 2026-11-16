@@ -218,6 +218,97 @@
       "when": 1782858000000,
       "tag": "0030_tag_category_parent_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1782861600000,
+      "tag": "0031_list_path_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1782865200000,
+      "tag": "0032_media_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1782868800000,
+      "tag": "0033_source_providers",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1782872400000,
+      "tag": "0034_source_catalog_offline",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1782876000000,
+      "tag": "0035_original_operations",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1782879600000,
+      "tag": "0036_change_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1782883200000,
+      "tag": "0037_verified_media_copies",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1782886800000,
+      "tag": "0038_copy_verification_method",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1782890400000,
+      "tag": "0039_copy_discovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1782894000000,
+      "tag": "0040_copy_discovery_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1782897600000,
+      "tag": "0041_copy_discovery_automation",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1782901200000,
+      "tag": "0042_visual_thumbnail",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1782904800000,
+      "tag": "0043_copy_relationship",
+      "breakpoints": true
     }
   ]
 }

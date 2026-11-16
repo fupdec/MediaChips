@@ -1,4 +1,4 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest'
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest'
 import {
   buildLiveStreamUrl,
   buildVideoStreamUrl,
@@ -188,6 +188,7 @@ describe('resolvePreviewVideoUrl', () => {
 })
 
 describe('playLiveStreamWhenReady', () => {
+  afterEach(() => vi.useRealTimers())
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -196,7 +197,7 @@ describe('playLiveStreamWhenReady', () => {
     const videoEl = {
       src: '',
       readyState: 4,
-      error: {code: 2},
+      error: null,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
       play: vi.fn()
@@ -221,11 +222,22 @@ describe('playLiveStreamWhenReady', () => {
     expect(videoEl.src).toBe('http://localhost/stream?attempt=2')
   })
 
+  it('reuses the initial stream instead of opening a duplicate encoder request', async () => {
+    const video = document.createElement('video')
+    video.src = '/already-open-stream'
+    Object.defineProperty(video, 'readyState', {value: 4})
+    vi.spyOn(video, 'play').mockResolvedValue()
+    const getUrl = vi.fn(() => '/duplicate-stream')
+    await playLiveStreamWhenReady(video, getUrl, {reuseSource: true})
+    expect(getUrl).not.toHaveBeenCalled()
+    expect(video.getAttribute('src')).toBe('/already-open-stream')
+  })
+
   it('stops retrying when cancelled', async () => {
     const videoEl = {
       src: '',
       readyState: 4,
-      error: {code: 2},
+      error: null,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
       play: vi.fn().mockRejectedValue(new Error('network')),
@@ -250,6 +262,33 @@ describe('playLiveStreamWhenReady', () => {
     await promise
 
     expect(videoEl.play).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancels an old load immediately without clearing the source of a newer seek', async () => {
+    const video = document.createElement('video')
+    const play = vi.spyOn(video, 'play').mockResolvedValue()
+    const controller = new AbortController()
+    const old = playLiveStreamWhenReady(video, () => '/old-stream', {signal: controller.signal})
+    video.src = '/new-stream'
+    controller.abort()
+    await old
+    expect(video.getAttribute('src')).toBe('/new-stream')
+    expect(play).not.toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('does not abort a new source when an old play promise resolves late', async () => {
+    let finish!: () => void
+    const video = document.createElement('video')
+    Object.defineProperty(video, 'readyState', {value: 4})
+    vi.spyOn(video, 'play').mockImplementation(() => new Promise<void>(resolve => { finish = resolve }))
+    let cancelled = false
+    const old = playLiveStreamWhenReady(video, () => '/old-stream', {isCancelled: () => cancelled})
+    cancelled = true
+    video.src = '/new-stream'
+    finish()
+    await old
+    expect(video.getAttribute('src')).toBe('/new-stream')
   })
 })
 

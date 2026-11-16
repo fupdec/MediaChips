@@ -13,6 +13,7 @@ import {
   isWatcherScanCompleteMessage,
   isWatcherScanStartMessage,
   parseWatcherInboundMessage,
+  shouldClearWatcherBusyOnMessage,
 } from '@/types/watcher'
 import {
   showWatcherScanCompleteNotification,
@@ -20,6 +21,7 @@ import {
 } from '@/utils/watcherScanNotifications'
 import {useMediaInboxStore} from '@/stores/mediaInbox'
 import uniqBy from 'lodash/uniqBy'
+import {buildAuthedWsUrl} from '@/services/authSession'
 
 export function useWatcher(apiUrl: string) {
   const settingsStore = useSettingsStore()
@@ -58,9 +60,7 @@ export function useWatcher(apiUrl: string) {
     }
 
     try {
-      watcherStore.ws = new WebSocket(
-        apiUrl.replace('http', 'ws') + '/watcher'
-      )
+      watcherStore.ws = new WebSocket(buildAuthedWsUrl(apiUrl, '/watcher'))
 
       watcherStore.ws.onopen = () => {
         console.log('WebSocket connected')
@@ -87,11 +87,16 @@ export function useWatcher(apiUrl: string) {
       }
 
       watcherStore.ws.onmessage = (msg: MessageEvent<string>) => {
-        watcherStore.busy = false
-        clearTimeout(busySafetyTimer)
         try {
           const parsedMsg = parseWatcherInboundMessage(JSON.parse(msg.data))
           console.log('WebSocket message received:', parsedMsg.type)
+
+          // Keep busy through scanStart — only clear when the scan produces
+          // reports, completes, or the socket dies (not on the early scanStart).
+          if (shouldClearWatcherBusyOnMessage(parsedMsg.type)) {
+            watcherStore.busy = false
+            clearTimeout(busySafetyTimer)
+          }
 
           switch (parsedMsg.type) {
             case 'files':

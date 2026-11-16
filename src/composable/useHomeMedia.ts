@@ -32,6 +32,11 @@ function buildOptionsKey(options: HomeMediaLoadOptions, dbPath: string) {
   ].join(':')
 }
 
+/** Loaded card references, shared with quiet metadata synchronization. */
+export function getLoadedHomeMedia(): MediaItem[] {
+  return [...continueWatching.value, ...favorites.value, ...topViews.value, ...inbox.value]
+}
+
 export function invalidateHomeMediaCache() {
   continueWatching.value = []
   favorites.value = []

@@ -90,9 +90,8 @@
       v-if="dialogsStore.mediaMerge.show"
     />
 
-    <DialogDuplicateReview
-      v-if="dialogsStore.duplicateReview.show"
-    />
+    <DialogMediaCardActions v-if="dialogsStore.mediaCardAction.kind" />
+    <DialogDuplicateReview />
 
     <DialogSimilarMediaWall
       v-if="dialogsStore.similarWall.show"
@@ -338,6 +337,10 @@ const DialogTagMerge = defineAsyncComponent(() =>
 const DialogMediaMerge = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogMediaMerge.vue')
 )
+const DialogMediaCardActions = defineAsyncComponent(() =>
+  import('@/components/dialogs/DialogMediaCardActions.vue')
+)
+
 const DialogDuplicateReview = defineAsyncComponent(() =>
   import('@/components/dialogs/DialogDuplicateReview.vue')
 )
@@ -448,6 +451,10 @@ const addMediaInitialPaths = ref('')
 const addMediaInitialBrowsePath = ref('')
 
 function openAddMediaDialog(options?: {paths?: string; browsePath?: string}) {
+  if (tasksStore.mediaAdding.active) {
+    tasksStore.mediaAdding.dialogProcess = true
+    return
+  }
   void (async () => {
     const {useFreeLibraryGate} = await import('@/composable/useFreeLibraryGate')
     const gate = useFreeLibraryGate()

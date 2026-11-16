@@ -20,6 +20,8 @@ export type MissingMediaMatch = {
   confidence: 'hash' | 'size' | string
   newPath: string
   oldPath: string
+  candidatePaths?: string[]
+  ambiguous?: boolean
 }
 
 export type MissingMediaSummary = {
@@ -30,6 +32,7 @@ export type MissingMediaSummary = {
 }
 
 export type MissingMediaSearchEvent =
+  | {type: 'phase'; phase: string}
   | {
     type: 'progress'
     phase?: string
@@ -118,6 +121,7 @@ export type SettingsState = {
   headerGradientLight: string
   headerGradientDark: string
   darkMode: string
+  neutralTheme: string
   headerGradient: string
   colorScroll: string
   textFont: string
@@ -151,6 +155,8 @@ export type SettingsState = {
   library_nav_config: string
   /** '1' shows Trash in the app bar and sidebar / bottom navigation. */
   showTrashInNavigation: string
+  /** Show the optional change-history button in the app bar. */
+  showHistoryInAppBar: string
   numberOfPagesLimit: string
   gapSize: string
   /** Slideshow step interval in seconds for the image viewer. */
@@ -217,6 +223,12 @@ export type SettingsState = {
   databaseVersion: string
   restorePlaybackTime: string
   locale: string
+  remoteOshashBackground: string
+  copyDiscoveryOnImport: string
+  copyDiscoveryOnFolderUpdate: string
+  copyDiscoveryOnReconnect: string
+  duplicateSimilarityPolicy: string
+  copyVerificationSha256: string
   transcodeUnsupportedFormats: string
   transcodeMaxHeight: string
   transcodeCacheMaxGb: string
@@ -228,7 +240,12 @@ export type SettingsState = {
   conversionCompatibilityTest: string
   ratingAndFavoriteInCard: string
   group_chips_in_card_description: string
+  mute_card_tag_colors: string
   show_preset_metadata_in_card: string
+  /** '1' shows the bookmark icon overlay on media cards. */
+  show_bookmark_on_card: string
+  /** '1' shows resolution badges on video/image thumbnails. */
+  show_thumb_resolution: string
   count_number_of_views: string
   meta_sort_mode: string
   meta_group_by: string
@@ -282,7 +299,7 @@ export type SettingsState = {
 }
 
 export const defaultSettingsState = (): SettingsState => ({
-  allowLanAccess: '1',
+  allowLanAccess: '0',
   passwordProtection: '0',
   phrase: '',
   passwordHint: '',
@@ -300,6 +317,7 @@ export const defaultSettingsState = (): SettingsState => ({
   headerGradientLight: 'linear-gradient(to right,#ffb458,#6868eb)',
   headerGradientDark: 'linear-gradient(to right,#a9743d,#4a3c81)',
   darkMode: '0',
+  neutralTheme: '0',
   headerGradient: '1',
   colorScroll: '0',
   textFont: 'Roboto',
@@ -314,6 +332,7 @@ export const defaultSettingsState = (): SettingsState => ({
   showMarkersInNavigation: '1',
   library_nav_config: '',
   showTrashInNavigation: '1',
+  showHistoryInAppBar: '0',
   numberOfPagesLimit: '7',
   gapSize: '2',
   imageSlideshowInterval: '4',
@@ -368,6 +387,12 @@ export const defaultSettingsState = (): SettingsState => ({
   databaseVersion: '',
   restorePlaybackTime: '1',
   locale: 'en',
+  remoteOshashBackground: '1',
+  copyDiscoveryOnImport: '1',
+  copyDiscoveryOnFolderUpdate: '1',
+  copyDiscoveryOnReconnect: '1',
+  duplicateSimilarityPolicy: '',
+  copyVerificationSha256: '0',
   transcodeUnsupportedFormats: '1',
   transcodeMaxHeight: '1080',
   transcodeCacheMaxGb: '5',
@@ -379,7 +404,10 @@ export const defaultSettingsState = (): SettingsState => ({
   conversionCompatibilityTest: '',
   ratingAndFavoriteInCard: '1',
   group_chips_in_card_description: '1',
+  mute_card_tag_colors: '1',
   show_preset_metadata_in_card: '1',
+  show_bookmark_on_card: '1',
+  show_thumb_resolution: '1',
   count_number_of_views: '1',
   meta_sort_mode: 'menu',
   meta_group_by: 'none',

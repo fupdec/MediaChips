@@ -14,7 +14,19 @@ export interface MediaAddingDuplicate {
   duplicate: unknown
 }
 
+export interface RemoteMediaAddingProcess {
+  source: string
+  phase: 'scanning' | 'importing' | 'tagging' | 'resolving'
+  stopping: boolean
+  skipped: number
+  inLibrary: number
+  remaining: number
+  stop: () => void
+  retry: (() => Promise<void>) | null
+}
+
 export interface MediaAddingState {
+  remoteImport: RemoteMediaAddingProcess | null
   paths: string
   excluded: string
   dialogProcess: boolean
@@ -51,7 +63,6 @@ export interface MediaAddingState {
    */
   media_type_ids: number[]
   is_parsing: boolean
-  is_exclude: boolean
   is_check_duplicates: boolean
   /** Skip probe/thumbs; use bulk lite insert. */
   is_fast_import: boolean
@@ -71,6 +82,7 @@ export const useTasksStore = defineStore('useTasksStore', {
   state: () => ({
     list: [] as TaskItem[],
     mediaAdding: {
+      remoteImport: null,
       paths: '',
       excluded: '',
       dialogProcess: false,
@@ -101,7 +113,6 @@ export const useTasksStore = defineStore('useTasksStore', {
       media_type_id: null,
       media_type_ids: [],
       is_parsing: true,
-      is_exclude: false,
       is_check_duplicates: true,
       is_fast_import: false,
       fast_import_locked: false,

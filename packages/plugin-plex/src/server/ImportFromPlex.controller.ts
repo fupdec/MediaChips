@@ -1,3 +1,4 @@
+import {mediaServerProfiles} from '../../../../api/services/mediaServerProfiles'
 import type {ApiDb} from '../../../../api/types/db'
 import {apiErrorMessage} from '../../../../api/types/errors'
 import type {ApiRequest, ApiResponse} from '../../../../api/types/http'
@@ -32,9 +33,13 @@ export default function createImportFromPlexController(
   const listLibraries = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const baseUrl = typeof req.body?.baseUrl === 'string' ? req.body.baseUrl : ''
-      const token = typeof req.body?.token === 'string' ? req.body.token : ''
+      const profiles = mediaServerProfiles(db, 'plex')
+      const suppliedCredential = typeof req.body?.token === 'string' ? req.body.token.trim() : ''
+      const token = suppliedCredential || profiles?.credential(baseUrl) || ''
       const client = createPlexClient({baseUrl, token})
+      if (!token) throw new Error('A server credential is required')
       const libraries = await client.listLibraries()
+      profiles?.save(baseUrl, suppliedCredential)
       res.json({ok: true, libraries})
     } catch (err) {
       res.status(400).json({
@@ -55,7 +60,9 @@ export default function createImportFromPlexController(
       res.setHeader('X-Accel-Buffering', 'no')
 
       const baseUrl = typeof req.body?.baseUrl === 'string' ? req.body.baseUrl : ''
-      const token = typeof req.body?.token === 'string' ? req.body.token : ''
+      const profiles = mediaServerProfiles(db, 'plex')
+      const suppliedCredential = typeof req.body?.token === 'string' ? req.body.token.trim() : ''
+      const token = suppliedCredential || profiles?.credential(baseUrl) || ''
       if (!baseUrl.trim()) {
         writeEvent({type: 'error', message: 'Plex server URL is required'})
         res.end()
@@ -90,6 +97,7 @@ export default function createImportFromPlexController(
         isAborted,
       )
 
+      if (!isAborted()) profiles?.save(baseUrl, suppliedCredential)
       writeEvent({
         type: 'complete',
         ...result,

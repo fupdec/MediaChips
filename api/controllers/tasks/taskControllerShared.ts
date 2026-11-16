@@ -1,3 +1,4 @@
+import {upsertThumbnailVisualHash} from '../../services/visualHashBackfill'
 import type { AnyRecord } from '../../types/db'
 import type {
   EmbeddingModelService,
@@ -104,7 +105,10 @@ export default function createTaskControllerShared(db: ApiDb) {
       }),
       120000,
       'ffmpeg thumbnail',
-    ).then(() => 'success')
+    ).then(async () => {
+      await upsertThumbnailVisualHash(db, Number(id)).catch(() => {})
+      return 'success'
+    })
   }
 
   const createAudioThumb = async (pathToFile: string, id: unknown) => {

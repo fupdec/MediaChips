@@ -128,10 +128,10 @@ withDefaults(defineProps<{
 .health-task__body {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 16px 16px 16px 14px;
+  padding: var(--settings-card-padding, 16px 16px 16px 14px);
 }
 
 .health-task--compact .health-task__body {
-  padding: 14px 14px 14px 12px;
+  padding: var(--settings-card-padding, 14px 14px 14px 12px);
 }
 </style>

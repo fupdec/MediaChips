@@ -164,4 +164,16 @@ describe('httpFileDownload', () => {
     expect(fs.readFileSync(dest, 'utf8')).toBe('recovered')
     expect(hits).toBeGreaterThan(1)
   })
+  it('rejects an interrupted response and removes the incomplete file', async () => {
+    const {baseUrl} = await listen((_req, res) => {
+      res.writeHead(200, {'Content-Length': '100'})
+      res.write('partial')
+      setTimeout(() => res.destroy(), 20)
+    })
+    const destination = path.join(tmpDir(), 'interrupted.onnx')
+    await expect(downloadHttpFile(`${baseUrl}/model`, destination)).rejects.toThrow()
+    expect(fs.existsSync(destination)).toBe(false)
+    expect(fs.existsSync(destination + '.download')).toBe(false)
+  })
+
 })

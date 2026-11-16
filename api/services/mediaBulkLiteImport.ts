@@ -35,6 +35,7 @@ export type BulkLiteImportResult = {
   inserted: number
   skipped: number
   errors: string[]
+  addedIds: number[]
   added: Array<{path: string; mediaId: number}>
 }
 
@@ -218,6 +219,7 @@ export async function runMediaBulkLiteImport(
     rows.push(item.row)
   }
 
+  const addedIds: number[] = []
   const added: Array<{path: string; mediaId: number}> = []
   const txChunks = chunkArray(rows, MEDIA_BULK_LITE_TX_CHUNK)
   let insertedCount = 0
@@ -229,6 +231,7 @@ export async function runMediaBulkLiteImport(
     ))
     insertedCount += insertedRows.length
     for (const row of insertedRows) {
+      addedIds.push(row.id)
       if (added.length >= MEDIA_BULK_LITE_ADDED_CAP) {
         added.shift()
       }
@@ -245,6 +248,7 @@ export async function runMediaBulkLiteImport(
     inserted: insertedCount,
     skipped,
     errors: errors.slice(0, MEDIA_BULK_LITE_ADDED_CAP),
+    addedIds,
     added,
   }
 }

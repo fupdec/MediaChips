@@ -3,6 +3,7 @@ import type {TagsByRowIdMap} from '../types/savedFilterMedia'
 import {parseCountries} from '../utils/country'
 import {normalizeMetaIdParam} from '../utils/metaId'
 import {parseExtList} from '../utils/ext'
+import {isCatalogSourceParam, parseCatalogSourceFilterValues} from '../utils/catalogSourceFilterValues'
 
 export function normalizeFilterRow(
   row: FilterLike,
@@ -24,7 +25,9 @@ export function normalizeFilterRow(
     normalized.active = normalized.active === true || normalized.active === 1 || normalized.active === '1'
   }
 
-  if (normalized.type === 'array' && normalized.param !== 'country' && normalized.param !== 'ext') {
+  if (isCatalogSourceParam(normalized.param)) {
+    normalized.val = parseCatalogSourceFilterValues(normalized.val)
+  } else if (normalized.type === 'array' && normalized.param !== 'country' && normalized.param !== 'ext') {
     const tags = tagsByRowId?.get(Number(normalized.id)) || []
     normalized.val = tags.map((tag) => tag.tagId)
   } else if (normalized.param === 'country' && normalized.val) {

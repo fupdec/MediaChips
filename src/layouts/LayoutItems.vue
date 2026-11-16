@@ -137,58 +137,149 @@
       </div>
     </div>
 
+    <!-- Quick filters are hidden by default: only active ones are shown here as
+         removable chips. The full set lives inside the filters panel. -->
     <div
-      v-if="items_type === 'tag' && settingsStore.showAlphabetFilter == '1'"
-      class="items-alphabet"
+      v-if="!filtersPanelOpen && (letterFilter || colorFilter)"
+      class="items-quick-active"
     >
       <button
-        v-for="letter in alphabetLetters"
-        :key="letter"
+        v-if="letterFilter"
         type="button"
-        class="items-alphabet__btn"
-        :class="{
-          'items-alphabet__btn--active': letterFilter === letter,
-        }"
-        @click="toggleLetterFilter(letter)"
+        class="items-quick-active__chip"
+        :aria-label="`${t('common.reset')}: ${letterFilter}`"
+        v-tooltip:top="t('common.reset')"
+        @click="letterFilter = null"
       >
-        {{ letter }}
+        <span class="items-quick-active__letter">{{ letterFilter }}</span>
+        <v-icon size="14">mdi-close</v-icon>
+      </button>
+      <button
+        v-if="colorFilter"
+        type="button"
+        class="items-quick-active__chip"
+        :aria-label="`${t('common.reset')}: ${colorFilter === TAG_COLOR_FILTER_NONE ? t('items.color_filter_none') : colorFilter}`"
+        v-tooltip:top="t('common.reset')"
+        @click="colorFilter = null"
+      >
+        <span
+          class="items-color-filter__swatch items-quick-active__swatch"
+          :class="{'items-color-filter__swatch--none': colorFilter === TAG_COLOR_FILTER_NONE}"
+          :style="colorFilter === TAG_COLOR_FILTER_NONE ? undefined : {backgroundColor: colorFilter}"
+        />
+        <v-icon size="14">mdi-close</v-icon>
       </button>
     </div>
 
-    <div
-      v-if="showColorFilterBar"
-      class="items-color-filter"
-    >
-      <button
-        type="button"
-        class="items-color-filter__swatch items-color-filter__swatch--none"
-        :class="{'items-color-filter__swatch--active': colorFilter === TAG_COLOR_FILTER_NONE}"
-        :aria-pressed="colorFilter === TAG_COLOR_FILTER_NONE ? 'true' : 'false'"
-        :aria-label="t('items.color_filter_none')"
-        v-tooltip:top="t('items.color_filter_none')"
-        @click="toggleColorFilter(TAG_COLOR_FILTER_NONE)"
-      />
-      <button
-        v-for="color in categoryTagColors"
-        :key="color"
-        type="button"
-        class="items-color-filter__swatch"
-        :class="{'items-color-filter__swatch--active': colorFilter === color}"
-        :style="{backgroundColor: color}"
-        :aria-pressed="colorFilter === color ? 'true' : 'false'"
-        :aria-label="color"
-        v-tooltip:top="color"
-        @click="toggleColorFilter(color)"
-      />
-    </div>
+    <!-- Filters: top panel in the control deck; quick filters render inside it -->
+    <Filters v-if="pageInitialized" :isReady="isFiltersReady">
+      <template #quick-settings>
+        <v-menu
+          location="bottom end"
+          :close-on-content-click="false"
+        >
+          <template #activator="{props: menuProps}">
+            <v-btn
+              v-bind="menuProps"
+              icon
+              size="x-small"
+              variant="text"
+              color="primary"
+              :aria-label="t('filters.quick_settings')"
+              v-tooltip:top="t('filters.quick_settings')"
+            >
+              <v-icon size="16">mdi-tune-variant</v-icon>
+            </v-btn>
+          </template>
+          <v-card
+            rounded="xl"
+            class="items-quick-menu"
+          >
+            <div class="items-quick-menu-title">{{ t('filters.quick_settings') }}</div>
+            <SettingsSwitch
+              v-if="items_type === 'tag'"
+              option="showAlphabetFilter"
+              :title="t('settings_labels.appearance.alphabet_filter')"
+              density="compact"
+            />
+            <SettingsSwitch
+              v-if="items_type === 'tag' && meta?.color"
+              option="showColorFilter"
+              :title="t('settings_labels.appearance.color_filter')"
+              density="compact"
+            />
+            <SettingsSwitch
+              option="showSavedFilters"
+              :title="t('settings_labels.appearance.saved_filters')"
+              density="compact"
+            />
+          </v-card>
+        </v-menu>
+      </template>
 
-    <SavedFilters v-if="pageInitialized && settingsStore.showSavedFilters == '1'"/>
+      <template
+        v-if="!quickAllHidden"
+        #quick
+      >
+        <EditingSectionHeader
+          icon="mdi-lightning-bolt-outline"
+          :title="t('filters.quick_presets')"
+        />
+        <div
+          v-if="showAlphabetBar || showColorFilterBar"
+          class="items-quick-row"
+        >
+          <div
+            v-if="showAlphabetBar"
+            class="items-alphabet"
+          >
+            <button
+              v-for="letter in alphabetLetters"
+              :key="letter"
+              type="button"
+              class="items-alphabet__btn"
+              :class="{
+                'items-alphabet__btn--active': letterFilter === letter,
+              }"
+              @click="toggleLetterFilter(letter)"
+            >
+              {{ letter }}
+            </button>
+          </div>
 
-    <!-- Filters: top panel in the control deck -->
-    <Filters v-if="pageInitialized" :isReady="isFiltersReady"/>
+          <div
+            v-if="showColorFilterBar"
+            class="items-color-filter"
+          >
+            <button
+              type="button"
+              class="items-color-filter__swatch items-color-filter__swatch--none"
+              :class="{'items-color-filter__swatch--active': colorFilter === TAG_COLOR_FILTER_NONE}"
+              :aria-pressed="colorFilter === TAG_COLOR_FILTER_NONE ? 'true' : 'false'"
+              :aria-label="t('items.color_filter_none')"
+              v-tooltip:top="t('items.color_filter_none')"
+              @click="toggleColorFilter(TAG_COLOR_FILTER_NONE)"
+            />
+            <button
+              v-for="color in categoryTagColors"
+              :key="color"
+              type="button"
+              class="items-color-filter__swatch"
+              :class="{'items-color-filter__swatch--active': colorFilter === color}"
+              :style="{backgroundColor: color}"
+              :aria-pressed="colorFilter === color ? 'true' : 'false'"
+              :aria-label="color"
+              v-tooltip:top="color"
+              @click="toggleColorFilter(color)"
+            />
+          </div>
+        </div>
+        <SavedFilters v-if="showSavedChips"/>
+      </template>
+    </Filters>
 
     <ItemsBrowseSkeleton
-      v-if="loader.is_busy"
+      v-if="loader.is_busy && !ITEMS.itemsOnPage.length"
       class="items-page-grid"
       :size="ITEMS.size"
       :gap-size="SETTINGS.gapSize"
@@ -199,7 +290,10 @@
     />
 
     <ItemsPaginationBar
-      v-if="showPagination && !loader.is_busy"
+      class="items-pagination--top"
+      keyboard
+      v-if="showPagination"
+      :class="{ 'items-pagination--busy': loader.is_busy }"
       v-model:page="paginationPage"
       v-model:jump-page="jumpPageForPagination"
       :pages="pages"
@@ -209,7 +303,7 @@
     />
 
     <ItemsMasonryGrid
-      v-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && (isMasonryGrid || isSquaresGrid)"
+      v-if="pageInitialized && ITEMS.itemsOnPage.length && (isMasonryGrid || isSquaresGrid)"
       :key="`masonry-${itemsRenderKey}`"
       :items="ITEMS.itemsOnPage"
       :items-type="listItemType"
@@ -227,7 +321,7 @@
     />
 
     <ItemsVirtualGrid
-      v-else-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && useVirtualGrid"
+      v-else-if="pageInitialized && ITEMS.itemsOnPage.length && useVirtualGrid"
       :key="`virtual-${itemsRenderKey}`"
       :items="ITEMS.itemsOnPage"
       :items-type="listItemType"
@@ -245,11 +339,52 @@
       :list-grid="isListGrid"
       :chips-grid="isChipsGrid"
       :image-aspect-ratio="virtualCardAspectRatio"
+      :window-start="infiniteWindowStart"
+      :total-count="virtualTotalCount"
       class="items-page-grid"
-    />
+    >
+      <template #after-data>
+        <div
+          v-if="infiniteScrollHasMore"
+          class="infinite-loader-full-height"
+          :aria-busy="showInfiniteLoader"
+        >
+          <div
+            class="infinite-loader-slot"
+            :class="{ 'infinite-loader-slot--active': showInfiniteLoader }"
+          >
+            <v-progress-circular
+              indeterminate
+              size="28"
+              width="3"
+              color="primary"
+            />
+          </div>
+          <div
+            v-intersect="infiniteIntersectOptions"
+            class="infinite-scroll-sentinel"
+            aria-hidden="true"
+          />
+        </div>
+        <div
+          v-else-if="infiniteScrollReachedEnd"
+          class="scroll-top-after-items"
+        >
+          <v-btn
+            @click="scrollTop"
+            color="primary"
+            rounded
+            variant="outlined"
+          >
+            <v-icon left>mdi-format-vertical-align-top</v-icon>
+            {{ t('items.scroll_to_top') }}
+          </v-btn>
+        </div>
+      </template>
+    </ItemsVirtualGrid>
 
     <div
-      v-else-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length"
+      v-else-if="pageInitialized && ITEMS.itemsOnPage.length"
       :key="`grid-${itemsRenderKey}`"
       ref="itemsGridRef"
       :class="itemsGridClasses"
@@ -300,7 +435,7 @@
     </div>
 
     <div
-      v-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd && mainScrollOverflowing"
+      v-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd && !useVirtualGrid && mainScrollOverflowing"
       class="scroll-top-after-items"
     >
       <v-btn
@@ -315,7 +450,9 @@
     </div>
 
     <ItemsPaginationBar
-      v-if="showPagination && !loader.is_busy"
+      class="items-pagination--bottom"
+      v-if="showPagination"
+      :class="{ 'items-pagination--busy': loader.is_busy }"
       v-model:page="paginationPage"
       v-model:jump-page="jumpPageForPagination"
       :pages="pages"
@@ -401,22 +538,22 @@
       </div>
     </div>
 
+    <!-- Plain grid only — virtual grid hosts the sentinel at the data-window end. -->
     <div
-      v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollHasMore"
+      v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollHasMore && !useVirtualGrid"
       class="infinite-loader-full-height"
-      :aria-busy="isLoadingMore"
+      :aria-busy="showInfiniteLoader"
     >
-      <!-- Fixed-height slot: the big logo Loading was the main CLS source on append. -->
+      <!-- Fixed-height slot: keep height stable; show spinner while loading or queued. -->
       <div
         class="infinite-loader-slot"
-        :class="{ 'infinite-loader-slot--active': isLoadingMore }"
+        :class="{ 'infinite-loader-slot--active': showInfiniteLoader }"
       >
         <v-progress-circular
           indeterminate
           size="28"
           width="3"
           color="primary"
-          :class="{ 'infinite-loader-spinner--hidden': !isLoadingMore }"
         />
       </div>
 
@@ -438,6 +575,7 @@
     >
       <v-card>
         <DialogHeader
+          icon="pin-outline"
           @close="closePinnedMetaDialog"
           :header="t('meta.settings.editing_pinned_meta')"
           closable
@@ -482,6 +620,8 @@ import ItemsVirtualGrid from '@/components/items/ItemsVirtualGrid.vue'
 import ItemsMasonryGrid from '@/components/items/ItemsMasonryGrid.vue'
 import Filters from '@/components/app/Filters.vue'
 import SavedFilters from '@/components/elements/FiltersSaved.vue'
+import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
+import EditingSectionHeader from '@/components/items/EditingSectionHeader.vue'
 import ItemsPaginationBar from '@/components/elements/ItemsPaginationBar.vue'
 import QuickActionButton from '@/components/app/QuickActionButton.vue'
 import ToolbarSort from '@/components/app/toolbar/ToolbarSort.vue'
@@ -506,6 +646,7 @@ import {useMainScrollOverflow} from '@/composable/useMainScrollOverflow'
 import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
+import {isImageOnlyItemsView} from '@/utils/itemsView'
 import {clearVisibleItemIds} from '@/utils/visibleItemsWindow'
 import {resetVisibilityObserver} from '@/utils/sharedVisibilityObserver'
 import {
@@ -599,6 +740,8 @@ const {
   pages,
   loader,
   isLoadingMore,
+  infiniteLoadPending,
+  infiniteWindowStart,
   infiniteScrollExhausted,
   is_infinite_scroll,
   showPagination,
@@ -624,6 +767,7 @@ const {
   updatePageSetting,
 })
 
+const showInfiniteLoader = computed(() => isLoadingMore.value || infiniteLoadPending.value)
 const infiniteScrollHasMore = computed(() => (
   is_infinite_scroll.value
   && itemsStore.totalFiltered > 0
@@ -695,7 +839,10 @@ const activeFilters = computed(() => {
 });
 
 const filtersPanelOpen = computed(() => Boolean(appStore.filters.visible))
-const activeFiltersCount = computed(() => activeFilters.value.length)
+const quickActiveCount = computed(() =>
+  (letterFilter.value ? 1 : 0) + (colorFilter.value ? 1 : 0),
+)
+const activeFiltersCount = computed(() => activeFilters.value.length + quickActiveCount.value)
 const isGroupByOff = computed(() =>
   normalizeItemsGroupBy(ITEMS.value.groupBy) === 'none',
 )
@@ -719,13 +866,14 @@ const isChipsGrid = computed(() =>
   props.items_type === 'tag' && ITEMS.value.view == 2
 )
 const tagImageAspectRatio = computed(() => {
+  if (props.items_type !== 'tag') return undefined
   const ratio = Number(meta.value?.imageAspectRatio)
   return Number.isFinite(ratio) && ratio > 0 ? ratio : undefined
 })
-/** Stable card estimate for virtual image grids (16:9) when meta has no ratio. */
+/** Tag meta aspect only on tag pages; media cards always estimate as 16:9. */
 const virtualCardAspectRatio = computed(() => {
   if (tagImageAspectRatio.value) return tagImageAspectRatio.value
-  if (isImageGrid.value) return 16 / 9
+  if (props.items_type === 'media') return 16 / 9
   return undefined
 })
 const listItemType = computed((): ItemsPageType =>
@@ -889,7 +1037,15 @@ const openGroupFilter = (section: ItemsGroupSection<MediaItem>) => {
   }, 0)
 }
 
+// Saved-filter chips used to reset the active filters on their own unmount.
+// They now live inside the filters panel (mounted only while it is open and
+// the chips are enabled), so the reset is tied to the page lifecycle instead.
+watch(pageInitialized, (ready, wasReady) => {
+  if (wasReady && !ready) itemsStore.clearSavedFilters()
+})
+
 onBeforeUnmount(() => {
+  itemsStore.clearSavedFilters()
   clearVisibleItemIds()
   resetVisibilityObserver()
   void flushPageSettings()
@@ -913,9 +1069,27 @@ const itemsGridLayoutOptions = computed(() => ({
   lineGrid: isLineGrid.value,
   listGrid: isListGrid.value,
   chipsGrid: isChipsGrid.value,
+  imageOnly: isImageOnlyItemsView(ITEMS.value.view),
   imageAspectRatio: virtualCardAspectRatio.value,
 }))
-const { gridStyle: itemsGridStyle } = useResponsiveGridLayout(itemsGridRef, itemsGridLayoutOptions)
+const { gridStyle: itemsGridStyle } = useResponsiveGridLayout(
+  itemsGridRef,
+  itemsGridLayoutOptions,
+)
+
+/** Scrollbar extent for the virtual grid.
+ * - Paginated: this page only (never the whole library — that looked like a
+ *   broken infinite list when limit was 50 and virtualization kicked in).
+ * - Infinite: full filtered count so the thumb can seek across the library.
+ */
+const virtualTotalCount = computed(() => {
+  const loaded = ITEMS.value.itemsOnPage.length
+  const start = Math.max(0, infiniteWindowStart.value)
+  if (!is_infinite_scroll.value) return loaded
+  const filtered = Math.max(0, Number(ITEMS.value.totalFiltered) || 0)
+  return Math.max(filtered, start + loaded, loaded)
+})
+
 const reg = computed(() => registrationStore.reg)
 const ENV = computed(() => ITEMS.value.environment)
 
@@ -967,6 +1141,18 @@ const showColorFilterBar = computed(() => (
   props.items_type === 'tag'
   && settingsStore.showColorFilter === '1'
   && !!meta.value?.color
+))
+
+const showAlphabetBar = computed(() => (
+  props.items_type === 'tag' && settingsStore.showAlphabetFilter === '1'
+))
+
+const showSavedChips = computed(() => (
+  settingsStore.showSavedFilters === '1' && (itemsStore.filters_saved?.length ?? 0) > 0
+))
+
+const quickAllHidden = computed(() => (
+  !showAlphabetBar.value && !showColorFilterBar.value && !showSavedChips.value
 ))
 
 function toggleColorFilter(value: string): void {
@@ -1166,7 +1352,6 @@ defineEmits<{
   padding: 12px 0 24px;
   /* Loader must not steal scroll anchoring from the card grid above. */
   overflow-anchor: none;
-  contain: layout style;
 }
 
 .infinite-loader-slot {
@@ -1183,10 +1368,6 @@ defineEmits<{
   opacity: 1;
 }
 
-.infinite-loader-spinner--hidden {
-  visibility: hidden;
-}
-
 .scroll-top-after-items {
   display: flex;
   justify-content: center;
@@ -1200,81 +1381,200 @@ defineEmits<{
   overflow-anchor: none;
 }
 
-.items-alphabet {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  margin-bottom: 12px;
-}
-
-.items-alphabet__btn {
-  min-width: 28px;
-  height: 28px;
-  padding: 0 4px;
-  border: none;
-  border-radius: 6px;
-  background: rgba(var(--v-theme-on-surface), 0.04);
-  color: rgba(var(--v-theme-on-surface), 0.7);
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 28px;
-  text-align: center;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-
-  &:hover {
-    background: rgba(var(--v-theme-on-surface), 0.1);
-    color: rgba(var(--v-theme-on-surface), 0.9);
-  }
-
-  &--active {
-    background: rgb(var(--v-theme-primary));
-    color: rgb(var(--v-theme-on-primary));
-  }
-}
-
+/* ── Quick filters (inside the filters panel): shared "track" look ── */
+.items-alphabet,
 .items-color-filter {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  box-shadow: inset 0 0 0 1px rgba(var(--v-theme-on-surface), 0.05);
+}
+
+.items-alphabet {
+  gap: 2px;
+}
+
+.items-alphabet__btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(var(--v-theme-on-surface), 0.62);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    background: rgba(var(--v-theme-primary), 0.1);
+    color: rgb(var(--v-theme-primary));
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.5);
+  }
+
+  &--active,
+  &--active:hover {
+    background: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-on-primary));
+    box-shadow: 0 2px 6px rgba(var(--v-theme-primary), 0.35);
+  }
+}
+
+.items-color-filter {
   gap: 6px;
-  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 999px;
 }
 
 .items-color-filter__swatch {
+  position: relative;
   width: 22px;
   height: 22px;
   padding: 0;
+  border: none;
   border-radius: 50%;
-  border: 2px solid rgba(var(--v-theme-on-surface), 0.18);
   background: transparent;
   cursor: pointer;
   flex-shrink: 0;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  /* thin inner edge so light swatches don't melt into the track */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 
   &:hover {
-    transform: scale(1.08);
+    transform: scale(1.12);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.14),
+      0 0 0 2px rgb(var(--v-theme-surface)),
+      0 0 0 4px rgba(var(--v-theme-primary), 0.5);
   }
 
   &--none {
-    position: relative;
-    background: rgba(var(--v-theme-on-surface), 0.04);
+    background: rgb(var(--v-theme-surface));
+    box-shadow: inset 0 0 0 1.5px rgba(var(--v-theme-on-surface), 0.28);
 
     &::after {
       content: '';
       position: absolute;
-      left: 18%;
-      right: 18%;
-      top: 50%;
-      height: 2px;
+      left: 22%;
+      right: 22%;
+      top: calc(50% - 0.75px);
+      height: 1.5px;
+      border-radius: 1px;
       background: rgba(var(--v-theme-on-surface), 0.5);
       transform: rotate(-45deg);
     }
   }
 
-  &--active {
-    border-color: rgb(var(--v-theme-primary));
-    box-shadow: 0 0 0 2px rgb(var(--v-theme-primary));
+  &--active,
+  &--active:hover {
+    transform: scale(1.12);
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.14),
+      0 0 0 2px rgb(var(--v-theme-surface)),
+      0 0 0 4px rgb(var(--v-theme-primary));
   }
+}
+
+/* ── Quick filters inside the filters panel, grouped by type ── */
+.filters-top__quick .editing-group-header {
+  padding: 8px 4px 6px;
+}
+
+.filters-top__quick .items-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.filters-top__quick .sf-chips.d-flex {
+  margin: 2px -4px -4px;
+}
+
+.items-quick-menu {
+  min-width: 280px;
+  padding: 8px 16px 12px;
+}
+
+.items-quick-menu-title {
+  padding: 4px 0 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+/* Active quick filters shown under the deck while the panel is closed */
+.items-quick-active {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.items-quick-active__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(var(--v-theme-primary), 0.12);
+  color: rgb(var(--v-theme-primary));
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: rgba(var(--v-theme-primary), 0.2);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.5);
+  }
+}
+
+.items-quick-active__swatch {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+
+  &:hover {
+    transform: none;
+  }
+}
+
+.items-layout-container .items-pagination--busy {
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.items-layout-container .items-pagination--top {
+  margin: 16px 0 32px;
+}
+
+.items-layout-container .items-pagination--bottom {
+  margin: 40px 0 calc(32px + var(--floating-bottom-dock-reserve, 0px));
 }
 </style>

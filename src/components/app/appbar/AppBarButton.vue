@@ -4,6 +4,7 @@
     <template #activator="{ props }">
       <v-btn
         v-bind="props"
+        :data-feature-hint="featureHint"
         @click="action"
         :disabled="disabled"
         :color="color"
@@ -29,6 +30,7 @@
   <!-- DESKTOP VERSION -->
   <v-btn
     v-else
+    :data-feature-hint="featureHint"
     @click="action"
     :disabled="disabled"
     :variant="active ? 'flat' : variant"
@@ -53,6 +55,7 @@ import type { PropType } from 'vue'
 defineProps({
   action: Function as PropType<() => void>,
   icon: String,
+  featureHint: String,
   text: String,
   badge: {
     type: [String, Boolean, Number] as PropType<string | boolean | number>,

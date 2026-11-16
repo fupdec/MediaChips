@@ -63,12 +63,12 @@
       <span>{{ t('settings_labels.plugins.stats_enabled', {count: pluginsStore.enabledCount}) }}</span>
     </div>
 
-    <template v-if="installedEntries.length">
-      <div class="text-subtitle-2 mb-2">{{ t('settings_labels.plugins.section_installed') }}</div>
+    <div v-if="installedEntries.length" class="plugins-catalog">
+      <div class="text-subtitle-2 plugins-catalog__heading">{{ t('settings_labels.plugins.section_installed') }}</div>
       <v-card
         v-for="entry in installedEntries"
         :key="entry.manifest.id"
-        class="mb-3 plugin-card"
+        class="plugin-card"
         rounded="xl"
         variant="flat"
       >
@@ -146,6 +146,11 @@
               @update:model-value="(value) => onToggle(entry.manifest.id, Boolean(value))"
             />
             <v-btn
+              v-if="pluginSettingsLink(entry.manifest.id)"
+              :to="pluginSettingsLink(entry.manifest.id)"
+              prepend-icon="mdi-cog-outline" size="small" variant="text"
+            >{{ t('settingsLayout.open_settings') }}</v-btn>
+            <v-btn
               v-if="entry.source === 'user'"
               size="small"
               rounded="xl"
@@ -160,7 +165,7 @@
           </div>
         </v-card-text>
       </v-card>
-    </template>
+    </div>
 
     <div
       v-else
@@ -182,6 +187,7 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {settingsPanelTab} from '@/utils/settingsNavigation'
 import {usePluginsStore} from '@/stores/plugins'
 import {showElectronOpenDialog} from '@/services/electronBridge'
 import {openExternal} from '@/services/shellService'
@@ -198,6 +204,11 @@ const installing = ref(false)
 const installedEntries = computed(() =>
   pluginsStore.catalog.filter((entry) => entry.state !== 'planned'),
 )
+
+function pluginSettingsLink(pluginId: string) {
+  const panel = pluginsStore.settingsPanels.find(panel => panel.pluginId === pluginId)
+  return panel ? {path: '/settings', query: {tab: settingsPanelTab(panel), ...(panel.sectionId ? {section: panel.sectionId} : {})}} : undefined
+}
 
 function openPluginsSite() {
   void openExternal(PLUGINS_SITE_URL)
@@ -278,9 +289,27 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.plugin-card {
-  background-color: rgb(120 120 120 / 8%);
+.plugins-catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 12px;
 }
+
+.plugins-catalog__heading { grid-column: 1 / -1; }
+
+.plugin-card {
+  min-width: 0;
+  border: 1px solid rgba(var(--v-theme-on-surface), .08);
+  background: rgba(var(--v-theme-surface), .55);
+  border-radius: 16px !important;
+}
+
+.plugin-card :deep(.v-card-item) { padding: 14px 16px 10px; }
+.plugin-card :deep(.v-card-text) { padding: 0 16px 14px; }
+.plugin-card :deep(.v-card-title) { white-space: normal; font-size: .875rem !important; }
+.plugin-card :deep(.v-card-subtitle) { font-size: .75rem; line-height: 1.5; }
+.plugin-card :deep(.v-selection-control) { min-height: 36px; }
+
 
 .plugin-id-hint {
   cursor: help;

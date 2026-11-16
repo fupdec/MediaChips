@@ -77,7 +77,7 @@ async function registerHeavyRoutes() {
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { registerGetFileRoutes } = require('./server/getFileRoutes') as typeof import('./server/getFileRoutes')
-  registerGetFileRoutes({app, db, resolveFilePath})
+  registerGetFileRoutes({app, db, resolveFilePath, trustedRoots: [databasesPath]})
   setupStaticApp(app)
   logStartup(`get-file+static ready (${Date.now() - heavyStartedAt}ms)`)
   await yieldEventLoop()
@@ -190,10 +190,21 @@ async function bootstrapServer() {
   bindShutdownHandler()
   await startServer()
   logStartup('listening (ping available)')
+  void warnIfLanWithoutPassword()
 
   // Let Electron's /api/ping poll complete before blocking on heavy requires.
   await yieldEventLoop()
   await registerHeavyRoutes()
+}
+
+async function warnIfLanWithoutPassword(): Promise<void> {
+  try {
+    if (isLanAccessEnabled() && !(await authService.isAuthRequired())) {
+      console.warn('\x1b[33m%s\x1b[0m', '⚠️  LAN access is on without a password: anyone on this network can browse and change your library. Enable password protection in Settings → Security.')
+    }
+  } catch {
+    // diagnostics only
+  }
 }
 
 bootstrapServer().catch((err: unknown) => {

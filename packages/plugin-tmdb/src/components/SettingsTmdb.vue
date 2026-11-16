@@ -1,5 +1,5 @@
 <template>
-  <div class="tmdb-settings mx-4">
+  <div class="tmdb-settings plugin-scraper-settings mx-4">
     <settings-category-divider title="TMDB scraper" icon="movie-search-outline"/>
 
     <v-alert class="mb-6" type="info" variant="tonal" density="comfortable" rounded="lg">
@@ -15,133 +15,136 @@
       </div>
     </v-alert>
 
-    <section class="mb-6">
-      <div class="text-subtitle-1 font-weight-medium mb-1">API key</div>
-      <v-text-field
-        v-model="apiKey"
-        @blur="saveKey"
-        :type="showKey ? 'text' : 'password'"
-        :append-inner-icon="showKey ? 'mdi-eye' : 'mdi-eye-off'"
-        @click:append-inner="showKey = !showKey"
-        placeholder="TMDB v3 API key"
-        autocomplete="off"
-        variant="outlined"
-        rounded
-        hide-details
-        class="tmdb-field"
-      />
-      <div class="text-caption text-medium-emphasis mt-2">
-        Status: {{ configured ? 'configured' : 'not configured' }}
-      </div>
-    </section>
-
-    <v-divider class="mb-6"/>
-
-    <section>
-      <div class="text-subtitle-1 font-weight-medium mb-1">Video fields</div>
-      <div class="text-body-2 text-medium-emphasis mb-4">
-        Map TMDB fields for a video media type: Release date, Studio, Cast, Genres.
-        Field creation and mapping live inside the configure dialog.
-      </div>
-
-      <v-autocomplete
-        v-model="selectedVideoMediaType"
-        :items="videoMediaTypes"
-        item-value="id"
-        item-title="name"
-        label="Video media type"
-        placeholder="Select video media type"
-        return-object
-        variant="outlined"
-        rounded
-        hide-details
-        class="tmdb-field mb-4"
-      >
-        <template #selection="{ item }">
-          <v-icon start>mdi-{{ item.raw.icon || 'video' }}</v-icon>
-          <span>{{ item.raw.name }}</span>
-        </template>
-        <template #item="{ item, props: itemProps }">
-          <v-list-item v-bind="itemProps">
-            <template #title>
-              <v-icon start>mdi-{{ item.raw.icon || 'video' }}</v-icon>
-              <span>{{ item.raw.name }}</span>
-            </template>
-          </v-list-item>
-        </template>
-      </v-autocomplete>
-
-      <v-btn
-        :disabled="!selectedVideoMediaType"
-        color="primary"
-        rounded
-        variant="flat"
-      >
-        <DialogTmdbScraperConfig
-          v-if="selectedVideoMediaType"
-          :key="`tmdb-scraper-${selectedVideoMediaType.id}`"
-          :media-type-id="selectedVideoMediaType.id"
-          @created="onFieldsCreated"
+    <div class="plugin-scraper-settings__grid">
+      <section class="plugin-scraper-settings__block">
+        <div class="text-subtitle-1 font-weight-medium mb-1">API key</div>
+        <v-text-field
+          density="compact"
+          v-model="apiKey"
+          @blur="saveKey"
+          :type="showKey ? 'text' : 'password'"
+          :append-inner-icon="showKey ? 'mdi-eye' : 'mdi-eye-off'"
+          @click:append-inner="showKey = !showKey"
+          placeholder="TMDB v3 API key"
+          autocomplete="off"
+          variant="outlined"
+          rounded
+          hide-details
+          class="tmdb-field"
         />
-        <v-icon start>mdi-tune</v-icon>
-        Configure TMDB fields
-      </v-btn>
-    </section>
+        <div class="text-caption text-medium-emphasis mt-2">
+          Status: {{ configured ? 'configured' : 'not configured' }}
+        </div>
+      </section>
 
-    <v-divider class="my-6"/>
 
-    <section>
-      <div class="text-subtitle-1 font-weight-medium mb-1">Person / actor fields</div>
-      <div class="text-body-2 text-medium-emphasis mb-4">
-        Choose the Cast tag category, then open the configure dialog to create/map
-        Birthday / Deathday / Place of birth / Known for / Gender.
-        Open a cast tag → <strong>TMDB person</strong> to scrape biography, aliases, and photo.
-      </div>
+      <section class="plugin-scraper-settings__block">
+        <div class="text-subtitle-1 font-weight-medium mb-1">Video fields</div>
+        <div class="text-body-2 text-medium-emphasis mb-4">
+          Map TMDB fields for a video media type: Release date, Studio, Cast, Genres.
+          Field creation and mapping live inside the configure dialog.
+        </div>
 
-      <v-autocomplete
-        v-model="selectedPersonMeta"
-        :items="arrayMetas"
-        item-value="id"
-        item-title="name"
-        label="Cast / person category"
-        placeholder="Select tag category"
-        return-object
-        clearable
-        variant="outlined"
-        rounded
-        hide-details
-        class="tmdb-field mb-4"
-        @update:model-value="savePersonMeta"
-      >
-        <template #selection="{ item }">
-          <v-icon start>mdi-{{ item.raw.icon || 'account-group' }}</v-icon>
-          <span>{{ item.raw.name }}</span>
-        </template>
-        <template #item="{ item, props: itemProps }">
-          <v-list-item v-bind="itemProps">
-            <template #title>
-              <v-icon start>mdi-{{ item.raw.icon || 'account-group' }}</v-icon>
-              <span>{{ item.raw.name }}</span>
-            </template>
-          </v-list-item>
-        </template>
-      </v-autocomplete>
+        <v-autocomplete
+          density="compact"
+          v-model="selectedVideoMediaType"
+          :items="videoMediaTypes"
+          item-value="id"
+          item-title="name"
+          label="Video media type"
+          placeholder="Select video media type"
+          return-object
+          variant="outlined"
+          rounded
+          hide-details
+          class="tmdb-field mb-4"
+        >
+          <template #selection="{ item }">
+            <v-icon start>mdi-{{ item.raw.icon || 'video' }}</v-icon>
+            <span>{{ item.raw.name }}</span>
+          </template>
+          <template #item="{ item, props: itemProps }">
+            <v-list-item v-bind="itemProps">
+              <template #title>
+                <v-icon start>mdi-{{ item.raw.icon || 'video' }}</v-icon>
+                <span>{{ item.raw.name }}</span>
+              </template>
+            </v-list-item>
+          </template>
+        </v-autocomplete>
 
-      <v-btn
-        color="primary"
-        rounded
-        variant="flat"
-      >
-        <DialogTmdbPersonConfig
-          :key="`tmdb-person-${selectedPersonMeta?.id || 'new'}`"
-          :meta="selectedPersonMeta"
-          :media-type-id="selectedVideoMediaType?.id"
-          @created="onPersonFieldsCreated"
-        />
-        <v-icon start>mdi-tune</v-icon>
-        Configure person fields
-      </v-btn>
-    </section>
+        <v-btn
+          :disabled="!selectedVideoMediaType"
+          color="primary"
+          rounded
+          variant="flat"
+        >
+          <DialogTmdbScraperConfig
+            v-if="selectedVideoMediaType"
+            :key="`tmdb-scraper-${selectedVideoMediaType.id}`"
+            :media-type-id="selectedVideoMediaType.id"
+            @created="onFieldsCreated"
+          />
+          <v-icon start>mdi-tune</v-icon>
+          Configure TMDB fields
+        </v-btn>
+      </section>
+
+
+      <section class="plugin-scraper-settings__block">
+        <div class="text-subtitle-1 font-weight-medium mb-1">Person / actor fields</div>
+        <div class="text-body-2 text-medium-emphasis mb-4">
+          Choose the Cast tag category, then open the configure dialog to create/map
+          Birthday / Deathday / Place of birth / Known for / Gender.
+          Open a cast tag → <strong>TMDB person</strong> to scrape biography, aliases, and photo.
+        </div>
+
+        <v-autocomplete
+          density="compact"
+          v-model="selectedPersonMeta"
+          :items="arrayMetas"
+          item-value="id"
+          item-title="name"
+          label="Cast / person category"
+          placeholder="Select tag category"
+          return-object
+          clearable
+          variant="outlined"
+          rounded
+          hide-details
+          class="tmdb-field mb-4"
+          @update:model-value="savePersonMeta"
+        >
+          <template #selection="{ item }">
+            <v-icon start>mdi-{{ item.raw.icon || 'account-group' }}</v-icon>
+            <span>{{ item.raw.name }}</span>
+          </template>
+          <template #item="{ item, props: itemProps }">
+            <v-list-item v-bind="itemProps">
+              <template #title>
+                <v-icon start>mdi-{{ item.raw.icon || 'account-group' }}</v-icon>
+                <span>{{ item.raw.name }}</span>
+              </template>
+            </v-list-item>
+          </template>
+        </v-autocomplete>
+
+        <v-btn
+          color="primary"
+          rounded
+          variant="flat"
+        >
+          <DialogTmdbPersonConfig
+            :key="`tmdb-person-${selectedPersonMeta?.id || 'new'}`"
+            :meta="selectedPersonMeta"
+            :media-type-id="selectedVideoMediaType?.id"
+            @created="onPersonFieldsCreated"
+          />
+          <v-icon start>mdi-tune</v-icon>
+          Configure person fields
+        </v-btn>
+      </section>
+    </div>
   </div>
 </template>
 

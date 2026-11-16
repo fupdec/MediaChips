@@ -1,3 +1,4 @@
+import {notifyMediaAdded} from '@/composable/mediaAddedSync'
 import { apiClient } from '../apiClient'
 import { streamModelDownload } from '../streamModelDownload'
 import {
@@ -299,10 +300,11 @@ export const tasksApi = {
 
   addMedia(body: AddMediaPayload) {
     const payload = validateRequest(AddMediaRequestSchema, body)
-    return apiClient.post(API_ROUTES.taskAddMedia, payload).then((res) => ({
-      ...res,
-      data: validated(parseAddMediaResponse, res.data),
-    }))
+    return apiClient.post(API_ROUTES.taskAddMedia, payload).then((res) => {
+      const data = validated(parseAddMediaResponse, res.data)
+      if (res.status === 201 && data.id) notifyMediaAdded([data.id])
+      return {...res, data}
+    })
   },
 
   addMediaBulk(body: AddMediaBulkPayload) {
@@ -312,12 +314,12 @@ export const tasksApi = {
       inserted: number
       skipped: number
       errors: string[]
+      addedIds?: number[]
       added: Array<{path: string; mediaId: number}>
-    }>(API_ROUTES.taskAddMediaBulk, payload, {timeout: 1_800_000}).then((res) => ({
-      ...res,
-      // sendOk writes the payload at the top level (not wrapped in `{data: ...}`).
-      data: res.data,
-    }))
+    }>(API_ROUTES.taskAddMediaBulk, payload, {timeout: 1_800_000}).then((res) => {
+      notifyMediaAdded(res.data.addedIds || (res.data.added || []).map(entry => entry.mediaId))
+      return res
+    })
   },
 
   taskCreateGrid(body: VideoPreviewTaskPayload) {
@@ -348,31 +350,31 @@ export const tasksApi = {
     return apiClient.post<{ data?: string } | string>(API_ROUTES.taskCreateBackupLowDb, body)
   },
 
-  restoreBackup(body: BackupNamePayload) {
-    return apiClient.post(API_ROUTES.tasksBackupsRestoreBackup, body)
+  restoreBackup(body: BackupNamePayload, databaseId?: string) {
+    return apiClient.post(API_ROUTES.tasksBackupsRestoreBackup, body, {params: {databaseId}})
   },
 
-  getBackups() {
-    return apiClient.get(API_ROUTES.tasksBackupsGetBackups).then((res) => ({
+  getBackups(databaseId?: string) {
+    return apiClient.get(API_ROUTES.tasksBackupsGetBackups, {params: {databaseId}}).then((res) => ({
       ...res,
       data: validated(parseBackupList, res.data),
     }))
   },
 
-  createBackup() {
-    return apiClient.get(API_ROUTES.tasksBackupsCreateBackup)
+  createBackup(databaseId?: string) {
+    return apiClient.get(API_ROUTES.tasksBackupsCreateBackup, {params: {databaseId}})
   },
 
-  deleteBackup(body: BackupNamePayload) {
-    return apiClient.post(API_ROUTES.tasksBackupsDeleteBackup, body)
+  deleteBackup(body: BackupNamePayload, databaseId?: string) {
+    return apiClient.post(API_ROUTES.tasksBackupsDeleteBackup, body, {params: {databaseId}})
   },
 
-  importBackup(body: BackupNamePayload) {
-    return apiClient.post(API_ROUTES.tasksBackupsImportBackup, body)
+  importBackup(body: BackupNamePayload, databaseId?: string) {
+    return apiClient.post(API_ROUTES.tasksBackupsImportBackup, body, {params: {databaseId}})
   },
 
-  exportBackup(body: BackupNamePayload) {
-    return apiClient.post(API_ROUTES.tasksBackupsExportBackup, body)
+  exportBackup(body: BackupNamePayload, databaseId?: string) {
+    return apiClient.post(API_ROUTES.tasksBackupsExportBackup, body, {params: {databaseId}})
   },
 
   updateWatchedFolder(id: number, data: WatchedFolderUpdatePayload) {
@@ -789,7 +791,7 @@ export const tasksApi = {
   },
 
   streamFindMissingMedia(
-    body: {folders: string[]},
+    body: {folders: string[]; originalFolder: string},
     options: {signal?: AbortSignal},
     onEvent: (event: GenerationStreamEvent) => void,
   ) {

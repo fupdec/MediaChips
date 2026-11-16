@@ -7,10 +7,18 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
   build:
+    needs: checks
     name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -30,6 +38,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -38,9 +48,9 @@ jobs:
           cache: npm
 
       - name: Validate tag version
-        if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         run: |
+          test "$GITHUB_REF_TYPE" = tag || { echo "Select a version tag for release"; exit 1; }
           TAG="${GITHUB_REF_NAME#v}"
           VERSION=$(node -p "require('./package.json').version")
           if [ "$TAG" != "$VERSION" ]; then
@@ -63,11 +73,11 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Build installers
-        run: npm run dist -- ${{ matrix.distFlag }}
+        run: npm run dist -- ${{ matrix.distFlag }} --publish never
 
       - name: Build Windows portable
         if: matrix.os == 'windows-latest'
-        run: npm run portable
+        run: npm run portable -- --publish never
 
       - name: Collect distribution files
         shell: bash
@@ -93,7 +103,9 @@ jobs:
 
   publish:
     name: Publish GitHub Release
-    needs: build
+    needs: [checks, build]
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -101,77 +113,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          path: release
-          merge-multiple: true
+          pattern: release-*
+          path: release-artifacts
+          merge-multiple: false
 
-      - name: List release files
-        run: find release -maxdepth 1 -type f | sort
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
-      - name: Publish release
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate and publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${{ github.ref_name }}"
-          VERSION="${TAG#v}"
-          NOTES_FILE="$(mktemp)"
-
-          if node scripts/extract-changelog.mjs "$VERSION" "$NOTES_FILE"; then
-            echo "Using CHANGELOG.md for release notes"
-          else
-            echo "No CHANGELOG section for v$VERSION, falling back to generated notes"
-            NOTES_FILE=""
-          fi
-
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG exists, uploading assets"
-            if [ -n "$NOTES_FILE" ]; then
-              gh release edit "$TAG" --notes-file "$NOTES_FILE"
-            fi
-          elif [ -n "$NOTES_FILE" ]; then
-            gh release create "$TAG" \
-              --title "MediaChips $TAG" \
-              --notes-file "$NOTES_FILE"
-          else
-            gh release create "$TAG" \
-              --title "MediaChips $TAG" \
-              --generate-notes
-          fi
-
-          upload_file() {
-            local file="$1"
-            local attempt=1
-            while [ "$attempt" -le 5 ]; do
-              if gh release upload "$TAG" "$file" --clobber; then
-                echo "Uploaded $(basename "$file")"
-                return 0
-              fi
-              echo "Upload failed for $(basename "$file"), retry $attempt/5..."
-              sleep $((attempt * 20))
-              attempt=$((attempt + 1))
-            done
-            return 1
-          }
-
-          mapfile -t yml_files < <(find release -maxdepth 1 -type f -name 'latest*.yml' | sort)
-          mapfile -t asset_files < <(find release -maxdepth 1 -type f \( \
-            -name '*.exe' -o -name '*.dmg' -o -name '*.zip' -o -name '*.AppImage' -o -name '*.blockmap' \
-          \) | sort)
-
-          echo "Uploading ${#yml_files[@]} metadata file(s), then ${#asset_files[@]} asset(s)"
-
-          for file in "${yml_files[@]}"; do
-            upload_file "$file"
-          done
-
-          for file in "${asset_files[@]}"; do
-            upload_file "$file"
-          done
-
-          gh release edit "$TAG" --draft=false
+        run: node scripts/publish-release.mjs

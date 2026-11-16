@@ -111,3 +111,37 @@ export async function generateVideoGrid(
 ): Promise<{output: string} | false> {
   return new VideoGrid(opts, dbPath).generate()
 }
+
+const gridInFlight = new Map<string, Promise<{output: string} | false>>()
+
+function gridInFlightKey(dbPath: string, output: string): string {
+  return `${dbPath}::${path.basename(output)}`
+}
+
+/**
+ * Coalesce concurrent createGrid calls for the same output so scroll/card/timeline
+ * storms do not enqueue duplicate ffmpeg jobs.
+ */
+export async function ensureVideoGrid(
+  opts: VideoGridOptions,
+  dbPath: string,
+): Promise<{output: string} | false> {
+  const outPath = path.join(dbPath, 'media/videos/grids', opts.output)
+  if (fs.existsSync(outPath)) {
+    return {output: opts.output}
+  }
+
+  const key = gridInFlightKey(dbPath, opts.output)
+  const existing = gridInFlight.get(key)
+  if (existing) return existing
+
+  const promise = generateVideoGrid(opts, dbPath).finally(() => {
+    gridInFlight.delete(key)
+  })
+  gridInFlight.set(key, promise)
+  return promise
+}
+
+export function resetVideoGridInFlightForTests(): void {
+  gridInFlight.clear()
+}

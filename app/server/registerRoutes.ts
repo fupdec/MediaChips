@@ -1,3 +1,7 @@
+import {registerRemotePlaybackSpeed} from '../../api/services/remotePlaybackSpeed'
+import {registerCloudMetadataBackfill} from './cloudMetadataBackfill'
+import registerRemoteProcessing from '../../api/routes/RemoteProcessing.routes'
+import registerCloudAccounts from '../../api/routes/CloudAccounts.routes'
 import type { ApiDb } from '../../api/types/db'
 import type { Express } from 'express'
 import { apiErrorMessage, apiErrorStack } from '../../api/types/errors'
@@ -25,13 +29,21 @@ import registerSavedFilter from '../../api/routes/SavedFilter.routes'
 import registerSetting from '../../api/routes/Setting.routes'
 import registerPlugin from '../../api/routes/Plugin.routes'
 import registerTab from '../../api/routes/Tab.routes'
+import registerMetadataTransfer from '../../api/routes/MetadataTransfer.routes'
 import registerBulkMeta from '../../api/routes/BulkMeta.routes'
+import registerChangeHistory from '../../api/routes/ChangeHistory.routes'
+import {withChangeOperation} from '../../api/db/changeHistory'
 import registerLibraryReset from '../../api/routes/LibraryReset.routes'
 import registerTasksBackups from '../../api/routes/tasks/TasksBackups.routes'
 import registerValuesInTag from '../../api/routes/ValuesInTag.routes'
 import registerValuesInMedia from '../../api/routes/ValuesInMedia.routes'
 import registerVideoMetadata from '../../api/routes/VideoMetadata.routes'
 import registerWatchedFolder from '../../api/routes/WatchedFolder.routes'
+import registerCloudDrive from '../../api/routes/CloudDrive.routes'
+import registerSourceCatalog from '../../api/routes/SourceCatalog.routes'
+import registerCopyDiscovery from '../../api/routes/CopyDiscovery.routes'
+import registerOriginalOperations from '../../api/routes/OriginalOperations.routes'
+import registerNas from '../../api/routes/Nas.routes'
 import { isSfwBuild } from '../../shared/buildFlags'
 import { bindPluginMainRuntime } from '../../api/services/pluginMainRuntime'
 
@@ -48,6 +60,7 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'TagsInFolder.routes', register: registerTagsInFolder },
     { routeFile: 'Mark.routes', register: registerMark },
     { routeFile: 'Media.routes', register: registerMedia },
+    { routeFile: 'MetadataTransfer.routes', register: registerMetadataTransfer },
     { routeFile: 'Playlist.routes', register: registerPlaylist },
     { routeFile: 'MediaInPlaylists.routes', register: registerMediaInPlaylists },
     { routeFile: 'MediaType.routes', register: registerMediaType },
@@ -59,6 +72,10 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'SavedFilter.routes', register: registerSavedFilter },
     // Settings early so renderer getSettings can succeed while Task/face still load.
     { routeFile: 'Setting.routes', register: registerSetting },
+    { routeFile: 'Nas.routes', register: registerNas },
+    { routeFile: 'SourceCatalog.routes', register: registerSourceCatalog },
+    { routeFile: 'CopyDiscovery.routes', register: registerCopyDiscovery },
+    { routeFile: 'OriginalOperations.routes', register: registerOriginalOperations },
   ]
 
   // Task.routes pulls faces/ffmpeg controllers; load only when routes are registered
@@ -75,6 +92,8 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
   }
 
   if (!isSfwBuild()) {
+    const registerWebVideo = require('../../api/routes/WebVideo.routes').default as ApiRouteRegistrar
+    registrars.push({routeFile: 'WebVideo.routes', register: registerWebVideo})
     // Lazy require keeps ThePornDB / adult plugin modules out of SFW process graphs.
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -149,12 +168,17 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'Plugin.routes', register: registerPlugin },
     { routeFile: 'Tab.routes', register: registerTab },
     { routeFile: 'BulkMeta.routes', register: registerBulkMeta },
+    { routeFile: 'ChangeHistory.routes', register: registerChangeHistory },
     { routeFile: 'LibraryReset.routes', register: registerLibraryReset },
     { routeFile: 'tasks/TasksBackups.routes', register: registerTasksBackups },
     { routeFile: 'ValuesInTag.routes', register: registerValuesInTag },
     { routeFile: 'ValuesInMedia.routes', register: registerValuesInMedia },
     { routeFile: 'VideoMetadata.routes', register: registerVideoMetadata },
     { routeFile: 'WatchedFolder.routes', register: registerWatchedFolder },
+    // Google Drive — connections, remote library import and Range streaming.
+    { routeFile: 'CloudDrive.routes', register: registerCloudDrive },
+    { routeFile: 'CloudAccounts.routes', register: registerCloudAccounts },
+    { routeFile: 'RemoteProcessing.routes', register: registerRemoteProcessing },
   )
 
   return registrars
@@ -172,6 +196,12 @@ export async function registerApiRoutes(
   },
 ) {
   const routeLoadErrors: Array<{ routeFile: string; message: string }> = []
+
+  registerRemotePlaybackSpeed(app)
+  app.use('/api', (req, _res, next) => {
+    if (req.path.startsWith('/change-history')) return next()
+    withChangeOperation(`${req.method} ${req.originalUrl.split('?')[0]}`, next)
+  })
 
   for (const { routeFile, register } of buildRouteRegistrars()) {
     try {
@@ -205,8 +235,8 @@ export async function registerApiRoutes(
     }
   }
 
+  registerCloudMetadataBackfill(app, db)
   return routeLoadErrors
 }
 
 export default registerApiRoutes
-

@@ -1,3 +1,4 @@
+import {runLibraryBackgroundTask} from './libraryMaintenance'
 import type { ApiDb } from '../types/db'
 import fs from 'fs'
 import path from 'path'
@@ -140,7 +141,7 @@ export function scheduleLegacyTimelineCleanup(
 
   const timer = setTimeout(() => {
     pendingCleanupTimers.delete(dbPath)
-    void runLegacyTimelineCleanup(db).catch((error: unknown) => {
+    void runLibraryBackgroundTask(() => runLegacyTimelineCleanup(db)).catch((error: unknown) => {
       console.warn('Legacy timeline cleanup failed:', error)
     })
   }, delayMs)

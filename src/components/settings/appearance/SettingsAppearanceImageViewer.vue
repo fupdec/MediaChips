@@ -64,10 +64,6 @@ const onSlideshowIntervalChange = (val: number | number[]) => {
       :hint="t('settings_labels.appearance.slideshow_loop_hint')"
     />
 
-    <settings-switch
-      option="virtualImageGrid"
-      :title="t('settings_labels.appearance.virtual_image_grid')"
-      :hint="t('settings_labels.appearance.virtual_image_grid_hint')"
-    />
+
   </div>
 </template>

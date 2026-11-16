@@ -1,5 +1,5 @@
 <template>
-  <v-btn @click="togglePause"
+  <v-btn v-if="!player.webVideoLoading" @click="togglePause"
       icon
       variant="tonal"
       :density="density"
@@ -20,10 +20,10 @@
       dark
       class="px-0 ml-3 neighbor-nav">
       <v-btn
+        v-if="!isPrevDisabled"
         @click="prev"
         @mouseenter="prevHover = true"
         @mouseleave="prevHover = false"
-        :disabled="isPrevDisabled"
         class="neighbor-nav__btn neighbor-nav__btn--prev"
         icon
         dark
@@ -55,10 +55,10 @@
       </v-btn>
 
       <v-btn
+        v-if="!isNextDisabled"
         @click="next"
         @mouseenter="nextHover = true"
         @mouseleave="nextHover = false"
-        :disabled="isNextDisabled"
         class="neighbor-nav__btn neighbor-nav__btn--next"
         icon
         dark
@@ -91,10 +91,10 @@
       small
       dark
     >
-      <div v-if="!player.timeRemain">{{ msToTime(player.currentTime) }}</div>
-      <div v-else>- {{ msToTime(player.duration - player.currentTime) }}</div>
+      <span v-if="!player.timeRemain">{{ msToTime(player.currentTime) }}</span>
+      <span v-else>- {{ msToTime(player.duration - player.currentTime) }}</span>
       <span class="mx-1">/</span>
-      <div>{{ msToTime(player.duration) }}</div>
+      <span>{{ msToTime(player.duration) }}</span>
       <div
         v-html="t('player.controls.switch_time')"
         class="tip body-2"
@@ -135,6 +135,32 @@
         </v-list>
       </v-menu>
     </div>
+
+    <div v-if="isWebVideo && !player.webVideoLoading && player.webVideoQualities.length > 1" class="web-video-quality ml-1">
+      <v-menu attach=".web-video-quality" location="top" :offset="8" min-width="160">
+        <template #activator="{ props: menuProps }">
+          <v-btn v-bind="menuProps" icon variant="tonal" :density="density" dark>
+            <v-icon>mdi-high-definition-box</v-icon>
+            <div class="tip">{{ t('player.controls.web_video_quality') }}</div>
+          </v-btn>
+        </template>
+        <v-list density="compact" class="py-1">
+          <v-list-item :active="player.webVideoQuality == null" color="primary" @click="changeWebVideoQuality(null)">
+            <v-list-item-title>{{ t('player.controls.web_video_quality_auto') }}</v-list-item-title>
+          </v-list-item>
+          <v-list-item v-for="height in player.webVideoQualities" :key="height"
+            :active="player.webVideoQuality === height" color="primary" @click="changeWebVideoQuality(height)">
+            <v-list-item-title>{{ height }}p</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+    </div>
+
+    <v-btn v-if="isWebVideo && !player.webVideoLoading" @click="refreshWebVideo"
+      icon variant="tonal" :density="density" dark>
+      <v-icon>mdi-refresh</v-icon>
+      <div class="tip">{{ t('player.controls.web_video_refresh') }}</div>
+    </v-btn>
 
     <div
       v-if="showTranscodeMenu"
@@ -198,6 +224,9 @@ const {
   isPrevDisabled,
   isNextDisabled,
   isAudioMode,
+  isWebVideo,
+  changeWebVideoQuality,
+  refreshWebVideo,
   msToTime,
   togglePause,
   stop,
@@ -221,6 +250,7 @@ const nextHover = ref(false)
 
 const showTranscodeMenu = computed(() => (
   !isAudioMode.value
+  && !isWebVideo.value
   // Only while live is active, or after the user turned it off (so they can re-enable).
   // Do not show for direct play just because fallback is offerable — that looked like
   // "already transcoding".

@@ -1,6 +1,6 @@
 <template>
   <SettingsSection id="settings-local-ai">
-    <div class="mx-4 pb-4">
+    <div class="mx-4">
       <settings-category-divider
         :title="t('settings_labels.local_ai.title')"
         icon="robot-outline"
@@ -119,19 +119,22 @@
       </div>
 
       <div class="d-flex flex-wrap ga-2">
-        <v-btn
-          v-if="!downloading"
-          color="primary"
-          rounded
-          variant="flat"
-          class="pr-4"
-          :disabled="!enabled || statusLoading || isReady"
-          :loading="statusLoading"
-          @click="confirmDownload = true"
-        >
-          <v-icon icon="mdi-download" start/>
-          {{ t('settings_labels.local_ai.download') }}
-        </v-btn>
+        <ModelDownloadMenu v-if="!downloading" :kinds="['localAi']" :disabled="downloading || busy || statusLoading || isReady" @installed="refreshStatus" v-slot="{importing}">
+          <v-btn
+            v-if="!downloading"
+            color="primary"
+            rounded
+            variant="flat"
+            size="small"
+            class="pr-4"
+            :disabled="!enabled || statusLoading || isReady || importing"
+            :loading="statusLoading"
+            @click="confirmDownload = true"
+          >
+            <v-icon icon="mdi-download" start/>
+            {{ t('settings_labels.local_ai.download') }}
+          </v-btn>
+        </ModelDownloadMenu>
 
         <v-btn
           v-if="downloading"
@@ -205,6 +208,8 @@
 </template>
 
 <script setup lang="ts">
+import ModelDownloadMenu from '@/components/ui/ModelDownloadMenu.vue'
+import {modelDownloadError} from '@/services/manualModels'
 import {computed, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useTasksStore} from '@/stores/tasks'
@@ -346,6 +351,7 @@ async function startDownload() {
   } catch (error) {
     if ((error as Error)?.name !== 'AbortError') {
       statusError.value = error instanceof Error ? error.message : String(error)
+      modelDownloadError('localAi', error, t)
     }
   } finally {
     downloading.value = false

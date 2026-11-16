@@ -1,3 +1,8 @@
+import {parseCloudMediaPath} from '../../shared/cloudAccounts'
+import type {ApiDb} from '../types/db'
+import {parseNasMediaPath} from '../../shared/remoteMedia'
+import {parseDriveMediaPath} from '../../shared/cloudDrive'
+import {computeRemoteMediaOshash} from './mediaSources/oshash'
 import { computeOshashForPath } from './oshash'
 
 type FingerprintKind = 'oshash'
@@ -53,11 +58,20 @@ function fingerprintPatch(kind: FingerprintKind, value: string): ComputedFingerp
   return {oshash: value}
 }
 
-async function computeFingerprint(input: FingerprintMediaInput): Promise<ComputedFingerprint | null> {
+async function computeFingerprint(input: FingerprintMediaInput, options?: {
+  db: ApiDb
+  mediaId: number
+  signal?: AbortSignal
+  assertCurrent?: () => void
+}): Promise<ComputedFingerprint | null> {
   const kind = resolveFingerprintKind(input.mediaType, input.filesize)
   if (!kind) return null
 
-  const value = await computeOshashForPath(input.path)
+  const remote = parseCloudMediaPath(input.path) || parseNasMediaPath(input.path) || parseDriveMediaPath(input.path)
+  if (remote && !options) throw new Error('Remote fingerprinting requires a library card')
+  const value = remote
+    ? (await computeRemoteMediaOshash(options!.db, options!.mediaId, input.path, options)).value
+    : await computeOshashForPath(input.path)
 
   return {
     kind,

@@ -60,11 +60,17 @@ export interface MergeMediaPayload {
   survivorId: number
   sourceIds: number[]
   with_file?: boolean
+  similarity?: boolean
+  confirmFileDeletion?: boolean
+  deleteSourceIds?: number[]
 }
 
 export interface MediaDuplicateGroupsPayload {
   duplicates_by?: string
   mediaTypeId?: number | string | null
+  mediaIds?: Array<number | string> | null
+  filters?: unknown[]
+  filtersJoin?: 'and' | 'or'
 }
 
 export interface MoveTagsToCategoryPayload {

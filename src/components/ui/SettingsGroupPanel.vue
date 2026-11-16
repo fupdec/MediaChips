@@ -7,12 +7,13 @@
       v-if="title || hint || $slots.title || $slots.hint"
       class="settings-group-panel__heading"
     >
-      <div
+      <SettingsCategoryDivider
         v-if="title || $slots.title"
-        class="settings-group-panel__title text-subtitle-2 text-high-emphasis"
+        :title="title"
+        :icon="icon"
       >
-        <slot name="title">{{ title }}</slot>
-      </div>
+        <template v-if="$slots.title" #title><slot name="title"/></template>
+      </SettingsCategoryDivider>
       <div
         v-if="hint || $slots.hint"
         class="settings-group-panel__hint text-caption text-medium-emphasis"
@@ -28,8 +29,11 @@
 </template>
 
 <script setup lang="ts">
+import SettingsCategoryDivider from './SettingsCategoryDivider.vue'
+
 withDefaults(defineProps<{
   title?: string
+  icon?: string
   hint?: string
   /** Extra bottom margin when stacking panels. */
   spaced?: boolean
@@ -56,11 +60,6 @@ withDefaults(defineProps<{
 
 .settings-group-panel__heading {
   margin-bottom: 8px;
-}
-
-.settings-group-panel__title {
-  line-height: 1.3;
-  letter-spacing: -0.01em;
 }
 
 .settings-group-panel__hint {

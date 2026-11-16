@@ -24,6 +24,7 @@
     <template v-slot:default>
       <v-card rounded="xl">
         <DialogHeader
+          icon="emoticon-outline"
           @close="closeDialog"
           :header="t('meta.fields.icon_selection')"
           :buttons="headerButtons"

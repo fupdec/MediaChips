@@ -122,13 +122,16 @@
               {{ t('home.widgets.created_calendar_empty_month') }}
               <span v-if="stats.latestMonthKey" class="ml-1">
                 ·
-                <button
-                  type="button"
+                <v-btn
+                  size="x-small"
+                  variant="tonal"
+                  color="primary"
+                  rounded="lg"
                   class="widget-created-calendar__jump"
                   @click="jumpToLatestMonth"
                 >
                   {{ t('home.widgets.created_calendar_jump_latest') }}
-                </button>
+                </v-btn>
               </span>
             </template>
           </div>
@@ -407,15 +410,8 @@ watch([year, month], () => {
 }
 
 .widget-created-calendar__jump {
-  appearance: none;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: rgb(var(--v-theme-primary));
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .widget-created-calendar__weekdays,

@@ -22,9 +22,8 @@
           <v-icon size="small">mdi-plus</v-icon>
         </v-btn>
         <v-btn
+          v-if="!generatingChapters && player.isLibraryMedia"
           v-tooltip="playerTooltip(t('player.generate_chapters'), 'bottom')"
-          :loading="generatingChapters"
-          :disabled="generatingChapters || !player.media?.id"
           variant="text"
           icon
           size="small"
@@ -33,6 +32,8 @@
         >
           <v-icon size="small">mdi-movie-open-outline</v-icon>
         </v-btn>
+        <v-progress-circular v-if="generatingChapters" indeterminate size="18" width="2"
+          :aria-label="t('player.generate_chapters')"/>
         <v-btn
           v-tooltip="playerTooltip(t(clipMode ? 'player.clip_mode_on' : 'player.clip_mode'), 'bottom')"
           :color="clipMode ? 'primary' : undefined"
@@ -134,13 +135,12 @@
             />
             <span>{{ t('player.no_marks') }}</span>
             <v-btn
+              v-if="!generatingChapters && player.isLibraryMedia"
               class="mt-3"
               color="primary"
               rounded
               size="small"
               variant="tonal"
-              :loading="generatingChapters"
-              :disabled="generatingChapters || !player.media?.id"
               prepend-icon="mdi-movie-open-outline"
               @click="generateChapters"
             >

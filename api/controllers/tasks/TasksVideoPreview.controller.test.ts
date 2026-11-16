@@ -8,6 +8,10 @@ const {createThumbCustom} = vi.hoisted(() => ({
   createThumbCustom: vi.fn(),
 }))
 
+vi.mock('../../services/nas/videoThumbnail', () => ({
+  createNasVideoThumbnail: vi.fn(async () => 'success'),
+}))
+
 vi.mock('../../db/repositories/marks', () => ({
   createMarksRepository: () => ({}),
 }))
@@ -102,6 +106,24 @@ describe('TasksVideoPreviewController createThumb errors', () => {
 
     expect(res.statusCode).toBe(400)
     expect(res.body).toEqual({message: 'ffmpeg failed'})
+  })
+
+  it('routes NAS posters through the authenticated remote thumbnail service', async () => {
+    const {createNasVideoThumbnail} = await import('../../services/nas/videoThumbnail')
+    const {resolveActiveDbFilePath} = await import('../../services/mediaPathResolver')
+    const db = {drizzle: {}} as never
+    const createThumbMiddle = vi.fn()
+    const controller = createTasksVideoPreviewController({
+      db, dbPath: '/tmp/db', createThumbMiddle, createThumbCustom, getImageMedia: vi.fn(),
+    } as never)
+    const source = 'nas://11111111-1111-4111-8111-111111111111/movie.mp4'
+    const res = createResponse()
+    await controller.createThumbForVideo({body: {path: source, id: 7, seekRatio: 0.8}} as ApiRequest, res)
+    expect(createNasVideoThumbnail).toHaveBeenCalledWith(db, 7, source, 0.8)
+    expect(resolveActiveDbFilePath).not.toHaveBeenCalled()
+    expect(createThumbMiddle).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toBe('success')
   })
 
   it('rejects createThumbForVideo when the source video cannot be resolved', async () => {

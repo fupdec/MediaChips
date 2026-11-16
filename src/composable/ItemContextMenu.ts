@@ -350,6 +350,38 @@ export default function useItemContextMenu(
       const toolsMenu: ItemContextMenuEntry[] = []
       const similarMenu: ItemContextMenuEntry[] = []
 
+      const openCardAction = (kind: 'copies' | 'originals' | 'relink' | 'history' | 'metadata') => {
+        if (!isMediaPageItem(item, type)) return
+        const mediaIds = isSelectMode() ? [...itemsStore.selection] : [item.id]
+        if (!mediaIds.length) return
+        dialogsStore.mediaCardAction = {kind, mediaIds, media: item}
+      }
+      const cardActions = [
+        {kind: 'copies', key: 'copies.title', icon: 'file-multiple-outline', single: true},
+        {kind: 'originals', key: 'originals.title', icon: 'file-cog-outline'},
+        {kind: 'relink', key: 'media.relink.locate', icon: 'file-link-outline', single: true},
+        {kind: 'history', key: 'change_history.title', icon: 'history', single: true},
+        {kind: 'metadata', key: 'metadata_transfer.title', icon: 'database-export-outline'},
+      ] as const
+      const fileMenu: ItemContextMenuEntry[] = []
+      for (const entry of cardActions) {
+        if ('single' in entry && entry.single && isSelectMode()) continue
+        fileMenu.push({
+          name: t(entry.key),
+          type: 'item',
+          icon: entry.icon,
+          disabled: selectionEmpty,
+          action: () => openCardAction(entry.kind),
+        })
+      }
+      contextMenu.push({
+        name: t('context_menu.manage_file'),
+        type: 'menu',
+        icon: 'file-cog-outline',
+        disabled: selectionEmpty,
+        menu: fileMenu,
+      })
+
       toolsMenu.push({
         name: t('context_menu.parse_tags_in_path'),
         type: 'item',

@@ -44,7 +44,7 @@
         </div>
       </v-btn>
       <v-slider
-        v-model="playerStore.volume"
+        v-model="displayVolume"
         @wheel.prevent.stop="handleVolumeSliderWheel"
         class="volume-slider ma-0 pl-2 pr-6"
         color="white"
@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import {inject} from 'vue'
+import {computed, inject} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {PLAYER_TRANSPORT_KEY} from '@/composable/playerTransportKey'
 
@@ -75,4 +75,12 @@ const {
   handleVolumeSliderWheel,
   emit,
 } = inject(PLAYER_TRANSPORT_KEY)!
+
+const displayVolume = computed({
+  get: () => playerStore.muted ? 0 : playerStore.volume,
+  set: (volume: number) => {
+    playerStore.volume = volume
+    if (volume > 0) playerStore.muted = false
+  },
+})
 </script>

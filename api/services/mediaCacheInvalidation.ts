@@ -2,6 +2,7 @@ import { clearDynamicPlaylistsSummaryCache } from './dynamicPlaylistsSummaryCach
 import { clearInheritedFolderTagsCache } from './mediaInheritedFolderTags'
 import { clearMediaListGroupingCache } from './mediaListGroupingCache'
 import { clearMediaListTotalsCache } from './mediaListTotalsCache'
+import { clearHomeNavCountsCache } from './homeNavCounts'
 import { terminateFilterItemsWorker } from './filterItemsWorkerRunner'
 
 export function invalidateMediaDerivedCaches(): void {
@@ -9,5 +10,6 @@ export function invalidateMediaDerivedCaches(): void {
   clearMediaListGroupingCache()
   clearDynamicPlaylistsSummaryCache()
   clearInheritedFolderTagsCache()
+  clearHomeNavCountsCache()
   terminateFilterItemsWorker()
 }

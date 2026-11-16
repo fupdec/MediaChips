@@ -1,3 +1,4 @@
+import {mediaServerProfiles} from '../../../../api/services/mediaServerProfiles'
 import type {Express} from 'express'
 import express from 'express'
 import type {ApiDb} from '../../../../api/types/db'
@@ -15,6 +16,10 @@ import createImportFromPlexController from './ImportFromPlex.controller'
 export default function registerPlexPluginMain(app: Express, db: ApiDb): void {
   const controller = createImportFromPlexController(db)
   const router = express.Router()
+  router.get('/profiles', (_req, res) => {
+    res.setHeader('Cache-Control', 'private, no-store')
+    res.json(mediaServerProfiles(db, 'plex')?.list() || [])
+  })
 
   router.post(
     '/listLibraries',

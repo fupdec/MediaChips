@@ -7,6 +7,8 @@ import {
   invalidateFileExistsCache,
 } from '@/services/fileService'
 import { isThumbUnavailable, resolveMediaThumbDisplayUrl } from '@/utils/thumbSource'
+import {isRemoteMediaPath} from '@shared/remoteMedia'
+import {saveWebVideoCurrentFrame} from '@/services/webVideoFrames'
 
 export { formatMarkTimestamp } from '@shared/markTimestamp'
 
@@ -65,12 +67,14 @@ export async function ensureMarkThumb({
   mediaPath,
   mediaId,
   onUpdated,
+  videoElement,
 }: {
   mark?: MarkThumbTarget
   videoPath?: string | null
   mediaPath?: string | null
   mediaId?: number | string
   onUpdated?: (markId: number) => void
+  videoElement?: HTMLVideoElement | null
 }): Promise<EnsureMarkThumbResult> {
   if (!mark?.id) return 'skipped'
 
@@ -81,6 +85,13 @@ export async function ensureMarkThumb({
   }
 
   try {
+    if (isRemoteMediaPath(videoPath)) {
+      if (!mediaId || !await saveWebVideoCurrentFrame({video: videoElement || null, mediaId: Number(mediaId), mediaPath: videoPath || undefined,
+        markId: mark.id, expectedTime: mark.time ?? 0})) return 'skipped'
+      if (imgPath) invalidateFileExistsCache(imgPath)
+      onUpdated?.(mark.id)
+      return 'created'
+    }
     if (mediaId) {
       await typedApi.createMarkThumb({
         markId: mark.id,

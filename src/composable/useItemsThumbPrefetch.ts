@@ -109,7 +109,7 @@ export function useItemsThumbPrefetch({
 
       if (isImageMediaType(mediaType.value) || isVideoMediaType(mediaType.value)) {
         const pendingIds = list
-          .filter((item) => needsQuietMetaBackfill(item as MediaItem))
+          .filter((item) => needsQuietMetaBackfill(item as MediaItem, isVideoMediaType(mediaType.value)))
           .slice(0, QUIET_BACKFILL_MAX)
           .map((item) => Number(item.id))
           .filter((id) => Number.isFinite(id) && id > 0)

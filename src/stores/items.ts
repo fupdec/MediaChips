@@ -1,3 +1,4 @@
+import {isRemoteMediaPath} from '@shared/remoteMedia'
 import {toRaw} from 'vue'
 import {defineStore} from 'pinia'
 import {useAppStore} from '@/stores/app'
@@ -194,7 +195,7 @@ export const useItemsStore = defineStore('items', {
     }) {
       const rawImage = toRaw(image)
 
-      if (in_system) {
+      if (in_system && !isRemoteMediaPath(rawImage.path)) {
         void this.openImageInSystem(rawImage)
         return
       }
@@ -284,7 +285,7 @@ export const useItemsStore = defineStore('items', {
       return findFirstPlayableVideo(candidates, checkFileExists)
     },
 
-    async playVideo({video, time, in_system, player, videos, trustPath = false}: {
+    async playVideo({video, time, in_system, player, videos, trustPath = false, inline = false}: {
       video: PlayableMedia
       time?: number
       /** @deprecated Prefer `player`. `true` → system, `false` → builtin. */
@@ -293,6 +294,7 @@ export const useItemsStore = defineStore('items', {
       player?: 'default' | 'builtin' | 'system'
       videos?: PlayableMedia[]
       trustPath?: boolean
+      inline?: boolean
     }) {
       const {noteExternalPlayVideo} = await import('@/services/similarRadio')
       noteExternalPlayVideo()
@@ -351,8 +353,8 @@ export const useItemsStore = defineStore('items', {
 
       const resolvedPlayer: 'default' | 'builtin' | 'system' = player
         ?? (in_system === true ? 'system' : in_system === false ? 'builtin' : 'default')
-      const useSystemPlayer = resolvedPlayer === 'system'
-        || (resolvedPlayer === 'default' && settingsStore.isPlayVideoInSystemPlayer === '1')
+      const useSystemPlayer = !isRemoteMediaPath(targetVideo.path) && (resolvedPlayer === 'system'
+        || (resolvedPlayer === 'default' && settingsStore.isPlayVideoInSystemPlayer === '1'))
 
       if (useSystemPlayer) {
         if (targetVideo.path) {
@@ -418,7 +420,7 @@ export const useItemsStore = defineStore('items', {
       };
 
       if (
-        settingsStore.open_player_in_separate_window == '1' &&
+        !inline && settingsStore.open_player_in_separate_window == '1' &&
         canOpenSeparatePlayer()
       ) {
         if (openSeparatePlayer(data)) {

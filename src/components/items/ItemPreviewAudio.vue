@@ -52,6 +52,8 @@ import {computed, ref, watch} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {getReadableDuration} from '@/services/formatUtils'
+import {buildLocalFileUrl} from '@/services/fileService'
+import path from 'path-browserify'
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import type {MediaItem} from '@/types/stores'
 
@@ -71,10 +73,12 @@ const isViewCard = computed(() =>
 const thumb = computed(() => {
   const id = props.media?.id
   if (id == null || !appStore.mediaPath) return null
+  const version = itemsStore.thumbRefreshKeys[Number(id)]
+  if (version) return buildLocalFileUrl(path.join(appStore.mediaPath, 'audios/thumbs', `${id}.jpg`), false, version)
   return resolveMediaThumbDisplayUrl(appStore.mediaPath, 'audios', id)
 })
 
-watch(() => props.media?.id, () => {
+watch(() => [props.media?.id, itemsStore.thumbRefreshKeys[Number(props.media?.id)]], () => {
   thumbFailed.value = false
 })
 

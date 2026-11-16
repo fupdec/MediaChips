@@ -4,6 +4,8 @@
  */
 export const API_SEGMENT_ALIASES = {
   bulkmeta: 'bulk-meta',
+  clouddrive: 'drive',
+  drive: 'drive',
   filterrow: 'FilterRow',
   filterrowsinsavedfilter: 'FilterRowsInSavedFilter',
   home: 'home',

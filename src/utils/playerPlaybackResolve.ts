@@ -79,20 +79,21 @@ export function playbackErrorMessage(error: unknown, fallback: string): string {
   return fallback
 }
 
-/** Prefer browser-native decode; live re-encode only after stall / hard require. */
+/** Server codec lists cannot determine the current browser's native support. */
 export function shouldPreferDirectPlayback(input: {
   transcodeRequired: boolean
   forceDirectPlayback: boolean
   liveTranscodeDisabled: boolean
   reason?: string | null
   needsRemux?: boolean
-  /** Kept for callers; layout no longer skips direct when transcode is on. */
+  /** Whether automatic conversion is allowed by settings. */
   transcodeEnabled?: boolean
+  audioUnsupported?: boolean
 }): boolean {
-  if (input.forceDirectPlayback || input.liveTranscodeDisabled) return true
-  // Pathological MP4 layout stays on file bytes first; stall watch falls back.
-  if (input.reason === 'container_layout' || input.needsRemux === true) return true
-  return !input.transcodeRequired
+  if (input.forceDirectPlayback || input.liveTranscodeDisabled || !input.transcodeEnabled) return true
+  // Missing audio often does not raise a media error, so handle a confirmed
+  // unsupported audio track before silently starting the video without sound.
+  return !input.audioUnsupported
 }
 
 /**
@@ -232,13 +233,7 @@ export function resolveLiveTranscodeOfferable(input: {
   reason?: string | null
   needsRemux?: boolean
 }): boolean {
-  if (!input.transcodeUnsupportedFormatsEnabled) {
-    return input.playableMode === 'stream'
-  }
-  const layoutMayNeedFallback = input.reason === 'container_layout' || input.needsRemux === true
-  return Boolean(input.transcodeRequired)
-    || input.playableMode === 'stream'
-    || layoutMayNeedFallback
+  return input.transcodeUnsupportedFormatsEnabled
 }
 
 export function shouldSkipLiveQualityChange(input: {
@@ -268,15 +263,16 @@ export function resolveEndedLiveNextStart(input: {
   return {nextStart, stillInsideSegment}
 }
 
-/** Arm stall watch only while still on direct decode and before any fallback. */
+/** Only suspect containers/codecs get a watchdog; ordinary buffering is not a decode failure. */
 export function shouldArmDirectSeekStallWatch(input: {
   usesLiveTranscode: boolean
   fallbackAttempted: boolean
+  fallbackCandidate?: boolean
 }): boolean {
-  return !input.usesLiveTranscode && !input.fallbackAttempted
+  return !input.usesLiveTranscode && !input.fallbackAttempted && input.fallbackCandidate === true
 }
 
-/** Still seeking / not HAVE_FUTURE_DATA on direct path → force remux fallback. */
+/** A suspect original still cannot supply frames after the watchdog grace period. */
 export function shouldTriggerDirectSeekStallFallback(input: {
   active: boolean
   usesLiveTranscode: boolean
@@ -379,8 +375,9 @@ export function resolveVideoSourcePlan(input: {
   forceDirectPlayback: boolean
   liveTranscodeDisabled: boolean
   transcodeUnsupportedFormatsEnabled: boolean
+  audioUnsupported?: boolean
 }): VideoSourcePlan {
-  if (input.playableMode === 'unsupported') return {kind: 'unsupported'}
+  if (input.playableMode === 'missing') return {kind: 'unsupported'}
 
   const streamStart = Math.max(0, Number(input.startTime) || 0)
   const liveTranscodeOfferable = resolveLiveTranscodeOfferable({
@@ -399,12 +396,12 @@ export function resolveVideoSourcePlan(input: {
     reason: input.reason,
     needsRemux: input.needsRemux,
     transcodeEnabled: input.transcodeUnsupportedFormatsEnabled,
+    audioUnsupported: input.audioUnsupported,
   })) {
-    const lockForcedDirect = Boolean(input.transcodeRequired)
-      && (input.forceDirectPlayback || input.liveTranscodeDisabled)
+    const lockForcedDirect = input.forceDirectPlayback || input.liveTranscodeDisabled
     return {
       kind: 'direct',
-      streamMode: lockForcedDirect ? 'direct' : 'auto',
+      streamMode: 'direct',
       lockForcedDirect,
       liveTranscodeOfferable,
     }
@@ -413,7 +410,7 @@ export function resolveVideoSourcePlan(input: {
   return {
     kind: 'live',
     streamStart,
-    copyCompatible: resolveLiveStreamCopyCompatible({
+    copyCompatible: !input.audioUnsupported && resolveLiveStreamCopyCompatible({
       remuxCopy: input.remuxCopy,
       reason: input.reason,
       streamStart,
@@ -517,7 +514,7 @@ export async function resolvePlayableVideo(
   for (const {video: candidate, index} of candidates) {
     if (!candidate?.path) continue
 
-    if (await checkFileExistsFn(candidate.path)) {
+    if (candidate.hasCopies || await checkFileExistsFn(candidate.path)) {
       return {video: candidate, index}
     }
   }

@@ -18,45 +18,86 @@
       :action="selectAll"
     />
 
-    <AppBarButton
-      v-if="supportsBulkEdit"
-      icon="pencil-plus"
-      :text="t('common.edit')"
-      :disabled="itemsStore.selection.length === 0"
-      :action="openBulkEdit"
-    />
+    <v-menu
+      v-model="moreMenuOpen"
+      location="bottom"
+      :transition="false"
+      :close-on-content-click="false"
+      content-class="app-bar-more-menu"
+    >
+      <template #activator="{props: menuProps}">
+        <v-btn
+          v-bind="menuProps"
+          icon
+          variant="text"
+          class="ml-1"
+          :aria-label="t('appbar.buttons.more')"
+        >
+          <v-icon>mdi-dots-vertical</v-icon>
+        </v-btn>
+      </template>
 
-    <AppBarButton
-      v-if="itemsStore.type === 'media'"
-      icon="set-merge"
-      :text="t('context_menu.merge_media')"
-      :disabled="itemsStore.selection.length < 2"
-      :action="openMediaMerge"
-    />
+      <v-list density="compact" class="context-menu" :lines="false" nav rounded="lg">
+        <v-list-item
+          v-if="supportsBulkEdit"
+          link
+          prepend-icon="mdi-pencil-plus"
+          :title="t('common.edit')"
+          :disabled="itemsStore.selection.length === 0"
+          @click="runFromMoreMenu(openBulkEdit)"
+        />
+        <v-list-item
+          v-if="itemsStore.type === 'media'"
+          link
+          prepend-icon="mdi-set-merge"
+          :title="t('context_menu.merge_media')"
+          :disabled="itemsStore.selection.length < 2"
+          @click="runFromMoreMenu(openMediaMerge)"
+        />
+        <v-list-item
+          v-if="supportsBulkEdit && sessionFocusStore.isActive"
+          link
+          prepend-icon="mdi-bullseye-arrow"
+          :title="sessionFocusStore.tags.length === 1
+            ? t('session_focus.apply_short', {name: sessionFocusStore.tag?.name || ''})
+            : t('session_focus.apply_all_short')"
+          :disabled="itemsStore.selection.length === 0"
+          @click="runFromMoreMenu(applyFocusToSelection)"
+        />
+        <v-list-item
+          link
+          prepend-icon="mdi-delete"
+          :title="t('common.delete')"
+          :disabled="itemsStore.selection.length === 0"
+          @click="runFromMoreMenu(openDelete)"
+        />
+        <v-list-item
+          v-if="itemsStore.type === 'media'"
+          link
+          prepend-icon="mdi-file-swap-outline"
+          :title="t('metadata_transfer.title')"
+          @click="runFromMoreMenu(() => { metadataTransferOpen = true })"
+        />
+        <v-list-item
+          v-if="itemsStore.type === 'media'"
+          link
+          prepend-icon="mdi-file-cog-outline"
+          :title="t('originals.title')"
+          :disabled="itemsStore.selection.length === 0"
+          @click="runFromMoreMenu(() => { originalsOpen = true })"
+        />
+      </v-list>
+    </v-menu>
 
-    <AppBarButton
-      v-if="(itemsStore.type === 'media' || itemsStore.type === 'tag') && sessionFocusStore.isActive"
-      icon="bullseye-arrow"
-      :text="sessionFocusStore.tags.length === 1
-        ? t('session_focus.apply_short', {name: sessionFocusStore.tag?.name || ''})
-        : t('session_focus.apply_all_short')"
-      :disabled="itemsStore.selection.length === 0"
-      :action="applyFocusToSelection"
-    />
-
-    <AppBarButton
-      icon="delete"
-      :text="t('common.delete')"
-      :disabled="itemsStore.selection.length === 0"
-      :action="openDelete"
-    />
+    <DialogMetadataTransfer v-if="itemsStore.type === 'media'" v-model="metadataTransferOpen" :media-ids="itemsStore.selection" />
+    <DialogOriginalOperations v-if="itemsStore.type === 'media'" v-model="originalsOpen" :media-ids="itemsStore.selection" />
 
     <span class="text-caption ml-6" v-html="selectedText"></span>
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, defineAsyncComponent, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
 import {useAppStore} from '@/stores/app'
@@ -71,6 +112,11 @@ import {setNotification} from '@/services/notificationService'
 import {useEventBus} from '@/utils/eventBus'
 import type {MediaItem, Tag} from '@/types/stores'
 
+const DialogMetadataTransfer = defineAsyncComponent(() => import('@/components/dialogs/DialogMetadataTransfer.vue'))
+const DialogOriginalOperations = defineAsyncComponent(() => import('@/components/dialogs/DialogOriginalOperations.vue'))
+const moreMenuOpen = ref(false)
+const metadataTransferOpen = ref(false)
+const originalsOpen = ref(false)
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
@@ -150,6 +196,11 @@ function applyFocusToSelection() {
     return
   }
   void applyFocusTagToMediaIds([...itemsStore.selection])
+}
+
+function runFromMoreMenu(action: () => void) {
+  moreMenuOpen.value = false
+  action()
 }
 
 function openMediaMerge() {

@@ -52,6 +52,13 @@
   .nested-tags {
     font-size: 1.1rem;
   }
+  .tag-header__bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+  }
   .bg-image {
     filter: blur(8px) brightness(0.75);
     position: absolute;
@@ -68,6 +75,47 @@
   .bg-header {
     filter: brightness(0.75);
   }
+  .bg-image__fill {
+    // Fill the space exposed as the fitted header image moves with parallax.
+    position: absolute;
+    inset: 0;
+  }
+  .bg-header > .v-img:not(.bg-image__fill) .v-img__img {
+    // Fit to the header frame's height, rather than the oversized moving layer.
+    height: var(--tag-header-image-height, 100%);
+    width: auto;
+    max-width: none;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .bg-image--parallax {
+    will-change: transform;
+  }
+
+  // Follow the header crossing the scrollport, independent of grid height and
+  // JavaScript work mounting virtual rows. Keep the JS fallback for older engines.
+  @supports (view-timeline-name: --tag-header) and (animation-timeline: --tag-header) and (animation-range: exit-crossing 0% exit-crossing 100%) {
+    view-timeline-name: --tag-header;
+    view-timeline-axis: block;
+    view-timeline-inset: 0;
+
+    .bg-image--parallax {
+      animation: tag-header-parallax linear both;
+      animation-timeline: --tag-header;
+      animation-range: exit-crossing 0% exit-crossing 100%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bg-image--parallax {
+      animation: none;
+      --tag-header-image-height: 100% !important;
+      inset: 0 !important;
+      transform: none !important;
+    }
+  }
+
   &.tag-header--has-bg {
     .tag-meta-link {
       color: rgba(255, 255, 255, 0.95);
@@ -122,6 +170,15 @@
   }
 }
 
+@keyframes tag-header-parallax {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, var(--tag-header-parallax-end), 0);
+  }
+}
+
 .tag-panel {
   overflow: visible;
   background-color: rgba(var(--v-theme-background), 0.5) !important;
@@ -138,7 +195,7 @@
   }
 
   .v-expansion-panel-text__wrapper {
-    padding: 8px 14px 14px !important;
+    padding: 14px !important;
   }
 
   &__progress {
@@ -148,9 +205,11 @@
 }
 
 .tag-page--profile {
+  .tag-page-params {
+    gap: 12px;
+  }
+
   .tag-page-param {
-    margin-right: 12px;
-    margin-bottom: 12px;
     border-radius: 14px;
 
     &__value,
@@ -190,10 +249,6 @@
         font-size: 18px !important;
       }
     }
-  }
-
-  .nested-tags {
-    margin-top: 2px !important;
   }
 }
 
@@ -237,12 +292,10 @@
   }
 
   .tag-page-params {
-    margin-bottom: -2px;
+    gap: 10px;
   }
 
   .tag-page-param {
-    margin-right: 10px;
-    margin-bottom: 10px;
     border-radius: 10px;
     min-height: 0;
     background: rgba(var(--v-theme-on-surface), 0.04) !important;
@@ -351,18 +404,19 @@
       }
 
       .v-expansion-panel-text__wrapper {
-        padding: 8px 10px 12px !important;
+        padding: 10px !important;
       }
     }
 
     .nested-tags {
-      margin-top: 8px !important;
       font-size: 0.9rem;
     }
 
+    .tag-page-params {
+      gap: 8px;
+    }
+
     .tag-page-param {
-      margin-right: 8px;
-      margin-bottom: 8px;
       border-radius: 10px;
       min-height: 0;
 
@@ -770,5 +824,153 @@
 
   .v-icon--start {
     margin-inline-start: 0 !important;
+  }
+}
+
+.tag-play-clips__action {
+  display: inline-flex;
+  border-radius: 999px;
+
+  &--disabled {
+    .v-btn.v-btn--disabled {
+      opacity: 1;
+
+      .v-btn__overlay {
+        opacity: 0;
+      }
+
+      &.v-btn--variant-flat.bg-primary {
+        background: rgb(var(--v-theme-primary)) !important;
+        color: rgb(var(--v-theme-on-primary)) !important;
+      }
+
+      &.v-btn--variant-flat.bg-secondary {
+        background: rgb(var(--v-theme-secondary)) !important;
+        color: rgb(var(--v-theme-on-secondary)) !important;
+      }
+    }
+  }
+}
+
+.tag-clips-panel {
+  background: rgba(var(--v-theme-surface), 0.9);
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    white-space: nowrap;
+
+    h2 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+  }
+}
+
+.tag-play-clips__group {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 999px;
+
+  > .tag-play-clips__action {
+    border-radius: 0;
+
+    .v-btn {
+      height: var(--v-btn-height);
+      border-radius: 0;
+    }
+
+    &:first-child {
+      border-radius: 999px 0 0 999px;
+
+      .v-btn {
+        border-radius: inherit;
+      }
+    }
+
+    &:last-child {
+      border-radius: 0 999px 999px 0;
+      border-inline-start: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+
+      .v-btn {
+        width: var(--v-btn-height);
+        border-radius: inherit;
+      }
+    }
+  }
+}
+
+.tag-page .tag-metadata-heading,
+.tag-page .profile-container .meta-card-name.tag-metadata-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: normal !important;
+  white-space: nowrap;
+}
+
+.tag-page .tag-panel__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-inline-end: 14px !important;
+
+  > .buttons-right {
+    position: static;
+    order: 2;
+    margin: 0;
+    flex-shrink: 0;
+  }
+}
+
+.tag-page .profile-container .tag-panel__title > .meta-card-name {
+  padding-right: 0;
+}
+
+@media (max-width: 959px) {
+  .tag-page .tag-panel__title {
+    padding-inline-end: 12px !important;
+  }
+}
+
+.tag-play-clips__group--empty {
+  cursor: not-allowed;
+
+  > .tag-play-clips__action .v-btn.v-btn--disabled.v-btn--variant-flat {
+    background: color-mix(in srgb, rgb(var(--v-theme-surface)) 90%, rgb(var(--v-theme-on-surface))) !important;
+    color: color-mix(in srgb, rgb(var(--v-theme-on-surface)) 50%, rgb(var(--v-theme-surface))) !important;
+  }
+}
+
+.tag-page .tag-clips-panel > .tag-clips-panel__title {
+  padding-block: 12px !important;
+}
+
+.v-list.tag-clips-menu {
+  padding-block: 4px;
+
+  .v-list-item {
+    min-height: 32px;
+    padding: 4px 12px;
+  }
+
+  .v-list-item-title {
+    font-size: 0.8125rem;
+    line-height: 1.25;
+  }
+
+  .v-list-item__prepend {
+    .v-icon {
+      font-size: 18px;
+    }
+
+    > .v-list-item__spacer {
+      width: 10px;
+    }
   }
 }

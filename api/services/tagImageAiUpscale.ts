@@ -552,6 +552,7 @@ async function upscaleOneImage(
       timeout: UPSCALER_TIMEOUT_MS,
       cwd: path.dirname(binaryPath),
       maxBuffer: 16 * 1024 * 1024,
+      windowsHide: true,
     },
   )
 

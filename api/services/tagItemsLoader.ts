@@ -404,6 +404,47 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
   })
 }
 
+/**
+ * Ordered tag ids of one category using the category page sort (no filters,
+ * no hydration). Lets lightweight UIs (sidebar tree) mirror the page order
+ * without loading full item payloads.
+ */
+async function loadTagSortedIds(
+  db: ApiDb,
+  options: {metaId: number; sortBy?: string; direction?: string},
+): Promise<number[]> {
+  const {metaId, sortBy = 'name', direction = 'asc'} = options
+
+  const filterQuery = resolveTagFilterQuery({metaId, ids: [], filters: []})
+  if (!filterQuery.ok) {
+    const result = await loadTagItemsLegacy(db, {
+      metaId,
+      sortBy,
+      direction,
+      skipTotals: true,
+    }, filterQuery.reason)
+    const items = (result as {items?: Array<{id?: unknown}>}).items || []
+    return items.map((item) => Number(item.id)).filter((id) => Number.isFinite(id))
+  }
+
+  const {whereSql, joinSql = '', needsDistinct = false, replacements} = filterQuery
+  const sortMetaType = resolveSortMetaType(db, sortBy)
+  const sortPlan = getTagSortPlan(sortBy, sortMetaType)
+  const {whereClause, fromClause, idSelect, sortDir} = resolveTagListSqlParts({
+    whereSql,
+    joinSql,
+    sortJoinSql: sortPlan.joinSql,
+    needsDistinct,
+    direction,
+  })
+
+  const rows = await queryAllAsync<{id: number}>(db, `${idSelect}
+    ${fromClause}
+    ${whereClause}
+    ORDER BY ${sortPlan.expression} ${sortDir}, tags.id ASC`, replacements)
+  return rows.map((row) => Number(row.id))
+}
+
 /** @deprecated Quarantined JS filter-worker path — prefer SQL; gated by legacyListLoaderGate. */
 async function loadTagItemsLegacy(
   db: ApiDb,
@@ -590,4 +631,5 @@ async function loadTagItems(db: ApiDb, options: TagLoadOptions) {
 export {
   loadTagItems,
   loadTagItemsSql,
+  loadTagSortedIds,
 }

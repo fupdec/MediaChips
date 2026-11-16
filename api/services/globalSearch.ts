@@ -80,10 +80,37 @@ async function searchMediaByNameFts(
   matchQuery: string,
   sqlLimit: number,
   pinnedTagIds: number[] = [],
+  balanceMediaTypes = false,
 ) {
   const pinnedJoin = pinnedTagIds.length ? PINNED_MEDIA_JOIN : ''
   const replacements: Record<string, unknown> = {match: matchQuery, limit: sqlLimit}
   if (pinnedTagIds.length) Object.assign(replacements, pinnedTagReplacements(pinnedTagIds))
+
+  if (balanceMediaTypes) {
+    // Keep a single media type from filling the entire result list.
+    return queryAll(db, `WITH scored AS MATERIALIZED (
+         SELECT media.id, media.mediaTypeId, bm25(media_fts) AS score
+         FROM media_fts
+                  INNER JOIN media ON media.id = media_fts.rowid
+                  ${pinnedJoin}
+         WHERE media_fts MATCH :match
+           AND ${MEDIA_NOT_IN_TRASH_SQL}
+       ), ranked AS (
+         SELECT id, score, ROW_NUMBER() OVER (PARTITION BY mediaTypeId ORDER BY score, id) AS position
+         FROM scored
+       ), matches AS (
+         SELECT id, score, position
+         FROM ranked
+         ORDER BY position, score, id
+         LIMIT :limit
+       )
+       ${MEDIA_SEARCH_SELECT}
+       FROM matches
+                INNER JOIN media ON media.id = matches.id
+                LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
+                LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
+       ORDER BY matches.position, matches.score, matches.id`, replacements)
+  }
 
   return queryAll(db, `${MEDIA_SEARCH_SELECT}
      FROM media_fts
@@ -102,6 +129,7 @@ async function searchMediaByName(
   query: string,
   limit: unknown,
   pinnedTagIds: number[] = [],
+  balanceMediaTypes = false,
 ) {
   const trimmed = String(query || '').trim()
   if (!trimmed) return []
@@ -113,7 +141,7 @@ async function searchMediaByName(
 
   if (matchQuery && isFtsSearchAvailable(db.sqlite)) {
     try {
-      rows = await searchMediaByNameFts(db, matchQuery, sqlLimit, pinnedTagIds)
+      rows = await searchMediaByNameFts(db, matchQuery, sqlLimit, pinnedTagIds, balanceMediaTypes)
     } catch {
       // Fall back to LIKE when FTS query syntax is invalid.
     }
@@ -348,17 +376,23 @@ async function searchMediaByTagIds(
     Object.assign(replacements, pinnedTagReplacements(requireAllTagIds))
   }
 
-  const rows = await queryAll(db, `${MEDIA_SEARCH_SELECT},
-            GROUP_CONCAT(DISTINCT tagsInMedia.tagId) AS matchedTagIds
-     FROM media
-              ${pinnedJoin}
-              INNER JOIN tagsInMedia ON tagsInMedia.mediaId = media.id
+  const rows = await queryAll(db, `WITH matches AS (
+       SELECT media.id, GROUP_CONCAT(DISTINCT tagsInMedia.tagId) AS matchedTagIds
+       FROM media
+                ${pinnedJoin}
+                INNER JOIN tagsInMedia ON tagsInMedia.mediaId = media.id
+       WHERE tagsInMedia.tagId IN (:tagIds)
+         AND ${MEDIA_NOT_IN_TRASH_SQL}
+       GROUP BY media.id
+       ORDER BY media.id
+       LIMIT :limit
+     )
+     ${MEDIA_SEARCH_SELECT}, matches.matchedTagIds
+     FROM matches
+              INNER JOIN media ON media.id = matches.id
               LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
               LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
-     WHERE tagsInMedia.tagId IN (:tagIds)
-       AND ${MEDIA_NOT_IN_TRASH_SQL}
-     GROUP BY media.id
-     LIMIT :limit`, replacements)
+     ORDER BY media.id`, replacements)
 
   return rows.map((row) => {
     const matchedTagIds = String(row.matchedTagIds || '')
@@ -463,6 +497,75 @@ async function searchCooccurringTags(
   }))
 }
 
+async function searchGlobalMediaPage(
+  db: ApiDb,
+  query: string,
+  mediaTypeId: number,
+  offset: number,
+  options: SearchGlobalOptions & {countOnly?: boolean},
+) {
+  const trimmed = query.trim()
+  const pinnedTagIds = normalizeSearchTagIds(options.tagIds)
+  const limit = normalizeSearchLimit(options.limit)
+  const match = buildFtsMatchQuery(trimmed)
+  const tags = await searchTagsByName(db, trimmed, {excludeTagIds: pinnedTagIds})
+  const tagIds = tags.map((tag) => tag.id)
+  const pinnedJoin = pinnedTagIds.length ? PINNED_MEDIA_JOIN : ''
+  const hasFts = Boolean(match && isFtsSearchAvailable(db.sqlite))
+  const scored = hasFts
+    ? `SELECT rowid AS id, ${options.countOnly ? 'NULL' : 'bm25(media_fts)'} AS score FROM media_fts WHERE media_fts MATCH :match`
+    : 'SELECT NULL AS id, NULL AS score WHERE 0'
+  const tagMatches = tagIds.length
+    ? ', tagMatches AS MATERIALIZED (SELECT DISTINCT mediaId FROM tagsInMedia WHERE tagId IN (:tagIds))'
+    : ''
+  const tagJoin = tagIds.length ? 'LEFT JOIN tagMatches ON tagMatches.mediaId = media.id' : ''
+  const tagMatch = tagIds.length ? 'tagMatches.mediaId IS NOT NULL' : '0'
+  const nameMatch = trimmed ? "media.name LIKE :pattern ESCAPE '\\'" : '0'
+  const candidates = `FROM media
+                ${pinnedJoin}
+                LEFT JOIN scored ON scored.id = media.id
+                ${tagJoin}
+       WHERE media.mediaTypeId = :mediaTypeId
+         AND ${MEDIA_NOT_IN_TRASH_SQL}
+         AND (${trimmed ? `scored.id IS NOT NULL OR ${nameMatch} OR ${tagMatch}` : pinnedTagIds.length ? '1' : '0'})`
+  const replacements = {
+    match, tagIds, mediaTypeId, offset, limit: limit + 1,
+    pattern: `%${escapeLikePattern(trimmed)}%`,
+    ...pinnedTagReplacements(pinnedTagIds),
+  }
+  if (options.countOnly) {
+    const matches = queryAll<{name: string | null; byTag: number}>(db, `
+      WITH scored AS MATERIALIZED (${scored})${tagMatches}
+      SELECT media.name, ${tagMatch} AS byTag
+      ${candidates}`, replacements)
+    const total = matches.reduce((count, row) => count + Number(
+      !trimmed || Boolean(row.byTag) || matchesGlobalSearchName(row.name, trimmed),
+    ), 0)
+    return {items: [], nextOffset: null, total}
+  }
+
+  const rows = queryAll<{id: number; name: string | null; byTag: number}>(db, `WITH scored AS MATERIALIZED (${scored})${tagMatches}, matches AS (
+       SELECT media.id, scored.score, ${tagMatch} AS byTag
+       ${candidates}
+       ORDER BY scored.score IS NULL, scored.score, media.id
+       LIMIT :limit OFFSET :offset
+     )
+     ${MEDIA_SEARCH_SELECT}, matches.byTag
+     FROM matches
+              INNER JOIN media ON media.id = matches.id
+              LEFT JOIN videoMetadata ON media.id = videoMetadata.mediaId
+              LEFT JOIN imageMetadata ON media.id = imageMetadata.mediaId
+     ORDER BY matches.score IS NULL, matches.score, media.id`, replacements)
+  return {
+    items: rows.slice(0, limit).flatMap(({byTag, ...row}) => {
+      const byName = trimmed && matchesGlobalSearchName(String(row.name || ''), trimmed)
+      if (!byName && !byTag && trimmed) return []
+      return [{...row, matchSource: byName ? (byTag ? 'both' : 'name') : 'tag'}]
+    }),
+    nextOffset: rows.length > limit ? offset + limit : null,
+  }
+}
+
 async function searchGlobal(db: ApiDb, query: string, limitOrOptions?: unknown) {
   const options = normalizeSearchGlobalOptions(limitOrOptions)
   const limit = options.limit
@@ -491,7 +594,7 @@ async function searchGlobal(db: ApiDb, query: string, limitOrOptions?: unknown) 
   const deep = options.deep === true
 
   const [mediaByName, mediaByBookmark, mediaByContent, tagsByName, tagsByBookmark] = await Promise.all([
-    searchMediaByName(db, trimmed, limit, pinnedTagIds),
+    searchMediaByName(db, trimmed, limit, pinnedTagIds, true),
     deep ? searchMediaByBookmark(db, trimmed, limit, pinnedTagIds) : Promise.resolve([]),
     deep ? searchMediaByContent(db, trimmed, limit, pinnedTagIds) : Promise.resolve([]),
     searchTagsByName(db, trimmed, tagSearchOptions),
@@ -524,6 +627,7 @@ export {
   searchTagsByName,
   searchTagsByBookmark,
   searchGlobal,
+  searchGlobalMediaPage,
   GLOBAL_SEARCH_MAX_LIMIT as MAX_LIMIT,
   GLOBAL_SEARCH_DEFAULT_LIMIT as DEFAULT_LIMIT,
 }

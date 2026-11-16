@@ -89,3 +89,8 @@ export function parseWatcherInboundMessage(raw: unknown): WatcherWsInboundMessag
     data: message.data,
   }
 }
+
+/** Busy stays true through scanStart; clear on reports / completion / socket end. */
+export function shouldClearWatcherBusyOnMessage(type: string): boolean {
+  return type === 'files' || type === 'scanComplete' || type === 'closed'
+}

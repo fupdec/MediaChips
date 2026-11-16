@@ -52,6 +52,19 @@ function resolveParserTagsMetaId(): number | null {
   return getDefaultParserTagsMetaId(appStore.meta, settingsStore.defaultTagCategoryId) ?? null
 }
 
+/** Use the same existing-tag matcher and regex tag extraction as local import.
+ * Remote callers supply readable paths, rather than encoded media identities. */
+export async function parseAndAssignImportPathTags(
+  paths: Array<{path: string; mediaId: number}>,
+  {shouldStop = () => false}: {shouldStop?: () => boolean} = {},
+): Promise<void> {
+  if (!paths.length || shouldStop()) return
+  const {data} = await typedApi.parsePathTags({paths})
+  if (shouldStop() || !data.length) return
+  await typedApi.postTagsInMedia(data)
+  if (!shouldStop()) await reloadTagsCatalog()
+}
+
 /** Collect new path-tag assignments for a media batch via streaming preview. */
 export async function previewImportPathTagAssignments(
   mediaIds: number[],

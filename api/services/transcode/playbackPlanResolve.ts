@@ -34,9 +34,9 @@ export function buildMissingPlaybackPlan(): PlaybackPlan {
 }
 
 /**
- * Choose missing/direct/stream/unsupported from analyzed playability.
- * Codec-compatible MP4s with bad layout stay on direct first; clients may
- * fall back to live re-encode if Chromium stalls (never remux-copy).
+ * Server codec/container lists are advisory. Only the playback client knows
+ * which native decoders its browser and OS provide (notably HEVC and MKV).
+ * Always expose the original; the client can request conversion after failure.
  */
 export function resolvePlaybackPlanFromPlayability(input: {
   playability: PlayabilityResult
@@ -44,53 +44,14 @@ export function resolvePlaybackPlanFromPlayability(input: {
 }): PlaybackPlan {
   const {playability, transcodeEnabled} = input
 
-  if (playability.playable && playability.needsRemux) {
-    return {
-      mode: 'direct',
-      transcodeRequired: false,
-      transcodeEnabled,
-      transcodeStatus: 'none',
-      progress: 100,
-      error: null,
-      reason: 'container_layout',
-      playability,
-    }
-  }
-
-  if (playability.playable) {
-    return {
-      mode: 'direct',
-      transcodeRequired: false,
-      transcodeEnabled,
-      transcodeStatus: 'none',
-      progress: 100,
-      error: null,
-      reason: playability.reason,
-      playability,
-    }
-  }
-
-  if (!transcodeEnabled) {
-    return {
-      mode: 'unsupported',
-      transcodeRequired: false,
-      transcodeEnabled: false,
-      transcodeStatus: 'disabled',
-      progress: 100,
-      error: null,
-      reason: playability.reason,
-      playability,
-    }
-  }
-
   return {
-    mode: 'stream',
-    transcodeRequired: true,
-    transcodeStatus: 'stream',
-    streamPlayback: true,
-    progress: 0,
+    mode: 'direct',
+    transcodeRequired: false,
+    transcodeEnabled,
+    transcodeStatus: 'none',
+    progress: 100,
     error: null,
-    reason: playability.reason,
+    reason: playability.needsRemux ? 'container_layout' : playability.reason,
     playability,
   }
 }

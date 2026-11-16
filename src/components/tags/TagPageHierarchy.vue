@@ -5,11 +5,11 @@
       rounded
       variant="tonal"
       :title="t('actions.open_page')"
+      :prepend-icon="`mdi-${meta.icon}`"
+      append-icon="mdi-arrow-left"
       @click="openMeta"
     >
-      <v-icon start>mdi-{{ meta.icon }}</v-icon>
-      <div class="text">{{ meta.name }}</div>
-      <v-icon end>mdi-arrow-left</v-icon>
+      {{ meta.name }}
     </v-btn>
   </div>
 </template>

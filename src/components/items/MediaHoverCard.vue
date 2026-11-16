@@ -88,6 +88,7 @@
         class="item-hover-card__meta"
       >
         <ItemPinnedMeta
+          muted-tags
           :item="media"
           :tags="media.tags"
           :values="media.values"

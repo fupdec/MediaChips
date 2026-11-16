@@ -115,16 +115,20 @@
     :disabled="!items.isFiltersLoaded"
     @update:menu="onMenuToggle"
   >
-    <template #prepend>
+    <!-- Direction lives inside the field: one control for "sort by X ↑/↓". -->
+    <template #prepend-inner>
       <v-btn
         v-tooltip:top="t('filters.change_direction')"
+        :aria-label="t('filters.change_direction')"
+        class="toolbar-sort__dir"
         color="primary"
-        variant="tonal"
-        size="small"
+        variant="text"
+        size="x-small"
         icon
-        @click="toggleDir"
+        @mousedown.stop.prevent
+        @click.stop="toggleDir"
       >
-        <v-icon>
+        <v-icon size="18">
           {{
             items.sortDir === 'asc'
               ? 'mdi-sort-ascending'
@@ -385,6 +389,18 @@ function sortFromMenu(param: string | number) {
   margin-inline-end: 4px;
 }
 
+.toolbar-sort__dir {
+  margin-inline: -4px 2px;
+}
+
+:deep(.v-field__prepend-inner) {
+  align-self: center;
+  padding-top: 0;
+  padding-inline-end: 6px;
+  margin-inline-end: 2px;
+  border-inline-end: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+
 .toolbar-sort__selection {
   display: flex;
   align-items: center;
@@ -419,6 +435,11 @@ function sortFromMenu(param: string | number) {
     --v-input-control-height: 40px;
   }
 
+  /* Left inset = top/bottom inset around the 28px direction button: (40 - 28) / 2 = 6px. */
+  :deep(.v-field--prepended) {
+    padding-inline-start: 6px;
+  }
+
   :deep(.v-field__input) {
     min-height: 40px !important;
     max-height: 40px;
@@ -426,15 +447,43 @@ function sortFromMenu(param: string | number) {
     overflow: hidden;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
-    padding-inline: 12px 8px !important;
+    padding-inline: 10px 6px !important;
     align-items: center;
     font-size: 0.75rem !important;
     line-height: 1.2 !important;
   }
 
+  /* Direction button | divider | label: consistent 6/10px paddings. */
+  :deep(.v-field__prepend-inner) {
+    position: relative;
+    align-items: center;
+    align-self: center;
+    padding-block: 0;
+    padding-inline: 0 10px;
+    margin-inline-end: 0;
+    border-inline-end: 0;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset-inline-end: 0;
+      top: 50%;
+      width: 1px;
+      height: 20px;
+      transform: translateY(-50%);
+      background: rgba(var(--v-theme-on-surface), 0.12);
+    }
+  }
+
+  .toolbar-sort__dir {
+    width: 28px;
+    height: 28px;
+    margin: 0;
+  }
+
   :deep(.v-field__append-inner) {
-    padding-top: 0;
-    padding-inline-start: 0;
+    padding-block: 0;
+    padding-inline: 0 6px;
     align-self: center;
   }
 
@@ -443,8 +492,7 @@ function sortFromMenu(param: string | number) {
   }
 
   :deep(.v-autocomplete__selection) {
-    margin-inline-end: 0;
-    margin-inline-start: 2px;
+    margin-inline: 0;
     max-width: 100%;
     overflow: hidden;
     font-size: 0.75rem;
@@ -462,6 +510,7 @@ function sortFromMenu(param: string | number) {
   }
 
   .toolbar-sort__selection {
+    gap: 8px;
     max-width: 100%;
   }
 }

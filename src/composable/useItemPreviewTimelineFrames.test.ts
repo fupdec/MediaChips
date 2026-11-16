@@ -89,6 +89,27 @@ describe('useItemPreviewTimelineFrames', () => {
     expect(storyUsesThumbFallback.value).toBe(false)
   })
 
+  it('uses the remote poster in timeline view without requesting or generating a sprite', async () => {
+    const getImg = vi.fn(async () => {})
+    const runImageProbe = vi.fn(async () => false)
+    const createGrid = vi.fn(async () => {})
+    const api = useItemPreviewTimelineFrames({
+      media: {id: 77, path: 'https://example.com/watch/123'} as never,
+      isFileExists: true, isMounted: true, isViewTimeline: true,
+      showTimelinePreview: false, mediaDuration: 100, durationLabel: '01:40',
+      mediaAspectRatio: 16 / 9, isTaskRunning: false, mediaPath: '/media',
+      itemsView: 2, previewActive: true, thumb: '/poster.jpg',
+      resolveThumbFallback: () => '/poster.jpg', getImg, runImageProbe, createGrid,
+      getStoryEl: () => null, getStoryWrapperEl: () => null,
+    })
+    await api.initFrames()
+    expect(api.storyUsesThumbFallback.value).toBe(true)
+    expect(api.gridSpriteUrl.value).toBeNull()
+    expect(getImg).toHaveBeenCalled()
+    expect(runImageProbe).not.toHaveBeenCalled()
+    expect(createGrid).not.toHaveBeenCalled()
+  })
+
   it('loads frames when mounted while already active in timeline view', async () => {
     const isMounted = ref(false)
     const getImg = vi.fn(async () => {})

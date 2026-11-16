@@ -29,8 +29,9 @@
         <div
           class="confirm-dialog__text text-body-1"
           :class="variant === 'delete' ? 'error-text' : undefined"
-          v-html="text"
-        />
+        >
+          <slot><span v-html="text" /></slot>
+        </div>
 
         <v-checkbox
           v-if="checkBoxText"

@@ -1,4 +1,18 @@
-import {nextTick} from 'vue'
+import path from 'path-browserify'
+import {useAppStore} from '@/stores/app'
+import {useItemsStore} from '@/stores/items'
+import {buildLocalFileUrl, createThumb} from '@/services/fileService'
+import {saveWebVideoCurrentFrame} from '@/services/webVideoFrames'
+import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
+import {useI18n} from 'vue-i18n'
+import {remoteMediaError, remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
+import {nextTick, watch, onBeforeUnmount} from 'vue'
+import {abortVideoPlayback} from '@/utils/liveTranscodeLifecycle'
+import {usePlayerPositionPersistence} from './usePlayerPositionPersistence'
+import {disposeWebVideo} from '@/services/webVideoPlayback'
+import {isRemoteMediaPath} from '@shared/remoteMedia'
+import {isNasMediaPath} from '@shared/remoteMedia'
+import {typedApi} from '@/services/typedApi'
 import {usePlayerStore} from '@/stores/player'
 import type {UsePlayerPlaybackOptions} from '@/types/player'
 import {getAbsolutePlaybackTime, isIgnorablePlaybackError} from '@/utils/playerBuffer'
@@ -39,6 +53,7 @@ export function usePlayerPlayback({
   updatePlayerWindowTitle,
 }: UsePlayerPlaybackOptions) {
   const playerStore = usePlayerStore()
+  const {t} = useI18n()
   const state: PlayerPlaybackSharedState = {
     forceDirectPlayback: false,
     liveStreamSeekGeneration: 0,
@@ -54,6 +69,43 @@ export function usePlayerPlayback({
   }
   const liveSession = createPlayerLiveSession(state)
   let segmentAdvancePending = false
+  const appStore = useAppStore()
+  const itemsStore = useItemsStore()
+  let openingGeneration = 0
+  let openingThumbChecked = false
+  watch(() => [playerStore.media?.id, playerStore.active] as const, () => {
+    openingGeneration += 1
+    openingThumbChecked = false
+  }, {flush: 'sync'})
+
+  const ensureOpeningThumb = async () => {
+    const media = playerStore.media
+    const video = playerStore.player
+    if (openingThumbChecked || !playerStore.active || !playerStore.isLibraryMedia
+      || playerStore.isAudioMode || !media?.path || !appStore.mediaPath || !video
+      || video.readyState < 2 || video.seeking || !video.videoWidth || !video.videoHeight) return
+    openingThumbChecked = true
+    const generation = openingGeneration
+    const isCurrent = () => generation === openingGeneration && playerStore.player === video
+    const thumbPath = path.join(appStore.mediaPath, 'videos/thumbs', `${media.id}.jpg`)
+    try {
+      // Only a confirmed missing file permits automatic poster creation.
+      const response = await fetch(buildLocalFileUrl(thumbPath, false, true), {method: 'HEAD'})
+      if (response.status !== 404 || !isCurrent() || video.seeking) return
+      if (isRemoteMediaPath(media.path)) {
+        if (!await saveWebVideoCurrentFrame({video, mediaId: media.id, mediaPath: media.path})) return
+      } else {
+        await createThumb(video.currentTime, media.path, thumbPath, 320, false)
+      }
+      invalidateVideoThumbCaches(media.id)
+      itemsStore.refreshThumb(media.id, {regenerate: false})
+      if (isPlayerWindow.value && window.electronAPI?.send) {
+        window.electronAPI.send('updateVideoFrames', media.id)
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) console.debug('Unable to create opening video thumb', media.id, error)
+    }
+  }
 
   const finishCurrentClipSegment = () => {
     const current = playerStore.playlist[playerStore.nowPlaying]
@@ -126,8 +178,14 @@ export function usePlayerPlayback({
       isLiveStreamSeeking: playerStore.isLiveStreamSeeking,
       mediaErrorCode: playerStore.player.error?.code,
     })) return
-    if (await liveSession.tryFallbackDirectToLiveTranscode(playerStore.player.error?.code)) return
+    if (!isRemoteMediaPath(playerStore.media?.path)
+      && await liveSession.tryFallbackDirectToLiveTranscode(playerStore.player.error?.code)) return
     playerStore.playbackError = true
+    if (isRemoteMediaPath(playerStore.media?.path) && !playerStore.transcodeError) {
+      playerStore.transcodeError = remoteSourceErrorMessage(remoteMediaError(playerStore.player.error), t)
+    }
+    playerStore.webVideoFrameReady = false
+    playerStore.isStreamWaiting = false
     if (playerStore.usesLiveTranscode) {
       liveSession.failTranscode(playerStore.player.error?.message || 'Playback failed')
     }
@@ -146,9 +204,17 @@ export function usePlayerPlayback({
         elementDuration: videoEl.duration,
       })
       if (duration != null) playerStore.duration = duration
+      const media = playerStore.media
+      if (media && isNasMediaPath(media.path) && Number.isFinite(videoEl.duration) && videoEl.duration > 0
+        && (!metadataNumber(playerStore.metadata, 'duration') || !metadataNumber(playerStore.metadata, 'width'))) {
+        const metadata = {duration: videoEl.duration, width: videoEl.videoWidth, height: videoEl.videoHeight}
+        playerStore.metadata = {...playerStore.metadata, ...metadata}
+        if (media.id > 0) void typedApi.updateVideoMetadata(media.id, metadata).catch(() => {})
+      }
       playerStore.syncPlaybackState()
     })
     playerStore.player.addEventListener('timeupdate', () => {
+      if (playerStore.webVideoLoading) return
       playerStore.syncPlaybackState()
       liveSession.maybeAdvanceLiveStreamChunk()
       maybeAdvanceSegmentPlaylist()
@@ -157,6 +223,8 @@ export function usePlayerPlayback({
       playerStore.syncPlaybackState()
     })
     playerStore.player.addEventListener('ended', async () => {
+      playerStore.isStreamWaiting = false
+      if (playerStore.isWebVideo) playerStore.paused = true
       const current = playerStore.playlist[playerStore.nowPlaying]
       const segmentEnd = getSegmentEnd(current)
 
@@ -200,27 +268,51 @@ export function usePlayerPlayback({
       void handleVideoElementError()
     })
     playerStore.player.addEventListener('seeking', () => {
+      if (playerStore.isWebVideo) {
+        playerStore.isStreamWaiting = true
+        playerStore.webVideoFrameReady = false
+        return
+      }
       if (!playerStore.usesLiveTranscode) liveSession.armDirectSeekStallWatch()
     })
     playerStore.player.addEventListener('seeked', () => {
       liveSession.clearDirectSeekStallWatch()
+      if (playerStore.isWebVideo) {
+        playerStore.isStreamWaiting = false
+        playerStore.webVideoFrameReady = Boolean(playerStore.player && playerStore.player.readyState >= 2)
+      }
+    })
+    const onWebFrameReady = () => {
+      if (!playerStore.isWebVideo) return
+      playerStore.isStreamWaiting = false
+      playerStore.webVideoFrameReady = Boolean(playerStore.player && playerStore.player.readyState >= 2 && !playerStore.player.seeking)
+    }
+    playerStore.player.addEventListener('loadeddata', onWebFrameReady)
+    playerStore.player.addEventListener('canplay', onWebFrameReady)
+    playerStore.player.addEventListener('pause', () => {
+      if (playerStore.isWebVideo && !playerStore.webVideoLoading && !playerStore.playbackError
+        && playerStore.player?.paused) playerStore.paused = true
     })
     playerStore.player.addEventListener('waiting', () => {
+      if (playerStore.isWebVideo) { playerStore.isStreamWaiting = true; return }
       if (!playerStore.usesLiveTranscode) {
-        // Cold-start / NAS buffering always fires `waiting` with readyState < 3.
-        // Arming stall fallback there falsely flipped healthy direct plays into live
-        // transcode (spinner + HD icon). Only watch mid-playback freezes, and use a
-        // longer grace so slow volumes do not false-promote to live encode.
+        // The watchdog only accepts suspect codec/container plans. Normal
+        // buffering on slow disks or NAS must not promote a healthy original.
         const currentTime = Number(playerStore.player?.currentTime) || 0
         if (currentTime > 2) {
-          liveSession.armDirectSeekStallWatch(8000)
+          liveSession.armDirectSeekStallWatch()
         }
         return
       }
       playerStore.isStreamWaiting = true
     })
     playerStore.player.addEventListener('playing', () => {
+      void ensureOpeningThumb()
       liveSession.clearDirectSeekStallWatch()
+      if (playerStore.isWebVideo) {
+        onWebFrameReady()
+        if (!playerStore.webVideoLoading) playerStore.paused = false
+      }
       if (!playerStore.usesLiveTranscode) {
         // Direct path may have leftover background status from a prior live item.
         if (playerStore.backgroundStatusText) playerStore.clearBackgroundStatus()
@@ -260,11 +352,33 @@ export function usePlayerPlayback({
     ensureVideoElement,
   })
 
+  usePlayerPositionPersistence(playerStore, isReady, loadSrcSession.updatePlaybackTime)
+
+  watch(() => playerStore.active, (active) => {
+    if (!active) {
+      ++state.transcodeSessionId
+      loadSrcSession.disposeRemoteLoad()
+      disposeWebVideo(playerStore.player)
+      abortVideoPlayback(playerStore.player)
+      clearInterval(playerStore.currentTimeTimeout)
+      void liveSession.clearLiveTranscodeHandlers()
+    }
+  }, {flush: 'sync'})
+  onBeforeUnmount(() => {
+    ++state.transcodeSessionId
+    loadSrcSession.disposeRemoteLoad()
+    disposeWebVideo(playerStore.player)
+    abortVideoPlayback(playerStore.player)
+    clearInterval(playerStore.currentTimeTimeout)
+    void liveSession.clearLiveTranscodeHandlers()
+  })
+
   return {
     bindVideoElement,
     ensureVideoElement,
     getMarks: loadSrcSession.getMarks,
     loadSrc: loadSrcSession.loadSrc,
+    reloadWebVideo: loadSrcSession.reloadWebVideo,
     updatePlaybackTime: loadSrcSession.updatePlaybackTime,
     stopLiveTranscodeSession: liveSession.stopLiveTranscodeSession,
     clearLiveTranscodeHandlers: liveSession.clearLiveTranscodeHandlers,

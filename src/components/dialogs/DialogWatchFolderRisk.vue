@@ -9,9 +9,11 @@
       class="watch-risk-dialog"
       rounded="xl"
     >
-      <v-card-title class="text-h6 pt-5 px-6">
-        {{ t('settings_labels.tools.watch_risk_title') }}
-      </v-card-title>
+      <DialogHeader
+        icon="folder-alert-outline"
+        tone="warning"
+        :header="t('settings_labels.tools.watch_risk_title')"
+      />
 
       <v-card-text class="px-6 pb-2">
         <p class="text-body-2 text-medium-emphasis mb-4">
@@ -133,6 +135,7 @@
 <script setup lang="ts">
 import {computed, defineAsyncComponent, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {
   refreshWatchFolderRiskAssessment,
   resolveWatchFolderRiskGate,

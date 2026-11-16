@@ -136,18 +136,23 @@ const showTaskSummary = () => {
   }, 5000)
 }
 
-const notifications = computed(() => notificationsStore.getNotifications)
+const notifications = computed(() => notificationsStore.getNotifications.filter(notification =>
+  !(tasksStore.mediaAdding.dialogProcess && notification.scope === 'media-adding'),
+))
 const tasks = computed(() => tasksStore.list)
+const summaryTasks = computed(() => tasks.value.filter(task =>
+  !(tasksStore.mediaAdding.dialogProcess && task.id === tasksStore.mediaAdding.notificationTaskId),
+))
 
 const taskSummaryItem = computed((): TaskSummaryItem | null => {
-  if (!taskSummaryVisible.value || tasks.value.length === 0) return null
+  if (!taskSummaryVisible.value || summaryTasks.value.length === 0) return null
   return {
     kind: 'task-summary',
     key: 'task-summary',
     title: t('appbar.processStarted'),
-    text: tasks.value.length === 1
+    text: summaryTasks.value.length === 1
       ? t('appbar.openProcessInNotifications')
-      : t('appbar.activeProcessesCount', {count: tasks.value.length}),
+      : t('appbar.activeProcessesCount', {count: summaryTasks.value.length}),
   }
 })
 
@@ -202,6 +207,19 @@ const onBeforeLeave = (el: Element) => {
   node.style.margin = '0'
 }
 
+// The process window already shows this run's progress and result. Keep its
+// notifications in the list without replaying them over the picker on close.
+watch(
+  () => [tasksStore.mediaAdding.dialogProcess, notificationsStore.notifications.length] as const,
+  ([visible]) => {
+    if (!visible) return
+    for (const notification of notificationsStore.notifications) {
+      if (notification.scope === 'media-adding' && !notification.hidden) notificationsStore.hideNotification(notification.id)
+    }
+  },
+  {immediate: true, flush: 'sync'},
+)
+
 watch(taskSummaryEl, (el) => {
   if (el) bindWheel(el)
   else unbindWheel()
@@ -250,6 +268,8 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
+@use "../../assets/styles/notification-card" as card;
+
 .notifications-pool {
   --toast-width: 370px;
 
@@ -306,18 +326,15 @@ onUnmounted(() => {
 .task-summary {
   display: flex;
   align-items: flex-start;
-  min-height: 90px;
   width: var(--toast-width);
   max-width: 100%;
   margin: 0 0 16px;
-  padding: 16px 16px 25px;
+  @include card.surface;
   position: relative;
   overflow: hidden;
   pointer-events: all;
   touch-action: pan-y;
   overscroll-behavior-x: none;
-  border-radius: 8px;
-  background: rgb(var(--v-theme-surface));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   transition: box-shadow 0.3s ease;
   cursor: grab;
@@ -338,35 +355,21 @@ onUnmounted(() => {
   }
 
   &__icon {
-    width: 48px;
-    min-width: 48px;
-    height: 48px;
-    margin-right: 16px;
-    border-radius: 50px;
+    @include card.icon;
+    margin-inline-end: 10px;
     pointer-events: none;
   }
 
   &__title {
-    font-size: 14px;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    max-width: 240px;
+    @include card.title;
   }
 
   &__text {
-    font-size: 12px;
-    line-height: 1.4;
-    max-width: 240px;
-    margin-top: 4px;
-    opacity: 0.7;
+    @include card.text;
   }
 
   &__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 8px;
+    @include card.actions;
   }
 
   &__action {

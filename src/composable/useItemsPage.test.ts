@@ -14,10 +14,10 @@ describe('useItemsPage helpers', () => {
     expect(getNextInfiniteMediaPage(20)).toBe(21)
   })
 
-  it('keeps infinite page size and load throttles stable', () => {
-    expect(INFINITE_PAGE_SIZE).toBe(25)
-    expect(INFINITE_LOAD_COOLDOWN_MS).toBe(450)
-    expect(INFINITE_SHORT_VIEWPORT_FILL_MAX).toBe(2)
+  it('keeps infinite page size aligned with shared pagination', () => {
+    expect(INFINITE_PAGE_SIZE).toBe(60)
+    expect(INFINITE_LOAD_COOLDOWN_MS).toBe(200)
+    expect(INFINITE_SHORT_VIEWPORT_FILL_MAX).toBe(3)
   })
 })
 

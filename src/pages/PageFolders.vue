@@ -701,9 +701,13 @@
       @after-enter="focusCreateFolderInput"
     >
       <v-card rounded="xl">
-        <v-card-title class="text-subtitle-1 font-weight-medium px-5 pt-5">
-          {{ t('folders_browser.new_folder') }}
-        </v-card-title>
+        <DialogHeader
+          icon="folder-plus-outline"
+          :header="t('folders_browser.new_folder')"
+          :close-disabled="createFolderBusy"
+          closable
+          @close="createFolderOpen = false"
+        />
         <v-card-text class="px-5 pb-2">
           <v-text-field
             ref="createFolderInputRef"
@@ -879,6 +883,7 @@ import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRoute, useRouter} from 'vue-router'
 import {useDisplay} from 'vuetify'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
 import FoldersBrowseSkeleton from '@/components/folders/FoldersBrowseSkeleton.vue'
 import FoldersVirtualGrid from '@/components/folders/FoldersVirtualGrid.vue'
 import FolderTagsMenu from '@/components/dialogs/FolderTagsMenu.vue'
@@ -916,8 +921,7 @@ import {findMediaTypeById, getMediaDeleteAssetFolder, inferMediaTypeFromPaths, i
 import {CARD_THUMB_MAX_EDGE, resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {useItemsThumbPrefetch} from '@/composable/useItemsThumbPrefetch'
 import {useMediaTagTransfer} from '@/composable/useMediaTagTransfer'
-import {resolveOpenMediaKind} from '@/utils/openMediaKind'
-import {openTextMedia} from '@/utils/openTextMedia'
+import {useFilePreview} from '@/composable/useFilePreview'
 import {
   canonicalizeFolderTagPath,
   filterAndSortFolderBrowse,
@@ -950,6 +954,7 @@ const router = useRouter()
 const {mdAndDown} = useDisplay()
 const appStore = useAppStore()
 const itemsStore = useItemsStore()
+const {preview: previewFile} = useFilePreview()
 const settingsStore = useSettingsStore()
 const registrationStore = useRegistrationStore()
 const contextMenuStore = useContextMenu()
@@ -2027,7 +2032,7 @@ function onFsFileContextMenu(_event: MouseEvent, entry: FsBrowseEntry) {
       action: () => { void ensurePendingAction(entry.path, 'edit') },
     },
     {
-      name: t('common.play'),
+      name: t('media.preview.open_without_import'),
       type: 'item',
       icon: 'play',
       action: () => { void ensurePendingAction(entry.path, 'play') },
@@ -2187,6 +2192,11 @@ async function ensureInLibrary(filePath: string): Promise<MediaItem | null> {
 }
 
 async function ensurePendingAction(filePath: string, action: 'add' | 'edit' | 'play') {
+  if (action === 'play') {
+    const entry = pendingFiles.value.find(file => file.path === filePath)
+    if (entry) await previewFile(entry)
+    return
+  }
   const item = await ensureInLibrary(filePath)
   if (!item) return
   setFocus({kind: 'media', id: Number(item.id)})
@@ -2195,21 +2205,6 @@ async function ensurePendingAction(filePath: string, action: 'add' | 'edit' | 'p
     const mediaType = findMediaTypeById(appStore.mediaTypes, item.mediaTypeId)
     dialogsStore.editMedia(item, mediaType ?? undefined)
     return
-  }
-  if (action === 'play') {
-    const mediaType = findMediaTypeById(appStore.mediaTypes, item.mediaTypeId)
-    const kind = resolveOpenMediaKind(mediaType, {missingAsPlay: true, path: item.path})
-    if (kind === 'view-image') {
-      itemsStore.viewImage({image: item})
-      return
-    }
-    if (kind === 'preview-text' || kind === 'open-path') {
-      openTextMedia(item)
-      return
-    }
-    if (kind === 'play-av') {
-      await itemsStore.playVideo({video: item, videos: [item, ...visibleMedia.value], player: 'default'})
-    }
   }
 }
 
@@ -2663,6 +2658,10 @@ onBeforeUnmount(() => {
   color: rgb(var(--v-theme-primary));
   cursor: pointer;
   transition: background-color 140ms ease, color 140ms ease;
+}
+
+.folders-page__nav-btn + .folders-page__nav-btn {
+  margin-inline-start: 1px;
 }
 
 .folders-page__nav-btn .v-icon {

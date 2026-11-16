@@ -1,3 +1,8 @@
+import {parseCloudMediaPath} from '../../shared/cloudAccounts'
+import {invalidateMediaDerivedCaches} from './mediaCacheInvalidation'
+import {parseNasMediaPath} from '../../shared/remoteMedia'
+import {parseDriveMediaPath} from '../../shared/cloudDrive'
+import {pinSourceDb, sourceError} from './mediaSources/context'
 import type { ApiDb } from '../types/db'
 import { queryGet } from '../db/utils/rawQuery'
 import { createMediaRepository } from '../db/repositories/media'
@@ -125,10 +130,20 @@ function countForFingerprintBackfill(
 async function backfillMediaFingerprint(
   db: ApiDb,
   media: FingerprintMediaRow,
+  options: {signal?: AbortSignal; shouldStop?: () => boolean; assertCurrent?: () => void} = {},
 ) {
+  const pinned = pinSourceDb(db)
+  db = pinned.db
   const mediaRepo = createMediaRepository(db.drizzle)
+  const assertCurrent = () => {
+    pinned.assertCurrent(); options.assertCurrent?.(); options.signal?.throwIfAborted()
+    if (options.shouldStop?.()) throw sourceError('cancelled')
+    const current = mediaRepo.findById(media.id)
+    if (!current || current.deletedAt || current.path !== media.path) throw sourceError('media_changed')
+  }
   const mediaPath = String(media.path || '')
-  const resolvedPath = await resolveExistingPath(mediaPath)
+  const remote = parseCloudMediaPath(mediaPath) || parseNasMediaPath(mediaPath) || parseDriveMediaPath(mediaPath)
+  const resolvedPath = remote ? mediaPath : await resolveExistingPath(mediaPath)
 
   if (!resolvedPath) {
     return {
@@ -139,11 +154,12 @@ async function backfillMediaFingerprint(
   }
 
   try {
+    assertCurrent()
     const fingerprint = await computeFingerprint({
       path: mediaPath,
       filesize: Number(media.filesize) || 0,
       mediaType: media.mediaType,
-    })
+    }, {db, mediaId: media.id, signal: options.signal, assertCurrent})
 
     if (!fingerprint) {
       return {
@@ -154,7 +170,9 @@ async function backfillMediaFingerprint(
       }
     }
 
+    assertCurrent()
     mediaRepo.updateById(Number(media.id), fingerprint.patch)
+    invalidateMediaDerivedCaches()
 
     return {
       status: 'hashed' as const,
@@ -165,7 +183,7 @@ async function backfillMediaFingerprint(
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
 
-    if (/size <= 8/i.test(message)) {
+    if ((error as {code?: string})?.code === 'file_too_small' || /size <= 8/i.test(message)) {
       return {
         status: 'skipped' as const,
         id: media.id,
@@ -189,12 +207,16 @@ async function* iterateFingerprintBackfill(
     shouldStop = (): boolean => false,
     force = false,
     kind = 'all',
+    signal,
   }: {
     shouldStop?: () => boolean
     force?: boolean
     kind?: FingerprintKind | 'all' | 'contentHash'
+    signal?: AbortSignal
   } = {},
 ) {
+  const pinned = pinSourceDb(db)
+  db = pinned.db
   const total = countForFingerprintBackfill(db, force, kind)
 
   let processed = 0
@@ -215,13 +237,16 @@ async function* iterateFingerprintBackfill(
     skipped,
   }
 
-  while (!shouldStop()) {
+  while (!shouldStop() && !signal?.aborted) {
+    pinned.assertCurrent()
     const media = findNextForFingerprintBackfill(db, lastId, force, kind)
 
     if (!media) break
 
     lastId = Number(media.id)
-    const result = await backfillMediaFingerprint(db, media)
+    const result = await backfillMediaFingerprint(db, media, {signal, shouldStop, assertCurrent: pinned.assertCurrent})
+    pinned.assertCurrent()
+    if (shouldStop() || signal?.aborted) break
     processed += 1
 
     if (result.status === 'hashed') hashed += 1
@@ -252,20 +277,20 @@ async function* iterateFingerprintBackfill(
     missing,
     failed,
     skipped,
-    stopped: shouldStop(),
+    stopped: shouldStop() || Boolean(signal?.aborted),
   }
 }
 
 async function* iterateOshashBackfill(
   db: ApiDb,
-  options: {shouldStop?: () => boolean; force?: boolean} = {},
+  options: {shouldStop?: () => boolean; force?: boolean; signal?: AbortSignal} = {},
 ) {
   yield* iterateFingerprintBackfill(db, {...options, kind: 'oshash'})
 }
 
 async function* iterateContentHashBackfill(
   db: ApiDb,
-  options: {shouldStop?: () => boolean; force?: boolean} = {},
+  options: {shouldStop?: () => boolean; force?: boolean; signal?: AbortSignal} = {},
 ) {
   yield* iterateFingerprintBackfill(db, {...options, kind: 'contentHash'})
 }

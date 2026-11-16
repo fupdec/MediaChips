@@ -4,7 +4,7 @@
       v-model:selected="selected"
       color="primary"
       density="comfortable"
-      :lines="compact ? 'one' : 'two'"
+      lines="one"
       nav
       class="settings-nav__list"
       :class="{'settings-nav__list--compact': compact}"
@@ -14,12 +14,16 @@
         :key="item.value"
         :id="item.docId"
         :value="item.value"
-        :prepend-icon="item.icon"
         :slim="compact"
         class="settings-nav__item"
       >
+        <template #prepend>
+          <span class="settings-nav__icon" aria-hidden="true">
+            <v-icon :icon="item.icon" size="20"/>
+          </span>
+        </template>
         <v-list-item-title>{{ t(item.labelKey) }}</v-list-item-title>
-        <v-list-item-subtitle v-if="!compact" class="settings-nav__subtitle">
+        <v-list-item-subtitle v-if="!compact" v-show="false" class="settings-nav__subtitle">
           {{ t(item.descKey) }}
         </v-list-item-subtitle>
       </v-list-item>
@@ -74,9 +78,9 @@ const selected = computed({
 .settings-nav__item {
   margin-bottom: 6px;
   border-radius: 10px;
-  min-height: 64px;
+  min-height: 48px;
   align-items: center;
-  padding-block: 10px;
+  padding-block: 8px;
 }
 
 .settings-nav__item :deep(.v-list-item__overlay),
@@ -92,11 +96,34 @@ const selected = computed({
   align-self: center !important;
 }
 
+.settings-nav__item :deep(.v-list-item__spacer) {
+  width: 12px;
+}
+
+.settings-nav__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-primary), .12);
+  color: rgb(var(--v-theme-primary));
+}
+
+.settings-nav__item.v-list-item--active .settings-nav__icon {
+  background: rgb(var(--v-theme-primary));
+  color: rgb(var(--v-theme-on-primary));
+}
+
 .settings-nav__item :deep(.v-list-item-title) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 600;
   letter-spacing: 0.01em;
   line-height: 1.3;
-  margin-bottom: 2px;
+  margin-bottom: 0;
   color: rgba(var(--v-theme-on-surface), 0.92);
 }
 

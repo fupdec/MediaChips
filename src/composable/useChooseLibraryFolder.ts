@@ -144,7 +144,7 @@ function prepareMediaAddingForLibraryFolder(folderPath: string): void {
   tasksStore.mediaAdding.is_check_duplicates = true
   tasksStore.mediaAdding.is_fast_import = true
   tasksStore.mediaAdding.fast_import_locked = false
-  tasksStore.mediaAdding.is_exclude = false
+  tasksStore.mediaAdding.excluded = ''
   tasksStore.mediaAdding.skipFileScan = false
   tasksStore.mediaAdding.directFiles = []
   tasksStore.mediaAdding.fromInbox = false

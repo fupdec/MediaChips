@@ -16,6 +16,8 @@ vi.mock('@/services/fileService', () => ({
 }))
 
 import {
+  loadImageDisplayUrl,
+  loadThumbDisplayUrl,
   FILMSTRIP_THUMB_MAX_EDGE,
   loadFilmstripThumbDisplayUrl,
 } from './imageSource'
@@ -54,4 +56,12 @@ describe('loadFilmstripThumbDisplayUrl', () => {
     expect(url).toContain('cached')
     expect(buildLocalFileUrl).not.toHaveBeenCalled()
   })
+})
+
+it.each([loadImageDisplayUrl, loadThumbDisplayUrl, loadFilmstripThumbDisplayUrl])('loads cached NAS thumbnails without streaming the original (%#)', async load => {
+  buildLocalFileUrl.mockClear()
+  const path = 'nas://11111111-1111-4111-8111-111111111111/photo.png'
+  await load({id: 9, path}, '/db/media')
+  expect(buildLocalFileUrl.mock.calls[0][0]).toBe('/db/media/images/thumbs/9.jpg')
+  expect(buildLocalFileUrl.mock.calls[0][1]).not.toBe(true)
 })

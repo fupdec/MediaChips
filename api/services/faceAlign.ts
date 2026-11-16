@@ -150,3 +150,5 @@ export {
   loadLandmarkModel,
   prepareLandmarkModel,
 }
+
+export function isModelImportBusy() { return Boolean(landmarkSession || landmarkLoading) }

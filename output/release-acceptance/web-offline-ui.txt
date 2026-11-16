@@ -1,0 +1,344 @@
+- banner:
+  - button "Add media":
+    - generic: 󰐕
+    - generic: Add media
+  - button "Filter":
+    - generic: 󰈳
+    - generic: Filter
+  - button "Select":
+    - generic: 󰄵
+    - generic: Select
+  - button "More":
+    - generic: 󰇙
+  - button:
+    - generic: 󰣯
+  - 'button "Search Keyboard shortcut: /"':
+    - generic: 󰍉
+    - generic: Search
+    - 'img "Keyboard shortcut: /"':
+      - generic: /
+  - button:
+    - generic: 󰧧
+  - button "Change history and undo":
+    - generic: 󰋚
+  - button:
+    - generic: 󰘥
+  - button:
+    - generic: 󰂜
+  - status "Badge": "1"
+- navigation:
+  - list:
+    - generic: Library
+    - button "Edit menu items":
+      - generic: 󰲶
+    - button "Hide menu":
+      - generic: 󰅁
+    - link "Home":
+      - /url: /
+      - generic: 󰚡
+      - generic: Home
+    - link "Videos 1":
+      - /url: /media?mediaTypeId=1
+      - generic: 󰯜
+      - generic: Videos
+      - generic: "1"
+    - link "Images 0":
+      - /url: /media?mediaTypeId=2
+      - generic: 󰥶
+      - generic: Images
+      - generic: "0"
+    - text: 󰝚 󱞏
+    - link "Folders":
+      - /url: /folders
+      - generic: 󰉖
+      - generic: Folders
+    - link "Playlists 1":
+      - /url: /playlists
+      - generic: 󰉹
+      - generic: Playlists
+      - generic: "1"
+    - link "Markers 0":
+      - /url: /markers
+      - generic: 󰔦
+      - generic: Markers
+      - generic: "0"
+  - generic: Tags
+  - button "Collapse all categories":
+    - generic: 󰕎
+  - button "Edit menu items":
+    - generic: 󰲶
+  - button "Add category":
+    - generic: 󰐕
+  - link "All tags":
+    - /url: /tags
+    - generic: 󱋷
+  - generic: 󰍉
+  - textbox "Search tags…"
+  - button "Tags" [expanded]:
+    - generic: 󰅀
+  - button "Tags 3":
+    - generic: 󱋷
+    - generic: Tags
+    - generic: "3"
+  - button "Favorites":
+    - generic: Favorites
+    - generic: 󰋑
+  - button "Rewatch":
+    - generic: Rewatch
+  - button "Watch later":
+    - generic: Watch later
+  - button "Gender" [expanded]:
+    - generic: 󰅀
+  - button "Gender 2":
+    - generic: 󰊞
+    - generic: Gender
+    - generic: "2"
+  - button "Female":
+    - generic: Female
+  - button "Male":
+    - generic: Male
+  - button "Studio" [expanded]:
+    - generic: 󰅀
+  - button "Studio 0":
+    - generic: 󰇗
+    - generic: Studio
+    - generic: "0"
+  - generic: No matching tags
+  - button "Performers" [expanded]:
+    - generic: 󰅀
+  - button "Performers 0":
+    - generic: 󰡉
+    - generic: Performers
+    - generic: "0"
+  - generic: No matching tags
+  - button "Genres" [expanded]:
+    - generic: 󰅀
+  - button "Genres 0":
+    - generic: 󱋷
+    - generic: Genres
+    - generic: "0"
+  - generic: No matching tags
+  - button "Eye color" [expanded]:
+    - generic: 󰅀
+  - button "Eye color 6":
+    - generic: 󰛐
+    - generic: Eye color
+    - generic: "6"
+  - button "Amber":
+    - generic: Amber
+  - button "Blue":
+    - generic: Blue
+  - button "Brown":
+    - generic: Brown
+  - button "Gray":
+    - generic: Gray
+  - button "Green":
+    - generic: Green
+  - button "Hazel":
+    - generic: Hazel
+  - button "Hair colors" [expanded]:
+    - generic: 󰅀
+  - button "Hair colors 9":
+    - generic: 󰸌
+    - generic: Hair colors
+    - generic: "9"
+  - button "Auburn":
+    - generic: Auburn
+  - button "Bald":
+    - generic: Bald
+  - button "Black":
+    - generic: Black
+  - button "Blonde":
+    - generic: Blonde
+  - button "Brown hair":
+    - generic: Brown hair
+  - button "Brunette":
+    - generic: Brunette
+  - button "Gray hair":
+    - generic: Gray hair
+  - button "Redhead":
+    - generic: Redhead
+  - button "White":
+    - generic: White
+  - list:
+    - link "Settings":
+      - /url: /settings
+      - generic: 󰢻
+      - generic: Settings
+    - generic: 󰧧
+    - generic: Trash
+- navigation:
+  - generic: Inspector
+  - button "Show details only":
+    - generic: 󰛐
+  - button "Hide inspector":
+    - generic: 󰅂
+  - generic: 󰥶
+  - generic: No item selected
+  - generic: Click a card to edit it in the inspector. Double-click opens the full editor.
+- main:
+  - button "Unpin toolbar (scroll with page)" [pressed]:
+    - generic: 󰐃
+  - generic: 󰯜
+  - generic: Videos
+  - generic: "1"
+  - button:
+    - generic: 󰒼
+  - combobox:
+    - generic: 󰃳
+    - generic: Date Added
+    - combobox "Sort by"
+    - button: 󰍝
+  - button:
+    - generic: 󰉹
+  - button:
+    - generic: 󰡮
+  - button:
+    - generic: 󰈳
+  - generic: 󰓎
+  - text: Top Rated
+  - generic: Rating 0 of 5
+  - radio "Rating 0 of 5" [checked]
+  - generic: Rating 0.5 of 5
+  - button "Rating 0.5 of 5":
+    - generic: 󰓒
+  - radio "Rating 0.5 of 5 Rating 0.5 of 5"
+  - generic: Rating 1 of 5
+  - button "Rating 1 of 5":
+    - generic: 󰓒
+  - radio "Rating 1 of 5 Rating 1 of 5"
+  - generic: Rating 1.5 of 5
+  - button "Rating 1.5 of 5":
+    - generic: 󰓒
+  - radio "Rating 1.5 of 5 Rating 1.5 of 5"
+  - generic: Rating 2 of 5
+  - button "Rating 2 of 5":
+    - generic: 󰓒
+  - radio "Rating 2 of 5 Rating 2 of 5"
+  - generic: Rating 2.5 of 5
+  - button "Rating 2.5 of 5":
+    - generic: 󰓒
+  - radio "Rating 2.5 of 5 Rating 2.5 of 5"
+  - generic: Rating 3 of 5
+  - button "Rating 3 of 5":
+    - generic: 󰓒
+  - radio "Rating 3 of 5 Rating 3 of 5"
+  - generic: Rating 3.5 of 5
+  - button "Rating 3.5 of 5":
+    - generic: 󰓒
+  - radio "Rating 3.5 of 5 Rating 3.5 of 5"
+  - generic: Rating 4 of 5
+  - button "Rating 4 of 5":
+    - generic: 󰓒
+  - radio "Rating 4 of 5 Rating 4 of 5"
+  - generic: Rating 4.5 of 5
+  - button "Rating 4.5 of 5":
+    - generic: 󰓒
+  - radio "Rating 4.5 of 5 Rating 4.5 of 5"
+  - generic: Rating 5 of 5
+  - button "Rating 5 of 5":
+    - generic: 󰓒
+  - radio "Rating 5 of 5 Rating 5 of 5"
+  - generic: 󰋕
+  - checkbox
+  - generic "HTML5 Video"
+  - button:
+    - generic: 󰇙
+  - button "Scroll to top":
+    - generic: 󰘣
+    - text: Scroll to top
+- dialog:
+  - button:
+    - generic: 󰅖
+  - alert:
+    - generic: 󰀦
+    - text: "Error:"
+    - generic: "File: HTML5 Video"
+    - text: Unable to play this remote video. Open it again to refresh the stream or open the original page.
+    - generic: "Extension: .HTML"
+  - button "Refresh stream":
+    - generic: 󰑐
+    - generic: Refresh stream
+  - button "Open original page":
+    - generic: 󰐍
+    - generic: Open original page
+  - 'button "Pause Keyboard shortcut: $SPACE"':
+    - generic: 󰏤
+    - text: Pause
+    - 'img "Keyboard shortcut: $SPACE"':
+      - generic: 󱁐
+  - 'button "Stop Keyboard shortcut: X"':
+    - generic: 󰓛
+    - text: Stop
+    - 'img "Keyboard shortcut: X"'
+  - button "00:12 / 00:52 Switch between elapsed and remaining time":
+    - generic: 00:12
+    - generic: /
+    - generic: 00:52
+    - generic: Switch between elapsed and remaining time
+  - button "Playback speed":
+    - generic: 󰣿
+    - generic: Playback speed
+  - button "Refresh stream":
+    - generic: 󰑐
+    - generic: Refresh stream
+  - 'button "Marks List Keyboard shortcut: I"':
+    - generic: 󰔦
+    - text: Marks List
+    - 'img "Keyboard shortcut: I"'
+  - 'button "Markers Studio Keyboard shortcut: $SHIFT plus M · Keyboard shortcut: 1 , Keyboard shortcut: 2"':
+    - generic: 󱜀
+    - text: Markers Studio
+    - 'img "Keyboard shortcut: $SHIFT plus M"':
+      - generic: 󰘶
+    - text: ·
+    - 'img "Keyboard shortcut: 1"'
+    - text: ","
+    - 'img "Keyboard shortcut: 2"'
+  - button "Open original page":
+    - generic: 󰏌
+    - generic: Open original page
+  - 'button "Edit video Keyboard shortcut: E"':
+    - generic: 󰤌
+    - text: Edit video
+    - 'img "Keyboard shortcut: E"'
+  - button "Show in library":
+    - generic: 󰒆
+    - generic: Show in library
+  - 'button "Delete video Keyboard shortcut: $ALT plus DELETE"':
+    - generic: 󰧧
+    - text: Delete video
+    - 'img "Keyboard shortcut: $ALT plus DELETE"':
+      - generic: 󰘵
+  - 'button "Fullscreen Keyboard shortcut: F"':
+    - generic: 󰊓
+    - text: Fullscreen
+    - 'img "Keyboard shortcut: F"'
+  - button "Picture-in-Picture Mode":
+    - generic: 󰹗
+    - generic: Picture-in-Picture Mode
+  - 'button "Mute Keyboard shortcut: M"':
+    - generic: 󰝟
+    - text: Mute
+    - 'img "Keyboard shortcut: M"'
+  - text: 󰉹 󰅖 󰓦 󰐎 󰒟
+  - tooltip
+  - tooltip
+  - tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip
+- tooltip

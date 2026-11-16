@@ -1,3 +1,4 @@
+import {isRemoteMediaPath} from '@shared/remoteMedia'
 import {computed, ref, watch, type MaybeRefOrGetter, toValue} from 'vue'
 import path from 'path-browserify'
 import {useItemsStore} from '@/stores/items'
@@ -119,6 +120,7 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
   /** Grid only on library cards — never in edit dialog (embedded) or when forced thumbs. */
   const getStaticPreviewSubfolder = (): 'thumbs' | 'grids' =>
     settingsStore.videoPreviewStatic === 'grid'
+    && !isRemoteMediaPath(media.value.path)
     && toValue(options.isViewCard)
     && !toValue(options.isEmbeddedHost)
       ? 'grids'
@@ -202,6 +204,7 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
 
   const maybeCreateMissingThumb = async () => {
     if (!toValue(options.previewActive) || !toValue(options.isFileExists) || !thumb.value) return
+    if (isRemoteMediaPath(media.value.path)) return
     if (isCreatingThumb.value || thumbCreateAttempted.value) return
 
     const exists = await runImageProbe(thumb.value)

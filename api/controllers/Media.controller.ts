@@ -1,3 +1,4 @@
+import {createRequestAbortSignal} from '../services/requestAbortSignal'
 import type { ApiDb, FilterLike } from '../types/db'
 import { apiErrorMessage, sendControllerError, sendNotFound, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
@@ -17,7 +18,7 @@ import {browseLibraryFolders} from '../services/mediaFolderBrowse'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
 import path from 'path'
-import { parseMediaFilePath } from '../../shared/mediaPath'
+import {applyMediaRelinks} from '../services/mediaRelink'
 import {
   deleteMediaGeneratedAssets,
   unlinkResolvedPath,
@@ -35,6 +36,7 @@ import {
 import {
   findSimilarByClip,
   semanticSearchMedia,
+  findSimilarMarkerMoments,
 } from '../services/mediaClipEmbeddings'
 import {findSimilarHybrid} from '../services/mediaHybridSimilarity'
 import {getClipEmbeddingStatus} from '../services/clipEmbeddingModel'
@@ -210,6 +212,15 @@ export default function (db: ApiDb) {
     }
   }
 
+  const similarMarkerMoments = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const {tagId, rejected} = getRequestBody<{tagId: number; rejected: string[]}>(req)
+      sendOk(res, await findSimilarMarkerMoments(db, tagId, rejected))
+    } catch (err) {
+      sendControllerError(res, err, 'Could not find similar marker moments.')
+    }
+  }
+
   const semanticSearch = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<{
@@ -273,6 +284,10 @@ export default function (db: ApiDb) {
         survivorId: Number(body.survivorId),
         sourceIds: Array.isArray(body.sourceIds) ? body.sourceIds : [],
         withFile: Boolean(body.with_file),
+        similarity: body.similarity === true,
+        confirmFileDeletion: body.confirmFileDeletion === true,
+        deleteSourceIds: body.deleteSourceIds,
+        signal: createRequestAbortSignal(req, res),
       })
       sendOk(res, result)
     } catch (err) {
@@ -280,13 +295,33 @@ export default function (db: ApiDb) {
     }
   }
 
-  const duplicateGroups = function (req: ApiRequest, res: ApiResponse) {
+  const duplicateGroups = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<MediaDuplicateGroupsPayload>(req)
       const mediaTypeId = body.mediaTypeId == null ? null : Number(body.mediaTypeId)
+      const resolvedMediaTypeId =
+        mediaTypeId != null && Number.isFinite(mediaTypeId) ? mediaTypeId : undefined
+
+      let mediaIds: number[] | null = null
+      if (Array.isArray(body.mediaIds)) {
+        mediaIds = body.mediaIds
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      } else if (Array.isArray(body.filters) && body.filters.length > 0) {
+        const idsResult = await loadFilteredMediaIds(db, {
+          mediaTypeId: resolvedMediaTypeId,
+          filters: body.filters as FilterLike[],
+          filtersJoin: body.filtersJoin,
+          find_duplicates: false,
+          skipTotals: true,
+        })
+        mediaIds = Array.isArray(idsResult?.ids) ? idsResult.ids.map(Number) : []
+      }
+
       const result = listMediaDuplicateGroups(db, {
         duplicatesBy: String(body.duplicates_by || 'filesize'),
-        mediaTypeId: Number.isFinite(mediaTypeId as number) ? mediaTypeId : null,
+        mediaTypeId: resolvedMediaTypeId,
+        mediaIds,
       })
       sendOk(res, result)
     } catch (err) {
@@ -341,7 +376,10 @@ export default function (db: ApiDb) {
   const getOneById = function (req: ApiRequest, res: ApiResponse) {
     try {
       const data = mediaRepo.findById(Number(req.params.id)) ?? null
-      sendOk(res, data)
+      const hasCopies = data && db.sqlite.prepare(
+        'SELECT EXISTS (SELECT 1 FROM verifiedMediaCopies WHERE mediaId = ?) AS value',
+      ).get(data.id) as {value: number} | null
+      sendOk(res, data ? {...data, hasCopies: Boolean(hasCopies?.value)} : null)
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
@@ -356,22 +394,32 @@ export default function (db: ApiDb) {
     }
   };
 
-  const updatePath = function (req: ApiRequest, res: ApiResponse) {
+  const updatePath = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<MediaPathUpdatePayload>(req)
-      const data = parseMediaFilePath(String(body.path ?? ''))
-
-      mediaRepo.updateById(Number(body.id), data, {silent: true})
-      invalidateMediaDerivedCaches()
+      const existing = mediaRepo.findById(Number(body.id))
+      if (!existing) return sendNotFound(res, 'Media not found.')
+      await applyMediaRelinks(db, [{
+        id: existing.id,
+        oldPath: existing.path,
+        newPath: String(body.path ?? ''),
+        confirmedOriginal: body.confirmedOriginal === true,
+      }])
       sendOk(res, [1])
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while retrieving media.")
     }
   };
 
-  const update = function (req: ApiRequest, res: ApiResponse) {
+  const update = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<EntityUpdatePayload>(req)
+      if (typeof body.path === 'string') {
+        const existing = mediaRepo.findById(Number(req.params.id))
+        if (existing && existing.path !== body.path) {
+          await applyMediaRelinks(db, [{id: existing.id, oldPath: existing.path, newPath: body.path}])
+        }
+      }
       mediaRepo.updateById(Number(req.params.id), body, {silent: Boolean(body.silent)})
       invalidateMediaDerivedCaches()
       sendOk(res, [1])
@@ -527,6 +575,7 @@ export default function (db: ApiDb) {
     similarByVisual,
     suggestTagsFromSimilar,
     semanticSearch,
+    similarMarkerMoments,
     similarByClip,
     similarHybrid,
     merge,

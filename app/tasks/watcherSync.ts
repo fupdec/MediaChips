@@ -6,6 +6,8 @@ import type {
   WatcherFolderReport,
 } from '../types/websockets'
 import path from 'path'
+import {requestAutomaticCopyDiscovery} from '../../api/services/mediaSources/copyDiscoveryTriggers'
+import {pinSourceDb} from '../../api/services/mediaSources/context'
 import { promises as fs } from 'fs'
 import { createMediaRepository } from '../../api/db/repositories/media'
 import {
@@ -20,6 +22,13 @@ import { isPathUnderExcluded } from '../../api/utils/watchedFolderExcludes'
 
 /** Keep inbox/WS payloads small — full totals stay in newTotal/lostTotal. */
 export const MAX_WATCHER_REPORT_PATHS = 500
+
+/** Yield the event loop every N dirent entries during large tree walks. */
+export const WATCHER_WALK_YIELD_EVERY = 500
+
+function yieldToEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve))
+}
 
 /** Stable lowercase key for O(1) path set membership (slash-normalized). */
 function pathSyncKey(value: string): string {
@@ -47,59 +56,55 @@ function sortLost(entries: WatcherFileEntry[]): WatcherFileEntry[] {
   return [...entries].sort((a, b) => String(a.path).localeCompare(String(b.path)))
 }
 
+/**
+ * Iterative stack walk (no depth cap) with event-loop yields so Downloads-scale
+ * trees do not starve HTTP/WS on the shared Node process.
+ */
 async function findFilesRecursive(
-  dir: string,
+  root: string,
   extensions: string[],
   excludedPaths: string[] = [],
-  depth = 0,
-  maxDepth = 10,
-  allFiles: string[] = [],
+  yieldEvery = WATCHER_WALK_YIELD_EVERY,
 ): Promise<string[]> {
-  if (depth > maxDepth) {
+  const allFiles: string[] = []
+  if (!root || isPathUnderExcluded(root, excludedPaths)) {
     return allFiles
   }
 
-  if (isPathUnderExcluded(dir, excludedPaths)) {
-    return allFiles
-  }
+  const stack = [root]
+  let scanned = 0
 
-  let entries: import('fs').Dirent[] = []
-  try {
-    entries = await fs.readdir(dir, {withFileTypes: true})
-  } catch {
-    return allFiles
-  }
-
-  const subdirTasks: Promise<void>[] = []
-
-  for (const entry of entries) {
-    const filePath = path.join(dir, entry.name)
-
-    if (isPathUnderExcluded(filePath, excludedPaths)) {
+  while (stack.length) {
+    const dir = stack.pop()
+    if (!dir || isPathUnderExcluded(dir, excludedPaths)) {
       continue
     }
 
-    if (entry.isDirectory()) {
-      subdirTasks.push(
-        findFilesRecursive(
-          filePath,
-          extensions,
-          excludedPaths,
-          depth + 1,
-          maxDepth,
-          allFiles,
-        ).then(() => undefined),
-      )
+    let entries: import('fs').Dirent[] = []
+    try {
+      entries = await fs.readdir(dir, {withFileTypes: true})
+    } catch {
       continue
     }
 
-    if (entry.isFile() && fileMatchesExtensions(filePath, extensions)) {
-      allFiles.push(normalizeMediaPath(filePath))
-    }
-  }
+    for (const entry of entries) {
+      const filePath = path.join(dir, entry.name)
 
-  if (subdirTasks.length) {
-    await Promise.all(subdirTasks)
+      if (isPathUnderExcluded(filePath, excludedPaths)) {
+        continue
+      }
+
+      if (entry.isDirectory()) {
+        stack.push(filePath)
+      } else if (entry.isFile() && fileMatchesExtensions(filePath, extensions)) {
+        allFiles.push(normalizeMediaPath(filePath))
+      }
+
+      scanned += 1
+      if (yieldEvery > 0 && scanned % yieldEvery === 0) {
+        await yieldToEventLoop()
+      }
+    }
   }
 
   return allFiles
@@ -243,6 +248,7 @@ class WatcherSyncEngine {
   }
 
   async fullSync(folders: WatchedFolderEntry[]): Promise<WatcherFolderReport[]> {
+    const autoTarget = pinSourceDb(this.db)
     this.setFolders(folders)
     const t0 = Date.now()
 
@@ -268,6 +274,9 @@ class WatcherSyncEngine {
           folderPath,
           typeState.type.id,
         ).filter((entry) => !isPathUnderExcluded(String(entry.path), excludedPaths))
+        // Same reconcile as refreshDbPaths — walk misses (symlink dirs, transient
+        // readdir errors) must not mark live files as lost on rescan/fullSync.
+        await this.reconcileFsPathsWithDb(typeState)
         recomputeDiff(typeState)
       }
 
@@ -277,6 +286,10 @@ class WatcherSyncEngine {
       )
     }
 
+    try {
+      autoTarget.assertCurrent()
+      requestAutomaticCopyDiscovery(autoTarget.db, folders.map(folder => ({key: folder.path, excluded: folder.excludedPaths || []})), 'folder_update')
+    } catch { /* A late scan must not schedule work in a different library. */ }
     return this.getReports()
   }
 
@@ -430,4 +443,5 @@ export {
   recomputeDiff,
   pathSyncKey,
   buildPathSyncKeySet,
+  findFilesRecursive,
 }

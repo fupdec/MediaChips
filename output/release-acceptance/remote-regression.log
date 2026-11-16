@@ -1,0 +1,13 @@
+
+> mediachips@1.12.0 test
+> node scripts/ensure-sqlite-tests.mjs && vitest run api/services/webVideo/service.test.ts api/services/webVideo/network.test.ts api/services/webVideo/ytDlp.test.ts api/services/cloudDrive/playback.test.ts api/services/nas/service.test.ts
+
+
+ RUN  v4.1.9 /Users/vit/Desktop/work/mediachips-legacy/mediaChips
+
+
+ Test Files  5 passed (5)
+      Tests  109 passed (109)
+   Start at  19:56:03
+   Duration  4.76s (transform 2.19s, setup 0ms, import 7.72s, tests 3.23s, environment 1ms)
+

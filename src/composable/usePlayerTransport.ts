@@ -13,6 +13,10 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import {isStandalonePlayerRoute} from '@/utils/playerWindow'
 import {createThumb} from '@/services/fileService'
+import {isRemoteMediaPath, isNasMediaPath, parseNasMediaPath} from '@shared/remoteMedia'
+import {isWebVideoPath} from '@shared/webVideo'
+import {saveWebVideoCurrentFrame} from '@/services/webVideoFrames'
+import {openExternal} from '@/services/shellService'
 import {invalidateVideoThumbCaches} from '@/utils/thumbDisplayCache'
 import {getReadableDuration} from '@/services/formatUtils'
 import {setNotification} from '@/services/notificationService'
@@ -73,6 +77,14 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   const is_separate_window = computed(() => isStandalonePlayerRoute(route))
   const video = computed(() => player.value.playlist[player.value.nowPlaying])
   const isAudioMode = computed(() => playerStore.isAudioMode)
+  const isWebVideo = computed(() => isRemoteMediaPath(video.value?.path))
+  const canCaptureFrame = computed(() => !isAudioMode.value && !playerStore.webVideoLoading && !playerStore.playbackError
+    && (!isWebVideo.value || playerStore.webVideoFrameReady))
+
+  const refreshWebVideo = () => session?.reloadWebVideo({fresh: true})
+  const changeWebVideoQuality = (quality: number | null) => session?.reloadWebVideo({quality})
+  const canOpenSourcePage = computed(() => isWebVideoPath(video.value?.path))
+  const openWebVideoPage = () => canOpenSourcePage.value && video.value?.path && openExternal(video.value.path)
 
   const density = computed(() => {
     if (smAndDown.value) return 'compact'
@@ -155,12 +167,14 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   const next = () => navigatePlaylist('next')
 
   const togglePlaylist = () => {
+    if (player.value.playlist.length <= 1) return
     player.value.playlistVisible = !player.value.playlistVisible
     if (!player.value.playlistVisible) return
     eventBus.emit('scrollToNowPlaying')
   }
 
   const toggleMarks = () => {
+    if (!playerStore.isLibraryMedia) return
     playerStore.marksVisible = !playerStore.marksVisible
   }
 
@@ -175,6 +189,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   }
 
   const toggleStudioMode = () => {
+    if (!playerStore.isLibraryMedia) return
     if (playerStore.studioMode) {
       playerStore.studioMode = false
       return
@@ -252,6 +267,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   }
 
   const addMark = () => {
+    if (!playerStore.isLibraryMedia) return
     if (playerStore.studioMode) {
       playerStore.selectedMarkId = null
       dialogsStore.openMarkAdding({ time: playerStore.currentTime })
@@ -265,27 +281,31 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   }
 
   const setAsThumb = async () => {
-    if (!video.value?.path) return
+    const current = video.value
+    if (!playerStore.isLibraryMedia || !current?.path || !canCaptureFrame.value) return
+    const webVideo = isRemoteMediaPath(current.path)
 
     const imgPath = path.join(
       appStore.mediaPath || '',
       'videos/thumbs',
-      `${video.value.id}.jpg`
+      `${current.id}.jpg`
     )
 
     const time = player.value.currentTime
 
     try {
-      await createThumb(time, video.value.path, imgPath, 320, true)
-      emit('updateVideo', video.value.id)
-      invalidateVideoThumbCaches(video.value.id)
-      itemsStore.refreshThumb(video.value.id, {regenerate: true})
+      if (webVideo) {
+        if (!await saveWebVideoCurrentFrame({video: playerStore.player, mediaId: current.id, mediaPath: current.path})) return
+      } else await createThumb(time, current.path, imgPath, 320, true)
+      emit('updateVideo', current.id)
+      invalidateVideoThumbCaches(current.id)
+      itemsStore.refreshThumb(current.id, {regenerate: !webVideo})
       if (is_separate_window.value && window.electronAPI?.send) {
-        window.electronAPI.send('updateVideoFrames', video.value.id)
+        window.electronAPI.send('updateVideoFrames', current.id)
       }
       setNotification({
         title: t('player.video_thumb_updated'),
-        text: video.value.path,
+        text: isNasMediaPath(current.path) ? current.name || parseNasMediaPath(current.path)?.relativePath || '' : current.path,
         icon: 'image',
         type: 'success',
       })
@@ -294,7 +314,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
       setNotification({
         title: t('player.video_thumb_not_updated'),
         text: String(e),
-        filePath: video.value.path,
+        filePath: webVideo ? undefined : current.path,
         icon: 'image',
         type: 'error',
       })
@@ -302,7 +322,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   }
 
   const getVideo = async (): Promise<MediaItem | null> => {
-    if (!video.value) return null
+    if (!playerStore.isLibraryMedia || !video.value) return null
 
     const mediaTypeId = video.value.mediaTypeId ?? getDefaultMediaTypeId(appStore.mediaTypes) ?? undefined
     const query = {
@@ -324,6 +344,7 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   }
 
   const editVideo = async () => {
+    if (!playerStore.isLibraryMedia) return
     video_editing.value = await getVideo()
     dialog_video_edit.value = true
   }
@@ -379,9 +400,10 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
   }
 
   const deleteVideo = async (with_file: boolean) => {
-    if (!video.value) return
+    if (!playerStore.isLibraryMedia || !video.value) return
 
     const video_edit = {...video.value}
+    if (isRemoteMediaPath(video_edit.path)) with_file = false
 
     if (isNextDisabled.value) {
       if (!isPrevDisabled.value) {
@@ -466,6 +488,12 @@ export function usePlayerTransport({emit, jumpToMark}: UsePlayerTransportOptions
     dialog_video_edit,
     video,
     isAudioMode,
+    isWebVideo,
+    canCaptureFrame,
+    refreshWebVideo,
+    changeWebVideoQuality,
+    openWebVideoPage,
+    canOpenSourcePage,
     density,
     xs,
     xl,

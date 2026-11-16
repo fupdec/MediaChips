@@ -1,10 +1,9 @@
+import {createRequestAbortSignal} from '../../services/requestAbortSignal'
 import type { TaskControllerShared } from '../../types/tasks'
-import type { AnyRecord } from '../../types/db'
 import { sendControllerError, sendOk } from '../../types/errors'
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import { runNdjsonAsyncGenerator } from './ndjsonStreamRunner'
-import { createMediaRepository } from '../../db/repositories/media'
-import { parseMediaFilePath } from '../../../shared/mediaPath'
+import {applyMediaRelinks} from '../../services/mediaRelink'
 import {
   getContentHashBackfillStatus,
   getFingerprintBackfillStatus,
@@ -59,7 +58,6 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
     getImageMedia,
   } = shared
 
-  const mediaRepo = createMediaRepository(db.drizzle)
 
   const contentHashBackfillStatus = async (req: ApiRequest, res: ApiResponse) => {
     try {
@@ -247,6 +245,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       errorMessage: 'Some error occurred while backfilling oshash values.',
       iterate: (shouldStop) => iterateOshashBackfill(db, {
         shouldStop,
+        signal: createRequestAbortSignal(req, res),
         force: String(req.query.force || '').toLowerCase() === 'true',
       }),
     })
@@ -257,6 +256,7 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
       errorMessage: 'Some error occurred while backfilling fingerprints.',
       iterate: (shouldStop) => iterateFingerprintBackfill(db, {
         shouldStop,
+        signal: createRequestAbortSignal(req, res),
         force: String(req.query.force || '').toLowerCase() === 'true',
       }),
     })
@@ -314,10 +314,12 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
 
   const streamFindMissingMedia = async (req: ApiRequest, res: ApiResponse) => {
     const folders = Array.isArray(req.body?.folders) ? req.body.folders : []
+    const originalFolder = req.body?.originalFolder
     await runNdjsonAsyncGenerator(req, res, {
       errorMessage: 'Some error occurred while searching for missing media.',
       iterate: (shouldStop) => iterateMissingMediaSearch(db, {
         folders,
+        originalFolder: originalFolder === undefined || typeof originalFolder === 'string' ? originalFolder : '',
         shouldStop,
       }),
     })
@@ -342,32 +344,12 @@ export default function createTasksMaintenanceController(shared: TaskControllerS
   const relinkMissingMedia = async (req: ApiRequest, res: ApiResponse) => {
     try {
       const matches = Array.isArray(req.body?.matches) ? req.body.matches : []
-      let updated = 0
-
-      for (const item of matches) {
-        const filePath = item.newPath || item.path
-        const mediaId = item.id
-
-        if (!filePath || !mediaId) continue
-
-        const parsed = parseMediaFilePath(filePath)
-        const data: AnyRecord = {
-          path: parsed.path,
-          basename: parsed.basename,
-          name: parsed.name,
-          ext: parsed.ext,
-        }
-
-        if (item.oshash) {
-          data.oshash = item.oshash
-        }
-
-        mediaRepo.updateById(Number(mediaId), data, {silent: true})
-
-        updated += 1
-      }
-
-      sendOk(res, {updated})
+      sendOk(res, await applyMediaRelinks(db, matches.map((item: Record<string, unknown>) => ({
+        id: Number(item.id),
+        oldPath: String(item.oldPath || ''),
+        newPath: String(item.newPath || item.path || ''),
+        confirmedOriginal: item.confirmedOriginal === true,
+      }))))
     } catch (err) {
       sendControllerError(res, err, "Some error occurred while relinking missing media.")
     }

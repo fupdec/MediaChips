@@ -64,6 +64,15 @@
           :preview-active="showPreview"
         />
 
+        <!-- Compact "★ 4" when rated; full stars appear on hover (item.scss). -->
+        <div
+          v-if="showPreviewRatingBadge"
+          class="item-rating-badge"
+          aria-hidden="true"
+        >
+          <v-icon size="13" icon="mdi-star"/>
+          <span>{{ ratingBadgeText }}</span>
+        </div>
         <ItemRating
           v-if="!isImageOnlyView && !isListView && settingsStore.ratingAndFavoriteInCard != '1' && is_rating_active"
           :item="item"
@@ -111,6 +120,7 @@
         </div>
 
         <ItemPinnedMeta
+          muted-tags
           :item="item"
           :tags="item.tags"
           :values="item.values"
@@ -157,14 +167,17 @@
         <div
           v-if="meta?.synonyms && item.synonyms"
           class="px-1 synonyms text-medium-emphasis"
+          :title="synonymsPlainText"
           v-html="item.synonyms"
         />
 
         <ItemPinnedMeta
+          muted-tags
           :item="item"
           :tags="item.tags"
           :values="item.values"
           :type="type"
+          :collapse-limit="cardChipLimit"
         />
       </div>
 
@@ -182,7 +195,7 @@
       </div>
 
       <v-icon
-        v-if="!isImageOnlyView && item.bookmark"
+        v-if="!isImageOnlyView && item.bookmark && settingsStore.show_bookmark_on_card === '1'"
         :title="item.bookmark"
         icon="mdi-bookmark"
         class="bookmark"
@@ -310,6 +323,7 @@ import {isMediaPageItem, isTagPageItem} from '@/utils/pageItem'
 import {markItemHidden, markItemVisible} from '@/utils/visibleItemsWindow'
 import {bumpMountedItems} from '@/utils/galleryPerfCounters'
 import {toChipVariant} from '@/utils/chipVariant'
+import {getCardChipLimit} from '@/utils/gridLayout'
 import {resolveTagChipColor} from '@shared/tagChipColor'
 import {useAppStore} from '@/stores/app'
 import path from 'path-browserify'
@@ -394,6 +408,26 @@ const isImageOnlyView = computed(() => isImageOnlyItemsView(itemsStore.view))
 
 const isListView = computed(() => Number(itemsStore.view) === 5)
 
+const showPreviewRatingBadge = computed(() =>
+  !isImageOnlyView.value
+  && !isListView.value
+  && settingsStore.ratingAndFavoriteInCard != '1'
+  && is_rating_active.value
+  && Number(props.item.rating) > 0,
+)
+
+const ratingBadgeText = computed(() => {
+  const value = Number(props.item.rating)
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+})
+
+// Full alias list for the tooltip — the visible block is clamped to 2 lines.
+const synonymsPlainText = computed(() => {
+  const raw = (props.item as {synonyms?: unknown}).synonyms
+  if (typeof raw !== 'string' || !raw) return undefined
+  return raw.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() || undefined
+})
+
 const isMasonryOrSquaresImage = computed(() =>
   props.type === 'media'
   && isImageMedia.value
@@ -455,6 +489,17 @@ const tagPreviewAspectStyle = computed(() => {
 })
 
 const itemRootStyle = computed(() => tagPreviewAspectStyle.value)
+
+/** Preview width/height in the card view: media thumbs are 16:9, tag thumbs follow the category. */
+const cardPreviewAspect = computed((): number => {
+  if (props.type !== 'tag') return 16 / 9
+  const ratio = Number(previewMeta.value.imageAspectRatio)
+  return ratio > 0 ? ratio : 1
+})
+
+const cardChipLimit = computed((): number =>
+  getCardChipLimit(Number(itemsStore.size), cardPreviewAspect.value),
+)
 
 type ChipVariant = import('@/utils/chipVariant').ChipVariant
 
@@ -893,6 +938,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   bumpMountedItems(-1)
   markItemHidden(Number(props.item.id))
+  // Virtual grids unmount cards without mouseleave — drop floating hover chrome.
+  hideHoverImage()
   clearEditClickSuppress()
   unsubscribeMediaTagDrag?.()
   unsubscribeMediaTagDrag = null

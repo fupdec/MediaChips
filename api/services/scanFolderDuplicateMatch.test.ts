@@ -31,6 +31,14 @@ describe('scanFolderDuplicateMatch', () => {
     expect([...candidates].sort()).toEqual(['/a/1.mp4', '/a/2.mp4', '/a/3.mp4'])
   })
 
+  it('selects a single renamed file solely by its size in the library', () => {
+    const renamed = [{path: '/disk/renamed.mp4', basename: 'renamed.mp4', filesize: 12345}]
+    expect([...selectDuplicateCandidatePaths(renamed, groupScannedFilesBySize(renamed), new Map(),
+      new Map([[12345, [{id: 1, path: '/library/original.mp4'}]]]))]).toEqual(['/disk/renamed.mp4'])
+    expect([...selectDuplicateCandidatePaths(renamed, groupScannedFilesBySize(renamed), new Map(),
+      new Map([[12345, [{id: 1, path: '/disk/renamed.mp4'}]]]))]).toEqual([])
+  })
+
   it('confirms within-folder groups by fingerprint and dedupes library hits', () => {
     const bySize = groupScannedFilesBySize(files)
     const fps = new Map([

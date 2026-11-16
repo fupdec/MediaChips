@@ -6,6 +6,7 @@ import {
 } from '@/utils/playerBuffer'
 import type { MediaItem, PlayerPlaylistItem } from '@/types/stores'
 import type { PlayerMark } from '@/types/player'
+import {isRemoteMediaPath} from '@shared/remoteMedia'
 import { playlistItemKey } from '@/utils/mediaItem'
 
 type TimeoutHandle = ReturnType<typeof setTimeout>
@@ -43,6 +44,13 @@ export const usePlayerStore = defineStore('player', {
     bufferedRanges: [] as Array<{ start: number; end: number }>,
     isLiveStreamSeeking: false,
     isStreamWaiting: false,
+    webVideoLoading: false,
+    cancelRemoteLoadHandler: null as (() => void) | null,
+    resumeRemoteLoadHandler: null as (() => void) | null,
+    webVideoQualities: [] as number[],
+    webVideoQuality: null as number | null,
+    webVideoAdaptive: false,
+    webVideoFrameReady: false,
 
     duration: 1,
     volume: 1,
@@ -83,6 +91,12 @@ export const usePlayerStore = defineStore('player', {
     studioSnapTime: null as number | null,
   }),
   getters: {
+    isLibraryMedia(state): boolean {
+      return Number(state.media?.id) > 0
+    },
+    isWebVideo(state): boolean {
+      return isRemoteMediaPath(state.media?.path)
+    },
     isKeyboardBlocked(state): boolean {
       return Object.keys(state.keyboardBlockers).length > 0
     },
@@ -112,7 +126,7 @@ export const usePlayerStore = defineStore('player', {
       }, timeout)
     },
     syncPlaybackState() {
-      if (!this.player) return
+      if (!this.player || this.webVideoLoading || this.playbackError) return
 
       this.currentTime = getAbsolutePlaybackTime({
         usesLiveTranscode: this.usesLiveTranscode,
@@ -126,20 +140,35 @@ export const usePlayerStore = defineStore('player', {
       )
     },
     playerPlay() {
-      if (!this.player) return
-      void this.player.play()
+      if (this.resumeRemoteLoadHandler) {
+        this.resumeRemoteLoadHandler()
+        return
+      }
+      if (!this.player || this.webVideoLoading) return
+      const video = this.player
+      const source = video.src
+      void video.play().catch(() => {
+        if (this.player !== video || video.src !== source) return
+        this.paused = video.paused
+        if (this.paused) clearInterval(this.currentTimeTimeout as IntervalHandle)
+      })
       this.paused = false
       this.showTimedStatus(this.currentTime, {subtitleKey: 'player.controls.play', icon: 'play'})
       this.trackCurrentTime()
     },
     playerPause() {
-      if (!this.player) return
+      if (!this.player || this.webVideoLoading) return
       this.player.pause()
       this.paused = true
       this.showTimedStatus(this.currentTime, {subtitleKey: 'player.controls.pause', icon: 'pause'})
       clearInterval(this.currentTimeTimeout as IntervalHandle)
     },
     playerStop() {
+      if (this.webVideoLoading) {
+        this.cancelRemoteLoadHandler?.()
+        this.showTimedStatus(0, {subtitleKey: 'player.controls.stop', icon: 'stop'})
+        return
+      }
       if (!this.player) return
       this.player.pause()
       this.paused = true
@@ -158,7 +187,7 @@ export const usePlayerStore = defineStore('player', {
       this.showTimedStatus(0, {subtitleKey: 'player.controls.stop', icon: 'stop'})
     },
     playerJumpTo(time: number) {
-      if (!this.player) return
+      if (!this.player || this.webVideoLoading || !Number.isFinite(time)) return
       if (time < 0) time = 0
       else if (time > this.duration) time = this.duration
 

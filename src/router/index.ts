@@ -42,6 +42,12 @@ const routes: RouteRecordRaw[] = [
     name: 'Settings',
     component: () => import('@/pages/PageSettings.vue'),
   },
+  {
+    // Phase 1 Drive spike — hidden dev route (not in nav).
+    path: '/drive-spike',
+    name: 'DriveSpike',
+    component: () => import('@/pages/PageDriveSpike.vue'),
+  },
 ]
 
 export default createRouter({

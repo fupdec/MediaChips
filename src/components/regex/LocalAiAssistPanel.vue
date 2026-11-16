@@ -69,13 +69,17 @@
           <template v-else>
             {{ notReadyText }}
           </template>
-          <button
-            type="button"
-            class="local-ai-assist__settings-link"
+          <v-btn
+            size="x-small"
+            variant="tonal"
+            color="primary"
+            rounded="lg"
+            prepend-icon="mdi-cog-outline"
+            class="local-ai-assist__settings-btn"
             @click="openSettings"
           >
             {{ t('settings_labels.local_ai.open_settings') }}
-          </button>
+          </v-btn>
         </span>
         <span v-else-if="runDisabled && runHint" class="text-caption text-medium-emphasis local-ai-assist__hint">
           {{ runHint }}
@@ -945,15 +949,10 @@ watch(
   font-weight: 400;
   flex-shrink: 0;
 }
-.local-ai-assist__settings-link {
+.local-ai-assist__settings-btn {
   margin-inline-start: 6px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: rgb(var(--v-theme-primary));
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
+  letter-spacing: normal;
+  text-transform: none;
 }
 .local-ai-assist__card {
   margin-top: 12px;

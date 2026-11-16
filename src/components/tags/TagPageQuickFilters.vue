@@ -3,34 +3,14 @@
     v-if="shouldShow"
     class="tag-quick-filters"
   >
-    <v-alert
-      v-if="loading"
-      type="info"
-      variant="tonal"
-      rounded="xl"
-      density="comfortable"
-      class="mb-0 mx-auto"
-      style="max-width: 480px"
-    >
-      {{ t('tags.quick_filters_loading') }}
-      <v-progress-linear
-        indeterminate
-        color="primary"
-        rounded
-        height="4"
-        class="mt-3"
-      />
-    </v-alert>
-
-    <div
-      v-else-if="groups.length > 0"
-      class="tag-quick-filters__shell"
-    >
+    <div class="tag-quick-filters__shell">
       <button
         type="button"
         class="tag-quick-filters__chrome"
         :aria-expanded="expanded"
-        @click="expanded = !expanded"
+        :disabled="loading"
+        :aria-busy="loading"
+        @click="toggleExpanded"
       >
         <div class="tag-quick-filters__chrome-start">
           <v-icon
@@ -64,17 +44,24 @@
           </v-tooltip>
         </div>
 
-        <v-icon
-          class="tag-quick-filters__chevron"
-          size="18"
-        >
-          {{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
-        </v-icon>
+        <span class="tag-quick-filters__toggle">
+          <v-progress-circular
+            v-if="loading"
+            indeterminate
+            color="primary"
+            :size="24"
+            :width="2"
+            :aria-label="t('tags.quick_filters_loading')"
+          />
+          <v-icon class="tag-quick-filters__chevron" size="18">
+            {{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}
+          </v-icon>
+        </span>
       </button>
 
       <v-expand-transition>
         <div
-          v-if="expanded"
+          v-if="expanded && !loading && groups.length > 0"
           class="tag-quick-filters__body"
         >
           <div
@@ -181,16 +168,20 @@ const pageCommands = useItemsPageCommands()
 const tags = ref<CooccurringTag[]>([])
 const selections = ref<Record<number, number[]>>({})
 const loadToken = ref(0)
-const loading = ref(true)
+const loading = ref(false)
+const loaded = ref(false)
 const applyingFilters = ref(false)
-/** Open by default (same as previous expand state). */
-const expanded = ref(true)
+const expandedStorageKey = 'tag-page.quick-filters.expanded'
+const expanded = ref(localStorage.getItem(expandedStorageKey) !== 'false')
 
-const shouldShow = computed(() =>
-  Boolean(props.tagId)
-  && props.mediaTypeId != null
-  && (loading.value || groups.value.length > 0),
-)
+const shouldShow = computed(() => Boolean(props.tagId) && props.mediaTypeId != null)
+
+function toggleExpanded(): void {
+  if (loading.value) return
+  expanded.value = !expanded.value
+  localStorage.setItem(expandedStorageKey, String(expanded.value))
+  if (expanded.value && !loaded.value) void loadTags()
+}
 
 const defaultChipVariant = computed((): ChipVariant =>
   toChipVariant(settingsStore.default_meta_chip_variant) ?? 'flat',
@@ -295,13 +286,7 @@ function quickFiltersInSync(): boolean {
 async function loadTags(): Promise<void> {
   const token = ++loadToken.value
 
-  if (!props.tagId || props.mediaTypeId == null) {
-    loading.value = false
-    tags.value = []
-    clearSelections()
-    syncFiltersToStore()
-    return
-  }
+  if (!props.tagId || props.mediaTypeId == null) return
 
   loading.value = true
   tags.value = []
@@ -318,6 +303,7 @@ async function loadTags(): Promise<void> {
       if (kept.length) next[Number(metaId)] = kept
     }
     selections.value = next
+    loaded.value = true
   } catch (error) {
     if (token !== loadToken.value) return
     console.warn('Failed to load co-occurring tags:', error)
@@ -399,15 +385,17 @@ function onChipHover(event: MouseEvent, metaId: number, tagId: number): void {
 
 watch(
   () => [props.tagId, props.mediaTypeId] as const,
-  async (current, previous) => {
-    const [, mediaTypeId] = current
-    const prevMediaTypeId = previous?.[1]
-    if (previous && mediaTypeId !== prevMediaTypeId) {
+  (current, previous) => {
+    if (previous && current.every((value, index) => value === previous[index])) return
+    loadToken.value++
+    loading.value = false
+    loaded.value = false
+    tags.value = []
+    if (previous) {
       clearSelections()
       syncFiltersToStore()
     }
-    // Load chips only — do not apply filters here (that blocked the API / looped).
-    await loadTags()
+    if (expanded.value) void loadTags()
   },
   {immediate: true},
 )
@@ -423,6 +411,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  loadToken.value++
   const hadQuick = itemsStore.filters.some(
     (filter) => filter.note === TAG_PAGE_QUICK_FILTER_NOTE,
   )
@@ -433,3 +422,21 @@ onBeforeUnmount(() => {
   }
 })
 </script>
+
+<style scoped>
+.tag-quick-filters__toggle {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+
+.tag-quick-filters__toggle > * {
+  grid-area: 1 / 1;
+}
+
+.tag-quick-filters__chrome:disabled {
+  cursor: wait;
+}
+</style>

@@ -2,7 +2,7 @@
  * @vitest-environment node
  */
 import { describe, expect, it } from 'vitest'
-import { createConcurrencyQueue } from './concurrencyQueue'
+import { createAbortError, createConcurrencyQueue, isAbortError } from './concurrencyQueue'
 
 const delay = (ms: number) => new Promise<void>((resolve) => {
   setTimeout(resolve, ms)
@@ -29,18 +29,107 @@ describe('createConcurrencyQueue', () => {
     expect(queue.getStats().pending).toBe(0)
   })
 
+  it('runs higher-priority tasks before lower-priority backlog', async () => {
+    const queue = createConcurrencyQueue(1)
+    const order: string[] = []
+
+    const gate = delay(30)
+    const first = queue.enqueue(async () => {
+      order.push('running')
+      await gate
+      order.push('done-low')
+    }, {priority: 1})
+
+    await delay(5)
+
+    const high = queue.enqueue(async () => {
+      order.push('high')
+    }, {priority: 100})
+
+    const low = queue.enqueue(async () => {
+      order.push('low')
+    }, {priority: 1})
+
+    await Promise.all([first, high, low])
+    expect(order).toEqual(['running', 'done-low', 'high', 'low'])
+  })
+
+  it('prefers newer default-priority work over older backlog', async () => {
+    const queue = createConcurrencyQueue(1)
+    const order: number[] = []
+
+    const blocker = queue.enqueue(async () => {
+      await delay(40)
+    })
+    await delay(5)
+
+    const older = queue.enqueue(async () => {
+      order.push(1)
+    })
+    const newer = queue.enqueue(async () => {
+      order.push(2)
+    })
+
+    await Promise.all([blocker, older, newer])
+    expect(order).toEqual([2, 1])
+  })
+
+  it('drops pending work when AbortSignal fires before start', async () => {
+    const queue = createConcurrencyQueue(1)
+    const controller = new AbortController()
+    let started = false
+
+    const blocker = queue.enqueue(async () => {
+      await delay(40)
+    })
+    await delay(5)
+
+    const pending = queue.enqueue(async () => {
+      started = true
+    }, {signal: controller.signal})
+
+    controller.abort()
+    await expect(pending).rejects.toMatchObject({name: 'AbortError'})
+    await blocker
+    expect(started).toBe(false)
+    expect(isAbortError(createAbortError())).toBe(true)
+  })
+
+  it('rejects overflowed lowest-priority pending tasks', async () => {
+    const queue = createConcurrencyQueue(1, {maxPending: 2})
+    let startedExtra = false
+
+    const blocker = queue.enqueue(async () => {
+      await delay(50)
+    }, {priority: 1000})
+    await delay(5)
+
+    const keepA = queue.enqueue(async () => 'a', {priority: 50})
+    const keepB = queue.enqueue(async () => 'b', {priority: 40})
+    const dropped = queue.enqueue(async () => {
+      startedExtra = true
+      return 'c'
+    }, {priority: 10})
+
+    await expect(dropped).rejects.toMatchObject({name: 'AbortError'})
+    await expect(Promise.all([blocker, keepA, keepB])).resolves.toEqual([undefined, 'a', 'b'])
+    expect(startedExtra).toBe(false)
+  })
+
   it('runs tasks sequentially when concurrency is 1', async () => {
     const queue = createConcurrencyQueue(1)
     const order: number[] = []
 
+    // Explicit equal priority keeps FIFO among ties via seq... wait, higher seq first.
+    // Use rising explicit priorities to keep classic FIFO for this regression.
     await Promise.all([
       queue.enqueue(async () => {
         await delay(10)
         order.push(1)
-      }),
+      }, {priority: 2}),
       queue.enqueue(async () => {
         order.push(2)
-      }),
+      }, {priority: 1}),
     ])
 
     expect(order).toEqual([1, 2])

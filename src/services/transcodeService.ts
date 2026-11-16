@@ -1,4 +1,3 @@
-import { abortVideoPlayback } from '@/utils/liveTranscodeLifecycle'
 import { resolveHoverPreviewSourcePlan } from '@/utils/hoverPreviewPlayback'
 import { getAuthToken } from '@/services/authSession'
 import { typedApi } from '@/services/typedApi'
@@ -217,20 +216,20 @@ export async function resolvePreviewVideoUrl(
   }
 }
 
-export function playWhenReady(videoEl: HTMLVideoElement | null, { timeout = 60000 } = {}) {
+export function playWhenReady(videoEl: HTMLVideoElement | null, {
+  timeout = 60000, signal,
+}: {timeout?: number; signal?: AbortSignal} = {}) {
   return new Promise<void>((resolve, reject) => {
     if (!videoEl) {
       reject(new Error('No video element'))
       return
     }
 
-    const tryPlay = () => {
-      videoEl.play().then(resolve).catch(reject)
-    }
+    if (signal?.aborted) { reject(new DOMException('Playback cancelled', 'AbortError')); return }
+    if (videoEl.error) { reject(videoEl.error); return }
 
-    if (videoEl.readyState >= 3) {
-      tryPlay()
-      return
+    const tryPlay = () => {
+      videoEl.play().then(() => { cleanup(); resolve() }, error => { cleanup(); reject(error) })
     }
 
     const timeoutRef: { id?: ReturnType<typeof setTimeout> } = {}
@@ -239,16 +238,21 @@ export function playWhenReady(videoEl: HTMLVideoElement | null, { timeout = 6000
       if (timeoutRef.id !== undefined) clearTimeout(timeoutRef.id)
       videoEl.removeEventListener('canplay', onCanPlay)
       videoEl.removeEventListener('error', onError)
+      signal?.removeEventListener('abort', onAbort)
     }
 
     const onCanPlay = () => {
-      cleanup()
+      videoEl.removeEventListener('canplay', onCanPlay)
       tryPlay()
     }
 
     const onError = () => {
       cleanup()
       reject(videoEl.error || new Error('Video failed to load'))
+    }
+    const onAbort = () => {
+      cleanup()
+      reject(new DOMException('Playback cancelled', 'AbortError'))
     }
 
     timeoutRef.id = setTimeout(() => {
@@ -258,6 +262,8 @@ export function playWhenReady(videoEl: HTMLVideoElement | null, { timeout = 6000
 
     videoEl.addEventListener('canplay', onCanPlay, { once: true })
     videoEl.addEventListener('error', onError, { once: true })
+    signal?.addEventListener('abort', onAbort, {once: true})
+    if (videoEl.readyState >= 3) onCanPlay()
   })
 }
 
@@ -265,38 +271,43 @@ export async function playLiveStreamWhenReady(
   videoEl: HTMLVideoElement,
   getStreamUrl: () => string,
   {
-    retries = 6,
-    timeout = 60000,
+    retries = 2,
+    timeout = 15000,
     isCancelled,
+    signal,
+    reuseSource = false,
   }: {
     retries?: number
     timeout?: number
     isCancelled?: () => boolean
+    signal?: AbortSignal
+    reuseSource?: boolean
   } = {},
 ) {
   let lastError: unknown
+  const cancelled = () => signal?.aborted || isCancelled?.()
 
   for (let attempt = 0; attempt < retries; attempt += 1) {
-    if (isCancelled?.()) return
+    if (cancelled()) return
 
     if (attempt > 0) {
-      await new Promise((resolve) => {
-        window.setTimeout(resolve, LIVE_STREAM_RETRY_DELAY_MS * attempt * attempt)
+      await new Promise<void>((resolve) => {
+        const finish = () => { window.clearTimeout(timer); signal?.removeEventListener('abort', finish); resolve() }
+        const timer = window.setTimeout(finish, LIVE_STREAM_RETRY_DELAY_MS * attempt * attempt)
+        signal?.addEventListener('abort', finish, {once: true})
       })
-      if (isCancelled?.()) return
+      if (cancelled()) return
     }
 
-    videoEl.src = getStreamUrl()
+    if (attempt > 0 || !reuseSource || !videoEl.src) videoEl.src = getStreamUrl()
 
     try {
-      await playWhenReady(videoEl, { timeout })
-      if (isCancelled?.()) {
-        abortVideoPlayback(videoEl)
-        return
-      }
+      await playWhenReady(videoEl, { timeout, signal })
+      // A newer seek owns the element now. Never clear its source here.
+      if (cancelled()) return
       return
     } catch (error) {
-      if (isCancelled?.()) return
+      if (cancelled()) return
       lastError = error
       if (attempt >= retries - 1) break
 

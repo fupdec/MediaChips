@@ -81,7 +81,7 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
 
   const showTranscodeTimeline = computed(() =>
     shouldShowTranscodeTimeline({
-      usesLiveTranscode: player.value.usesLiveTranscode,
+      usesLiveTranscode: player.value.usesLiveTranscode || player.value.isWebVideo,
     }),
   )
 
@@ -91,7 +91,7 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
       currentTime: timelineTime.value,
       duration: state.duration,
       bufferedRanges: state.bufferedRanges,
-      usesLiveTranscode: state.usesLiveTranscode,
+      usesLiveTranscode: state.usesLiveTranscode || state.isWebVideo,
       isLiveStreamSeeking: state.isLiveStreamSeeking,
       isStreamWaiting: state.isStreamWaiting,
     })
@@ -141,7 +141,7 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
   }
 
   const wheelSeek = (e: WheelEvent) => {
-    if (!player.value.is_file_exists || player.value.playbackError) return
+    if (!player.value.is_file_exists || player.value.playbackError || player.value.webVideoLoading) return
 
     preventWheelDefault(e)
     emit('showControls')

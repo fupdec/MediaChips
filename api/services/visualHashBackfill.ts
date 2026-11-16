@@ -5,7 +5,8 @@ import { queryAll, queryGet } from '../db/utils/rawQuery'
 import { chunkArray } from '../db/utils/chunk'
 import { createMediaRepository } from '../db/repositories/media'
 import {
-  clusterVisualNearDuplicates,
+  clusterVisualMatches,
+  computeAHashHex,
   collectVisualNearNeighborIds,
   computeGridVisualFingerprint,
   encodeVisualHashTiles,
@@ -24,6 +25,7 @@ interface VisualHashMediaRow {
   id: number
   visualHash: string | null
   visualHashTiles: string | null
+  visualHashThumbnail?: string | null
 }
 
 function getGridPath(dbPath: string, id: number) {
@@ -41,22 +43,20 @@ function countSql(db: ApiDb, whereExtra = ''): number {
   return Number(row?.count || 0)
 }
 
-/** Videos that already have a grid JPEG on disk (candidates for hashing). */
-function listVideoIdsWithGrid(db: ApiDb): number[] {
+/** Videos with an existing grid or thumbnail (candidates for hashing). */
+function listVideoIdsWithPreviews(db: ApiDb): number[] {
   const dbPath = String(db.path || '')
   if (!dbPath) return []
 
-  const gridsDir = path.join(dbPath, 'media/videos/grids')
-  if (!fs.existsSync(gridsDir)) return []
-
-  const onDisk = new Set(
-    fs.readdirSync(gridsDir)
-      .map((name) => {
-        const match = /^(\d+)\.jpg$/i.exec(name)
-        return match ? Number(match[1]) : 0
-      })
-      .filter((id) => id > 0),
-  )
+  const onDisk = new Set<number>()
+  for (const folder of ['grids', 'thumbs']) {
+    const directory = path.join(dbPath, 'media/videos', folder)
+    if (!fs.existsSync(directory)) continue
+    for (const name of fs.readdirSync(directory)) {
+      const match = /^(\d+)\.jpg$/i.exec(name)
+      if (match && Number(match[1]) > 0) onDisk.add(Number(match[1]))
+    }
+  }
 
   if (!onDisk.size) return []
 
@@ -71,25 +71,18 @@ function listVideoIdsWithGrid(db: ApiDb): number[] {
 }
 
 async function getVisualHashBackfillStatus(db: ApiDb) {
-  const withGridIds = listVideoIdsWithGrid(db)
-  const total = withGridIds.length
+  const withPreviewIds = listVideoIdsWithPreviews(db)
+  const total = withPreviewIds.length
 
   if (!total) {
     return {total: 0, pending: 0, hashed: 0, videosWithoutGrid: countSql(db)}
   }
 
-  const hashedRows = queryAll<{id: number}>(db, `
-    SELECT m.id AS id
-    FROM media m
-    INNER JOIN mediaTypes mt ON m.mediaTypeId = mt.id
-    WHERE mt.type = 'video'
-      AND m.visualHash IS NOT NULL
-      AND m.visualHash != ''
-      AND m.id IN (:ids)
-  `, {ids: withGridIds})
-
-  const hashed = hashedRows.length
-  const videosWithoutGrid = countSql(db) - total
+  const pending = listPendingVisualHashIds(db, withPreviewIds)
+  const hashed = total - pending.length
+  const videosWithoutGrid = queryAll<{id: number}>(db, `
+    SELECT m.id FROM media m INNER JOIN mediaTypes mt ON m.mediaTypeId = mt.id WHERE mt.type = 'video'
+  `).filter(row => !fs.existsSync(getGridPath(String(db.path || ''), row.id))).length
 
   return {
     total,
@@ -99,60 +92,29 @@ async function getVisualHashBackfillStatus(db: ApiDb) {
   }
 }
 
-function findNextForVisualHashBackfill(
-  db: ApiDb,
-  lastId: number,
-  force: boolean,
-  withGridIds: number[],
-): VisualHashMediaRow | undefined {
-  if (!withGridIds.length) return undefined
-
-  const pendingClause = force
-    ? ''
-    : `AND (m.visualHash IS NULL OR m.visualHash = '')`
-
-  return queryGet<VisualHashMediaRow>(db, `
-    SELECT
-      m.id AS id,
-      m.visualHash AS visualHash,
-      m.visualHashTiles AS visualHashTiles
-    FROM media m
-    INNER JOIN mediaTypes mt ON m.mediaTypeId = mt.id
-    WHERE mt.type = 'video'
-      AND m.id > :lastId
-      AND m.id IN (:ids)
-      ${pendingClause}
-    ORDER BY m.id
-    LIMIT 1
-  `, {lastId, ids: withGridIds})
+function listPendingVisualHashIds(db: ApiDb, ids: number[]): number[] {
+  const pending: number[] = []
+  for (const chunk of chunkArray(ids)) {
+    const rows = queryAll<VisualHashMediaRow>(db, `
+      SELECT id, visualHash, visualHashTiles, visualHashThumbnail FROM media WHERE id IN (:ids)
+    `, {ids: chunk})
+    for (const row of rows) {
+      const root = String(db.path || '')
+      if ((!row.visualHash && fs.existsSync(getGridPath(root, row.id)))
+        || (!row.visualHashThumbnail && fs.existsSync(path.join(root, 'media/videos/thumbs', `${row.id}.jpg`)))) pending.push(row.id)
+    }
+  }
+  return pending
 }
 
 async function backfillMediaVisualHash(db: ApiDb, media: VisualHashMediaRow) {
-  const mediaRepo = createMediaRepository(db.drizzle)
   const dbPath = String(db.path || '')
   const gridPath = getGridPath(dbPath, Number(media.id))
 
-  if (!fs.existsSync(gridPath)) {
-    return {
-      status: 'missing' as const,
-      id: media.id,
-      path: gridPath,
-    }
-  }
-
   try {
-    const fingerprint = await computeGridVisualFingerprint(gridPath)
-    mediaRepo.updateById(Number(media.id), {
-      visualHash: fingerprint.hash,
-      visualHashTiles: encodeVisualHashTiles(fingerprint.tiles),
-    })
-
-    return {
-      status: 'hashed' as const,
-      id: media.id,
-      path: gridPath,
-      hash: fingerprint.hash,
-    }
+    const patch = await upsertVisualHashForMedia(db, Number(media.id))
+    if (!patch) return {status: 'missing' as const, id: media.id, path: gridPath}
+    return {status: 'hashed' as const, id: media.id, path: gridPath}
   } catch (error: unknown) {
     return {
       status: 'failed' as const,
@@ -164,24 +126,33 @@ async function backfillMediaVisualHash(db: ApiDb, media: VisualHashMediaRow) {
 }
 
 /**
- * Persist visual hash for one media after its grid JPEG was generated.
- * No-op when db path / grid file is missing.
+ * Persist fingerprints for available grid and thumbnail images.
+ * No-op when neither preview exists.
  */
 async function upsertVisualHashForMedia(db: ApiDb, mediaId: number) {
   const dbPath = String(db.path || '')
   if (!dbPath || !mediaId) return null
 
   const gridPath = getGridPath(dbPath, mediaId)
-  if (!fs.existsSync(gridPath)) return null
-
-  const mediaRepo = createMediaRepository(db.drizzle)
-  const fingerprint = await computeGridVisualFingerprint(gridPath)
-  const patch = {
-    visualHash: fingerprint.hash,
-    visualHashTiles: encodeVisualHashTiles(fingerprint.tiles),
+  const thumbPath = path.join(dbPath, 'media/videos/thumbs', `${mediaId}.jpg`)
+  const patch: {visualHash?: string, visualHashTiles?: string, visualHashThumbnail?: string} = {}
+  if (fs.existsSync(gridPath)) {
+    const fingerprint = await computeGridVisualFingerprint(gridPath)
+    patch.visualHash = fingerprint.hash
+    patch.visualHashTiles = encodeVisualHashTiles(fingerprint.tiles)
   }
-  mediaRepo.updateById(mediaId, patch)
+  if (fs.existsSync(thumbPath)) patch.visualHashThumbnail = await computeAHashHex(thumbPath)
+  if (!Object.keys(patch).length) return null
+  createMediaRepository(db.drizzle).updateById(mediaId, patch)
   return patch
+}
+
+export async function upsertThumbnailVisualHash(db: ApiDb, mediaId: number) {
+  if (!db.path || !mediaId) return
+  const thumbnail = path.join(db.path, 'media/videos/thumbs', `${mediaId}.jpg`)
+  if (!fs.existsSync(thumbnail)) return
+  const hash = await computeAHashHex(thumbnail)
+  createMediaRepository(db.drizzle).updateById(mediaId, {visualHashThumbnail: hash})
 }
 
 async function* iterateVisualHashBackfill(
@@ -194,7 +165,7 @@ async function* iterateVisualHashBackfill(
     force?: boolean
   } = {},
 ) {
-  const withGridIds = listVideoIdsWithGrid(db)
+  const withPreviewIds = listVideoIdsWithPreviews(db)
   const status = await getVisualHashBackfillStatus(db)
   const total = force ? status.total : status.pending
 
@@ -203,7 +174,8 @@ async function* iterateVisualHashBackfill(
   let missing = 0
   let failed = 0
   let skipped = 0
-  let lastId = 0
+  const ids = (force ? withPreviewIds : listPendingVisualHashIds(db, withPreviewIds)).sort((a, b) => a - b)
+  let nextIndex = 0
 
   yield {
     type: 'progress',
@@ -217,10 +189,9 @@ async function* iterateVisualHashBackfill(
   }
 
   while (!shouldStop()) {
-    const media = findNextForVisualHashBackfill(db, lastId, force, withGridIds)
-    if (!media) break
-
-    lastId = Number(media.id)
+    const id = ids[nextIndex++]
+    if (id == null) break
+    const media: VisualHashMediaRow = {id, visualHash: null, visualHashTiles: null}
     const result = await backfillMediaVisualHash(db, media)
     processed += 1
 
@@ -297,17 +268,17 @@ function loadVisualHashRows(
   if (candidateIds != null) {
     if (!candidateIds.length) return []
 
-    const rows: Array<{id: number, visualHash: string, visualHashTiles: string | null}> = []
+    const rows: Array<{id: number, visualHash: string, visualHashTiles: string | null, visualHashThumbnail: string | null}> = []
     for (const chunk of chunkArray(candidateIds.map(Number).filter((id) => Number.isFinite(id) && id > 0))) {
-      rows.push(...queryAll<{id: number, visualHash: string, visualHashTiles: string | null}>(db, `
+      rows.push(...queryAll<{id: number, visualHash: string, visualHashTiles: string | null, visualHashThumbnail: string | null}>(db, `
         SELECT
           m.id AS id,
           m.visualHash AS visualHash,
-          m.visualHashTiles AS visualHashTiles
+          m.visualHashTiles AS visualHashTiles,
+          m.visualHashThumbnail AS visualHashThumbnail
         FROM media m
         WHERE m.id IN (:ids)
-          AND m.visualHash IS NOT NULL
-          AND m.visualHash != ''
+          AND (COALESCE(m.visualHash, '') != '' OR COALESCE(m.visualHashThumbnail, '') != '')
       `, {ids: chunk}))
     }
     return rows
@@ -315,15 +286,15 @@ function loadVisualHashRows(
 
   const {typeClause, replacements} = mediaTypeVisualHashClause(mediaTypeId)
 
-  return queryAll<{id: number, visualHash: string, visualHashTiles: string | null}>(db, `
+  return queryAll<{id: number, visualHash: string, visualHashTiles: string | null, visualHashThumbnail: string | null}>(db, `
     SELECT
       m.id AS id,
       m.visualHash AS visualHash,
-      m.visualHashTiles AS visualHashTiles
+      m.visualHashTiles AS visualHashTiles,
+      m.visualHashThumbnail AS visualHashThumbnail
     FROM media m
     INNER JOIN mediaTypes mt ON m.mediaTypeId = mt.id
-    WHERE m.visualHash IS NOT NULL
-      AND m.visualHash != ''
+    WHERE (COALESCE(m.visualHash, '') != '' OR COALESCE(m.visualHashThumbnail, '') != '')
       ${typeClause}
   `, replacements)
 }
@@ -335,7 +306,7 @@ function findVisualNearDuplicateIds(
 ): number[] {
   const {candidateIds, ...similarity} = options
   const rows = loadVisualHashRows(db, mediaTypeId, candidateIds)
-  const clusters = clusterVisualNearDuplicates(rows, similarity)
+  const clusters = clusterVisualMatches(rows, similarity)
   return flattenVisualDuplicateIds(clusters)
 }
 
@@ -346,7 +317,7 @@ function findVisualNearDuplicateClusters(
 ) {
   const {candidateIds, ...similarity} = options
   const rows = loadVisualHashRows(db, mediaTypeId, candidateIds)
-  return clusterVisualNearDuplicates(rows, similarity)
+  return clusterVisualMatches(rows, similarity)
 }
 
 export interface VisualSimilarBySeedResult {

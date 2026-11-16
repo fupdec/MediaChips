@@ -39,7 +39,7 @@ import {
   summarizeTrashedNameMatches,
   TagNameInTrashError,
 } from '../services/tagNameUniqueness'
-import { loadTagItems } from '../services/tagItemsLoader'
+import { loadTagItems, loadTagSortedIds } from '../services/tagItemsLoader'
 import { findCooccurringTags } from '../services/tagCooccurrence'
 import {
   assertMetaCanHoldTags,
@@ -73,6 +73,25 @@ export default function (db: ApiDb) {
     }
     return deletedIds
   }
+
+  const getSortedIds = async function (req: ApiRequest, res: ApiResponse) {
+    const body = getRequestBody<{metaId?: unknown; sortBy?: string; direction?: string}>(req)
+    const metaId = Number(body.metaId)
+    if (!Number.isFinite(metaId)) {
+      return sendBadRequest(res, 'metaId is required')
+    }
+
+    try {
+      const ids = await loadTagSortedIds(db, {
+        metaId,
+        sortBy: body.sortBy || 'name',
+        direction: body.direction === 'desc' ? 'desc' : 'asc',
+      })
+      sendOk(res, {ids})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while sorting tags.')
+    }
+  };
 
   const getAllForItems = async function (req: ApiRequest, res: ApiResponse) {
     const body = getRequestBody<TagItemsListRequest>(req)
@@ -442,6 +461,7 @@ export default function (db: ApiDb) {
     create,
     getCount,
     getAllForItems,
+    getSortedIds,
     getThumbs,
     getAll,
     findOne,

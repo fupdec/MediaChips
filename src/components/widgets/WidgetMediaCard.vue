@@ -142,6 +142,11 @@ import 'dayjs/locale/en'
 import 'dayjs/locale/de'
 import 'dayjs/locale/fr'
 import 'dayjs/locale/ja'
+import 'dayjs/locale/ko'
+import 'dayjs/locale/pl'
+import 'dayjs/locale/tr'
+import 'dayjs/locale/it'
+import 'dayjs/locale/zh-tw'
 import 'dayjs/locale/pt-br'
 import 'dayjs/locale/es'
 import 'dayjs/locale/zh-cn'
@@ -209,6 +214,7 @@ const settingsStore = useSettingsStore()
 const dayjsLocale = computed(() => {
   const locale = settingsStore.locale
   if (locale === 'cn') return 'zh-cn'
+  if (locale === 'tw') return 'zh-tw'
   if (locale === 'pt') return 'pt-br'
   return locale || 'en'
 })

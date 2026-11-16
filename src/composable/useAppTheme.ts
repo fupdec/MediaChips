@@ -14,6 +14,9 @@ export function resolveIsDarkMode(settings: SettingsState) {
 }
 
 export function applyAppThemeColors(theme: ReturnType<typeof useTheme>, settings: SettingsState) {
+  const neutral = settings.neutralTheme === '1'
+  document.documentElement.classList.toggle('theme-neutral', neutral)
+
   const lightColors = theme.themes.value.light.colors
   const darkColors = theme.themes.value.dark.colors
 
@@ -21,15 +24,15 @@ export function applyAppThemeColors(theme: ReturnType<typeof useTheme>, settings
     ...lightColors,
     primary: settings.appColorLightPrimary,
     secondary: settings.appColorLightSecondary,
-    background: derivePageBackground(settings.appColorLightPrimary, 'light'),
-    surface: deriveSurfaceBackground(settings.appColorLightPrimary, 'light'),
+    background: derivePageBackground(neutral ? '' : settings.appColorLightPrimary, 'light'),
+    surface: deriveSurfaceBackground(neutral ? '' : settings.appColorLightPrimary, 'light'),
   }
   theme.themes.value.dark.colors = {
     ...darkColors,
     primary: settings.appColorDarkPrimary,
     secondary: settings.appColorDarkSecondary,
-    background: derivePageBackground(settings.appColorDarkPrimary, 'dark'),
-    surface: deriveSurfaceBackground(settings.appColorDarkPrimary, 'dark'),
+    background: derivePageBackground(neutral ? '' : settings.appColorDarkPrimary, 'dark'),
+    surface: deriveSurfaceBackground(neutral ? '' : settings.appColorDarkPrimary, 'dark'),
   }
 
   const mode = resolveIsDarkMode(settings) ? 'dark' : 'light'

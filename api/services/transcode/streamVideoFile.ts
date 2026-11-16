@@ -1,60 +1,41 @@
 import type {Request, Response} from 'express'
 import fs from 'fs'
-import { isClientAbortError } from '../../../app/server/fileResolver'
+import {isClientAbortError} from '../../../app/server/fileResolver'
+import {parseSourceRange} from '../mediaSources/range'
 
+/** Stream bytes with backpressure; a closed response releases the file immediately. */
 function streamVideoFile(
   req: Request,
   res: Response,
   filePath: string,
   contentType = 'video/mp4',
 ): void {
-  const videoStat = fs.statSync(filePath)
-  const fileSize = videoStat.size
-  const videoRange = req.headers.range
-
-  if (videoRange) {
-    const rangeValue = Array.isArray(videoRange) ? videoRange[0] : videoRange
-    const parts = rangeValue.replace(/bytes=/, '').split('-')
-    const start = parseInt(parts[0], 10)
-    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1
-    const chunksize = (end - start) + 1
-    const file = fs.createReadStream(filePath, {start, end})
-
-    const head = {
-      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-      'Accept-Ranges': 'bytes',
-      'Content-Length': chunksize,
-      'Content-Type': contentType,
-    }
-
-    res.writeHead(206, head)
-    file.on('error', (streamErr: NodeJS.ErrnoException) => {
-      if (!isClientAbortError(streamErr)) {
-        console.error('Video stream error:', streamErr)
-      }
-      file.destroy()
-    })
-    req.on('close', () => file.destroy())
-    file.pipe(res)
+  const fileSize = fs.statSync(filePath).size
+  const header = req.headers.range
+  const range = parseSourceRange(Array.isArray(header) ? header[0] : header, fileSize)
+  res.setHeader('Accept-Ranges', 'bytes')
+  res.setHeader('Cache-Control', 'private, no-store')
+  if (!range) {
+    res.status(416).setHeader('Content-Range', `bytes */${fileSize}`)
+    res.end()
     return
   }
+  res.status(range.partial ? 206 : 200)
+  res.setHeader('Content-Type', contentType)
+  res.setHeader('Content-Length', range.end - range.start + 1)
+  if (range.partial) res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${fileSize}`)
+  if (req.method === 'HEAD' || fileSize === 0) { res.end(); return }
 
-  const head = {
-    'Content-Length': fileSize,
-    'Content-Type': contentType,
-    'Accept-Ranges': 'bytes',
-  }
-
-  res.writeHead(200, head)
-  const file = fs.createReadStream(filePath)
-  file.on('error', (streamErr: NodeJS.ErrnoException) => {
-    if (!isClientAbortError(streamErr)) {
-      console.error('Video stream error:', streamErr)
-    }
-    file.destroy()
+  const file = fs.createReadStream(filePath, {start: range.start, end: range.end})
+  const cancel = () => file.destroy()
+  res.once('close', cancel)
+  file.once('close', () => res.removeListener('close', cancel))
+  file.once('error', (error: NodeJS.ErrnoException) => {
+    if (!isClientAbortError(error)) console.error('Video stream error:', error)
+    // End a failed transfer so the player can retry, rather than waiting forever.
+    res.destroy(error)
   })
-  req.on('close', () => file.destroy())
   file.pipe(res)
 }
 
-export { streamVideoFile }
+export {streamVideoFile}

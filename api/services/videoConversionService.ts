@@ -1,3 +1,4 @@
+import {assertLibraryOperationAllowed, runLibraryOperation} from './libraryMaintenance'
 import fs from 'fs'
 import path from 'path'
 import { randomUUID } from 'crypto'
@@ -131,6 +132,7 @@ async function processItem(db: ApiDb, job: ConversionJob, item: ConversionItem, 
 }
 
 export function startVideoConversion(db: ApiDb, inputs: Input[], options: Options): ConversionJob {
+  assertLibraryOperationAllowed()
   if (!inputs.length) throw new Error('At least one video is required')
   if (!['auto', 'hevc', 'h264'].includes(options.codec)) throw new Error('Unsupported conversion codec')
   if (!['original', 2160, 1080, 720, 480].includes(options.resolution as any)) throw new Error('Unsupported conversion resolution')
@@ -139,7 +141,7 @@ export function startVideoConversion(db: ApiDb, inputs: Input[], options: Option
   const job: ConversionJob = { id: randomUUID(), status: 'queued', items: inputs.map((i) => ({...i, status: 'queued', progress: 0})), createdAt: Date.now() }
   jobs.set(job.id, job)
   const controller = new AbortController(); controllers.set(job.id, controller)
-  void (async () => {
+  void runLibraryOperation(async () => {
     job.status = 'running'
     for (const item of job.items) {
       if (controller.signal.aborted) { item.status = 'cancelled'; continue }
@@ -147,7 +149,7 @@ export function startVideoConversion(db: ApiDb, inputs: Input[], options: Option
       catch (error) { item.status = controller.signal.aborted ? 'cancelled' : 'error'; item.error = error instanceof Error ? error.message : String(error) }
     }
     job.status = controller.signal.aborted ? 'cancelled' : 'done'; controllers.delete(job.id)
-  })()
+  }).catch(() => { job.status = 'error'; controllers.delete(job.id) })
   return job
 }
 export function getVideoConversionJob(id: string) { return jobs.get(id) || null }

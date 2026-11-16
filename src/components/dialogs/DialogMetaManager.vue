@@ -9,6 +9,7 @@
   >
     <v-card rounded="xl">
       <DialogHeader
+        :icon="isTagCategoryDialog ? 'shape-outline' : 'tag-text-outline'"
         @close="closeDialog"
         :header="dialogHeader"
         :buttons="buttons"

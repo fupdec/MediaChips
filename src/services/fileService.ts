@@ -1,3 +1,4 @@
+import {parseCloudMediaPath} from '@shared/cloudAccounts'
 import { API_ROUTES } from '@shared/api/routes'
 import { normalizePastedFilePath } from '@/utils/filePathInput'
 import { buildApiUrl, getApiBaseUrl } from '@/services/apiClient'
@@ -6,6 +7,8 @@ import { typedApi } from '@/services/typedApi'
 import { checkFileExistsElectron, isElectron } from '@/services/electronBridge'
 import { queueFileExistenceCheck } from '@/utils/fileExistenceBatcher'
 import { isViteDevProxyMode } from '@/utils/apiBaseUrl'
+import {parseDriveMediaPath} from '@shared/cloudDrive'
+import {isNasMediaPath, isRemoteMediaPath} from '@shared/remoteMedia'
 
 const NEGATIVE_CACHE_TTL_MS = 60_000
 const POSITIVE_CACHE_TTL_MS = 5 * 60_000
@@ -107,6 +110,8 @@ async function checkFileExistsRemote(filePath: string) {
 }
 
 export async function checkFileExists(filePath: string) {
+  // URL-backed library entries are resolved on playback, not probed on disk.
+  if (isRemoteMediaPath(filePath)) return true
   const normalized = normalizePastedFilePath(filePath)
   filePath = typeof normalized === 'string' ? normalized : filePath
   if (!filePath) return false
@@ -159,7 +164,25 @@ export function buildLocalFileUrl(
   cacheBust: boolean | number = false,
   options?: {maxEdge?: number},
 ): string {
+  const cloud = parseCloudMediaPath(imgPath)
+  if (cloud) {
+    const params = new URLSearchParams({key: cloud.resourceKey})
+    const token = getAuthToken()
+    if (token) params.set('token', token)
+    return buildApiUrl(`/api/cloud-accounts/${cloud.connectionId}/stream?${params}`)
+  }
+  const driveFileId = parseDriveMediaPath(imgPath)
+  if (driveFileId) {
+    const token = getAuthToken()
+    return buildApiUrl(`/api/drive/files/${driveFileId}/stream`) + (token ? `?token=${encodeURIComponent(token)}` : '')
+  }
   const params = new URLSearchParams()
+  if (isNasMediaPath(imgPath)) {
+    params.set('path', imgPath)
+    const token = getAuthToken()
+    if (token) params.set('token', token)
+    return buildApiUrl(`/api/nas/image?${params.toString()}`)
+  }
   params.set('url', imgPath)
   params.set('cv', GET_FILE_CACHE_VERSION)
   if (outside) params.set('outside', '1')

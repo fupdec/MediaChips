@@ -1,7 +1,7 @@
 <template>
   <v-theme-provider theme="dark">
     <aside
-      v-show="playerStore.playlistVisible"
+      v-show="playerStore.playlistVisible && player.playlist.length > 1"
       class="player-sidebar player-sidebar--playlist"
     >
       <div class="player-sidebar__header">
@@ -48,10 +48,10 @@
             variant="outlined"
           >
             <v-btn
+              v-if="!similarRadioActive"
               value="loop"
               v-tooltip="playerTooltip(t('player.playlist_modes.loop'))"
               size="small"
-              :disabled="similarRadioActive"
             >
               <v-icon size="small">mdi-sync</v-icon>
             </v-btn>
@@ -63,17 +63,17 @@
               <v-icon size="small">mdi-play-pause</v-icon>
             </v-btn>
             <v-btn
+              v-if="!similarRadioActive"
               value="shuffle"
               v-tooltip="playerTooltip(t('player.playlist_modes.shuffle'))"
               size="small"
-              :disabled="similarRadioActive"
             >
               <v-icon size="small">mdi-shuffle-variant</v-icon>
             </v-btn>
           </v-btn-toggle>
         </div>
         <v-virtual-scroll
-          v-if="playerStore.playlistVisible && player.playlist.length > 0"
+          v-if="playerStore.playlistVisible && player.playlist.length > 1"
           ref="playlistScroll"
           :items="player.playlist"
           :item-height="PLAYLIST_ROW_HEIGHT"

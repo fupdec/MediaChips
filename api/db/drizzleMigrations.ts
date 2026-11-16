@@ -1,3 +1,4 @@
+import {migrateMediaLocations} from './migrateMediaLocations'
 import fs from 'fs'
 import {projectPath} from '../../shared/projectRoot'
 import path from 'path'
@@ -124,6 +125,14 @@ function isMigrationSatisfied(sqlite: Database.Database, sql: string): boolean {
   }
 
   const indexMatches = [...sql.matchAll(createIndexCaptureRegex())]
+  const tableMatches = [...sql.matchAll(createTableCaptureRegex())]
+  // A migration may create tables and their indexes together (media sources).
+  // Recognize the whole satisfied migration before stamping later ADD COLUMNs.
+  if (indexMatches.length && tableMatches.length) {
+    const remaining = withoutBreakpoints.replace(createTableStatementRegex(), '').replace(createIndexStatementRegex(), '').trim()
+    return !remaining && indexMatches.every(match => hasIndex(sqlite, match[1]))
+      && tableMatches.every(match => hasTable(sqlite, match[1]))
+  }
   if (indexMatches.length > 0) {
     // Some idempotent index migrations first remove an older definition.
     // That DROP is part of the migration's normal replay-safe procedure and
@@ -139,7 +148,6 @@ function isMigrationSatisfied(sqlite: Database.Database, sql: string): boolean {
     return indexMatches.every((match) => Boolean(match[1] && hasIndex(sqlite, match[1])))
   }
 
-  const tableMatches = [...sql.matchAll(createTableCaptureRegex())]
   if (tableMatches.length > 0) {
     const withoutTables = withoutBreakpoints.replace(createTableStatementRegex(), '').trim()
     if (withoutTables.length > 0) {
@@ -150,6 +158,34 @@ function isMigrationSatisfied(sqlite: Database.Database, sql: string): boolean {
   }
 
   return false
+}
+
+/**
+ * schemaRepair may have added some columns of a later migration before an
+ * earlier, still-unrecorded migration (e.g. a CREATE TABLE) ran. Such pure
+ * ADD COLUMN / CREATE ... IF NOT EXISTS migrations can be applied here
+ * safely, skipping columns that already exist, so stamping can continue in
+ * journal order instead of stopping and letting migrate() re-add a column.
+ */
+function applyReplaySafeMigration(sqlite: Database.Database, sql: string): boolean {
+  const statements = sql.split(/-->\s*statement-breakpoint/).map(part => part.trim()).filter(Boolean)
+  if (statements.length === 0) return false
+  const createIfNotExists = /^CREATE\s+(?:UNIQUE\s+)?(?:TABLE|INDEX)\s+IF\s+NOT\s+EXISTS\s/i
+  const addColumn = /^ALTER\s+TABLE\s+[`"]?(\w+)[`"]?\s+ADD(?:\s+COLUMN)?\s+[`"]?(\w+)[`"]?/i
+  if (!statements.every(statement => createIfNotExists.test(statement) || addColumn.test(statement))) return false
+
+  try {
+    sqlite.transaction(() => {
+      for (const statement of statements) {
+        const match = statement.match(addColumn)
+        if (match && hasColumn(sqlite, match[1] as string, match[2] as string)) continue
+        sqlite.exec(statement)
+      }
+    })()
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -180,7 +216,7 @@ export function stampSatisfiedAddColumnMigrations(sqlite: Database.Database): st
     // migration while an earlier one stays unrecorded would permanently
     // hide that earlier migration from migrate(). Stop at the first entry
     // we can't verify so stamping never skips ahead out of order.
-    if (!isMigrationSatisfied(sqlite, sql)) {
+    if (!isMigrationSatisfied(sqlite, sql) && !applyReplaySafeMigration(sqlite, sql)) {
       break
     }
 
@@ -249,6 +285,15 @@ export function runDrizzleMigrations(dbPath: string) {
   const sqlite = new Database(dbPath)
 
   try {
+    // Refuse schemas written by a newer build before applying pragmas or repairs.
+    // Older released binaries have no such guard: rollback still requires a pre-upgrade copy.
+    if (hasTable(sqlite, '__drizzle_migrations')) {
+      const latest = sqlite.prepare('SELECT MAX(created_at) AS stamp FROM __drizzle_migrations').get() as {stamp: number | null}
+      const supported = Math.max(...readJournal().entries.map(entry => entry.when))
+      if (latest.stamp !== null && Number(latest.stamp) > supported) {
+        throw new Error('Library schema is newer than this application. Open it with a newer version or restore a compatible backup.')
+      }
+    }
     applySqlitePragmas(sqlite)
     ensureLegacyDrizzleBaseline(sqlite)
     // Must run before unique index migration so CREATE UNIQUE INDEX succeeds.
@@ -267,6 +312,7 @@ export function runDrizzleMigrations(dbPath: string) {
 
     const db = drizzle(sqlite)
     migrate(db, {migrationsFolder: MIGRATIONS_FOLDER})
+    migrateMediaLocations(sqlite)
   } finally {
     sqlite.close()
   }

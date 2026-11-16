@@ -48,6 +48,7 @@ export function selectDuplicateCandidatePaths(
   files: ScannedFile[],
   bySize: Map<number, ScannedFile[]>,
   libraryBySizeBasename: Map<string, LibraryHitLike[]>,
+  libraryBySize: Map<number, LibraryHitLike[]> = new Map(),
 ): Set<string> {
   const candidateSet = new Set<string>()
   for (const [, group] of bySize) {
@@ -57,7 +58,7 @@ export function selectDuplicateCandidatePaths(
   }
   for (const file of files) {
     const key = sizeBasenameKey(file.filesize, file.basename)
-    const libraryHits = libraryBySizeBasename.get(key) || []
+    const libraryHits = [...(libraryBySizeBasename.get(key) || []), ...(libraryBySize.get(file.filesize) || [])]
     if (libraryHits.some((hit) => !pathsEquivalent(String(hit.path), file.path))) {
       candidateSet.add(file.path)
     }

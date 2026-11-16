@@ -21,7 +21,10 @@ interface ServerNetworkDeps {
   restartListener: () => Promise<void>
 }
 
-let lanEnabled = true
+// LAN is opt-in: binding 0.0.0.0 exposes the whole API (including file reads)
+// to everyone on the network, so new installs listen on loopback only.
+const LAN_DEFAULT = false
+let lanEnabled = LAN_DEFAULT
 let envLocked = false
 let serverDeps: ServerNetworkDeps | null = null
 
@@ -67,14 +70,14 @@ async function initLanAccess(db: ApiDb, _helpers: NetworkHelpers, config?: Serve
   envLocked = false
 
   if (config && typeof config.allowLanAccess === 'string' && config.allowLanAccess !== '') {
-    lanEnabled = parseBooleanSetting(config.allowLanAccess, true)
+    lanEnabled = parseBooleanSetting(config.allowLanAccess, LAN_DEFAULT)
     return lanEnabled
   }
 
   const settingsRepo = createSettingsRepository(db.drizzle)
-  const {row: setting} = settingsRepo.findOrCreateByOption('allowLanAccess', '1')
+  const {row: setting} = settingsRepo.findOrCreateByOption('allowLanAccess', LAN_DEFAULT ? '1' : '0')
 
-  lanEnabled = parseBooleanSetting(setting.value, true)
+  lanEnabled = parseBooleanSetting(setting.value, LAN_DEFAULT)
 
   if (config) {
     config.allowLanAccess = lanEnabled ? '1' : '0'
@@ -114,7 +117,7 @@ async function applyLanAccessChange(enabled: boolean) {
 
 /** True when allowLanAccess toggles and the HTTP listener must rebind. */
 function didLanAccessChange(previousValue: unknown, nextValue: unknown): boolean {
-  return parseBooleanSetting(previousValue, true) !== parseBooleanSetting(nextValue, true)
+  return parseBooleanSetting(previousValue, LAN_DEFAULT) !== parseBooleanSetting(nextValue, LAN_DEFAULT)
 }
 
 export {

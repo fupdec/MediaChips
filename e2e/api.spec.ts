@@ -10,12 +10,12 @@ test.describe('API', () => {
     expect(typeof body.pong).toBe('number')
   })
 
-  test('config responds for a fresh server', async ({ request }) => {
+  test('config responds for a fresh server', async ({ request, baseURL }) => {
     const response = await request.get('/api/config')
     expect(response.ok()).toBeTruthy()
 
     const body = await response.json()
-    expect(body.port).toBe(12321)
+    expect(body.port).toBe(Number(new URL(baseURL!).port))
     expect(Array.isArray(body.databases)).toBe(true)
     expect(body.databases.length).toBeGreaterThan(0)
   })

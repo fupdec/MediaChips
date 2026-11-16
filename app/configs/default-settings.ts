@@ -1,4 +1,14 @@
-const Settings = [  {
+const Settings = [
+  {"option": "showHistoryInAppBar", "value": 0},
+  {"option": "remoteOshashBackground", "value": 1},
+  {"option": "copyDiscoveryOnImport", "value": 1},
+  {"option": "copyDiscoveryOnFolderUpdate", "value": 1},
+  {"option": "copyDiscoveryOnReconnect", "value": 1},
+  {
+    "option": "copyVerificationSha256",
+    "value": 0
+  },
+  {
     "option": "allowLanAccess",
     "value": 1
   },
@@ -65,6 +75,10 @@ const Settings = [  {
   {
     "option": "darkMode",
     "value": 0
+  },
+  {
+    "option": "neutralTheme",
+    "value": "0"
   },
   {
     "option": "headerGradient",

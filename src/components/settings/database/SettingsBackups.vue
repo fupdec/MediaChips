@@ -1,7 +1,9 @@
 <template>
   <div>
     <v-btn
+      v-if="!hideActivator"
       id="database_backups"
+      @click="open()"
       color="primary"
       rounded="pill"
       variant="flat"
@@ -14,20 +16,33 @@
     <v-dialog
       :fullscreen="xs"
       :model-value="dialog"
-      activator="#database_backups"
-      @after-enter="manageBackups"
+      @update:model-value="dialog = $event"
       max-width="720"
       scrollable
       persistent
     >
       <v-card class="backups-dialog" rounded="xl">
         <DialogHeader
-          :header="t('settings_labels.database.backups_management')"
+          icon="backup-restore"
+          :header="`${t('settings_labels.database.backups_management')} · ${selectedDatabase?.name || ''}`"
           closable
-          @close="dialog = false"
+          @close="!busy && !dialogsStore.process.show && (dialog = false)"
         />
 
-        <v-card-text class="backups-dialog__body pt-2 pb-5 px-4 px-sm-6">
+        <v-card-text class="backups-dialog__body pt-6 pb-5 px-4 px-sm-6">
+          <v-select
+            v-model="databaseId"
+            rounded="xl"
+            :items="databases"
+            item-title="name"
+            item-value="id"
+            :label="t('settings_labels.database.backup_database')"
+            :disabled="busy || dialogsStore.process.show"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="mb-4"
+          />
           <p class="backups-dialog__hint text-caption text-medium-emphasis mb-4">
             {{ t('settings_labels.database.backups_hint') }}
           </p>
@@ -44,12 +59,12 @@
             />
 
             <div class="backups-toolbar__meta" v-if="isLoaded && backups.length">
-              <span class="backups-toolbar__count">
-                {{ backups.length }}
-              </span>
-              <span class="text-caption text-medium-emphasis">
-                {{ formatBackupSize(totalBackupSize) }}
-              </span>
+              <StorageSummary
+                :count="backups.length"
+                :size="formatBackupSize(totalBackupSize)"
+                :label="t('settings_labels.database.backups_button')"
+                icon="mdi-backup-restore"
+              />
               <span
                 v-if="selected.length"
                 class="backups-toolbar__selected text-caption"
@@ -101,24 +116,16 @@
             <span class="backups-sort__label text-caption text-medium-emphasis">
               {{ t('filters.sort_by') }}
             </span>
-            <v-btn-toggle
+            <SettingsSegmentedControl
               v-model="sortField"
-              mandatory
-              divided
-              density="compact"
-              color="primary"
-              rounded="pill"
               class="backups-sort__toggle"
-            >
-              <v-btn value="date" size="small" class="px-3">
-                <v-icon icon="mdi-calendar-outline" start size="16"/>
-                {{ t('settings_labels.database.backups_sort_date') }}
-              </v-btn>
-              <v-btn value="size" size="small" class="px-3">
-                <v-icon icon="mdi-harddisk" start size="16"/>
-                {{ t('settings_labels.database.backups_sort_size') }}
-              </v-btn>
-            </v-btn-toggle>
+              :label="t('filters.sort_by')"
+              :items="[
+                {value: 'date', title: t('settings_labels.database.backups_sort_date'), icon: 'mdi-calendar-outline'},
+                {value: 'size', title: t('settings_labels.database.backups_sort_size'), icon: 'mdi-harddisk'},
+              ]"
+              compact
+            />
             <v-btn
               v-tooltip:top="t('filters.change_direction')"
               :icon="sortDir === 'desc' ? 'mdi-sort-descending' : 'mdi-sort-ascending'"
@@ -240,7 +247,7 @@
 
     <DialogConfirm
       :dialog="dialogRestoreConfirm"
-      :text="t('settings_labels.database.restore_confirm')"
+      :text="`${t('settings_labels.database.restore_confirm')}\n${selectedDatabase?.name || ''}`"
       @close="dialogRestoreConfirm = false"
       @confirm="restoreBackup"
     />
@@ -265,6 +272,7 @@
     <v-dialog v-model="dialogImport" width="560">
       <v-card rounded="xl" class="backups-path-dialog">
         <DialogHeader
+          icon="file-restore-outline"
           @close="dialogImport = false"
           :header="t('settings_labels.database.select_backup')"
           closable
@@ -334,6 +342,7 @@
     <v-dialog v-model="dialogExport" width="560">
       <v-card rounded="xl" class="backups-path-dialog">
         <DialogHeader
+          icon="folder-open-outline"
           @close="dialogExport = false"
           :header="t('settings_labels.database.select_folder')"
           closable
@@ -417,14 +426,17 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue'
+import StorageSummary from './StorageSummary.vue'
+import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
+import {ref, computed, watch} from 'vue'
+import {compareBackupFileNames} from '@/utils/backupSorting'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {isElectron as hasElectronBridge, showElectronOpenDialog} from '@/services/electronBridge'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
-import type {BackupEntry} from '@/types/settings'
+import type {BackupEntry, DatabaseEntry} from '@/types/settings'
 import {getApiErrorMessage, getErrorResponseData} from '@/types/vue'
 
 import DialogHeader from '@/components/elements/DialogHeader.vue'
@@ -435,6 +447,10 @@ import {checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
 import {reloadApplicationAfterDatabaseChange} from '@/services/configService'
 
+defineProps<{hideActivator?: boolean}>()
+const emit = defineEmits<{changed: []}>()
+const databaseId = ref('')
+const busy = ref(false)
 const {xs} = useDisplay()
 const {t} = useI18n()
 
@@ -460,6 +476,29 @@ const isFolderExists = ref<boolean | null>(null)
 
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
+const databases = computed(() => appStore.databases as DatabaseEntry[])
+const selectedDatabase = computed(() => databases.value.find(item => item.id === databaseId.value))
+function open(id?: string) {
+  if (busy.value || dialogsStore.process.show) return
+  databaseId.value = id || databases.value.find(item => item.active)?.id || ''
+  dialog.value = true
+  void getBackups()
+}
+defineExpose({open})
+watch(databaseId, () => {
+  selected.value = []
+  backups.value = []
+  dialogRestoreConfirm.value = false
+  dialogDelete.value = false
+  dialogImport.value = false
+  dialogExport.value = false
+  dialogRestoreFinished.value = false
+  showBrowseDialog.value = false
+  showImportBrowseDialog.value = false
+  filePath.value = ''
+  folderPath.value = ''
+  if (dialog.value) void getBackups()
+}, {flush: 'sync'})
 
 const isElectron = computed(() => Boolean(appStore.isElectron) || hasElectronBridge())
 
@@ -477,13 +516,13 @@ const totalBackupSize = computed(() =>
 )
 
 const latestBackupDate = computed(() => {
-  let latest: string | null = null
+  let latest: BackupEntry | null = null
   for (const backup of backups.value) {
-    if (!latest || backup.date.localeCompare(latest) > 0) {
-      latest = backup.date
+    if (!latest || compareBackupFileNames(backup, latest) > 0) {
+      latest = backup
     }
   }
-  return latest
+  return latest?.date || null
 })
 
 const sortedBackups = computed(() => {
@@ -493,9 +532,9 @@ const sortedBackups = computed(() => {
     if (sortField.value === 'size') {
       const sizeDiff = backupSizeNumber(a.size) - backupSizeNumber(b.size)
       if (sizeDiff !== 0) return sizeDiff * direction
-      return a.date.localeCompare(b.date) * direction
+      return compareBackupFileNames(a, b) * direction
     }
-    const dateDiff = a.date.localeCompare(b.date)
+    const dateDiff = compareBackupFileNames(a, b)
     if (dateDiff !== 0) return dateDiff * direction
     return (backupSizeNumber(a.size) - backupSizeNumber(b.size)) * direction
   })
@@ -547,17 +586,17 @@ const validateFolderPath = async () => {
   isFolderExists.value = await checkFileExists(path)
 }
 
-function manageBackups() {
-  dialog.value = true
-  setTimeout(getBackups, 300)
-}
-
+let loadVersion = 0
 async function getBackups() {
+  const version = ++loadVersion
   isLoaded.value = false
   try {
-    const {data} = await typedApi.getBackups()
+    const {data} = await typedApi.getBackups(databaseId.value)
+    if (version !== loadVersion) return
     backups.value = data || []
-  } catch {
+  } catch (error) {
+    if (version !== loadVersion) return
+    setNotification({type: 'error', text: getApiErrorMessage(error, t('common.error'))})
     backups.value = []
   }
   isLoaded.value = true
@@ -593,21 +632,26 @@ function formatBackupSize(size: BackupEntry['size']) {
 
 async function createBackup() {
   dialogsStore.process.show = true
-  await typedApi.createBackup()
-  await getBackups()
-  dialogsStore.process.show = false
+  try {
+    await typedApi.createBackup(databaseId.value)
+    await getBackups()
+    emit('changed')
+  } catch (error) {
+    setNotification({type: 'error', text: getApiErrorMessage(error, t('common.error'))})
+  } finally { dialogsStore.process.show = false }
 }
 
 async function deleteBackups() {
   dialogsStore.process.show = true
-  for (const i of selected.value) {
-    await typedApi.deleteBackup({
-      name: i.date,
-    })
-  }
-  dialogsStore.process.show = false
-  selected.value = []
-  await getBackups()
+  try {
+    for (const i of selected.value) {
+      await typedApi.deleteBackup({name: i.date}, databaseId.value)
+    }
+    await getBackups()
+    emit('changed')
+  } catch (error) {
+    setNotification({type: 'error', text: getApiErrorMessage(error, t('common.error'))})
+  } finally { dialogsStore.process.show = false }
 }
 
 async function restoreBackup() {
@@ -615,15 +659,19 @@ async function restoreBackup() {
   try {
     await typedApi.restoreBackup({
       name: selected.value[0].date,
-    })
-    await reloadApplicationAfterDatabaseChange()
+    }, databaseId.value)
+    if (selectedDatabase.value?.active) await reloadApplicationAfterDatabaseChange()
     dialogRestoreFinished.value = true
   } catch (error) {
     console.error('Failed to restore backup:', error)
     setNotification({
       type: 'error',
       title: t('settings_labels.database.restore_backup'),
-      text: getApiErrorMessage(error, t('settings_labels.database.restore_backup')),
+      text: getErrorResponseData<{code?: string}>(error)?.code === 'library_busy'
+        ? t('settings_labels.database.restore_busy')
+        : getErrorResponseData<{code?: string}>(error)?.code === 'library_restoring'
+          ? t('settings_labels.database.restore_in_progress')
+          : getApiErrorMessage(error, t('settings_labels.database.restore_backup')),
     })
   } finally {
     dialogsStore.process.show = false
@@ -635,6 +683,12 @@ function closeRestoreFinished() {
 }
 
 async function importBackup() {
+  if (busy.value) return
+  busy.value = true
+  try { await importBackupForDatabase() } finally { busy.value = false }
+}
+
+async function importBackupForDatabase() {
   const path = normalizePastedFilePath(filePath.value) as string
   filePath.value = path
   if (!path) return
@@ -649,7 +703,8 @@ async function importBackup() {
   })
 
   try {
-    await typedApi.importBackup({path})
+    await typedApi.importBackup({path}, databaseId.value)
+    emit('changed')
     await getBackups()
     dialogImport.value = false
     filePath.value = ''
@@ -672,6 +727,12 @@ async function importBackup() {
 }
 
 async function exportBackup() {
+  if (busy.value) return
+  busy.value = true
+  try { await exportBackupForDatabase() } finally { busy.value = false }
+}
+
+async function exportBackupForDatabase() {
   const path = normalizePastedFilePath(folderPath.value) as string
   folderPath.value = path
   if (!path) return
@@ -687,7 +748,7 @@ async function exportBackup() {
       await typedApi.exportBackup({
         archive: i.date,
         path,
-      })
+      }, databaseId.value)
     }
   } catch (error) {
     console.error('Export backup failed:', error)
@@ -805,20 +866,6 @@ async function chooseFile() {
   gap: 8px;
   margin-right: auto;
   min-width: 0;
-}
-
-.backups-toolbar__count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 999px;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: rgb(var(--v-theme-primary));
-  background: rgba(var(--v-theme-primary), 0.12);
 }
 
 .backups-toolbar__selected {

@@ -36,6 +36,16 @@ export const ExtendedStatsSchema = z.object({
   largestFiles: z.array(ExtendedStatsFileSchema).optional(),
 }).passthrough()
 
+/** Slim sidebar nav counts (media by type + markers + playlists). */
+export const HomeNavCountsSchema = z.object({
+  byType: z.array(z.object({
+    mediaTypeId: z.number(),
+    count: z.number(),
+  })),
+  markers: z.number(),
+  playlists: z.number(),
+}).passthrough()
+
 export const ChartActivitySeriesSchema = z.object({
   added: z.array(z.number()),
   viewed: z.array(z.number()),
@@ -367,6 +377,11 @@ export const GlobalSearchMediaResponseSchema = z.object({
   items: z.array(GlobalSearchMediaItemSchema),
 })
 
+export const GlobalSearchMediaPageSchema = GlobalSearchMediaResponseSchema.extend({
+  nextOffset: z.number().int().nonnegative().nullable(),
+  total: z.number().int().nonnegative().optional(),
+})
+
 export const GlobalSearchTagsResponseSchema = z.object({
   items: z.array(GlobalSearchTagItemSchema),
 })
@@ -381,6 +396,7 @@ export type ParsedHomeTagCount = z.infer<typeof HomeTagCountSchema>
 export type ParsedExtendedStatsByType = z.infer<typeof ExtendedStatsByTypeSchema>
 export type ParsedExtendedStatsFile = z.infer<typeof ExtendedStatsFileSchema>
 export type ParsedExtendedStats = z.infer<typeof ExtendedStatsSchema>
+export type ParsedHomeNavCounts = z.infer<typeof HomeNavCountsSchema>
 export type ParsedChartStats = z.infer<typeof ChartStatsSchema>
 export type ParsedChartActivitySeries = z.infer<typeof ChartActivitySeriesSchema>
 export type ParsedCreatedCalendarMonth = z.infer<typeof CreatedCalendarMonthSchema>

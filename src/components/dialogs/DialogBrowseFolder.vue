@@ -11,6 +11,7 @@
   >
     <v-card rounded="xl">
       <DialogHeader
+        icon="folder-open-outline"
         @close="dialogLocal = false"
         :header="header || t('settings_labels.database.select_folder')"
         closable
@@ -55,6 +56,9 @@
           v-if="browsePath || places.length || (pathInput && folderPath.trim())"
           :base-url="appStore.localhost || ''"
           :path="browsePath"
+          :directory-loader="directoryLoader"
+          :path-titles="pathTitles"
+          :hide-favorites="!!directoryLoader"
           :selected-paths="pathInput ? [] : selectedPaths"
           :places="places"
           :active-place-id="activePlaceId"
@@ -62,7 +66,7 @@
           :file-extensions="fileExtensions"
           :show-selection="!pathInput && (multiple || fileExtensions.length > 0)"
           @update:path="onBrowsePath"
-          @update:selected-paths="selectedPaths = $event"
+          @update:selected-paths="onSelectedPaths"
           @select-place="onBrowsePath"
         />
 
@@ -118,7 +122,7 @@ import MediaFolderBrowser from '@/components/dialogs/MediaFolderBrowser.vue'
 import {checkFileExists} from '@/services/fileService'
 import {normalizePastedFilePath} from '@/utils/filePathInput'
 import {typedApi} from '@/services/typedApi'
-import type {BrowsePlace} from '@/services/typedApi/browse'
+import type {BrowseDirectoryLoader, BrowsePlace} from '@/services/typedApi/browse'
 
 const props = withDefaults(defineProps<{
   modelValue: boolean
@@ -126,6 +130,8 @@ const props = withDefaults(defineProps<{
   header?: string
   confirmText?: string
   initialPath?: string
+  directoryLoader?: BrowseDirectoryLoader
+  pathTitles?: Record<string, string>
   /** When set, picker shows matching files (e.g. zip backups) instead of folders-only. */
   fileExtensions?: string[]
   /** Show editable path field + optional existence check (move-files mode). */
@@ -223,6 +229,15 @@ function defaultBrowsePath(list: BrowsePlace[]): string {
     || ''
 }
 
+function onSelectedPaths(paths: string[]) {
+  if (!props.multiple && props.fileExtensions.length && paths.length > 1) {
+    const added = paths.find(path => !selectedPaths.value.includes(path))
+    selectedPaths.value = [added || paths[0]]
+  } else {
+    selectedPaths.value = paths
+  }
+}
+
 function onBrowsePath(path: string) {
   browsePath.value = path
   if (props.pathInput) {
@@ -248,6 +263,7 @@ async function chooseDirNative() {
 }
 
 async function loadPlaces() {
+  if (props.directoryLoader) return
   try {
     const {data} = await typedApi.listBrowsePlaces()
     places.value = data.places

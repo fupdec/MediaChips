@@ -1,4 +1,5 @@
 export {faces} from './faces'
+export {changeHistory} from './changeHistory'
 export {faceEnrollments} from './faceEnrollments'
 export {media} from './media'
 export {mediaClipEmbeddings} from './mediaClipEmbeddings'
@@ -27,3 +28,11 @@ export {valuesInMedia} from './valuesInMedia'
 export {valuesInTags} from './valuesInTag'
 export {videoMetadata} from './videoMetadata'
 export {mediaTypesInWatchedFolders, watchedFolders} from './watchedFolders'
+
+export {sourceConnections, mediaLocations, sourceCatalogRoots, sourceCatalogEntries, offlineCopies, sourceCacheSettings, originalOperationJobs} from './mediaSources'
+
+export {verifiedMediaCopies, mediaCopyPreferences} from './mediaCopies'
+
+export {copyDiscoveryJobs, copyDiscoveryItems, copyDiscoveryIgnored} from './copyDiscovery'
+
+export {copyDiscoveryAutoRoots, copyDiscoveryAutoRequests} from './copyDiscoveryAutomation'
