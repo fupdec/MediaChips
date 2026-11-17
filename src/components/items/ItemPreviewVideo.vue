@@ -65,6 +65,14 @@
         @load="onThumbLoad"
         @error="onThumbError"
       />
+      <MediaThumbPlaceholder
+        v-else-if="previewActive && isThumbMissing"
+        type="video"
+        :file-path="media?.path"
+        class="thumb"
+        @click.stop="handleMediaClick"
+        @dblclick.stop="handlePreviewDblClick"
+      />
       <div
         v-else
         class="thumb thumb--placeholder"
@@ -356,6 +364,7 @@ import {useVideoPreviewThumb} from '@/composable/useVideoPreviewThumb'
 import {subscribeElectronIpc} from '@/utils/electronIpc'
 import {detectAppPlatform} from '@/composable/useAppPlatform'
 import type {MediaItem} from '@/types/stores'
+import MediaThumbPlaceholder from '@/components/items/MediaThumbPlaceholder.vue'
 import type {HoverSessionTimeoutMap} from '@/composable/useItemPreviewHoverSession'
 
 const props = withDefaults(defineProps<{
@@ -460,7 +469,8 @@ const {
 })
 
 /** Mount VImg only in-viewport — keeps card shell size, drops decoded bitmaps offscreen. */
-const showThumbImage = computed(() => props.previewActive && Boolean(thumb.value))
+const isThumbMissing = computed(() => Boolean(thumb.value?.includes('unavailable.png')))
+const showThumbImage = computed(() => props.previewActive && Boolean(thumb.value) && !isThumbMissing.value)
 
 const previewRef = ref<ComponentPublicInstance | null>(null)
 const cardAnchorRef = ref<HTMLElement | null>(null)
