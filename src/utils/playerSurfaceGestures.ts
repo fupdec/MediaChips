@@ -37,6 +37,8 @@ export type PlayerSurfaceGestureOptions = {
   doubleTapSlopPx?: number
   /** Return the video surface element used for hit-testing (left/right halves). */
   getSurfaceEl: () => HTMLElement | null
+  /** False while a swipe must not switch videos (e.g. the picture is zoomed and the finger pans it). */
+  isSwipeEnabled?: () => boolean
   /** True when the event target should not start a gesture (controls, buttons, …). */
   isIgnoredTarget?: (target: EventTarget | null) => boolean
   onAction: (action: PlayerGestureAction) => void
@@ -47,7 +49,7 @@ export type PlayerSurfaceGestureOptions = {
   cancelSchedule?: (id: ReturnType<typeof setTimeout>) => void
 }
 
-function defaultIsIgnoredTarget(target: EventTarget | null): boolean {
+export function defaultIsIgnoredTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false
   return Boolean(
     target.closest(
@@ -118,6 +120,8 @@ export function createPlayerSurfaceGestureHandlers(
   let pendingTap: PendingTap | null = null
   let suppressClick = false
   let lastTouchAt = 0
+  /** A second finger joined: the rest of this touch sequence is a pinch, not a tap or swipe. */
+  let multiTouchSeen = false
 
   const clearPendingTap = () => {
     if (!pendingTap) return
@@ -161,6 +165,7 @@ export function createPlayerSurfaceGestureHandlers(
 
     // Multi-touch cancels in-progress tap / swipe recognition.
     if (pointers.size > 1) {
+      multiTouchSeen = true
       clearPendingTap()
     }
   }
@@ -193,6 +198,8 @@ export function createPlayerSurfaceGestureHandlers(
       // ignore release failures
     }
 
+    if (pointers.size === 0) multiTouchSeen = false
+
     if (cancelled) {
       clearPendingTap()
       return
@@ -200,6 +207,10 @@ export function createPlayerSurfaceGestureHandlers(
 
     // Only one finger / pen for gestures.
     if (pointers.size > 0) return
+    if (multiTouchSeen) {
+      multiTouchSeen = false
+      return
+    }
 
     const isTouchLike = active.pointerType === 'touch' || active.pointerType === 'pen'
     if (!isTouchLike) return
@@ -208,6 +219,7 @@ export function createPlayerSurfaceGestureHandlers(
     const dy = active.y - active.startY
 
     if (active.moved) {
+      if (options.isSwipeEnabled && !options.isSwipeEnabled()) return
       const direction = resolveSwipeDirection(dx, dy, {
         thresholdPx: swipeThresholdPx,
         horizontalBias: swipeHorizontalBias,

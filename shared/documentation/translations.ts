@@ -14,6 +14,15 @@ const playerHotkeys = {
       <tr><td>, / .</td><td>Navigate marks</td><td>Jump to previous or next mark.</td></tr>
       <tr><td>F / M</td><td>Display and sound</td><td>Toggle fullscreen or mute.</td></tr>
       <tr><td>P / I</td><td>Panels</td><td>Show or hide the playlist and marks panels.</td></tr>
+      <tr><td>A / Shift+A</td><td>Aspect ratio</td><td>Cycle the display aspect ratio forward or backward (Auto, 4:3, 16:9, 16:10, 21:9, 1:1, Stretch, Crop to fill).</td></tr>
+      <tr><td>R / Shift+R</td><td>Rotate</td><td>Rotate the picture 90° clockwise or counterclockwise.</td></tr>
+      <tr><td>H / V</td><td>Flip</td><td>Mirror the picture horizontally or flip it vertically.</td></tr>
+      <tr><td>+ / -</td><td>Zoom</td><td>Zoom the picture in or out (100–400%). Drag with the mouse to move a zoomed picture.</td></tr>
+      <tr><td>S</td><td>Zoom to area</td><td>Drag a rectangle over the picture to zoom into it. Esc cancels.</td></tr>
+      <tr><td>L</td><td>A-B loop</td><td>Press once to set point A, again to set point B and loop the segment, a third time to turn the loop off. Resets when another video starts.</td></tr>
+      <tr><td>J</td><td>Subtitles</td><td>Cycles through the subtitle files found next to a local video (.srt, .vtt): first file, next file, off.</td></tr>
+      <tr><td>[ / ]</td><td>Subtitle delay</td><td>Shifts the subtitles later or earlier by 0.1 s. The size and the delay are in the settings menu.</td></tr>
+      <tr><td>0</td><td>Reset picture</td><td>Reset aspect ratio, rotation, flips, zoom and color adjustments.</td></tr>
       <tr><td>E</td><td>Edit video</td><td>Open the video editing dialog.</td></tr>
       <tr><td>Esc</td><td>Close player</td><td>Close the player when no dialog is open.</td></tr>
       <tr><td>Ctrl+Del or Alt+Del</td><td>Delete video</td><td>Delete the current video from the app.</td></tr>
@@ -49,6 +58,15 @@ const playerHotkeys = {
       <tr><td>, / .</td><td>Navegar pelas marcações</td><td>Vai para a marcação anterior ou seguinte.</td></tr>
       <tr><td>F / M</td><td>Exibição e som</td><td>Alterna entre tela cheia e mudo.</td></tr>
       <tr><td>P / I</td><td>Painéis</td><td>Mostra ou oculta os painéis de playlist e marcações.</td></tr>
+      <tr><td>A / Shift+A</td><td>Proporção</td><td>Alterna a proporção de exibição para frente ou para trás.</td></tr>
+      <tr><td>R / Shift+R</td><td>Girar</td><td>Gira a imagem 90° no sentido horário ou anti-horário.</td></tr>
+      <tr><td>H / V</td><td>Espelhar</td><td>Espelha a imagem na horizontal ou na vertical.</td></tr>
+      <tr><td>+ / -</td><td>Zoom</td><td>Aproxima ou afasta a imagem (100–400%). Arraste com o mouse para mover a imagem ampliada.</td></tr>
+      <tr><td>S</td><td>Zoom na área</td><td>Arraste um retângulo sobre a imagem para ampliá-lo. Esc cancela.</td></tr>
+      <tr><td>L</td><td>Repetição A-B</td><td>Pressione uma vez para definir o ponto A, de novo para definir o ponto B e repetir o trecho, e uma terceira vez para desativar. É redefinido quando outro vídeo começa.</td></tr>
+      <tr><td>J</td><td>Legendas</td><td>Alterna entre os arquivos de legendas ao lado de um vídeo local (.srt, .vtt): primeiro, próximo, desativadas.</td></tr>
+      <tr><td>[ / ]</td><td>Atraso das legendas</td><td>Atrasa ou adianta as legendas em 0,1 s. O tamanho e o atraso ficam no menu de configurações.</td></tr>
+      <tr><td>0</td><td>Redefinir imagem</td><td>Redefine proporção, rotação, espelhamento, zoom e ajustes de cor.</td></tr>
       <tr><td>E</td><td>Editar vídeo</td><td>Abre a caixa de diálogo de edição do vídeo.</td></tr>
       <tr><td>Esc</td><td>Fechar player</td><td>Fecha o player quando não há nenhuma caixa de diálogo aberta.</td></tr>
       <tr><td>Ctrl+Del ou Alt+Del</td><td>Excluir vídeo</td><td>Exclui o vídeo atual do aplicativo.</td></tr>
@@ -84,6 +102,15 @@ const playerHotkeys = {
       <tr><td>, / .</td><td>Parcourir les repères</td><td>Va au repère précédent ou suivant.</td></tr>
       <tr><td>F / M</td><td>Affichage et son</td><td>Bascule le plein écran ou le son muet.</td></tr>
       <tr><td>P / I</td><td>Panneaux</td><td>Affiche ou masque les panneaux de liste de lecture et de repères.</td></tr>
+      <tr><td>A / Shift+A</td><td>Format d'image</td><td>Parcourt les formats d'affichage vers l'avant ou l'arrière.</td></tr>
+      <tr><td>R / Shift+R</td><td>Rotation</td><td>Fait pivoter l'image de 90° dans le sens horaire ou antihoraire.</td></tr>
+      <tr><td>H / V</td><td>Miroir</td><td>Retourne l'image horizontalement ou verticalement.</td></tr>
+      <tr><td>+ / -</td><td>Zoom</td><td>Agrandit ou réduit l'image (100–400 %). Faites glisser avec la souris pour déplacer l'image agrandie.</td></tr>
+      <tr><td>S</td><td>Zoom sur une zone</td><td>Tracez un rectangle sur l'image pour zoomer dessus. Échap annule.</td></tr>
+      <tr><td>L</td><td>Boucle A-B</td><td>Un premier appui définit le point A, un deuxième le point B et lance la boucle, un troisième la désactive. Réinitialisée au changement de vidéo.</td></tr>
+      <tr><td>J</td><td>Sous-titres</td><td>Parcourt les fichiers de sous-titres placés à côté d'une vidéo locale (.srt, .vtt) : premier, suivant, désactivés.</td></tr>
+      <tr><td>[ / ]</td><td>Décalage des sous-titres</td><td>Retarde ou avance les sous-titres de 0,1 s. La taille et le décalage se règlent dans le menu des paramètres.</td></tr>
+      <tr><td>0</td><td>Réinitialiser l'image</td><td>Réinitialise le format, la rotation, les retournements, le zoom et les réglages de couleur.</td></tr>
       <tr><td>E</td><td>Modifier la vidéo</td><td>Ouvre la boîte de dialogue de modification de la vidéo.</td></tr>
       <tr><td>Esc</td><td>Fermer le lecteur</td><td>Ferme le lecteur lorsqu’aucune boîte de dialogue n’est ouverte.</td></tr>
       <tr><td>Ctrl+Del ou Alt+Del</td><td>Supprimer la vidéo</td><td>Supprime la vidéo actuelle de l’application.</td></tr>
@@ -119,6 +146,15 @@ const playerHotkeys = {
       <tr><td>, / .</td><td>Переход по меткам</td><td>Переходит к предыдущей или следующей метке.</td></tr>
       <tr><td>F / M</td><td>Экран и звук</td><td>Переключает полный экран или звук.</td></tr>
       <tr><td>P / I</td><td>Панели</td><td>Показывает или скрывает плейлист и список меток.</td></tr>
+      <tr><td>A / Shift+A</td><td>Соотношение сторон</td><td>Переключает формат картинки вперёд или назад (Авто, 4:3, 16:9, 16:10, 21:9, 1:1, Растянуть, Обрезать по окну).</td></tr>
+      <tr><td>R / Shift+R</td><td>Поворот</td><td>Поворачивает картинку на 90° по или против часовой стрелки.</td></tr>
+      <tr><td>H / V</td><td>Отражение</td><td>Отражает картинку по горизонтали или по вертикали.</td></tr>
+      <tr><td>+ / -</td><td>Масштаб</td><td>Приближает или отдаляет картинку (100–400%). Увеличенную картинку можно перетаскивать мышью.</td></tr>
+      <tr><td>S</td><td>Зум по области</td><td>Выделите рамкой область на картинке, чтобы приблизить её. Esc — отмена.</td></tr>
+      <tr><td>L</td><td>Повтор A–B</td><td>Первое нажатие задаёт точку A, второе — точку B и зацикливает отрезок, третье выключает повтор. Сбрасывается при смене видео.</td></tr>
+      <tr><td>J</td><td>Субтитры</td><td>Переключает файлы субтитров рядом с локальным видео (.srt, .vtt): первый, следующий, выключены.</td></tr>
+      <tr><td>[ / ]</td><td>Задержка субтитров</td><td>Сдвигает субтитры позже или раньше на 0,1 с. Размер и задержка — в меню настроек.</td></tr>
+      <tr><td>0</td><td>Сброс изображения</td><td>Сбрасывает соотношение сторон, поворот, отражение, масштаб и цветокоррекцию.</td></tr>
       <tr><td>E</td><td>Редактировать видео</td><td>Открывает диалог редактирования видео.</td></tr>
       <tr><td>Esc</td><td>Закрыть плеер</td><td>Закрывает плеер, если не открыт диалог.</td></tr>
       <tr><td>Ctrl+Del или Alt+Del</td><td>Удалить видео</td><td>Удаляет текущее видео из приложения.</td></tr>
@@ -154,6 +190,15 @@ const playerHotkeys = {
       <tr><td>, / .</td><td>Navegar marcas</td><td>Salta a la marca anterior o siguiente.</td></tr>
       <tr><td>F / M</td><td>Pantalla y sonido</td><td>Alterna pantalla completa o silencio.</td></tr>
       <tr><td>P / I</td><td>Paneles</td><td>Muestra u oculta la lista y el panel de marcas.</td></tr>
+      <tr><td>A / Shift+A</td><td>Relación de aspecto</td><td>Cambia la relación de aspecto hacia delante o hacia atrás.</td></tr>
+      <tr><td>R / Shift+R</td><td>Girar</td><td>Gira la imagen 90° en sentido horario o antihorario.</td></tr>
+      <tr><td>H / V</td><td>Voltear</td><td>Voltea la imagen horizontal o verticalmente.</td></tr>
+      <tr><td>+ / -</td><td>Zoom</td><td>Acerca o aleja la imagen (100–400 %). Arrastra con el ratón para mover la imagen ampliada.</td></tr>
+      <tr><td>S</td><td>Zoom a un área</td><td>Arrastra un rectángulo sobre la imagen para acercarlo. Esc cancela.</td></tr>
+      <tr><td>L</td><td>Repetición A-B</td><td>Una pulsación define el punto A, la segunda el punto B y repite el tramo, la tercera la desactiva. Se restablece al cambiar de vídeo.</td></tr>
+      <tr><td>J</td><td>Subtítulos</td><td>Recorre los archivos de subtítulos junto a un vídeo local (.srt, .vtt): primero, siguiente, desactivados.</td></tr>
+      <tr><td>[ / ]</td><td>Retraso de subtítulos</td><td>Retrasa o adelanta los subtítulos 0,1 s. El tamaño y el retraso están en el menú de ajustes.</td></tr>
+      <tr><td>0</td><td>Restablecer imagen</td><td>Restablece la relación de aspecto, el giro, el volteo, el zoom y los ajustes de color.</td></tr>
       <tr><td>E</td><td>Editar video</td><td>Abre el diálogo de edición de video.</td></tr>
       <tr><td>Esc</td><td>Cerrar reproductor</td><td>Cierra el reproductor si no hay un diálogo abierto.</td></tr>
       <tr><td>Ctrl+Del o Alt+Del</td><td>Eliminar video</td><td>Elimina el video actual de la aplicación.</td></tr>
@@ -189,6 +234,15 @@ const playerHotkeys = {
       <tr><td>, / .</td><td>导航标记</td><td>跳转到上一个或下一个标记。</td></tr>
       <tr><td>F / M</td><td>显示和声音</td><td>切换全屏或静音。</td></tr>
       <tr><td>P / I</td><td>面板</td><td>显示或隐藏播放列表和标记面板。</td></tr>
+      <tr><td>A / Shift+A</td><td>画面比例</td><td>向前或向后切换显示比例。</td></tr>
+      <tr><td>R / Shift+R</td><td>旋转</td><td>将画面顺时针或逆时针旋转 90°。</td></tr>
+      <tr><td>H / V</td><td>翻转</td><td>水平或垂直翻转画面。</td></tr>
+      <tr><td>+ / -</td><td>缩放</td><td>放大或缩小画面（100–400%）。放大后可用鼠标拖动画面。</td></tr>
+      <tr><td>S</td><td>缩放到区域</td><td>在画面上拖动矩形以放大该区域。按 Esc 取消。</td></tr>
+      <tr><td>L</td><td>A-B 循环</td><td>按一次设置 A 点，再按一次设置 B 点并循环该片段，第三次关闭循环。切换视频时会重置。</td></tr>
+      <tr><td>J</td><td>字幕</td><td>在本地视频旁的字幕文件（.srt、.vtt）之间切换：第一个、下一个、关闭。</td></tr>
+      <tr><td>[ / ]</td><td>字幕延迟</td><td>将字幕延后或提前 0.1 秒。字号和延迟可在设置菜单中调整。</td></tr>
+      <tr><td>0</td><td>重置画面</td><td>重置画面比例、旋转、翻转、缩放和色彩调整。</td></tr>
       <tr><td>E</td><td>编辑视频</td><td>打开视频编辑对话框。</td></tr>
       <tr><td>Esc</td><td>关闭播放器</td><td>在没有打开对话框时关闭播放器。</td></tr>
       <tr><td>Ctrl+Del 或 Alt+Del</td><td>删除视频</td><td>从应用中删除当前视频。</td></tr>
@@ -224,6 +278,15 @@ const playerHotkeys = {
       <tr><td>, / .</td><td>Markierungen navigieren</td><td>Springt zur vorherigen oder nächsten Markierung.</td></tr>
       <tr><td>F / M</td><td>Anzeige und Ton</td><td>Schaltet Vollbild oder Stummschaltung um.</td></tr>
       <tr><td>P / I</td><td>Panels</td><td>Zeigt die Panels für Wiedergabeliste und Markierungen an oder blendet sie aus.</td></tr>
+      <tr><td>A / Shift+A</td><td>Seitenverhältnis</td><td>Schaltet das Anzeigeverhältnis vor oder zurück.</td></tr>
+      <tr><td>R / Shift+R</td><td>Drehen</td><td>Dreht das Bild um 90° im oder gegen den Uhrzeigersinn.</td></tr>
+      <tr><td>H / V</td><td>Spiegeln</td><td>Spiegelt das Bild horizontal oder vertikal.</td></tr>
+      <tr><td>+ / -</td><td>Zoom</td><td>Vergrößert oder verkleinert das Bild (100–400 %). Ein vergrößertes Bild lässt sich mit der Maus verschieben.</td></tr>
+      <tr><td>S</td><td>Auf Bereich zoomen</td><td>Rahmen über das Bild ziehen, um hineinzuzoomen. Esc bricht ab.</td></tr>
+      <tr><td>L</td><td>A-B-Wiederholung</td><td>Erstes Drücken setzt Punkt A, zweites Punkt B und wiederholt den Abschnitt, drittes beendet die Wiederholung. Wird beim Videowechsel zurückgesetzt.</td></tr>
+      <tr><td>J</td><td>Untertitel</td><td>Schaltet durch die Untertitel-Dateien neben einem lokalen Video (.srt, .vtt): erste, nächste, aus.</td></tr>
+      <tr><td>[ / ]</td><td>Untertitelverzögerung</td><td>Verschiebt die Untertitel um 0,1 s später oder früher. Größe und Verzögerung stehen im Einstellungsmenü.</td></tr>
+      <tr><td>0</td><td>Bild zurücksetzen</td><td>Setzt Seitenverhältnis, Drehung, Spiegelung, Zoom und Farbanpassungen zurück.</td></tr>
       <tr><td>E</td><td>Video bearbeiten</td><td>Öffnet den Dialog zum Bearbeiten des Videos.</td></tr>
       <tr><td>Esc</td><td>Player schließen</td><td>Schließt den Player, wenn kein Dialog geöffnet ist.</td></tr>
       <tr><td>Ctrl+Del oder Alt+Del</td><td>Video löschen</td><td>Löscht das aktuelle Video aus der App.</td></tr>
@@ -259,6 +322,15 @@ const playerHotkeys = {
       <tr><td>, / .</td><td>マークを移動</td><td>前または次のマークに移動します。</td></tr>
       <tr><td>F / M</td><td>表示と音声</td><td>フルスクリーンまたはミュートを切り替えます。</td></tr>
       <tr><td>P / I</td><td>パネル</td><td>プレイリストとマークのパネルを表示または非表示にします。</td></tr>
+      <tr><td>A / Shift+A</td><td>アスペクト比</td><td>表示のアスペクト比を順方向または逆方向に切り替えます。</td></tr>
+      <tr><td>R / Shift+R</td><td>回転</td><td>映像を時計回りまたは反時計回りに90°回転します。</td></tr>
+      <tr><td>H / V</td><td>反転</td><td>映像を左右または上下に反転します。</td></tr>
+      <tr><td>+ / -</td><td>ズーム</td><td>映像を拡大・縮小します（100〜400%）。拡大中はマウスのドラッグで移動できます。</td></tr>
+      <tr><td>S</td><td>範囲を拡大</td><td>映像上をドラッグして範囲を選択し、拡大します。Escでキャンセルします。</td></tr>
+      <tr><td>L</td><td>A-B リピート</td><td>1回目でA点、2回目でB点を設定して区間をリピート、3回目で解除します。別の動画に切り替わるとリセットされます。</td></tr>
+      <tr><td>J</td><td>字幕</td><td>ローカル動画の隣にある字幕ファイル（.srt、.vtt）を順に切り替えます：最初、次、オフ。</td></tr>
+      <tr><td>[ / ]</td><td>字幕の遅延</td><td>字幕を0.1秒ずつ遅らせる/早めます。サイズと遅延は設定メニューにあります。</td></tr>
+      <tr><td>0</td><td>映像をリセット</td><td>アスペクト比、回転、反転、ズーム、色調整をリセットします。</td></tr>
       <tr><td>E</td><td>動画を編集</td><td>動画編集ダイアログを開きます。</td></tr>
       <tr><td>Esc</td><td>プレーヤーを閉じる</td><td>ダイアログが開いていない場合にプレーヤーを閉じます。</td></tr>
       <tr><td>Ctrl+Del or Alt+Del</td><td>動画を削除</td><td>アプリから現在の動画を削除します。</td></tr>

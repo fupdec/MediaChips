@@ -12,40 +12,6 @@
         </div>
         <v-spacer/>
         <v-btn
-          v-tooltip="playerTooltip(t('player.controls.add_mark'), 'bottom')"
-          variant="text"
-          icon
-          size="small"
-          density="comfortable"
-          @click="session?.openAddingMark()"
-        >
-          <v-icon size="small">mdi-plus</v-icon>
-        </v-btn>
-        <v-btn
-          v-if="!generatingChapters && player.isLibraryMedia"
-          v-tooltip="playerTooltip(t('player.generate_chapters'), 'bottom')"
-          variant="text"
-          icon
-          size="small"
-          density="comfortable"
-          @click="generateChapters"
-        >
-          <v-icon size="small">mdi-movie-open-outline</v-icon>
-        </v-btn>
-        <v-progress-circular v-if="generatingChapters" indeterminate size="18" width="2"
-          :aria-label="t('player.generate_chapters')"/>
-        <v-btn
-          v-tooltip="playerTooltip(t(clipMode ? 'player.clip_mode_on' : 'player.clip_mode'), 'bottom')"
-          :color="clipMode ? 'primary' : undefined"
-          variant="text"
-          icon
-          size="small"
-          density="comfortable"
-          @click="toggleClipMode"
-        >
-          <v-icon size="small">mdi-content-cut</v-icon>
-        </v-btn>
-        <v-btn
           @click="player.marksVisible = false"
           variant="text"
           icon
@@ -57,8 +23,44 @@
       </div>
 
       <div class="player-sidebar__body" :style="bodyStyle">
-        <div v-if="!clipMode" ref="stickyEl" class="player-sidebar__sticky">
+        <div ref="stickyEl" class="player-sidebar__sticky">
+          <v-btn-group
+            class="player-sidebar__mode-toggle player-sidebar__actions"
+            rounded="pill"
+            density="compact"
+            variant="outlined"
+          >
+            <v-btn
+              v-tooltip="playerTooltip(t('player.controls.add_mark'), 'bottom')"
+              size="small"
+              :aria-label="t('player.controls.add_mark')"
+              @click="session?.openAddingMark()"
+            >
+              <v-icon size="small">mdi-plus</v-icon>
+            </v-btn>
+            <v-btn
+              v-if="player.isLibraryMedia"
+              v-tooltip="playerTooltip(t('player.generate_chapters'), 'bottom')"
+              size="small"
+              :loading="generatingChapters"
+              :disabled="generatingChapters"
+              :aria-label="t('player.generate_chapters')"
+              @click="generateChapters"
+            >
+              <v-icon size="small">mdi-movie-open-outline</v-icon>
+            </v-btn>
+            <v-btn
+              v-tooltip="playerTooltip(t(clipMode ? 'player.clip_mode_on' : 'player.clip_mode'), 'bottom')"
+              :color="clipMode ? 'primary' : undefined"
+              size="small"
+              :aria-label="t(clipMode ? 'player.clip_mode_on' : 'player.clip_mode')"
+              @click="toggleClipMode"
+            >
+              <v-icon size="small">mdi-content-cut</v-icon>
+            </v-btn>
+          </v-btn-group>
           <PlayerMarksFilters
+            v-if="!clipMode"
             v-model="marksType"
             :assigned="assigned as any"
             :has-favorite="hasFavoriteMarks"
@@ -134,18 +136,29 @@
               class="player-sidebar__empty-img"
             />
             <span>{{ t('player.no_marks') }}</span>
-            <v-btn
-              v-if="!generatingChapters && player.isLibraryMedia"
-              class="mt-3"
-              color="primary"
-              rounded
-              size="small"
-              variant="tonal"
-              prepend-icon="mdi-movie-open-outline"
-              @click="generateChapters"
-            >
-              {{ t('player.generate_chapters') }}
-            </v-btn>
+            <div class="d-flex flex-column align-center ga-2 mt-3">
+              <v-btn
+                color="primary"
+                rounded
+                size="small"
+                variant="tonal"
+                prepend-icon="mdi-plus"
+                @click="session?.openAddingMark()"
+              >
+                {{ t('player.controls.add_mark') }}
+              </v-btn>
+              <v-btn
+                v-if="!generatingChapters && player.isLibraryMedia"
+                color="primary"
+                rounded
+                size="small"
+                variant="tonal"
+                prepend-icon="mdi-movie-open-outline"
+                @click="generateChapters"
+              >
+                {{ t('player.generate_chapters') }}
+              </v-btn>
+            </div>
           </div>
 
           <div v-else class="player-sidebar__empty">

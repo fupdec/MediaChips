@@ -26,7 +26,7 @@
         <div ref="stickyEl" class="player-sidebar__sticky">
           <v-chip
             v-if="similarRadioActive"
-            v-tooltip="playerTooltip(t('player.similar_radio_stop'))"
+            v-tooltip="playerTooltip(t('player.similar_radio_stop'), 'bottom')"
             class="player-sidebar__radio-chip"
             color="primary"
             variant="tonal"
@@ -50,14 +50,14 @@
             <v-btn
               v-if="!similarRadioActive"
               value="loop"
-              v-tooltip="playerTooltip(t('player.playlist_modes.loop'))"
+              v-tooltip="playerTooltip(t('player.playlist_modes.loop'), 'bottom')"
               size="small"
             >
               <v-icon size="small">mdi-sync</v-icon>
             </v-btn>
             <v-btn
               value="autoplay"
-              v-tooltip="playerTooltip(t('player.playlist_modes.autoplay'))"
+              v-tooltip="playerTooltip(t('player.playlist_modes.autoplay'), 'bottom')"
               size="small"
             >
               <v-icon size="small">mdi-play-pause</v-icon>
@@ -65,7 +65,7 @@
             <v-btn
               v-if="!similarRadioActive"
               value="shuffle"
-              v-tooltip="playerTooltip(t('player.playlist_modes.shuffle'))"
+              v-tooltip="playerTooltip(t('player.playlist_modes.shuffle'), 'bottom')"
               size="small"
             >
               <v-icon size="small">mdi-shuffle-variant</v-icon>

@@ -101,114 +101,10 @@
         style="left: 0"
       />
     </v-btn>
-
-    <div class="speed">
-      <v-menu
-        attach=".speed"
-        nudge-top="45"
-        nudge-left="10"
-        min-width="120"
-        top
-      >
-        <template #activator="{ props: menuProps }">
-          <v-btn v-bind="menuProps"
-            icon
-            variant="tonal"
-            :density="density"
-            dark>
-            <v-icon>mdi-play-speed</v-icon>
-            <div class="tip" v-html="t('player.playback_speed_label')"/>
-          </v-btn>
-        </template>
-
-        <v-list density="compact" class="py-1">
-          <v-list-item
-            v-for="speed in speeds"
-            :key="speed"
-            :value="speed"
-            :active="player.speed === speed"
-            color="primary"
-            @click="changeSpeed(speed)"
-          >
-            <v-list-item-title v-text="speed == 1 ? t('common.normal') : speed"/>
-          </v-list-item>
-        </v-list>
-      </v-menu>
-    </div>
-
-    <div v-if="isWebVideo && !player.webVideoLoading && player.webVideoQualities.length > 1" class="web-video-quality ml-1">
-      <v-menu attach=".web-video-quality" location="top" :offset="8" min-width="160">
-        <template #activator="{ props: menuProps }">
-          <v-btn v-bind="menuProps" icon variant="tonal" :density="density" dark>
-            <v-icon>mdi-high-definition-box</v-icon>
-            <div class="tip">{{ t('player.controls.web_video_quality') }}</div>
-          </v-btn>
-        </template>
-        <v-list density="compact" class="py-1">
-          <v-list-item :active="player.webVideoQuality == null" color="primary" @click="changeWebVideoQuality(null)">
-            <v-list-item-title>{{ t('player.controls.web_video_quality_auto') }}</v-list-item-title>
-          </v-list-item>
-          <v-list-item v-for="height in player.webVideoQualities" :key="height"
-            :active="player.webVideoQuality === height" color="primary" @click="changeWebVideoQuality(height)">
-            <v-list-item-title>{{ height }}p</v-list-item-title>
-          </v-list-item>
-        </v-list>
-      </v-menu>
-    </div>
-
-    <v-btn v-if="isWebVideo && !player.webVideoLoading" @click="refreshWebVideo"
-      icon variant="tonal" :density="density" dark>
-      <v-icon>mdi-refresh</v-icon>
-      <div class="tip">{{ t('player.controls.web_video_refresh') }}</div>
-    </v-btn>
-
-    <div
-      v-if="showTranscodeMenu"
-      class="transcode-quality ml-1"
-    >
-      <v-menu
-        attach=".transcode-quality"
-        nudge-top="45"
-        nudge-left="10"
-        min-width="160"
-        top
-      >
-        <template #activator="{ props: menuProps }">
-          <v-btn v-bind="menuProps"
-            icon
-            variant="tonal"
-            :density="density"
-            dark>
-            <v-icon>{{ playerStore.liveTranscodeDisabled ? 'mdi-video-off' : 'mdi-high-definition-box' }}</v-icon>
-            <div class="tip" v-html="t('player.controls.transcode_quality')"/>
-          </v-btn>
-        </template>
-
-        <v-list density="compact" class="py-1">
-          <v-list-item
-            :active="playerStore.liveTranscodeDisabled"
-            color="primary"
-            @click="disableLiveTranscode"
-          >
-            <v-list-item-title v-text="t('player.controls.transcode_off')"/>
-          </v-list-item>
-          <v-list-item
-            v-for="height in transcodeHeights"
-            :key="height"
-            :value="height"
-            :active="!playerStore.liveTranscodeDisabled && playerStore.liveTranscodeMaxHeight === height"
-            color="primary"
-            @click="changeTranscodeMaxHeight(height)"
-          >
-            <v-list-item-title v-text="transcodeQualityLabel(height)"/>
-          </v-list-item>
-        </v-list>
-      </v-menu>
-    </div>
 </template>
 
 <script setup lang="ts">
-import {computed, inject, ref} from 'vue'
+import {inject, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {PLAYER_TRANSPORT_KEY} from '@/composable/playerTransportKey'
 import {usePlayerNeighborPreview} from '@/composable/usePlayerNeighborPreview'
@@ -218,24 +114,14 @@ const {t} = useI18n()
 const {
   player,
   playerStore,
-  speeds,
-  transcodeHeights,
   density,
   isPrevDisabled,
   isNextDisabled,
-  isAudioMode,
-  isWebVideo,
-  changeWebVideoQuality,
-  refreshWebVideo,
   msToTime,
   togglePause,
   stop,
   prev,
   next,
-  changeSpeed,
-  transcodeQualityLabel,
-  changeTranscodeMaxHeight,
-  disableLiveTranscode,
 } = inject(PLAYER_TRANSPORT_KEY)!
 
 const {
@@ -247,13 +133,4 @@ const {
 
 const prevHover = ref(false)
 const nextHover = ref(false)
-
-const showTranscodeMenu = computed(() => (
-  !isAudioMode.value
-  && !isWebVideo.value
-  // Only while live is active, or after the user turned it off (so they can re-enable).
-  // Do not show for direct play just because fallback is offerable — that looked like
-  // "already transcoding".
-  && (playerStore.usesLiveTranscode || playerStore.liveTranscodeDisabled)
-))
 </script>

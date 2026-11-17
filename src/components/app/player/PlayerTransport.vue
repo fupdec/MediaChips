@@ -1,6 +1,7 @@
 <template>
   <v-card-actions class="buttons pb-4 px-0 pt-0">
     <PlayerTransportPlayback/>
+    <PlayerTransportSettings/>
     <v-spacer/>
     <PlayerTransportMarks/>
     <PlayerTransportMedia/>
@@ -11,6 +12,7 @@
 
 <script setup lang="ts">
 import PlayerTransportPlayback from '@/components/app/player/PlayerTransportPlayback.vue'
+import PlayerTransportSettings from '@/components/app/player/PlayerTransportSettings.vue'
 import PlayerTransportMarks from '@/components/app/player/PlayerTransportMarks.vue'
 import PlayerTransportMedia from '@/components/app/player/PlayerTransportMedia.vue'
 import PlayerTransportView from '@/components/app/player/PlayerTransportView.vue'

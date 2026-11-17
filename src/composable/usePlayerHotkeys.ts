@@ -1,6 +1,7 @@
 import { onBeforeUnmount } from 'vue'
 import { handlePlayerKeydown, shouldHandlePlayerShortcut } from '@/utils/playerHotkeys'
 import type { usePlayerStore } from '@/stores/player'
+import { i18n } from '@/i18n/loadLocale'
 
 type PlayerStore = ReturnType<typeof usePlayerStore>
 
@@ -21,7 +22,7 @@ export function usePlayerHotkeys(getContext: () => PlayerHotkeyContext) {
     const ctx = getContext()
     if (!shouldHandlePlayerShortcut(event, ctx.playerStore)) return
 
-    if (handlePlayerKeydown(event, ctx)) {
+    if (handlePlayerKeydown(event, { ...ctx, t: (key: string) => String(i18n.global.t(key)) })) {
       event.preventDefault()
       event.stopPropagation()
     }

@@ -48,6 +48,8 @@
 
     <PlayerTrimRange :controls-width="controls_width"/>
 
+    <PlayerAbLoopRange/>
+
     <PlayerMarksTrack v-if="player.studioMode" :controls_width="controls_width"/>
 
     <Preview v-if="!isAudioMode"/>
@@ -72,6 +74,7 @@ import Mark from '@/components/app/player/Mark.vue'
 import PlayerMarksTrack from '@/components/app/player/PlayerMarksTrack.vue'
 import PlayerNeighborPreview from '@/components/app/player/PlayerNeighborPreview.vue'
 import PlayerTrimRange from '@/components/app/player/PlayerTrimRange.vue'
+import PlayerAbLoopRange from '@/components/app/player/PlayerAbLoopRange.vue'
 import {usePlayerTimeline} from '@/composable/usePlayerTimeline'
 import type {PlayerMark} from '@/types/player'
 

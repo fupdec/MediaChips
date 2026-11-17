@@ -1555,6 +1555,30 @@
       }
     }
 
+    // Unavailable control: stays in place (no layout jumps) but is quiet and inert.
+    // aria-disabled instead of :disabled so the hover tip with the reason still shows.
+    // Only the icon is dimmed and the tonal fill is dropped: buttons inside a group
+    // then melt into the group's own background instead of standing out as bright
+    // blocks, and the tip (a child of the button) does not fade with it.
+    .v-btn.is-disabled {
+      cursor: default;
+      box-shadow: none;
+      transition: none;
+
+      .v-icon {
+        opacity: 0.28;
+      }
+
+      .v-btn__underlay,
+      .v-btn__overlay {
+        opacity: 0 !important;
+      }
+
+      &:active {
+        transform: none;
+      }
+    }
+
     .tip {
       pointer-events: none;
       position: absolute;
@@ -1577,6 +1601,352 @@
         transition: none;
       }
     }
+  }
+
+  // Popup menus of the transport bar (file actions, playback settings).
+  .player-menu-card {
+    border-radius: 18px !important;
+    background: rgba(26, 26, 28, 0.78) !important;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow:
+      0 20px 48px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(22px) saturate(1.2);
+    -webkit-backdrop-filter: blur(22px) saturate(1.2);
+    color: rgba(255, 255, 255, 0.92);
+
+    .v-list,
+    .player-menu__list {
+      background: transparent !important;
+      padding: 6px !important;
+    }
+
+    .v-list-item {
+      min-height: 40px;
+      margin: 1px 0;
+      padding-inline: 12px;
+      // !important + overflow: Vuetify's hover/active layers must follow the rounding
+      border-radius: 11px !important;
+      overflow: hidden;
+      color: rgba(255, 255, 255, 0.92);
+
+      .v-list-item__underlay,
+      .v-list-item__overlay {
+        display: none;
+      }
+
+      // spacer between icon and text (Vuetify default is 32px)
+      .v-list-item__spacer {
+        width: 12px;
+      }
+
+      .v-list-item__prepend > .v-icon {
+        font-size: 20px;
+        opacity: 0.85;
+      }
+
+      .v-list-item-title {
+        font-size: 14px;
+        letter-spacing: 0.1px;
+      }
+
+      .v-list-item-subtitle {
+        margin-top: 1px;
+        font-size: 12px;
+        line-height: 1.3;
+        white-space: normal;
+        opacity: 0.6;
+      }
+
+      .v-list-item__append {
+        margin-inline-start: 20px;
+      }
+
+      &:hover:not(.v-list-item--disabled) {
+        background: rgba(255, 255, 255, 0.09);
+      }
+
+      // keep the focus ring neutral instead of the theme tint
+      &:focus-visible {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      &--active {
+        color: rgb(var(--v-theme-primary));
+        background: rgba(var(--v-theme-primary), 0.16);
+      }
+
+      &--disabled {
+        opacity: 0.45;
+      }
+
+      // aria-disabled item (keeps hover alive for its tooltip)
+      &.is-disabled {
+        opacity: 0.45;
+        cursor: default;
+
+        &:hover:not(.v-list-item--disabled) {
+          background: transparent;
+        }
+      }
+
+    }
+
+    .player-menu__divider,
+    .v-divider.player-menu__divider {
+      margin: 6px 8px;
+      opacity: 0.12;
+    }
+  }
+
+  .player-menu--settings {
+    // The bottom gap comes from the last section / list, so it equals the side gap instead of doubling up.
+    padding: 6px 0 0;
+    max-height: min(calc(100vh - 110px), 720px);
+    overflow-y: auto;
+
+    .player-menu__section {
+      padding: 8px 14px 4px;
+
+      &:last-child {
+        padding-bottom: 10px;
+      }
+    }
+
+    // Label on the left, controls on the right: saves a line for short controls.
+    .player-menu__section--inline {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      align-items: center;
+      column-gap: 8px;
+
+      .player-menu__label {
+        margin-bottom: 0;
+      }
+
+      .player-menu__slider--zoom {
+        padding-left: 6px;
+      }
+    }
+
+    // Foldable section header: the label, a dot when something inside is changed, and a chevron.
+    .player-menu__toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      margin-bottom: 6px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+
+      .player-menu__label {
+        margin-bottom: 0;
+      }
+
+      .v-icon {
+        margin-left: auto;
+        opacity: 0.7;
+      }
+    }
+
+    .player-menu__toggle-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .player-menu__label {
+      margin-bottom: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.9px;
+      text-transform: uppercase;
+      opacity: 0.55;
+    }
+
+    .player-menu__chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .player-menu__chip {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.07);
+      color: inherit;
+      font-size: 13px;
+      line-height: 1.2;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      &.is-active {
+        background: rgba(255, 255, 255, 0.92);
+        border-color: transparent;
+        color: #141414;
+        font-weight: 600;
+      }
+    }
+
+    .player-menu__slider {
+      display: grid;
+      grid-template-columns: 96px 1fr 44px 24px;
+      align-items: center;
+      column-gap: 8px;
+      min-height: 26px;
+
+      .v-input {
+        margin: 0;
+      }
+    }
+
+    // Ten vertical sliders side by side; the gain is above each one, the frequency below.
+    .player-menu__eq {
+      display: grid;
+      grid-template-columns: repeat(10, minmax(0, 1fr));
+      padding: 2px 0 2px;
+    }
+
+    .player-menu__eq-band {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+
+      // Vuetify gives a vertical slider a 150px minimum; the equalizer needs a short, narrow one.
+      .v-input,
+      .v-input__control,
+      .v-slider {
+        min-height: 0;
+        height: 72px;
+        flex: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .v-slider-track__background,
+      .v-slider-track__fill {
+        width: 3px;
+      }
+    }
+
+    .player-menu__eq-gain,
+    .player-menu__eq-freq {
+      font-size: 11px;
+      opacity: 0.7;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .player-menu__subtitle-delay {
+      display: grid;
+      grid-template-columns: 1fr 28px 56px 28px 28px;
+      align-items: center;
+      padding-left: 20px;
+      margin-bottom: 4px;
+    }
+
+    .player-menu__slider--zoom {
+      /* The last column is always reserved for the reset icon, so nothing shifts when it appears. */
+      grid-template-columns: 1fr 44px 28px;
+      /* Keeps the slider thumb at 100% off the left edge of the menu. */
+      padding-left: 20px;
+    }
+
+    .player-menu__slider--zoom-area {
+      grid-template-columns: 1fr 44px 28px 28px;
+      column-gap: 6px;
+    }
+
+    .player-menu__icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.07);
+      color: inherit;
+      cursor: pointer;
+      transition: background 0.15s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      &.is-hidden {
+        visibility: hidden;
+      }
+    }
+
+    .player-menu__slider-label {
+      font-size: 13px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    // Always reserves its column so every slider keeps the same width.
+    .player-menu__slider-reset {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: inherit;
+      opacity: 0.75;
+      cursor: pointer;
+      transition: opacity 0.15s ease, background-color 0.15s ease;
+
+      &:hover {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.14);
+      }
+
+      &.is-hidden {
+        visibility: hidden;
+        pointer-events: none;
+      }
+    }
+
+    .player-menu__slider-value {
+      font-size: 12px;
+      text-align: right;
+      opacity: 0.7;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .player-menu__list {
+      margin-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  .player-filter-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .player-settings__speed {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
   }
 
   .neighbor-nav {
@@ -1882,6 +2252,18 @@
     font-weight: 500;
   }
 
+  // A short value with a caption under it (zoom, subtitle delay, …): the caption goes below, not beside.
+  &--captioned {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8px 16px 8px 10px;
+    gap: 0;
+  }
+
+  &--captioned &__subtitle {
+    margin: 2px 0 0 4px;
+  }
+
   &--title {
     padding: 8px 18px 8px 10px;
     max-width: min(calc(100% - 80px), 70vw, 560px);
@@ -2048,6 +2430,11 @@
       flex: 1;
       min-width: 0;
     }
+  }
+
+  // Marks panel: the action pill takes its own row, filters wrap below it.
+  &__actions {
+    flex: 1 1 100%;
   }
 
   &__body {
