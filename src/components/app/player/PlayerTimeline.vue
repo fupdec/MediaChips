@@ -35,6 +35,7 @@
         {
           'timeline-slider--transcode': showTranscodeTimeline,
           'timeline-slider--stream': showTranscodeTimeline && timelineDisplay.showStream,
+          'timeline-slider--loading': timelineLoading,
           'timeline-slider--trim': player.trimMode,
         },
       ]"
@@ -46,6 +47,17 @@
       hide-details
     />
 
+    <div
+      v-if="player.progress_hover != null && !player.studioMode && !player.trimMode"
+      class="timeline-hover"
+      :style="{'--timeline-hover': `${player.progress_hover}%`, '--timeline-progress': `${timelineDisplay.progress}%`}"
+    >
+      <div
+        v-if="player.progress_hover > timelineDisplay.progress"
+        class="timeline-hover__range"
+      />
+      <div class="timeline-hover__dot"/>
+    </div>
     <PlayerTrimRange :controls-width="controls_width"/>
 
     <PlayerAbLoopRange/>
@@ -102,6 +114,7 @@ const {
   slider_progress,
   controls_width,
   showTranscodeTimeline,
+  timelineLoading,
   timelineDisplay,
   timelineTime,
   timelineTrackStyle,

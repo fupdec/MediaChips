@@ -1,3 +1,7 @@
+// Played part of the seek / volume bars; the inactive remainder (and loading stripes) is slimmer.
+$player-track-thickness: 6px;
+$player-track-inactive-thickness: 4px;
+
 .player {
   display: flex;
   flex-direction: column;
@@ -792,6 +796,17 @@
   .timeline-slider {
     margin: 0;
 
+    // Vuetify sizes the fill and background differently; pin them to one thickness.
+    &.v-slider.v-input--horizontal {
+      .v-slider-track__background {
+        height: $player-track-inactive-thickness;
+      }
+
+      .v-slider-track__fill {
+        height: $player-track-thickness;
+      }
+    }
+
     &--transcode {
       .v-slider-track {
         overflow: hidden;
@@ -811,6 +826,33 @@
           border-radius: inherit;
           pointer-events: none;
           transition: width 0.15s linear;
+        }
+      }
+    }
+
+    // Moving stripes over the not-yet-played part while the stream is loading.
+    &--loading {
+      .v-slider-track {
+        position: relative;
+        overflow: hidden;
+
+        &::after {
+          content: '';
+          position: absolute;
+          top: 50%;
+          height: $player-track-inactive-thickness;
+          transform: translateY(-50%);
+          left: var(--timeline-progress, 0%);
+          right: 0;
+          border-radius: inherit;
+          background: repeating-linear-gradient(
+            -45deg,
+            rgba(255, 255, 255, 0.55) 0 6px,
+            rgba(255, 255, 255, 0.18) 6px 12px
+          );
+          background-size: 17px 17px;
+          pointer-events: none;
+          animation: timeline-loading-stripes 0.7s linear infinite;
         }
       }
     }
@@ -846,6 +888,47 @@
     overflow: visible;
     &:hover .mark {
       --mark-dot-size: 12px;
+    }
+    // YouTube-style hover: lighten the track from the playhead to the pointer and show a dot there.
+    .timeline-hover {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: var(--player-timeline-track-offset, 20px);
+      height: 0;
+      z-index: 2;
+      pointer-events: none;
+
+      &__range {
+        position: absolute;
+        top: calc($player-track-inactive-thickness / -2);
+        height: $player-track-inactive-thickness;
+        left: var(--timeline-progress, 0%);
+        width: calc(var(--timeline-hover, 0%) - var(--timeline-progress, 0%));
+        border-radius: 99px;
+        background: rgba(255, 255, 255, 0.45);
+      }
+
+      &__dot {
+        position: absolute;
+        top: 0;
+        left: var(--timeline-hover, 0%);
+        width: 12px;
+        height: 12px;
+        margin: -6px 0 0 -6px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 1px 4px rgba(0, 0, 0, 0.5);
+      }
+    }
+    // Pin the seek track so its centre sits exactly --player-timeline-track-offset
+    // from the bottom (pt-4 = 16px above a 32px control => centre is 16px up from
+    // the slider's top edge); mark dots use the same offset, so they stay centred.
+    &:not(.timeline--studio):not(.timeline--trim) > .timeline-slider.v-slider.v-input--horizontal {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: calc(var(--player-timeline-track-offset, 20px) - 16px);
     }
     &.timeline--studio {
       padding-top: 8px;
@@ -1161,8 +1244,9 @@
     .timeline {
       position: absolute;
       left: 0;
-      bottom: calc(var(--player-track-height, 2px) / 2 + 2px);
-      height: var(--player-mark-range-height, 3px);
+      // Up to the top of the dot, never higher; starts 1px inside the played track for a thicker bar.
+      bottom: calc(#{$player-track-thickness} / 2 - 1px);
+      height: calc(var(--mark-dot-size) / 2 - #{$player-track-thickness} / 2 + 1px);
       min-width: 2px;
       border-radius: 99px;
       background: var(--mark-color);
@@ -2138,6 +2222,16 @@
   .volume-slider {
     background-color: rgba(255, 255, 255, 0.12);
     border-radius: 0 50px 50px 0;
+
+    &.v-slider.v-input--horizontal {
+      .v-slider-track__background {
+        height: $player-track-inactive-thickness;
+      }
+
+      .v-slider-track__fill {
+        height: $player-track-thickness;
+      }
+    }
   }
   // .hoverable {
   //   &:useHoverStore {
@@ -2801,6 +2895,12 @@
 @media (hover: none) {
   .toggle-picture-in-picture {
     display: none;
+  }
+}
+
+@keyframes timeline-loading-stripes {
+  to {
+    background-position: 17px 0;
   }
 }
 

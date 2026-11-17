@@ -97,11 +97,18 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
     })
   })
 
+  /** The stream / transcode is actively fetching: first load, a seek into unbuffered data, or a stall. */
+  const timelineLoading = computed(() => (
+    showTranscodeTimeline.value
+    && (player.value.webVideoLoading || player.value.isLiveStreamSeeking || player.value.isStreamWaiting)
+  ))
+
   const timelineTrackStyle = computed(() => {
     if (!showTranscodeTimeline.value) return undefined
 
     return {
       '--timeline-buffer': `${timelineDisplay.value.buffer}%`,
+      '--timeline-progress': `${timelineDisplay.value.progress}%`,
     }
   })
 
@@ -291,6 +298,7 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
     slider_progress,
     controls_width,
     showTranscodeTimeline,
+    timelineLoading,
     timelineDisplay,
     timelineTime,
     timelineTrackStyle,
