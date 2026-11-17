@@ -1,11 +1,8 @@
 <template>
-  <v-expansion-panels class="catalog-controls mt-2 mb-4" variant="accordion">
-    <v-expansion-panel elevation="0">
-      <v-expansion-panel-title hide-actions v-slot="{expanded}">
-        <v-icon size="16" class="catalog-controls__chevron" aria-hidden="true">{{ expanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-        <span>{{ t('sources.refresh.title') }}</span>
-      </v-expansion-panel-title>
-      <v-expansion-panel-text class="catalog-controls__body">
+  <v-dialog v-model="visible" :aria-label="t('sources.refresh.title')" max-width="640" scrollable>
+    <v-card class="catalog-controls" rounded="xl">
+      <DialogHeader :header="t('sources.refresh.title')" icon="folder-sync-outline" compact closable @close="visible = false" />
+      <v-card-text class="catalog-controls__body">
         <div class="catalog-controls__row catalog-controls__schedule">
           <v-btn color="primary" variant="tonal" size="x-small" prepend-icon="mdi-folder-sync-outline" :disabled="pending || !!running" @click="refresh">{{ t('sources.refresh.manual') }}</v-btn>
           <span class="catalog-controls__label">{{ t('sources.refresh.schedule') }}</span>
@@ -54,9 +51,9 @@
           <span class="catalog-controls__used">{{ t('sources.offline.used', {size: (usedBytes / 1024 ** 3).toFixed(2)}) }}</span>
           <v-icon size="14" class="catalog-controls__hint" :aria-label="t('sources.offline.storage_hint')" v-tooltip:top="t('sources.offline.storage_hint')" tabindex="0">mdi-information-outline</v-icon>
         </div>
-      </v-expansion-panel-text>
-    </v-expansion-panel>
-  </v-expansion-panels>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
 </template>
 <script setup lang="ts">
 import {computed, onBeforeUnmount, ref, watch} from 'vue'
@@ -64,8 +61,10 @@ import {useI18n} from 'vue-i18n'
 import {sourceCatalogApi as api} from '@/services/typedApi/sourceCatalog'
 import type {CatalogRoot, SourceJob} from '@shared/sourceCatalog'
 import {useAppStore} from '@/stores/app'
+import DialogHeader from '@/components/elements/DialogHeader.vue'
 const props = defineProps<{connectionId: string; rootKey: string; name: string}>()
 const emit = defineEmits<{updated: []}>()
+const visible = defineModel<boolean>({default: false})
 const app = useAppStore()
 const {t, te} = useI18n()
 const roots = ref<CatalogRoot[]>([])
@@ -146,15 +145,7 @@ onBeforeUnmount(() => { generation++; clearTimeout(timer) })
   min-width: 0;
   font-size: .75rem;
 
-  :deep(.v-expansion-panel) {
-    overflow: hidden;
-    border: 1px solid rgba(var(--v-theme-primary), .16);
-    border-radius: 16px !important;
-    background: rgba(var(--v-theme-primary), .03);
-    box-shadow: 0 1px 0 rgba(var(--v-theme-primary), .04), 0 8px 22px -16px rgba(0, 0, 0, .22);
-  }
-  :deep(.v-expansion-panel-title) { justify-content: flex-start; min-height: 28px; padding: 6px 10px; gap: 6px; font-size: .75rem; font-weight: 500; line-height: 1.3; }
-  .catalog-controls__body :deep(.v-expansion-panel-text__wrapper) { padding: 0; overflow-wrap: anywhere; border-top: 1px solid rgba(var(--v-theme-primary), .1); }
+  .catalog-controls__body { padding: 0; overflow-wrap: anywhere; }
   :deep(.v-field) { font-size: .75rem; --v-field-padding-start: 10px; --v-field-padding-end: 6px; }
   :deep(.v-field__input) { min-height: 28px; padding-block: 3px; line-height: 20px; }
   :deep(.v-field__append-inner) { padding-top: 0; align-items: center; }

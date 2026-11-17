@@ -32,6 +32,15 @@
         <v-btn v-if="selected" size="small" variant="text" rounded="lg" icon="mdi-delete-outline"
                :aria-label="t('sources.remove_connection')" v-tooltip:top="t('sources.remove_connection')"
                :disabled="busy || saving || editing" @click="confirmRemoval = true" />
+        <span v-if="selected?.hasCredentials" class="connection-actions-divider" role="separator" aria-orientation="vertical" />
+        <v-btn v-if="selected?.hasCredentials" size="small" variant="text" rounded="lg" icon
+               :aria-label="t('originals.title')" v-tooltip:top="t('originals.title')" :disabled="busy || saving || editing" @click="originalsOpen = true">
+          <v-icon size="18" icon="mdi-file-cog-outline" />
+        </v-btn>
+        <v-btn v-if="selected?.hasCredentials && catalogRootKey !== null" size="small" variant="text" rounded="lg" icon
+               :aria-label="t('sources.refresh.title')" v-tooltip:top="t('sources.refresh.title')" :disabled="busy || saving || editing" @click="catalogOpen = true">
+          <v-icon size="18" icon="mdi-folder-sync-outline" />
+        </v-btn>
       </div>
     </div>
     <DialogConfirm v-model:dialog="confirmRemoval" variant="delete" @confirm="removeConnection">
@@ -51,9 +60,8 @@
     <v-alert v-if="message" :type="error ? 'error' : 'success'" variant="tonal" density="compact" rounded="lg" class="nas-sources__notice">{{ message }}</v-alert>
     <v-progress-linear v-if="busy && !batchActive" indeterminate class="mt-2" rounded />
     <div v-if="!connectionsOnly && selected?.hasCredentials" class="nas-sources__browser-section">
-      <v-btn color="primary" variant="tonal" rounded="xl" size="small" prepend-icon="mdi-file-cog-outline" class="mb-1" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
       <DialogOriginalOperations v-model="originalsOpen" :media-ids="[]" :scope="{connectionId: selected.id, key: catalogRootKey || ''}" @changed="browser?.refresh()" />
-      <SourceCatalogControls v-if="selected && catalogRootKey !== null" :connection-id="selected.id" :root-key="catalogRootKey" :name="folder"
+      <SourceCatalogControls v-model="catalogOpen" v-if="selected && catalogRootKey !== null" :connection-id="selected.id" :root-key="catalogRootKey" :name="folder"
                              @updated="browser?.refresh(); sync.getItemsFromDb({ids: [], type: 'media'}); events.emit('library:nav-counts-changed')" />
       <MediaFolderBrowser
         :key="selected.id"
@@ -180,6 +188,7 @@ import {remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 
 const {t} = useI18n()
 const originalsOpen = ref(false)
+const catalogOpen = ref(false)
 const addingProcess = useRemoteMediaAddingProcess(t)
 const emit = defineEmits<{started: []}>()
 const {embedded = false, connectionsOnly = false, extensions} = defineProps<{embedded?: boolean; connectionsOnly?: boolean; extensions?: string}>()
