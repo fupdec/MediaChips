@@ -90,8 +90,8 @@
           :item-height="GROUP_HEIGHT"
           renderless
         >
-          <template #default="{ item: group, itemRef }">
-            <div :ref="itemRef" class="dup-review-group-wrap">
+          <template #default="{ item: group, ...slot }">
+            <div :ref="virtualItemRef(slot)" class="dup-review-group-wrap">
               <section class="dup-review-group">
                 <header class="dup-review-group__header">
                   <span class="dup-review-group__count">
@@ -323,6 +323,7 @@
 import {useSettingsStore} from '@/stores/settings'
 import {parseDuplicatePolicy, compareSimilarity, pickSimilarityOriginal, SIMILARITY_SIGNALS, type SimilarityItem, type SimilarityEvidence} from '@shared/duplicateSimilarity'
 import {computed, ref, watch} from 'vue'
+import type {Ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
@@ -346,6 +347,11 @@ import type {MediaDuplicateGroupsResult} from '@shared/api/responses'
 import type {MediaItem} from '@/types/stores'
 
 const GROUP_HEIGHT = 388
+
+// Vuetify types the renderless slot as a union, so `itemRef` can't be destructured directly.
+function virtualItemRef(slot: object): Ref<HTMLElement | undefined> | undefined {
+  return (slot as {itemRef?: Ref<HTMLElement | undefined>}).itemRef
+}
 const BASICS_CHUNK = 200
 
 type ReviewGroup = {

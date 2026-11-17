@@ -198,6 +198,7 @@ export function createPlayerSurfaceGestureHandlers(
       // ignore release failures
     }
 
+    const wasMultiTouch = multiTouchSeen
     if (pointers.size === 0) multiTouchSeen = false
 
     if (cancelled) {
@@ -207,10 +208,8 @@ export function createPlayerSurfaceGestureHandlers(
 
     // Only one finger / pen for gestures.
     if (pointers.size > 0) return
-    if (multiTouchSeen) {
-      multiTouchSeen = false
-      return
-    }
+    // The last finger of a pinch must not count as a swipe or a tap.
+    if (wasMultiTouch) return
 
     const isTouchLike = active.pointerType === 'touch' || active.pointerType === 'pen'
     if (!isTouchLike) return

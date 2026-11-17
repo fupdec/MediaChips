@@ -317,7 +317,7 @@ const valid = ref(false)
 const validationError = ref<string | null>(null)
 const deleting = ref(false)
 const mark_types = ref<MarkTypeItem[]>([...BASE_MARK_TYPES, TAG_MARK_TYPE] as unknown as MarkTypeItem[])
-const iconPresets = BOOKMARK_ICON_PRESETS
+const iconPresets: readonly string[] = BOOKMARK_ICON_PRESETS
 
 const arrayMetaIds = computed(() => {
   const assignedIds = sortPinnedAssignmentItems(

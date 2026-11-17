@@ -91,7 +91,8 @@ it('ignores pairs below the threshold, of another media type, or with deleted pa
   createMediaTypesRepository(db.drizzle).create({type: 'image', name: 'Image'})
   add('/local/x.mkv', {filesize: 100 * 1024 * 1024}); add('nas://x.mkv', {filesize: 100 * 1024 * 1024, oshash: 'h'})
   add('/local/y.mkv', {filesize: GB}); add('nas://y.jpg', {filesize: GB, mediaTypeId: 2, oshash: 'h'})
-  add('/local/z.mkv', {filesize: GB}); add('nas://z.mkv', {filesize: GB, oshash: 'h', deletedAt: '2026'})
+  // z differs from y by one byte: two live local cards of the same size and type are a real pair.
+  add('/local/z.mkv', {filesize: GB + 1}); add('nas://z.mkv', {filesize: GB + 1, oshash: 'h', deletedAt: '2026'})
   await worker.tick()
   expect(calledPaths()[0]).toBe('nas://first')
 })
