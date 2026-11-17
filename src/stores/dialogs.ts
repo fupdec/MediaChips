@@ -62,7 +62,12 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       mediaIds: null as number[] | null,
       filters: null as unknown[] | null,
       filtersJoin: null as 'and' | 'or' | null,
+      /** Single-file mode: only duplicates of this media item. */
+      targetMediaId: null as number | null,
+      targetName: null as string | null,
     },
+    /** Session choice shared by merge dialogs: keep unreadable files as backup copies without fingerprint checks. */
+    mergeTrustUnavailable: false,
     similarWall: {
       show: false,
       seedId: null as number | null,
@@ -290,7 +295,12 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       mediaIds?: number[] | null
       filters?: unknown[] | null
       filtersJoin?: 'and' | 'or' | null
+      targetMediaId?: number | null
+      targetName?: string | null
     }) {
+      const targetMediaId = Number(options?.targetMediaId)
+      this.duplicateReview.targetMediaId = Number.isFinite(targetMediaId) && targetMediaId > 0 ? targetMediaId : null
+      this.duplicateReview.targetName = options?.targetName || null
       this.duplicateReview.duplicatesBy = options?.duplicatesBy ?? null
       this.duplicateReview.mediaTypeId = options?.mediaTypeId == null
         ? null
@@ -313,6 +323,8 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.duplicateReview.mediaIds = null
       this.duplicateReview.filters = null
       this.duplicateReview.filtersJoin = null
+      this.duplicateReview.targetMediaId = null
+      this.duplicateReview.targetName = null
     },
     openSimilarWall(options: {
       seedId: number

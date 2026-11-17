@@ -52,10 +52,11 @@
     >
       <v-btn
         @click="showAll"
-        class="notifications-pool__action-btn"
+        class="notifications-pool__action-btn notifications-pool__action-btn--primary"
         color="primary"
-        elevation="10"
-        rounded
+        variant="flat"
+        rounded="lg"
+        height="40"
       >
         <v-icon start>mdi-bell-outline</v-icon>
         {{ t('appbar.showAllNotifications', {count: hiddenUnderCutCount}) }}
@@ -64,8 +65,9 @@
         @click="closeAll"
         class="notifications-pool__action-btn"
         color="secondary"
-        elevation="10"
-        rounded
+        variant="tonal"
+        rounded="lg"
+        height="40"
       >
         <v-icon start>mdi-notification-clear-all</v-icon>
         {{ t('appbar.closeAll') }}
@@ -136,7 +138,8 @@ const showTaskSummary = () => {
   }, 5000)
 }
 
-const notifications = computed(() => notificationsStore.getNotifications.filter(notification =>
+// While the notifications panel is open new events go straight into its list; toasts would cover it.
+const notifications = computed(() => notificationsStore.show ? [] : notificationsStore.getNotifications.filter(notification =>
   !(tasksStore.mediaAdding.dialogProcess && notification.scope === 'media-adding'),
 ))
 const tasks = computed(() => tasksStore.list)
@@ -310,17 +313,26 @@ onUnmounted(() => {
 }
 
 .notifications-pool__actions {
+  @include card.surface;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   width: var(--toast-width);
   max-width: 100%;
   margin-top: 4px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   pointer-events: all;
 }
 
 .notifications-pool__action-btn {
-  width: 100%;
+  flex: 0 0 auto;
+  letter-spacing: 0;
+  text-transform: none;
+
+  &--primary {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 }
 
 .task-summary {

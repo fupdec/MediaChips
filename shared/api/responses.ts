@@ -313,6 +313,7 @@ export interface MergeTagsResult {
 
 export interface MergeMediaResult {
   fileWarnings?: string[]
+  unavailableCopyPaths?: string[]
   survivor: {
     id: number
     path?: string | null

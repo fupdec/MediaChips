@@ -73,6 +73,7 @@ const tr = {
     processStarted: 'İşlem başladı',
     openProcessInNotifications: 'Ayrıntıları bildirim listesinde görebilirsiniz',
     activeProcessesCount: 'Etkin işlemler: {count}. Ayrıntılar bildirim listesinde',
+    activeProcessesTitle: 'Etkin işlemler: {count}',
     openNotificationsList: 'Listeyi aç',
   },
   systemBar: {
@@ -456,6 +457,8 @@ const tr = {
     more: 'Daha fazla',
     tools: 'Araçlar',
     find_similar: 'Benzerlerini bul',
+    find_duplicates: 'Kopyaları bul',
+    duplicates_by_policy: 'Bakım ayarlarına göre',
     bulk_auto_scrape: 'Seçilenler için TPDB otomatik veri çekme',
     bulk_tmdb_auto_scrape: 'Seçilenler için TMDB otomatik veri çekme',
     bulk_auto_scrape_scenes: 'TPDB sahneleri otomatik veri çekme (seçilenler)',

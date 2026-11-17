@@ -73,6 +73,7 @@ const it = {
     processStarted: 'Processo avviato',
     openProcessInNotifications: 'Puoi vedere i dettagli nell\'elenco delle notifiche',
     activeProcessesCount: 'Processi attivi: {count}. I dettagli sono nell\'elenco delle notifiche',
+    activeProcessesTitle: 'Processi attivi: {count}',
     openNotificationsList: 'Apri elenco',
   },
   systemBar: {
@@ -456,6 +457,8 @@ const it = {
     more: 'Altro',
     tools: 'Strumenti',
     find_similar: 'Trova simili',
+    find_duplicates: 'Trova duplicati',
+    duplicates_by_policy: 'Secondo le impostazioni di manutenzione',
     bulk_auto_scrape: 'Scraping automatico TPDB dei selezionati',
     bulk_tmdb_auto_scrape: 'Scraping automatico TMDB dei selezionati',
     bulk_auto_scrape_scenes: 'Scraping automatico scene TPDB (selezionati)',

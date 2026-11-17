@@ -77,6 +77,8 @@
           </div>
         </div>
         <div class="duplicates-automation">
+          <SettingsSwitch option="duplicatesCheckOnAdd" :title="t('duplicatesOnAdd.setting')"
+          :hint="t('duplicatesOnAdd.setting_hint')" data-testid="duplicates-check-on-add" class="duplicates-setting" />
           <SettingsSwitch option="copyDiscoveryOnImport" :title="t('duplicateSimilarity.onImport')"
           :hint="t('duplicateSimilarity.onImportHint')" data-testid="copy-auto-import" class="duplicates-setting" />
           <SettingsSwitch option="copyDiscoveryOnFolderUpdate" :title="t('duplicateSimilarity.onFolder')"

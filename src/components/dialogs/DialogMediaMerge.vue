@@ -56,6 +56,16 @@
           {{ t('media.dialogs.merge_media_keep_note') }}
         </v-alert>
 
+        <v-switch
+          v-model="dialogsStore.mergeTrustUnavailable"
+          color="warning"
+          density="compact"
+          hide-details="auto"
+          class="mt-3"
+          :label="t('media.dialogs.merge_trust_unavailable')"
+          :messages="dialogsStore.mergeTrustUnavailable ? [t('media.dialogs.merge_trust_unavailable_hint')] : []"
+        />
+
         <div v-if="saving" role="status" class="mt-3 text-caption">
           <v-progress-linear indeterminate class="mb-2" />
           {{ t(settings.copyVerificationSha256 === '1' ? 'copies.checking_full' : 'copies.checking') }}
@@ -139,6 +149,7 @@ async function merge() {
       survivorId: Number(survivorId.value),
       sourceIds,
       with_file: false,
+      trustUnavailable: dialogsStore.mergeTrustUnavailable,
     })
 
     const survivor = res.data.survivor

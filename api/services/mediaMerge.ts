@@ -4,7 +4,7 @@ import {parseDriveMediaPath} from '../../shared/cloudDrive'
 import {sourceOperationLocks} from './mediaSources/operationLocks'
 import {loadSimilarityItems, readDuplicatePolicy} from './duplicateSimilarity'
 import {compareSimilarity} from '../../shared/duplicateSimilarity'
-import {openCopySource, fingerprintCopy} from './mediaSources/copies'
+import {openCopySource, fingerprintCopy, TRUSTED_COPY_VERSION} from './mediaSources/copies'
 import type {SourceWriteAdapter} from './mediaSources/adapter'
 import {verifyCopiesForMerge, remapVerifiedCopies} from './mediaSources/copies'
 import {pinSourceDb} from './mediaSources/context'
@@ -55,6 +55,8 @@ export interface MergeMediaInput {
   similarity?: boolean
   confirmFileDeletion?: boolean
   deleteSourceIds?: number[]
+  /** Keep any unreadable file (including the survivor's) as a backup copy, even without a catalog fingerprint. */
+  trustUnavailable?: boolean
   signal?: AbortSignal
 }
 
@@ -94,6 +96,8 @@ export interface MergeMediaResult {
   survivor: MediaRow
   deletedIds: number[]
   fileWarnings?: string[]
+  /** Source files that could not be read; kept as unavailable backup copies, re-checked when they return. */
+  unavailableCopyPaths?: string[]
   migrated: {
     tagLinks: number
     values: number
@@ -274,16 +278,16 @@ export async function mergeMediaItems(
   const pinned = pinSourceDb(db)
   db = pinned.db
   const signal = input.signal || AbortSignal.timeout(30 * 60_000)
-  const verification = await verifyCopiesForMerge(db, [survivorId, ...sourceIds], signal, undefined, undefined, input.similarity === true)
+  const verification = await verifyCopiesForMerge(db, [survivorId, ...sourceIds], signal, undefined, undefined, input.similarity === true,
+    input.trustUnavailable ? [survivorId, ...sourceIds] : sourceIds, input.trustUnavailable === true)
   if (input.similarity) {
     const policy = readDuplicatePolicy(db)
-    if (policy.weights.oshash > 0 || policy.required.includes('oshash')) {
-      for (const copy of verification.copies) {
-        if (copy.oshash || copy.size <= 8) continue
-        const sampled = await fingerprintCopy(db, copy.path, 'oshash', signal, verification.assertUnchanged, openCopySource)
-        if (sampled.file.version !== copy.version || sampled.file.size !== copy.size) throw new MediaMergeError('source_version_changed')
-        copy.oshash = sampled.oshash
-      }
+    // Exact copies are decided by oshash, so every readable copy needs a fresh one.
+    for (const copy of verification.copies) {
+      if (copy.oshash || copy.size <= 8) continue
+      const sampled = await fingerprintCopy(db, copy.path, 'oshash', signal, verification.assertUnchanged, openCopySource)
+      if (sampled.file.version !== copy.version || sampled.file.size !== copy.size) throw new MediaMergeError('source_version_changed')
+      copy.oshash = sampled.oshash
     }
     const rows = loadSimilarityItems(db, null, [survivorId, ...sourceIds])
     // Use freshly read file evidence, not possibly stale database fingerprints.
@@ -304,7 +308,11 @@ export async function mergeMediaItems(
   if (!primaryCopy) throw new MediaMergeError('copy_not_found')
   const sameContent = (copy: typeof primaryCopy) => copy.size === primaryCopy.size && (
     copy.sha256 && primaryCopy.sha256 ? copy.sha256 === primaryCopy.sha256 : Boolean(copy.oshash && copy.oshash === primaryCopy.oshash))
-  for (const copy of verification.copies) copy.relationship = sameContent(copy) ? 'copy' : 'version'
+  // Copies kept without a fingerprint cannot be compared; the user declared them the same file.
+  const unfingerprinted = (copy: typeof primaryCopy) => copy.version === TRUSTED_COPY_VERSION
+  for (const copy of verification.copies) {
+    copy.relationship = unfingerprinted(copy) || unfingerprinted(primaryCopy) ? 'copy' : sameContent(copy) ? 'copy' : 'version'
+  }
   pinned.assertCurrent()
   const losers = db.drizzle.select().from(media).where(inArray(media.id, sourceIds)).all()
   const mediaTypesRepo = createMediaTypesRepository(db.drizzle)
@@ -338,9 +346,24 @@ export async function mergeMediaItems(
 
   // Retain every file first. A failed deletion leaves a usable, linked copy.
   const fileWarnings: string[] = []
+  // A copy is deleted only after its whole content matches the primary file: oshash samples the
+  // beginning and end, and a partially downloaded file can share both with the complete one.
+  let primarySha256: Promise<string> | undefined
+  const fullSha256 = async (path: string) => (await fingerprintCopy(db, path, 'sha256', signal, pinned.assertCurrent, openCopySource)).sha256
   for (const row of losers.filter(row => deleteIds.includes(row.id))) {
     const copy = verification.copies.find(copy => copy.path === row.path)
-    if (!copy || copy.path === primaryCopy.path) continue
+    if (!copy || copy.path === primaryCopy.path || copy.availability === 'unavailable') continue
+    if (copy.relationship === 'copy') {
+      try {
+        primarySha256 ??= primaryCopy.sha256 ? Promise.resolve(primaryCopy.sha256) : fullSha256(primaryCopy.path)
+        const expected = await primarySha256
+        const actual = copy.sha256 || await fullSha256(copy.path)
+        if (!expected || actual !== expected) { fileWarnings.push(`${copy.path}: sha256_mismatch`); continue }
+      } catch (err) {
+        primarySha256 = undefined
+        fileWarnings.push(`${copy.path}: ${apiErrorMessage(err)}`); continue
+      }
+    }
     let adapter: SourceWriteAdapter | undefined
     const sourceId = parseCloudMediaPath(copy.path)?.connectionId || parseNasMediaPath(copy.path)?.connectionId || (parseDriveMediaPath(copy.path) ? 'google-drive' : 'local')
     const lock = `${db.sqlite.name}:${sourceId}`
@@ -361,6 +384,7 @@ export async function mergeMediaItems(
     finally { adapter?.close(); sourceOperationLocks.delete(lock) }
   }
   if (fileWarnings.length) result.fileWarnings = fileWarnings
+  if (verification.unavailablePaths.length) result.unavailableCopyPaths = verification.unavailablePaths
 
   invalidateMediaDerivedCaches()
   return result

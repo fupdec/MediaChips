@@ -1,4 +1,4 @@
-import {listSimilarityGroups} from './duplicateSimilarity'
+import {listSimilarityGroups, findSimilarityGroupForTarget} from './duplicateSimilarity'
 import type {SimilarityEvidence} from '../../shared/duplicateSimilarity'
 import type {VisualMatchEvidence} from './visualHashSimilarity'
 import type {ApiDb} from '../types/db'
@@ -22,6 +22,8 @@ export type ListMediaDuplicateGroupsInput = {
   mediaTypeId?: number | null
   /** When set, only group within this candidate set (filtered grid / list scope). */
   mediaIds?: number[] | null
+  /** When set, return only groups containing this item, searched across the whole DB of its media type. */
+  targetMediaId?: number | null
 }
 
 const MAX_GROUPS = 1000
@@ -157,6 +159,7 @@ function listVisualDuplicateGroups(
   db: ApiDb,
   mediaTypeId?: number | null,
   mediaIds?: number[] | null,
+  targetMediaId?: number | null,
 ): MediaDuplicateGroup[] {
   const scopedIds = normalizeMediaIds(mediaIds)
   if (scopedIds != null && !scopedIds.length) return []
@@ -165,6 +168,7 @@ function listVisualDuplicateGroups(
     candidateIds: scopedIds,
   })
   return clusters
+    .filter((cluster) => targetMediaId == null || cluster.ids.includes(targetMediaId))
     .slice(0, MAX_GROUPS)
     .map((cluster, index) => ({
       key: String(cluster.hash || `visual-${index}`),
@@ -175,11 +179,68 @@ function listVisualDuplicateGroups(
     .filter((group) => group.itemIds.length >= 2)
 }
 
+/** SQL for the exact-value duplicates of one media item (same column value, same media type). */
+export function buildTargetExactDuplicatesSql(duplicatesBy: string): string {
+  const column = resolveDuplicateColumn(duplicatesBy)
+  const valueNotEmpty = column === 'filesize'
+    ? 'target.filesize > 0'
+    : `target.${column} IS NOT NULL AND target.${column} != ''`
+  return `
+    SELECT CAST(target.${column} AS TEXT) AS key, other.id AS id
+    FROM media AS target
+    JOIN media AS other
+      ON other.${column} = target.${column}
+     AND other.mediaTypeId = target.mediaTypeId
+    WHERE target.id = :targetId
+      AND ${valueNotEmpty}
+    ORDER BY other.id
+  `
+}
+
+function listDuplicateGroupsForTarget(
+  db: ApiDb,
+  duplicatesBy: string,
+  targetId: number,
+  mediaTypeId?: number | null,
+): MediaDuplicateGroup[] {
+  const target = queryAll<{mediaTypeId?: number | null}>(
+    db,
+    'SELECT media.mediaTypeId AS mediaTypeId FROM media WHERE media.id = :targetId',
+    {targetId},
+  )[0]
+  if (!target) return []
+  const typeId = Number(target.mediaTypeId ?? mediaTypeId)
+  const resolvedTypeId = Number.isFinite(typeId) && typeId > 0 ? typeId : null
+
+  const withTargetFirst = (group: MediaDuplicateGroup): MediaDuplicateGroup => ({
+    ...group,
+    itemIds: [targetId, ...group.itemIds.filter((id) => id !== targetId)],
+  })
+
+  if (duplicatesBy === 'similarity') {
+    // The policy's original leads the group; it is the suggested survivor.
+    const group = findSimilarityGroupForTarget(db, targetId)
+    return group ? [group] : []
+  }
+  if (isVisualDuplicatesMode(duplicatesBy)) {
+    return listVisualDuplicateGroups(db, resolvedTypeId, null, targetId).map(withTargetFirst)
+  }
+
+  const rows = queryAll<{key?: string, id?: number}>(db, buildTargetExactDuplicatesSql(duplicatesBy), {targetId})
+  const itemIds = parseGroupedIdCsv(rows.map((row) => row.id).join(','))
+  if (itemIds.length < 2) return []
+  return [withTargetFirst({key: String(rows[0]?.key ?? targetId), itemIds})]
+}
+
 export function listMediaDuplicateGroups(
   db: ApiDb,
   input: ListMediaDuplicateGroupsInput,
 ): {groups: MediaDuplicateGroup[]} {
   const duplicatesBy = String(input.duplicatesBy || 'filesize')
+  const targetMediaId = Number(input.targetMediaId)
+  if (Number.isFinite(targetMediaId) && targetMediaId > 0) {
+    return {groups: listDuplicateGroupsForTarget(db, duplicatesBy, targetMediaId, input.mediaTypeId)}
+  }
   const mediaIds = normalizeMediaIds(input.mediaIds)
   if (duplicatesBy === 'similarity') return {groups: listSimilarityGroups(db, input.mediaTypeId, mediaIds)}
   const groups = isVisualDuplicatesMode(duplicatesBy)

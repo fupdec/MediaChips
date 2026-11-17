@@ -42,6 +42,7 @@ import registerWatchedFolder from '../../api/routes/WatchedFolder.routes'
 import registerCloudDrive from '../../api/routes/CloudDrive.routes'
 import registerSourceCatalog from '../../api/routes/SourceCatalog.routes'
 import registerCopyDiscovery from '../../api/routes/CopyDiscovery.routes'
+import registerDuplicatesOnAdd from '../../api/routes/DuplicatesOnAdd.routes'
 import registerOriginalOperations from '../../api/routes/OriginalOperations.routes'
 import registerNas from '../../api/routes/Nas.routes'
 import { isSfwBuild } from '../../shared/buildFlags'
@@ -236,6 +237,7 @@ export async function registerApiRoutes(
   }
 
   registerCloudMetadataBackfill(app, db)
+  registerDuplicatesOnAdd(app, db)
   return routeLoadErrors
 }
 

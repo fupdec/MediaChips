@@ -374,13 +374,15 @@ export default function useItemContextMenu(
           action: () => openCardAction(entry.kind),
         })
       }
-      contextMenu.push({
+      // Order: Edit, Tools, Manage file, divider, Find similar/duplicates, divider.
+      // Appended once all submenus are built (see below).
+      const manageFileEntry: ItemContextMenuEntry = {
         name: t('context_menu.manage_file'),
         type: 'menu',
         icon: 'file-cog-outline',
         disabled: selectionEmpty,
         menu: fileMenu,
-      })
+      }
 
       toolsMenu.push({
         name: t('context_menu.parse_tags_in_path'),
@@ -456,9 +458,28 @@ export default function useItemContextMenu(
         })
       }
 
-      if (toolsMenu.length || similarMenu.length) {
-        contextMenu.push({type: 'divider'})
+      // One entry using the shared similarity policy (exact copies, pending, other versions).
+      // Legacy per-field modes (path / size / fingerprint / visual hash) stay in the app bar and Settings.
+      const duplicatesEntry: ItemContextMenuEntry | null = isMediaPageItem(item, type)
+        ? {
+          name: t('context_menu.find_duplicates'),
+          type: 'item' as const,
+          icon: 'content-duplicate',
+          // Seed is the right-clicked item (also available while multi-selecting).
+          action: () => findDuplicatesOfItem('similarity'),
+        }
+        : null
+
+      const similarGroup: ItemContextMenuEntry[] = []
+      if (similarMenu.length) {
+        similarGroup.push({
+          name: t('context_menu.find_similar'),
+          type: 'menu',
+          icon: 'compare',
+          menu: similarMenu,
+        })
       }
+      if (duplicatesEntry) similarGroup.push(duplicatesEntry)
       if (toolsMenu.length) {
         contextMenu.push({
           name: t('context_menu.tools'),
@@ -467,14 +488,11 @@ export default function useItemContextMenu(
           menu: toolsMenu,
         })
       }
-      if (similarMenu.length) {
-        contextMenu.push({
-          name: t('context_menu.find_similar'),
-          type: 'menu',
-          icon: 'compare',
-          menu: similarMenu,
-        })
+      contextMenu.push(manageFileEntry)
+      if (similarGroup.length) {
+        contextMenu.push({type: 'divider'}, ...similarGroup)
       }
+      contextMenu.push({type: 'divider'})
 
       if (canSceneAutoScrape && isMediaPageItem(item, type) && !isSelectMode()) {
         contextMenu.push({
@@ -770,6 +788,18 @@ export default function useItemContextMenu(
     } else if (isTagPageItem(item, type) && meta) {
       dialogsStore.editTag(item, meta)
     }
+  }
+
+  const findDuplicatesOfItem = (mode: string): void => {
+    if (!isMediaPageItem(item, type)) return
+    const mediaTypeId = Number(item.mediaTypeId || itemsStore.environment?.media_type_id)
+    const itemPath = mediaPageItemPath(item, type)
+    dialogsStore.openDuplicateReview({
+      mediaTypeId: Number.isFinite(mediaTypeId) && mediaTypeId > 0 ? mediaTypeId : null,
+      duplicatesBy: mode,
+      targetMediaId: Number(item.id),
+      targetName: item.name || (itemPath ? path.basename(itemPath) : null),
+    })
   }
 
   const duplicateTagItem = (): void => {

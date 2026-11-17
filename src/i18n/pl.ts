@@ -73,6 +73,7 @@ const pl = {
     processStarted: 'Proces rozpoczęty',
     openProcessInNotifications: 'Szczegóły znajdziesz na liście powiadomień',
     activeProcessesCount: 'Aktywne procesy: {count}. Szczegóły na liście powiadomień',
+    activeProcessesTitle: 'Aktywne procesy: {count}',
     openNotificationsList: 'Otwórz listę',
   },
   systemBar: {
@@ -456,6 +457,8 @@ const pl = {
     more: 'Więcej',
     tools: 'Narzędzia',
     find_similar: 'Znajdź podobne',
+    find_duplicates: 'Znajdź duplikaty',
+    duplicates_by_policy: 'Według ustawień konserwacji',
     bulk_auto_scrape: 'Automatyczne pobieranie z TPDB (zaznaczone)',
     bulk_tmdb_auto_scrape: 'Automatyczne pobieranie z TMDB (zaznaczone)',
     bulk_auto_scrape_scenes: 'Automatyczne pobieranie scen z TPDB (zaznaczone)',

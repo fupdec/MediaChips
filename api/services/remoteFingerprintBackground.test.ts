@@ -9,6 +9,7 @@ import {createMediaRepository} from '../db/repositories/media'
 import {createMediaTypesRepository} from '../db/repositories/mediaTypes'
 import {createSettingsRepository} from '../db/repositories/settings'
 import {createRemoteFingerprintBackground, REMOTE_OSHASH_SETTING} from './remoteFingerprintBackground'
+import {DUPLICATE_POLICY_SETTING} from '../../shared/duplicateSimilarity'
 import type {ApiDb} from '../types/db'
 let fixture: TestDb, db: ApiDb
 let worker: ReturnType<typeof createRemoteFingerprintBackground>
@@ -72,4 +73,36 @@ it.each(['nas', 'gdrive'])('groups a %s import with an older local card by finge
   const {groups} = listMediaDuplicateGroups(db, {duplicatesBy: 'oshash', mediaTypeId: 1})
   expect(groups).toHaveLength(1)
   expect(groups[0].itemIds).toEqual(expect.arrayContaining([local.id, remote.id]))
+})
+
+const GB = 1024 ** 3
+const calledPaths = () => (backfill.mock.calls as unknown as [unknown, {path: string}][]).map(call => call[1].path)
+it('hashes large same-size pairs first, largest first, before the id-ordered queue', async () => {
+  for (let i = 0; i < 6; i++) add(`nas://small-${i}`)
+  add('nas://lonely-big', {filesize: 9 * GB})
+  add('/local/a.mkv', {filesize: 2 * GB}); add('gdrive://a-copy.mkv', {filesize: 2 * GB})
+  add('/local/b.mkv', {filesize: 4 * GB}); add('onedrive://b-copy.mkv', {filesize: 4 * GB, oshash: 'known'})
+  await worker.tick()
+  // b-copy already has a fingerprint; its partner still gets hashed so the pair can be confirmed.
+  expect(calledPaths()).toEqual(['/local/b.mkv', '/local/a.mkv', 'gdrive://a-copy.mkv', 'nas://small-0'])
+})
+it('ignores pairs below the threshold, of another media type, or with deleted partners', async () => {
+  add('nas://first')
+  createMediaTypesRepository(db.drizzle).create({type: 'image', name: 'Image'})
+  add('/local/x.mkv', {filesize: 100 * 1024 * 1024}); add('nas://x.mkv', {filesize: 100 * 1024 * 1024, oshash: 'h'})
+  add('/local/y.mkv', {filesize: GB}); add('nas://y.jpg', {filesize: GB, mediaTypeId: 2, oshash: 'h'})
+  add('/local/z.mkv', {filesize: GB}); add('nas://z.mkv', {filesize: GB, oshash: 'h', deletedAt: '2026'})
+  await worker.tick()
+  expect(calledPaths()[0]).toBe('nas://first')
+})
+it('can be disabled through the duplicate policy', async () => {
+  createSettingsRepository(db.drizzle).upsertByOption(DUPLICATE_POLICY_SETTING, JSON.stringify({sizeCandidateMinBytes: 0}))
+  add('nas://first'); add('/local/a.mkv', {filesize: GB}); add('gdrive://a.mkv', {filesize: GB})
+  await worker.tick()
+  expect(calledPaths()).toEqual(['nas://first', '/local/a.mkv', 'gdrive://a.mkv'])
+})
+it('does not retry a failed priority candidate in the same session', async () => {
+  add('/local/a.mkv', {filesize: GB}); add('gdrive://a.mkv', {filesize: GB, oshash: 'h'})
+  await worker.tick(); await worker.tick()
+  expect(calledPaths().filter(path => path === '/local/a.mkv')).toHaveLength(1)
 })
