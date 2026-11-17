@@ -2264,6 +2264,27 @@
     margin: 2px 0 0 4px;
   }
 
+  &--detailed {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px 16px 8px 10px;
+    max-width: min(calc(100% - 80px), 70vw, 520px);
+  }
+
+  &__details {
+    margin: 4px 0 0 4px;
+    font-size: 12px;
+    line-height: 1.35;
+    opacity: 0.8;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   &--title {
     padding: 8px 18px 8px 10px;
     max-width: min(calc(100% - 80px), 70vw, 560px);

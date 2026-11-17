@@ -27,6 +27,8 @@ export const usePlayerStore = defineStore('player', {
     statusSubtitleKey: null as string | null,
     statusProgress: null as number | null,
     statusLarge: false,
+    statusColor: null as string | null,
+    statusDetails: null as string | null,
     backgroundStatusText: '',
     backgroundStatusIcon: '',
     statusTimeout: -1 as TimeoutHandle | number,
@@ -263,12 +265,16 @@ export const usePlayerStore = defineStore('player', {
       subtitleKey = null,
       progress = null,
       large = false,
+      color = null,
+      details = null,
     }: {
       text: string
       icon: string
       subtitleKey?: string | null
       progress?: number | null
       large?: boolean
+      color?: string | null
+      details?: string | null
     }) {
       clearTimeout(this.statusTimeout as TimeoutHandle)
       this.statusText = text
@@ -276,12 +282,16 @@ export const usePlayerStore = defineStore('player', {
       this.statusSubtitleKey = subtitleKey
       this.statusProgress = progress
       this.statusLarge = large
+      this.statusColor = color
+      this.statusDetails = details
       this.statusTimeout = setTimeout(() => {
         this.statusText = ''
         this.statusIcon = ''
         this.statusSubtitleKey = null
         this.statusProgress = null
         this.statusLarge = false
+        this.statusColor = null
+        this.statusDetails = null
       }, 3000)
     },
     setBackgroundStatus({ text, icon }: { text: string; icon: string }) {

@@ -171,6 +171,8 @@
             :class="{
               'status-text--timed': player.statusProgress != null,
               'status-text--title': player.statusLarge,
+              'status-text--detailed': !!player.statusDetails,
+              'status-text--captioned': !!player.statusSubtitleKey && player.statusProgress == null,
             }"
           >
             <div class="status-text__content">
@@ -178,6 +180,7 @@
                 v-if="player.displayStatusIcon && player.statusProgress == null"
                 dark
                 start
+                :style="player.statusColor ? {color: player.statusColor} : undefined"
               >
                 mdi-{{ player.displayStatusIcon }}
               </v-icon>
@@ -190,6 +193,9 @@
                 class="status-text__progress-fill"
                 :style="{width: `${player.statusProgress}%`}"
               />
+            </div>
+            <div v-if="player.statusDetails" class="status-text__details">
+              {{ player.statusDetails }}
             </div>
             <div v-if="player.statusSubtitleKey" class="status-text__subtitle">
               {{ t(player.statusSubtitleKey) }}

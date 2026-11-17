@@ -13,6 +13,8 @@ import {useRegistrationStore} from '@/stores/registration'
 import {useSettingsStore} from '@/stores/settings'
 import {useEventBus} from '@/utils/eventBus'
 import {buildMarkPayload} from '@/utils/markAdding'
+import {formatMarkTimeRange, getMarkTimelineColor, getMarkTimelineIcon} from '@/composable/playerMarkDisplay'
+import {getReadableDuration} from '@/services/formatUtils'
 import {getMarkImagePath} from '@/utils/markThumb'
 import {saveWebVideoCurrentFrame} from '@/services/webVideoFrames'
 import {invalidateFileExistsCache} from '@/services/fileService'
@@ -488,6 +490,26 @@ export function usePlayerSession() {
     updateItemVideo(video.value.id)
   }
 
+  const getMarkStatusInfo = (mark: PlayerMark | null | undefined, fallback: {icon: string}) => {
+    if (!mark) return {icon: fallback.icon, color: null as string | null, details: null as string | null}
+    const typeLabel = mark.type === 'favorite'
+      ? t('meta.default_names.favorite')
+      : mark.type === 'meta'
+        ? t('player.mark_dialog.tag_type')
+        : t('meta.default_names.bookmark')
+    const title = mark.type === 'meta'
+      ? (mark.tag?.name || mark['tag.name'] || '')
+      : (mark.text || '')
+    const head = [typeLabel, String(title || '').trim()].filter(Boolean).join(' · ')
+    const time = formatMarkTimeRange(mark, (duration) => getReadableDuration(duration))
+    const videoName = video.value?.name || ''
+    return {
+      icon: getMarkTimelineIcon(mark) === 'tooltip' ? 'tag' : getMarkTimelineIcon(mark),
+      color: getMarkTimelineColor(mark),
+      details: [`${head} · ${time}`, videoName].filter(Boolean).join('\n'),
+    }
+  }
+
   const addMark = async (data: Record<string, unknown> = {}) => {
     if (!video.value?.id) return
 
@@ -533,10 +555,6 @@ export function usePlayerSession() {
         } catch (thumbError) {
           console.warn('Failed refreshing mark thumb after edit', thumbError)
         }
-        playerStore.changePlayerStatusText({
-          text: t('player.mark_updated'),
-          icon: 'content-save',
-        })
       } else {
         const created = await typedApi.createMark(mark)
         savedId = Number(created.data?.id) || null
@@ -554,13 +572,19 @@ export function usePlayerSession() {
           await addTagToMedia(mark.tagId, Number(adding.meta?.id) || undefined)
         }
 
-        playerStore.changePlayerStatusText({
-          text: t('player.mark_added'),
-          icon: 'tooltip-plus',
-        })
       }
 
       await getMarks(video.value)
+      const savedMark = savedId != null
+        ? playerStore.marks.find((item) => Number(item.id) === savedId)
+        : null
+      const status = getMarkStatusInfo(savedMark, {icon: isEditing ? 'content-save' : 'tooltip-plus'})
+      playerStore.changePlayerStatusText({
+        text: t(isEditing ? 'player.mark_updated' : 'player.mark_added'),
+        icon: status.icon,
+        color: status.color,
+        details: status.details,
+      })
       if (playerStore.studioMode) {
         const saved = savedId != null
           ? playerStore.marks.find((item) => Number(item.id) === savedId)
