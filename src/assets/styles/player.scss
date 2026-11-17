@@ -854,6 +854,44 @@
         z-index: 2;
       }
     }
+    .timeline-ab-loop {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 16px;
+      height: 32px;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .timeline-ab-loop__range {
+      position: absolute;
+      top: 10px;
+      bottom: 10px;
+      border-radius: 3px;
+      background: rgba(var(--v-theme-primary), 0.45);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    }
+    .timeline-ab-loop__tick {
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      margin-left: -1px;
+      border-radius: 1px;
+      background: rgba(255, 255, 255, 0.92);
+
+      span {
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        color: #fff;
+        text-shadow: 0 0 3px #000;
+      }
+    }
     .timeline-trim {
       position: absolute;
       left: 0;
