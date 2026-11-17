@@ -53,7 +53,15 @@
         </button>
       </template>
 
-      <span class="items-pagination__total">/ {{ pages }}</span>
+      <button
+        v-if="page < pages"
+        type="button"
+        class="items-pagination__page items-pagination__last"
+        :aria-label="`Page ${pages}`"
+        @click="go(pages)"
+      >
+        / {{ pages }}
+      </button>
 
       <v-btn
         icon="mdi-chevron-right"
@@ -163,10 +171,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
     display: inline-flex;
     align-items: center;
     max-width: 100%;
-    padding: 2px 4px;
+    gap: 2px;
+    padding: 6px;
     border-radius: 999px;
     background: rgba(var(--v-theme-on-surface), 0.05);
     box-shadow: inset 0 0 0 1px rgba(var(--v-theme-on-surface), 0.07);
+  }
+
+  // Round icon buttons: same width and height regardless of global .v-btn rules.
+  &__pill :deep(.v-btn--icon) {
+    flex: 0 0 auto;
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border-radius: 50%;
   }
 
   &__page {
@@ -214,11 +234,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
     text-align: center;
   }
 
-  &__total {
-    margin: 0 4px 0 6px;
+  &__last {
+    margin: 0 4px 0 2px;
     color: rgba(var(--v-theme-on-surface), 0.45);
-    font-size: 0.85rem;
-    font-variant-numeric: tabular-nums;
   }
 }
 </style>
