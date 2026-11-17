@@ -4360,7 +4360,6 @@ body > .video-preview-container.video-preview-container--expanded {
     .nested-value-chip {
       min-width: 1.9em;
       justify-content: center;
-      font-weight: 600;
       font-variant-numeric: tabular-nums;
     }
 
@@ -4681,6 +4680,7 @@ body > .video-preview-container.video-preview-container--expanded {
     -webkit-backdrop-filter: blur(16px) saturate(160%);
 
     .text {
+      filter: saturate(0.55) brightness(0.9);
       font-size: 0.72em;
       font-weight: 800;
       letter-spacing: 0.05em;
@@ -4696,6 +4696,55 @@ body > .video-preview-container.video-preview-container--expanded {
       padding: 0.12em 0.35em 0.3em;
       background: rgba(20, 22, 30, 0.5);
     }
+  }
+}
+
+// Resolution label as a colored dot while the card is not hovered; the full
+// two-tone badge (quality tag + height) appears on hover. Touch devices have
+// no hover, so they keep the compact dot.
+.item-media .resolution--dot {
+  --res-color: rgb(236, 197, 22);
+
+  &[data-quality='sd'] { --res-color: #db8e6b; }
+  &[data-quality='hd'] { --res-color: #e2e2e2; }
+  &[data-quality='fhd'] { --res-color: #ffee00; }
+  &[data-quality='uhd'] { --res-color: #00ffff; }
+  &[data-quality='vert'] { --res-color: #e674b6; }
+
+  .resolution__dot {
+    display: block;
+    width: calc(var(--chip-font) * 0.85);
+    height: calc(var(--chip-font) * 0.85);
+    margin: calc(var(--chip-font) * 0.15);
+    border-radius: 50%;
+    background: var(--res-color);
+    filter: saturate(0.55) brightness(0.9);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  }
+
+  // Dot only: hide the badge parts and drop the clipping/rounding of the badge.
+  &:not(.resolution--full) {
+    border-radius: 50%;
+    opacity: 1;
+
+    .text,
+    .value {
+      display: none;
+    }
+  }
+}
+
+.item-media:hover .resolution--dot {
+  border-radius: 0.65em;
+  opacity: 0.9;
+
+  .resolution__dot {
+    display: none;
+  }
+
+  .text,
+  .value {
+    display: block;
   }
 }
 

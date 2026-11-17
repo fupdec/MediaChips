@@ -90,8 +90,10 @@
 
       <div
         v-if="!isCompactHost && !isImageOnlyView && hasResolution && settingsStore.show_thumb_resolution === '1'"
-        class="resolution"
+        class="resolution resolution--dot"
+        :data-quality="quality.toLowerCase()"
       >
+        <span class="resolution__dot" aria-hidden="true" />
         <div :class="quality.toLowerCase()"
           class="text">
           {{ quality }}

@@ -163,8 +163,7 @@
             v-for="i in category.items"
             :key="`${i.name}_${item.id}`"
             class="nested-value-chip"
-            :label="settingsStore.show_default_meta_label == '1'"
-            :variant="defaultMetaChipVariant"
+            v-bind="getValueChipBind(i)"
             :title="formatMetaValue(i)"
             :text="formatMetaValue(i)"
           ></v-chip>
@@ -228,8 +227,7 @@
         <v-chip
           v-else
           class="nested-value-chip"
-          :label="settingsStore.show_default_meta_label == '1'"
-          :variant="defaultMetaChipVariant"
+          v-bind="getValueChipBind(entry.data)"
           :prepend-icon="`mdi-${entry.data.icon}`"
           :title="formatMetaValue(entry.data)"
           :text="formatMetaValue(entry.data)"
@@ -482,6 +480,20 @@ const getTagChipBind = (tag: TagWithMeta) => {
       tag.fromFolder ? 'tag-chip--from-folder' : undefined,
       active ? 'active-chip' : undefined,
     ].filter(Boolean).join(' ') || undefined,
+  }
+}
+
+/**
+ * Custom value metas (e.g. custom ratings) get the same colors as tag chips
+ * that have no color (muted surface tint, regular text). Shape stays as before.
+ */
+const getValueChipBind = (_meta: Meta) => {
+  const muted = props.mutedTags && settingsStore.mute_card_tag_colors !== '0'
+  return {
+    label: settingsStore.show_default_meta_label == '1',
+    variant: muted ? 'flat' as ChipVariant : (toChipVariant(_meta?.chipVariant) ?? 'tonal'),
+    style: muted ? {'--card-tag-accent': 'rgb(var(--v-theme-on-surface))'} : undefined,
+    class: muted ? 'tag-chip--muted' : undefined,
   }
 }
 
