@@ -1,5 +1,6 @@
 <template>
-  <v-btn v-if="!player.webVideoLoading" @click="togglePause"
+  <v-btn @click="!player.webVideoLoading && togglePause()"
+      :disabled="player.webVideoLoading"
       icon
       variant="tonal"
       :density="density"
@@ -21,7 +22,7 @@
       class="px-0 ml-3 neighbor-nav">
       <v-btn
         v-if="!isPrevDisabled"
-        @click="prev"
+        @click="prev()"
         @mouseenter="prevHover = true"
         @mouseleave="prevHover = false"
         class="neighbor-nav__btn neighbor-nav__btn--prev"
@@ -56,7 +57,7 @@
 
       <v-btn
         v-if="!isNextDisabled"
-        @click="next"
+        @click="next()"
         @mouseenter="nextHover = true"
         @mouseleave="nextHover = false"
         class="neighbor-nav__btn neighbor-nav__btn--next"
