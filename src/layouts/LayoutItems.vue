@@ -1279,16 +1279,9 @@ defineEmits<{
 </script>
 
 <style lang="scss">
-.items-page-grid:not(.items-virtual-grid) :deep(.item) {
-  content-visibility: auto;
-  /* Prefer a tall estimate: undersized intrinsic size makes cards jump when painted. */
-  contain-intrinsic-size: auto 360px;
-}
-
-.items-page-grid:not(.items-virtual-grid) :deep(.item-view-5) {
-  /* List rows are much shorter than cards — match their real height. */
-  contain-intrinsic-size: auto 90px;
-}
+/* Paged (non-virtual) grid: no content-visibility — skipped cards used a fixed
+   intrinsic-size estimate, so real heights caused layout jumps and thumb flicker
+   while scrolling. A page is small enough to render fully. */
 
 .items-group-header {
   flex: 0 0 100%;
