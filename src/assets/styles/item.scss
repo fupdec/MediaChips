@@ -151,7 +151,9 @@
       height: 100%;
       left: 0;
       top: 0;
-      border-radius: 16px;
+      // Same radius as .v-card / .item_preview so the 1px pink ring (drawn
+      // outside this box) stays concentric with the poster corners.
+      border-radius: 17px;
       pointer-events: none;
       box-shadow: 0px 2px 8px 3px rgba(255, 0, 75, 0.25), 0 0 0 1px #ff004b;
     }
@@ -4508,4 +4510,194 @@ body > .video-preview-container.video-preview-container--expanded {
     color: rgba(var(--v-theme-primary), 0.35);
     user-select: none;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Card overlays polish: rating stars, duration, resolution.
+// Shared "glass" chip look (dark translucent + blur + hairline border).
+// Everything is sized from --chip-font, which grows with the card size
+// (item__size-1..6) so chips stay proportional to the poster.
+// ---------------------------------------------------------------------------
+.item {
+  --chip-glass-bg: rgba(14, 14, 20, 0.58);
+  --chip-glass-border: rgba(255, 255, 255, 0.14);
+  --chip-star-on: #ffc83d;
+  --chip-star-off: rgba(255, 255, 255, 0.32);
+  --chip-unit: 10px;
+  --chip-font: calc(var(--chip-unit) * 0.7 + 3.5px);
+  --chip-gap: calc(var(--chip-font) * 0.4);
+
+  &.item__size-1 { --chip-unit: 7px; }
+  &.item__size-2 { --chip-unit: 8.5px; }
+  &.item__size-3 { --chip-unit: 10px; }
+  &.item__size-4 { --chip-unit: 12.5px; }
+  &.item__size-5 { --chip-unit: 16px; }
+  &.item__size-6 { --chip-unit: 22px; }
+
+  // List rows have a small fixed-width preview: keep chips small.
+  &.item-view-5.item__size-1 { --chip-unit: 4px; }
+  &.item-view-5.item__size-2 { --chip-unit: 4.5px; }
+  &.item-view-5.item__size-3 { --chip-unit: 5px; }
+  &.item-view-5.item__size-4 { --chip-unit: 5.5px; }
+  &.item-view-5.item__size-5 { --chip-unit: 6px; }
+  &.item-view-5.item__size-6 { --chip-unit: 6.5px; }
+
+  // Rating stars on the poster: floating glass pill, bottom-left.
+  .item_preview > .rating {
+    --item-rating-icon: calc(var(--chip-font) * 1.5);
+    --item-rating-star-gap: 0px;
+    left: var(--chip-gap);
+    bottom: var(--chip-gap);
+    --chip-rating-h: calc(var(--chip-font) * 2.2 + 2px);
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    height: var(--chip-rating-h);
+    padding: 0 calc(var(--chip-font) * 0.55);
+    border-radius: 999px;
+    background: var(--chip-glass-bg);
+    border: 1px solid var(--chip-glass-border);
+    backdrop-filter: blur(8px) saturate(140%);
+    -webkit-backdrop-filter: blur(8px) saturate(140%);
+
+    .v-btn .v-icon {
+      color: var(--chip-star-off) !important;
+      text-shadow: none;
+      transition: transform 0.15s ease, color 0.15s ease, filter 0.15s ease;
+    }
+
+    .v-btn.text-yellow-darken-2 .v-icon {
+      color: var(--chip-star-on) !important;
+      filter: drop-shadow(0 0 4px rgba(255, 200, 61, 0.55));
+    }
+
+    .v-btn:hover .v-icon {
+      transform: scale(1.18);
+    }
+  }
+
+  // Compact "★ 4" badge: same glass chip, gold star.
+  .item_preview > .item-rating-badge {
+    left: var(--chip-gap);
+    bottom: var(--chip-gap);
+    box-sizing: border-box;
+    height: calc(var(--chip-font) * 2.2 + 2px);
+    padding: 0 0.75em 0 0.55em;
+    gap: 0.3em;
+    font-size: calc(var(--chip-font) * 1.1);
+    line-height: 1;
+    background: var(--chip-glass-bg);
+    border: 1px solid var(--chip-glass-border);
+    backdrop-filter: blur(8px) saturate(140%);
+    -webkit-backdrop-filter: blur(8px) saturate(140%);
+    font-variant-numeric: tabular-nums;
+
+    .v-icon {
+      font-size: 1.15em !important;
+      width: 1.15em !important;
+      height: 1.15em !important;
+      color: var(--chip-star-on);
+      filter: drop-shadow(0 0 3px rgba(255, 200, 61, 0.6));
+    }
+  }
+
+  // Favorite heart on the poster: round glass chip, top-right, same height as
+  // the rating chips. Outline is soft white; favorited is a glowing pink heart.
+  .item_preview > .fav-btn {
+    --item-fav-icon: calc(var(--chip-font) * 2.2);
+    top: var(--chip-gap);
+    right: var(--chip-gap);
+    box-sizing: content-box;
+    padding: calc(var(--chip-font) * 0.44) !important;
+    border-radius: 50%;
+    background: var(--chip-glass-bg);
+    border: 1px solid var(--chip-glass-border);
+    backdrop-filter: blur(8px) saturate(140%);
+    -webkit-backdrop-filter: blur(8px) saturate(140%);
+    text-shadow: none;
+
+    .v-selection-control:not(.v-selection-control--dirty) .v-icon {
+      color: rgba(255, 255, 255, 0.82) !important;
+    }
+
+    .v-selection-control--dirty .v-icon {
+      color: #ff4f81 !important;
+      filter: drop-shadow(0 0 4px rgba(255, 79, 129, 0.6));
+    }
+
+    // Dead-center the glyph in the circle.
+    .v-input__control,
+    .v-selection-control,
+    .v-selection-control__wrapper,
+    .v-selection-control__input {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .v-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      margin: 0;
+      text-shadow: none;
+      transition: transform 0.15s ease, color 0.15s ease;
+    }
+
+    &:hover .v-icon {
+      transform: scale(1.15);
+    }
+  }
+}
+
+.item-media {
+  // Duration: glass chip, bottom-right.
+  .duration {
+    right: var(--chip-gap);
+    bottom: var(--chip-gap);
+    padding: 0.4em 0.65em;
+    border-radius: 0.7em;
+    font-size: var(--chip-font);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    background: var(--chip-glass-bg, rgba(14, 14, 20, 0.58));
+    border: 1px solid var(--chip-glass-border, rgba(255, 255, 255, 0.14));
+    backdrop-filter: blur(8px) saturate(140%);
+    -webkit-backdrop-filter: blur(8px) saturate(140%);
+  }
+
+  // Resolution: two-tone badge (quality tag over exact height), top-left.
+  .resolution {
+    left: var(--chip-gap);
+    top: var(--chip-gap);
+    font-size: var(--chip-font);
+    border-radius: 0.65em;
+    opacity: 0.82;
+    border: 1px solid rgba(0, 0, 0, 0.35);
+
+    .text {
+      font-size: 0.72em;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      padding: 0.12em 0.35em;
+      text-transform: uppercase;
+    }
+
+    .value {
+      font-size: 0.75em;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      font-variant-numeric: tabular-nums;
+      padding: 0.12em 0.35em 0.3em;
+      background: rgba(14, 14, 20, 0.82);
+    }
+  }
+}
+
+// Smallest grid size: shrink the resolution label further.
+.item-media.item__size-1:not(.item-view-5) .resolution {
+  font-size: calc(var(--chip-font) * 0.78);
 }
