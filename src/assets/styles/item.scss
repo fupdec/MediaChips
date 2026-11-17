@@ -4519,8 +4519,8 @@ body > .video-preview-container.video-preview-container--expanded {
 // (item__size-1..6) so chips stay proportional to the poster.
 // ---------------------------------------------------------------------------
 .item {
-  --chip-glass-bg: rgba(14, 14, 20, 0.58);
-  --chip-glass-border: rgba(255, 255, 255, 0.14);
+  --chip-glass-bg: rgba(40, 42, 52, 0.28);
+  --chip-glass-border: rgba(255, 255, 255, 0.22);
   --chip-star-on: #ffc83d;
   --chip-star-off: rgba(255, 255, 255, 0.32);
   --chip-unit: 10px;
@@ -4556,9 +4556,9 @@ body > .video-preview-container.video-preview-container--expanded {
     padding: 0 calc(var(--chip-font) * 0.55);
     border-radius: 999px;
     background: var(--chip-glass-bg);
-    border: 1px solid var(--chip-glass-border);
-    backdrop-filter: blur(8px) saturate(140%);
-    -webkit-backdrop-filter: blur(8px) saturate(140%);
+    border: none;
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
 
     .v-btn .v-icon {
       color: var(--chip-star-off) !important;
@@ -4587,9 +4587,9 @@ body > .video-preview-container.video-preview-container--expanded {
     font-size: calc(var(--chip-font) * 1.1);
     line-height: 1;
     background: var(--chip-glass-bg);
-    border: 1px solid var(--chip-glass-border);
-    backdrop-filter: blur(8px) saturate(140%);
-    -webkit-backdrop-filter: blur(8px) saturate(140%);
+    border: none;
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
     font-variant-numeric: tabular-nums;
 
     .v-icon {
@@ -4611,9 +4611,9 @@ body > .video-preview-container.video-preview-container--expanded {
     padding: calc(var(--chip-font) * 0.44) !important;
     border-radius: 50%;
     background: var(--chip-glass-bg);
-    border: 1px solid var(--chip-glass-border);
-    backdrop-filter: blur(8px) saturate(140%);
-    -webkit-backdrop-filter: blur(8px) saturate(140%);
+    border: none;
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
     text-shadow: none;
 
     .v-selection-control:not(.v-selection-control--dirty) .v-icon {
@@ -4663,10 +4663,10 @@ body > .video-preview-container.video-preview-container--expanded {
     letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;
     line-height: 1;
-    background: var(--chip-glass-bg, rgba(14, 14, 20, 0.58));
-    border: 1px solid var(--chip-glass-border, rgba(255, 255, 255, 0.14));
-    backdrop-filter: blur(8px) saturate(140%);
-    -webkit-backdrop-filter: blur(8px) saturate(140%);
+    background: var(--chip-glass-bg, rgba(40, 42, 52, 0.28));
+    border: none;
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
   }
 
   // Resolution: two-tone badge (quality tag over exact height), top-left.
@@ -4675,8 +4675,10 @@ body > .video-preview-container.video-preview-container--expanded {
     top: var(--chip-gap);
     font-size: var(--chip-font);
     border-radius: 0.65em;
-    opacity: 0.82;
-    border: 1px solid rgba(0, 0, 0, 0.35);
+    opacity: 0.9;
+    border: none;
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
 
     .text {
       font-size: 0.72em;
@@ -4692,7 +4694,7 @@ body > .video-preview-container.video-preview-container--expanded {
       letter-spacing: 0.02em;
       font-variant-numeric: tabular-nums;
       padding: 0.12em 0.35em 0.3em;
-      background: rgba(14, 14, 20, 0.82);
+      background: rgba(20, 22, 30, 0.5);
     }
   }
 }
