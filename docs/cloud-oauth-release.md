@@ -100,6 +100,8 @@ HTTP acceptance suite использует настоящий локальный
 
 ## Точные внешние действия / блокеры
 
+**Решение от 18 ноября 2026 (релиз 2.0.0):** MediaChips не поставляет собственный OAuth-клиент ни для Google, ни для Microsoft, ни для Dropbox. Каждый пользователь создаёт свой клиент у провайдера (README, `DOCKER.md`, справка «Cloud and NAS»). Поэтому пункты 2–4 и 6 ниже **не блокируют 2.0.0**: проверка приложения в Google, регистрация в Microsoft Entra и publisher flow нужны только для будущего входа «без собственных ключей». Пункт 1 выполнен 16 ноября.
+
 1. Немедленно отозвать Google grant, которому принадлежали токены из public/dist, через настройки доступа Google Account. Очистить ранее собранные/разданные артефакты и их caches; при подозрении на утечку client secret перевыпустить его в Cloud Console. Не использовать найденные токены для приёмки.
 2. Google Cloud Console: выбрать проект MediaChips, включить Drive API, оформить OAuth consent/branding, support contact, privacy policy, verified domains и аудиторию. Определить production OAuth client type и flow. Зарегистрировать оба точных callback для ручного Web client. Для отдельного Desktop flow использовать Desktop client и проверить требования обмена на реальных credentials. Секрет хранить только на стороне владельца API/управляемого broker, не распространять в сборке.
 3. Согласовать необходимые Drive scopes: legacy `drive` и новые `drive.readonly`; пройти требуемую Google проверку этих scopes и выяснить применимость security assessment к выбранной инфраструктуре. Перевести consent из Testing в Production после одобрения; тестовые пользователи не подтверждают массовую доступность.
