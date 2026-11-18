@@ -109,7 +109,7 @@ Point DSM reverse proxy / HTTPS to `http://localhost:12321`. Keep WebSocket supp
 
 ## Forgot the password
 
-The password lock belongs to the active library. To reset it, create an empty `RESET_PASSWORD` file in the data volume next to `app_storage`, for example:
+The password lock belongs to the active library. To reset it, create an empty `RESET_PASSWORD` (or `RESET_PASSWORD.txt`) file in the data volume next to `app_storage`, for example:
 
 ```bash
 docker exec mediachips touch /data/RESET_PASSWORD

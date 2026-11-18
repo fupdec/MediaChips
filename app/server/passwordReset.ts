@@ -11,6 +11,9 @@ import { createSettingsRepository } from '../../api/db/repositories/settings'
  * does not know the password cannot trigger it.
  */
 const RESET_PASSWORD_FLAG = 'RESET_PASSWORD'
+// "New text document" on Windows/macOS produces a .txt; nothing else is accepted,
+// so a stray file such as RESET_PASSWORD.ts is never picked up or deleted.
+const RESET_PASSWORD_FLAG_NAMES = [RESET_PASSWORD_FLAG, `${RESET_PASSWORD_FLAG}.txt`]
 
 function getResetFlagPath(dataDir: string): string {
   return path.join(dataDir, RESET_PASSWORD_FLAG)
@@ -19,12 +22,25 @@ function getResetFlagPath(dataDir: string): string {
 function createPasswordResetWatcher(options: {db: ApiDb; dataDir: string; onReset: () => void; now?: () => number}) {
   const {db, dataDir, onReset, now = Date.now} = options
   const flagPath = getResetFlagPath(dataDir)
+  const flagPaths = RESET_PASSWORD_FLAG_NAMES.map((name) => path.join(dataDir, name))
   const CHECK_INTERVAL_MS = 1000
 
   let lastCheckAt = 0
-  // If the flag cannot be deleted (read-only mount), do not reset again for the
+  // If a flag cannot be deleted (read-only mount), do not reset again for the
   // same file — otherwise the lock would turn itself off after every new password.
-  let handledMtimeMs: number | null = null
+  let handledKey: string | null = null
+
+  function findFlags(): Array<{file: string; mtimeMs: number}> {
+    const found: Array<{file: string; mtimeMs: number}> = []
+    for (const file of flagPaths) {
+      try {
+        found.push({file, mtimeMs: fs.statSync(file).mtimeMs})
+      } catch {
+        // not there
+      }
+    }
+    return found
+  }
 
   /** Returns true when a reset was applied on this call. */
   function applyPendingReset(force = false): boolean {
@@ -32,14 +48,13 @@ function createPasswordResetWatcher(options: {db: ApiDb; dataDir: string; onRese
     if (!force && current - lastCheckAt < CHECK_INTERVAL_MS) return false
     lastCheckAt = current
 
-    let mtimeMs: number
-    try {
-      mtimeMs = fs.statSync(flagPath).mtimeMs
-    } catch {
-      handledMtimeMs = null
+    const found = findFlags()
+    if (found.length === 0) {
+      handledKey = null
       return false
     }
-    if (handledMtimeMs === mtimeMs) return false
+    const key = found.map((entry) => `${entry.file}:${entry.mtimeMs}`).join('|')
+    if (handledKey === key) return false
 
     try {
       const repo = createSettingsRepository(db.drizzle)
@@ -50,13 +65,17 @@ function createPasswordResetWatcher(options: {db: ApiDb; dataDir: string; onRese
       return false
     }
 
-    handledMtimeMs = mtimeMs
-    try {
-      fs.unlinkSync(flagPath)
-      handledMtimeMs = null
-    } catch (error) {
-      console.error(`Password was reset, but ${flagPath} could not be deleted — remove it manually:`, error)
+    handledKey = key
+    let allRemoved = true
+    for (const {file} of found) {
+      try {
+        fs.unlinkSync(file)
+      } catch (error) {
+        allRemoved = false
+        console.error(`Password was reset, but ${file} could not be deleted — remove it manually:`, error)
+      }
     }
+    if (allRemoved) handledKey = null
 
     onReset()
     console.warn(`[security] Password of the active library was reset via ${RESET_PASSWORD_FLAG}`)
@@ -66,4 +85,4 @@ function createPasswordResetWatcher(options: {db: ApiDb; dataDir: string; onRese
   return {flagPath, applyPendingReset}
 }
 
-export { RESET_PASSWORD_FLAG, getResetFlagPath, createPasswordResetWatcher }
+export { RESET_PASSWORD_FLAG, RESET_PASSWORD_FLAG_NAMES, getResetFlagPath, createPasswordResetWatcher }

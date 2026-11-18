@@ -55,6 +55,26 @@ describe('password reset flag file', () => {
     expect(upsertByOption).toHaveBeenCalledTimes(2)
   })
 
+  it('also accepts RESET_PASSWORD.txt and deletes it', () => {
+    const flag = path.join(dataDir, 'RESET_PASSWORD.txt')
+    fs.writeFileSync(flag, '')
+    const watcher = createPasswordResetWatcher({db, dataDir, onReset: vi.fn()})
+
+    expect(watcher.applyPendingReset(true)).toBe(true)
+    expect(upsertByOption).toHaveBeenCalledWith('passwordProtection', '0')
+    expect(fs.existsSync(flag)).toBe(false)
+  })
+
+  it('ignores and keeps files with other extensions', () => {
+    const stray = path.join(dataDir, 'RESET_PASSWORD.ts')
+    fs.writeFileSync(stray, 'export default {}')
+    const watcher = createPasswordResetWatcher({db, dataDir, onReset: vi.fn()})
+
+    expect(watcher.applyPendingReset(true)).toBe(false)
+    expect(upsertByOption).not.toHaveBeenCalled()
+    expect(fs.existsSync(stray)).toBe(true)
+  })
+
   it('keeps the flag when the database write fails, so it can retry', () => {
     const flag = getResetFlagPath(dataDir)
     fs.writeFileSync(flag, '')
