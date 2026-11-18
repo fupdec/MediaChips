@@ -368,14 +368,15 @@ export const useItemsStore = defineStore('items', {
       if (!playlistVideos?.length) {
         playlistVideos = [targetVideo]
 
-        const playlistSource = this.navigationItems.length > 0
-          ? this.navigationItems
-          : this.entities
-
         const targetId = Number(targetVideo?.id)
-        const targetInSource = targetId > 0 && playlistSource.some(
+        const hasTarget = (list: MediaItem[]) => targetId > 0 && list.some(
           (item) => Number(item?.id) === targetId
         )
+        // navigationItems can be stale (a later list response may omit it), so only
+        // trust it when it contains the clicked item; otherwise use the visible grid.
+        const navigationHasTarget = hasTarget(this.navigationItems)
+        const playlistSource = navigationHasTarget ? this.navigationItems : this.entities
+        const targetInSource = navigationHasTarget || hasTarget(this.entities)
 
         let resolvedFullPlaylist = false
         if (targetInSource) {
@@ -393,7 +394,7 @@ export const useItemsStore = defineStore('items', {
             duplicatesBy: getDuplicatesGroupKey(mediaType, this.duplicates_by),
             listScopeIds: this.listScopeIds,
             entities: this.entities,
-            navigationItems: this.navigationItems,
+            navigationItems: navigationHasTarget ? this.navigationItems : [],
             totalFiltered: this.totalFiltered,
           })
 

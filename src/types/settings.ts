@@ -225,6 +225,7 @@ export type SettingsState = {
   locale: string
   remoteOshashBackground: string
   copyDiscoveryOnImport: string
+  duplicatesCheckOnAdd: string
   copyDiscoveryOnFolderUpdate: string
   copyDiscoveryOnReconnect: string
   duplicateSimilarityPolicy: string
@@ -389,6 +390,7 @@ export const defaultSettingsState = (): SettingsState => ({
   locale: 'en',
   remoteOshashBackground: '1',
   copyDiscoveryOnImport: '1',
+  duplicatesCheckOnAdd: '1',
   copyDiscoveryOnFolderUpdate: '1',
   copyDiscoveryOnReconnect: '1',
   duplicateSimilarityPolicy: '',

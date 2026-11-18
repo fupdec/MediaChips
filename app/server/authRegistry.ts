@@ -1,11 +1,15 @@
 import type { ApiDb } from '../../api/types/db'
 import { createAuthService } from './auth'
 
+interface AuthServiceOptions {
+  dataDir?: string
+}
+
 let authService: ReturnType<typeof createAuthService> | null = null
 
-function initAuthService(db: ApiDb) {
+function initAuthService(db: ApiDb, options: AuthServiceOptions = {}) {
   if (!authService) {
-    authService = createAuthService(db)
+    authService = createAuthService(db, options)
   }
   return authService
 }

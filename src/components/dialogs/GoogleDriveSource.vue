@@ -37,6 +37,15 @@
         <v-btn v-if="status?.hasSavedConfiguration && !status.mock" size="small" variant="text" rounded="lg" icon="mdi-delete-outline"
                :aria-label="t('sources.remove_connection')" v-tooltip:top="t('sources.remove_connection')"
                :disabled="busy || waiting || editing" @click="confirmRemoval = true" />
+        <span v-if="status?.authenticated" class="connection-actions-divider" role="separator" aria-orientation="vertical" />
+        <v-btn v-if="status?.authenticated" size="small" variant="text" rounded="lg" icon
+               :aria-label="t('originals.title')" v-tooltip:top="t('originals.title')" :disabled="busy || waiting || editing" @click="originalsOpen = true">
+          <v-icon size="18" icon="mdi-file-cog-outline" />
+        </v-btn>
+        <v-btn v-if="status?.authenticated" size="small" variant="text" rounded="lg" icon
+               :aria-label="t('sources.refresh.title')" v-tooltip:top="t('sources.refresh.title')" :disabled="busy || waiting || editing" @click="catalogOpen = true">
+          <v-icon size="18" icon="mdi-folder-sync-outline" />
+        </v-btn>
       </div>
     </div>
     </Teleport>
@@ -71,9 +80,8 @@
         <v-btn size="small" variant="flat" color="primary" rounded="lg" prepend-icon="mdi-google-drive"
                class="google-drive-source__reconnect" :loading="waiting" :disabled="busy || waiting || editing" @click="connect()">{{ t('sources.reconnect') }}</v-btn>
       </v-alert>
-      <v-btn variant="tonal" size="small" prepend-icon="mdi-file-cog-outline" class="mb-1" @click="originalsOpen = true">{{ t('originals.title') }}</v-btn>
       <DialogOriginalOperations v-model="originalsOpen" :media-ids="[]" :scope="{connectionId: 'google-drive', key: driveFileIdFromPath(folder)}" :scope-writable="status.capabilities?.move === true" @changed="browser?.refresh()" />
-      <SourceCatalogControls connection-id="google-drive" :root-key="driveFileIdFromPath(folder)" :name="pathTitles[folder] || t('drive.title')"
+      <SourceCatalogControls v-model="catalogOpen" connection-id="google-drive" :root-key="driveFileIdFromPath(folder)" :name="pathTitles[folder] || t('drive.title')"
                              @updated="browser?.refresh(); sync.getItemsFromDb({ids: [], type: 'media'}); events.emit('library:nav-counts-changed')" />
       <MediaFolderBrowser ref="browser" v-model:path="folder" v-model:selected-paths="selectedPaths"
                           :extensions="extensions" :base-url="app.localhost || ''" :directory-loader="directoryLoader" :path-titles="pathTitles"
@@ -174,6 +182,7 @@ import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
 const {connectionsOnly = false, embedded = false, extensions} = defineProps<{connectionsOnly?: boolean; embedded?: boolean; extensions?: string; unified?: boolean; actionsTarget?: HTMLElement}>()
 const {t, te} = useI18n()
 const originalsOpen = ref(false)
+const catalogOpen = ref(false)
 const addingProcess = useRemoteMediaAddingProcess(t)
 const emit = defineEmits<{started: []}>()
 const app = useAppStore()

@@ -40,6 +40,8 @@
                       :style="{'--provider-color': providerStyle(item.value).color}" :disabled="busy" @click="selectProvider(item.value)">
                 <span class="account-editor__provider-icon"><v-icon :icon="providerStyle(item.value).icon" size="26" /></span>
                 <span class="account-editor__provider-name">{{ item.title }}</span>
+                <span v-if="item.beta" class="account-editor__provider-beta"
+                      :title="tr('Проверено на тестах, приёмка на реальных аккаунтах не завершена', 'Covered by tests; live acceptance on real accounts is not finished')">beta</span>
                 <v-icon v-if="form.provider === item.value" icon="mdi-check-circle" size="16" class="account-editor__provider-check" />
               </button>
             </div>
@@ -120,24 +122,19 @@
       <v-btn size="small" variant="flat" color="primary" rounded="lg" prepend-icon="mdi-login" :disabled="busy" @click="connect()">{{ t('sources.connect_account') }}</v-btn>
     </div>
     <template v-if="account?.authenticated">
-      <div class="d-flex ga-2 mb-2">
-        <v-btn :disabled="busy || !history.length" @click="back" icon="mdi-arrow-up" :aria-label="tr('Назад', 'Back')" />
-        <v-btn :disabled="busy" @click="selectFiles">{{ tr('Выбрать файлы', 'Select files') }}</v-btn>
-        <v-btn :disabled="busy" @click="resetFolder">{{ tr('В корень', 'Root') }}</v-btn>
-      </div>
-      <v-list>
-        <v-list-item v-for="entry in entries" :key="entry.resourceKey" :title="entry.name" :subtitle="entry.isDirectory ? '' : `${entry.size} bytes · ${entry.contentType}`" @click="entry.isDirectory ? openFolder(entry.resourceKey) : toggle(entry.resourceKey)">
-          <template #prepend>
-            <v-icon v-if="entry.isDirectory" icon="mdi-folder-outline" class="mr-3" />
-            <v-checkbox-btn v-else :model-value="selected.includes(entry.resourceKey)" :disabled="busy || !eligible(entry)" @click.stop="toggle(entry.resourceKey)" />
-          </template>
-          <template #append>
-            <v-btn v-if="!entry.isDirectory && eligible(entry)" icon="mdi-play" variant="text" :href="preview(entry.resourceKey)" target="_blank" rel="noopener" :aria-label="tr('Просмотр', 'View')" />
-          </template>
-        </v-list-item>
-      </v-list>
-      <v-btn v-if="nextPageToken" :disabled="busy" @click="load(true)">{{ tr('Ещё', 'More') }}</v-btn>
-      <footer v-if="$slots['browser-footer']" class="d-flex align-center justify-end flex-wrap ga-2 mt-1"><slot name="browser-footer" :folder-browser="exclusionBrowser"/></footer>
+      <MediaFolderBrowser ref="browser" v-model:path="browserPath" v-model:selected-paths="selectedPaths"
+                          :extensions="extensions" :base-url="app.localhost || ''" :directory-loader="loadDirectory"
+                          :path-titles="exclusionBrowser.pathTitles" :favorites-scope="exclusionBrowser.favoritesScope"
+                          :error-message="exclusionBrowser.errorMessage" :disabled="busy"
+                          :enable-folder-tags="false" select-addable-only>
+        <template v-if="$slots['browser-footer']" #footerActions><slot name="browser-footer" :folder-browser="exclusionBrowser"/></template>
+        <template #entryActions="{entry}">
+          <v-btn v-if="!entry.isDirectory && entry.addable" size="x-small" variant="plain" :rounded="0" :ripple="false" icon
+                 :href="preview(keyOfPath(entry.path))" target="_blank" rel="noopener" :aria-label="tr('Просмотр', 'View')" @click.stop>
+            <v-icon size="16" icon="mdi-play-circle-outline" />
+          </v-btn>
+        </template>
+      </MediaFolderBrowser>
     </template>
     <v-progress-linear v-if="busy" indeterminate class="my-3" />
     <v-list v-if="imported.length">
@@ -153,7 +150,8 @@ import DialogConfirm from './DialogConfirm.vue'
 import {remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 import {computed, onMounted, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {listCloudFolders} from '@/services/cloudFolderBrowse'
+import {listCloudDirectory, listCloudFolders} from '@/services/cloudFolderBrowse'
+import {expandRemoteSelection} from '@/services/remoteImportSelection'
 import type {BrowseDirectoryLoader} from '@/services/typedApi/browse'
 import {apiClient, buildApiUrl} from '@/services/apiClient'
 import {getAuthToken} from '@/services/authSession'
@@ -173,7 +171,7 @@ import OAuthPasteField from './OAuthPasteField.vue'
 import GoogleMismatchHelp from './GoogleMismatchHelp.vue'
 import {openOAuthUrl, prepareOAuthWindow, type OAuthLaunchMode} from '@/services/oauthWindow'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
-type Entry = {resourceKey: string; name: string; size: number; isDirectory: boolean; contentType: string}
+import MediaFolderBrowser from './MediaFolderBrowser.vue'
 const props = defineProps<{extensions?: string; importOptions?: RemoteImportOptions; provider?: CloudAccountInput['provider']; unified?: boolean}>()
 const sync = useItemsListSync(), events = useEventBus()
 const emit = defineEmits<{started: []}>()
@@ -184,7 +182,12 @@ const accounts = ref<CloudAccount[]>([]), accountId = ref(''), account = compute
 const visibleAccounts = computed(() => accounts.value.filter(a => !props.provider || a.provider === props.provider))
 const editingId = ref('')
 const busy = ref(false), stopping = ref(false), editing = ref(false), error = ref('')
-const entries = ref<Entry[]>([]), selected = ref<string[]>([]), folder = ref('root'), history = ref<string[]>([]), nextPageToken = ref<string>()
+// The shared folder browser works with paths (`<root>/<encoded key>/...`), the cloud API with provider keys.
+const selectedPaths = ref<string[]>([]), browserPath = ref('')
+const browser = ref<InstanceType<typeof MediaFolderBrowser>>()
+const nameByPath = new Map<string, string>(), directories = new Set<string>()
+const scanning = ref(false)
+const keyOfPath = (path: string) => decodeURIComponent(path.slice(path.lastIndexOf('/') + 1))
 const imported = ref<Array<{id: number; title: string}>>([]), processingId = ref<number>()
 const callbackUri = ref('')
 const googleJson = ref<HTMLInputElement>(), googleJsonNotice = ref(''), googleDesktop = ref(false), dragging = ref(false), copied = ref(false)
@@ -241,7 +244,8 @@ const providerStyle = (provider: string) => provider === 'onedrive'
   : provider === 'dropbox'
     ? {icon: 'mdi-dropbox', color: '#0061ff'}
     : {icon: 'mdi-google-drive', color: '#34a853'}
-const providers: {title: string; value: CloudProvider}[] = [{title: 'Google Drive', value: 'gdrive'}, {title: 'Dropbox', value: 'dropbox'}, {title: 'OneDrive', value: 'onedrive'}]
+// OneDrive and Dropbox stay beta in 2.0.0: fixture-tested, live acceptance pending (docs/onedrive-dropbox-acceptance.md).
+const providers: {title: string; value: CloudProvider; beta?: boolean}[] = [{title: 'Google Drive', value: 'gdrive'}, {title: 'Dropbox', value: 'dropbox', beta: true}, {title: 'OneDrive', value: 'onedrive', beta: true}]
 const providerName = (provider: string) => providers.find(item => item.value === provider)?.title || provider
 let controller: AbortController | undefined
 let reloadRequested = false
@@ -260,7 +264,7 @@ async function refresh() {
     managedProviders.value = config.managed || []
     accounts.value = (await apiClient.get<CloudAccount[]>('/api/cloud-accounts', {signal: controller?.signal})).data
     if (!visibleAccounts.value.some(a => a.id === accountId.value)) accountId.value = visibleAccounts.value[0]?.id || '' })
-  if (account.value?.authenticated) await load()
+  if (account.value?.authenticated) browser.value?.refresh()
 }
 function closeEditor() { editing.value = false; form.value.clientSecret = '' }
 const managedAvailable = computed(() => managedProviders.value.includes(form.value.provider))
@@ -298,7 +302,7 @@ async function create(signIn = true, managed = false) {
       : await apiClient.post<CloudAccount>('/api/cloud-accounts', input, {signal: controller?.signal})
     if (controller?.signal.aborted) return
     accountId.value = response.data.id; form.value.clientSecret = ''; editing.value = false
-    entries.value = []; selected.value = []; history.value = []; folder.value = 'root'; nextPageToken.value = undefined
+    resetFolder()
     accounts.value = [...accounts.value.filter(a => a.id !== response.data.id), response.data]
     saved = true
   })
@@ -373,19 +377,14 @@ async function deleteAccount() {
     authMessage.value = ''
     accounts.value = accounts.value.filter(item => item.id !== removed.id)
     accountId.value = visibleAccounts.value[0]?.id || ''
-    entries.value = []; selected.value = []; history.value = []; folder.value = 'root'; nextPageToken.value = undefined
+    resetFolder()
   })
-  if (accountId.value !== removed.id) await load()
 }
-async function logout() { await guarded(async () => { await apiClient.post(`${base()}/logout`); entries.value = []; selected.value = [] }); await refresh() }
-async function load(more = false) { if (!account.value?.authenticated) return; await guarded(async () => {
-  if (!more) { entries.value = []; nextPageToken.value = undefined }
-  const {data} = await apiClient.get<{entries: Entry[]; nextPageToken?: string}>(`${base()}/files`, {params: {key: folder.value, pageToken: more ? nextPageToken.value : undefined}, signal: controller?.signal})
-  entries.value = more ? [...entries.value, ...data.entries] : data.entries; nextPageToken.value = data.nextPageToken
-}) }
-async function resetFolder() { entries.value = []; selected.value = []; history.value = []; folder.value = 'root'; nextPageToken.value = undefined; await load() }
-async function openFolder(key: string) { if (busy.value) return; history.value.push(folder.value); folder.value = key; selected.value = []; await load() }
-async function back() { folder.value = history.value.pop() || 'root'; selected.value = []; await load() }
+async function logout() { await guarded(async () => { await apiClient.post(`${base()}/logout`); selectedPaths.value = [] }); await refresh() }
+function resetFolder() {
+  selectedPaths.value = []; nameByPath.clear(); directories.clear(); browserPath.value = exclusionRoot.value
+}
+watch(() => accountId.value, resetFolder)
 // Include the account and folder ancestry so identical names in different trees stay independent.
 const exclusionRoot = computed(() => `/cloud-folders/${encodeURIComponent(accountId.value)}`)
 const folderTitles = ref<Record<string, string>>({})
@@ -402,64 +401,90 @@ const exclusionBrowser = computed(() => ({
   directoryLoader: loadExclusionDirectory,
   errorMessage: (error: unknown) => remoteSourceErrorMessage(error, t),
 }))
-const folderIsExcluded = computed(() => {
-  if (!props.importOptions?.excluded) return false
-  const currentPath = [exclusionRoot.value, ...[...history.value, folder.value].slice(1).map(encodeURIComponent)].join('/')
-  return props.importOptions.excluded.split(/\r?\n/).some(line => {
-    const path = line.trim()
-    return (path === exclusionRoot.value || path.startsWith(`${exclusionRoot.value}/`))
-      && (currentPath === path || currentPath.startsWith(`${path}/`))
+/** An excluded line removes its folder and everything below it, for this account only. */
+function isExcludedPath(path: string) {
+  const excluded = props.importOptions?.excluded
+  if (!excluded) return false
+  return excluded.split(/\r?\n/).some(line => {
+    const excludedPath = line.trim()
+    return (excludedPath === exclusionRoot.value || excludedPath.startsWith(`${exclusionRoot.value}/`))
+      && (path === excludedPath || path.startsWith(`${excludedPath}/`))
   })
-})
+}
 const excludesName = computed(() => props.importOptions && remotePathExcluder(props.importOptions))
-const eligible = (entry: Entry) => !folderIsExcluded.value && !entry.isDirectory && !!mediaFileKind(entry.name)
-  && importExtensionMatcher(props.extensions)(entry.name) && !excludesName.value?.(entry.name)
-watch(() => props.importOptions, () => {
-  const allowed = new Set(entries.value.filter(eligible).map(entry => entry.resourceKey))
-  selected.value = selected.value.filter(key => allowed.has(key))
-})
-function toggle(key: string) { if (busy.value || !entries.value.some(e => e.resourceKey === key && eligible(e))) return
-  selected.value = selected.value.includes(key) ? selected.value.filter(v => v !== key) : [...selected.value, key] }
-function selectFiles() { selected.value = entries.value.filter(eligible).map(e => e.resourceKey) }
+const isAddableFile = (name: string, folderPath: string) => !isExcludedPath(folderPath) && !!mediaFileKind(name)
+  && importExtensionMatcher(props.extensions)(name) && !excludesName.value?.(name)
+function rememberEntries(result: {currentPath: string; entries: Array<{path: string; name: string; isDirectory: boolean}>}) {
+  directories.add(result.currentPath)
+  for (const entry of result.entries) {
+    nameByPath.set(entry.path, entry.name); folderTitles.value[entry.path] = entry.name
+    if (entry.isDirectory) directories.add(entry.path)
+  }
+}
+const loadDirectory: BrowseDirectoryLoader = async input => {
+  const result = await listCloudDirectory(accountId.value, exclusionRoot.value, input, {files: {addable: (file, folder) => isAddableFile(file.name, folder)}})
+  rememberEntries(result)
+  return result
+}
+// Exclusion and extension changes decide which files can be selected: reload the listing shortly after they settle.
+let relistTimer: ReturnType<typeof setTimeout> | undefined
+watch(() => props.importOptions, () => { clearTimeout(relistTimer); relistTimer = setTimeout(() => browser.value?.refresh(), 500) })
 function preview(key: string) { const query = new URLSearchParams({key}); const token = getAuthToken(); if (token) query.set('token', token); return buildApiUrl(`${base()}/stream?${query}`) }
 async function submit() {
-  const allowed = new Set(entries.value.filter(eligible).map(entry => entry.resourceKey))
-  const keys = selected.value.filter(key => allowed.has(key))
-  if (!keys.length) return
-  const accountBase = base()
+  if (!selectedPaths.value.length) return
+  const accountBase = base(), importAccountId = accountId.value
   await guarded(async () => {
-    importing.value = true; stopping.value = false; processed.value = 0; total.value = keys.length; failures.value = []
+    importing.value = true; stopping.value = false; scanning.value = true; processed.value = 0; total.value = selectedPaths.value.length; failures.value = []
     const run = addingProcess.begin({source: account.value?.name || 'Cloud', phase: 'importing', stop: () => { stopping.value = true }, retry: submit,
-      readablePath: key => entries.value.find(e => e.resourceKey === key)?.name || key,
-      snapshot: () => ({scanning: false, stopped: stopping.value, processed: processed.value, total: total.value, found: total.value,
-        skipped: 0, inLibrary: 0, remaining: selected.value.length, errors: failures.value})})
-    if (!run) { importing.value = false; return }
+      readablePath: path => nameByPath.get(path) || keyOfPath(path),
+      snapshot: () => ({scanning: scanning.value, stopped: stopping.value, processed: processed.value, total: total.value, found: total.value,
+        skipped: 0, inLibrary: 0, remaining: selectedPaths.value.length, errors: failures.value})})
+    if (!run) { importing.value = false; scanning.value = false; return }
     emit('started')
     try {
-      for (const key of keys) {
+      // Selected folders are expanded first, so stopping during the scan keeps the selection retryable.
+      const expanded = await expandRemoteSelection({
+        paths: [...selectedPaths.value], directories,
+        shouldStop: () => stopping.value || !!controller?.signal.aborted,
+        isExcluded: isExcludedPath,
+        acceptFile: path => { const name = nameByPath.get(path); return !name || isAddableFile(name, path.slice(0, path.lastIndexOf('/'))) },
+        load: async path => {
+          const result = await listCloudDirectory(importAccountId, exclusionRoot.value, {path},
+            {files: {addable: (file, folder) => isAddableFile(file.name, folder)}, maxEntries: Infinity})
+          rememberEntries(result)
+          return result
+        },
+        onFolderError: (path, err) => failures.value.push({path, message: err instanceof Error && err.message === 'truncated' ? t('nas.truncated') : remoteSourceErrorMessage(err, t)}),
+      })
+      scanning.value = false
+      if (expanded.stopped) return
+      selectedPaths.value = [...expanded.paths, ...expanded.failedFolders]
+      total.value = expanded.paths.length
+      for (const path of expanded.paths) {
         if (stopping.value || !await gate.ensureCanImportMedia()) break
         controller?.signal.throwIfAborted()
+        const key = keyOfPath(path)
         try {
           const {data} = await apiClient.post<{id: number; title: string; created: boolean}>(`${accountBase}/import`, {key}, {signal: controller?.signal, timeout: 40_000})
           controller?.signal.throwIfAborted()
           imported.value = [...imported.value.filter(v => v.id !== data.id), data]
-          run.record(key, data.id, data.created)
+          run.record(path, data.id, data.created)
           await gate.refreshLibraryCount()
           controller?.signal.throwIfAborted()
           if (props.importOptions?.parseTags) {
             run.phase('tagging')
-            await parseAndAssignImportPathTags([{path: entries.value.find(e => e.resourceKey === key)?.name || key, mediaId: data.id}], {shouldStop: () => !!controller?.signal.aborted})
+            await parseAndAssignImportPathTags([{path: nameByPath.get(path) || key, mediaId: data.id}], {shouldStop: () => !!controller?.signal.aborted})
             run.phase('importing')
           }
-          selected.value = selected.value.filter(v => v !== key)
+          selectedPaths.value = selectedPaths.value.filter(v => v !== path)
         } catch (err) {
           if (controller?.signal.aborted) throw err
-          failures.value.push({path: key, message: remoteSourceErrorMessage(err, t)})
+          failures.value.push({path, message: remoteSourceErrorMessage(err, t)})
         }
         processed.value++
       }
     } finally {
-      importing.value = false; run.finish()
+      importing.value = false; scanning.value = false; run.finish()
       sync.getItemsFromDb({ids: [], type: 'media'}); events.emit('library:nav-counts-changed')
     }
   })
@@ -467,21 +492,21 @@ async function submit() {
 function stop() { stopping.value = true; if (!importing.value) controller?.abort() }
 watch([() => app.dbPath, () => app.localhost], () => {
   stopAuthPoll(); authAttempt.value = undefined; authMessage.value = ''
-  controller?.abort(); managedProviders.value = []; callbackUri.value = ''; accounts.value = []; accountId.value = ''; entries.value = []; selected.value = []; imported.value = []; processingId.value = undefined
+  controller?.abort(); managedProviders.value = []; callbackUri.value = ''; accounts.value = []; accountId.value = ''; selectedPaths.value = []; imported.value = []; processingId.value = undefined
   if (busy.value) reloadRequested = true; else void refresh()
 })
 
 watch(() => props.provider, async () => {
   editing.value = false; form.value.clientSecret = ''; accountId.value = visibleAccounts.value[0]?.id || ''
-  await resetFolder()
+  resetFolder()
 })
-onMounted(refresh); onBeforeUnmount(() => { stopAuthPoll(); void cancelSignIn().catch(() => {}); stopping.value = true; controller?.abort() })
+onMounted(refresh); onBeforeUnmount(() => { stopAuthPoll(); void cancelSignIn().catch(() => {}); stopping.value = true; clearTimeout(relistTimer); controller?.abort() })
 async function selectAccount(id: string) {
   if (busy.value) return
   editing.value = false; form.value.clientSecret = ''; accountId.value = id
-  await resetFolder()
+  resetFolder()
 }
-defineExpose({account, editAccount, connect, logout, removeAccount, accounts, accountId, editing, addAccount, selectAccount, refresh, busy, canSubmit: computed(() => !!selected.value.length && !busy.value), selectionCount: computed(() => selected.value.length), submit, stop, stopping, canStop: importing})
+defineExpose({account, editAccount, connect, logout, removeAccount, accounts, accountId, editing, addAccount, selectAccount, refresh, busy, canSubmit: computed(() => !!selectedPaths.value.length && !busy.value), selectionCount: computed(() => selectedPaths.value.length), submit, stop, stopping, canStop: importing})
 </script>
 
 <style scoped>
@@ -521,6 +546,7 @@ defineExpose({account, editAccount, connect, logout, removeAccount, accounts, ac
 }
 .account-editor__provider-name { font-size: .8125rem; font-weight: 500; }
 .account-editor__provider-check { position: absolute; top: 8px; right: 8px; color: var(--provider-color); }
+.account-editor__provider-beta { position: absolute; top: 8px; left: 8px; padding: 0 6px; border-radius: 999px; font-size: .625rem; font-weight: 600; line-height: 16px; text-transform: uppercase; letter-spacing: .04em; color: rgba(var(--v-theme-on-surface), .7); background: rgba(var(--v-theme-on-surface), .08); }
 
 .account-editor__managed {
   display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 12px;

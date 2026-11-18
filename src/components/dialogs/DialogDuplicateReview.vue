@@ -19,7 +19,7 @@
         @close="close"
       />
 
-      <v-card-text class="pa-4 pt-2">
+      <v-card-text class="dup-review-body">
         <v-alert
           v-if="error"
           type="error"
@@ -30,9 +30,32 @@
           {{ error }}
         </v-alert>
 
-        <v-alert v-if="isSimilarity" type="info" variant="tonal" density="compact" class="mb-3 text-caption">
-          {{ t('duplicateSimilarity.reviewHint', {threshold: policy.threshold}) }}
-        </v-alert>
+        <label
+          class="dup-review-option"
+          :class="{ 'dup-review-option--on': dialogsStore.mergeTrustUnavailable }"
+        >
+          <span class="dup-review-option__icon" aria-hidden="true">
+            <v-icon size="18" icon="mdi-lan-disconnect"/>
+          </span>
+          <span class="dup-review-option__text">
+            <span class="dup-review-option__title">{{ t('media.dialogs.merge_trust_unavailable') }}</span>
+            <span class="dup-review-option__hint">{{ t('media.dialogs.merge_trust_unavailable_hint') }}</span>
+          </span>
+          <v-switch
+            v-model="dialogsStore.mergeTrustUnavailable"
+            color="warning"
+            density="compact"
+            hide-details
+            inset
+            class="dup-review-option__switch"
+            :aria-label="t('media.dialogs.merge_trust_unavailable')"
+          />
+        </label>
+
+        <div v-if="isSimilarity" class="dup-review-hint">
+          <v-icon size="16" icon="mdi-cursor-default-click-outline"/>
+          <span>{{ t('duplicateSimilarity.reviewLevelsHint') }}</span>
+        </div>
 
         <div
           v-if="loading"
@@ -41,6 +64,7 @@
           <v-progress-linear
             indeterminate
             color="primary"
+            rounded
             class="mb-3"
           />
           <div class="text-medium-emphasis text-body-2 text-center">
@@ -50,135 +74,243 @@
 
         <div
           v-else-if="!error && !visibleGroups.length"
-          class="text-medium-emphasis text-body-2 py-6 text-center"
+          class="dup-review-empty"
         >
-          {{ t('media.dialogs.duplicate_review_empty') }}
+          <v-icon size="40" icon="mdi-check-circle-outline"/>
+          <div class="text-body-2">
+            {{ dialogsStore.duplicateReview.targetMediaId != null
+              ? t('media.dialogs.duplicate_review_target_empty')
+              : t('media.dialogs.duplicate_review_empty') }}
+          </div>
         </div>
 
         <v-virtual-scroll
           v-else-if="visibleGroups.length"
           :items="visibleGroups"
           :item-height="GROUP_HEIGHT"
-          :height="listHeight"
-          class="dup-review-list"
+          renderless
         >
-          <template #default="{ item: group }">
-            <div class="dup-review-group">
-              <div class="d-flex align-center flex-wrap ga-2 dup-review-group__header">
-                <div class="text-body-2 font-weight-medium">
-                  {{ t('media.dialogs.duplicate_review_group_items', {count: group.items.length}) }}
-                </div>
-                <v-chip
-                  v-if="group.survivorId != null"
-                  size="x-small"
-                  color="primary"
-                  variant="tonal"
-                >
-                  {{ t('media.dialogs.duplicate_review_suggested') }}
-                  <template v-if="group.suggestedId != null && group.survivorId !== group.suggestedId">
-                    → #{{ group.survivorId }}
-                  </template>
-                </v-chip>
-                <v-chip v-if="group.confidence" size="x-small" :color="group.confidence === 'possible' ? 'warning' : 'success'">
-                  {{ t(`media.dialogs.visual_match_${group.confidence}`) }}
-                </v-chip>
-                <v-spacer/>
-                <v-btn
-                  size="small"
-                  variant="text"
-                  :disabled="merging"
-                  @click="skipGroup(group.key)"
-                >
-                  {{ t('media.dialogs.duplicate_review_skip') }}
-                </v-btn>
-                <v-btn
-                  size="small"
-                  color="primary"
-                  variant="tonal"
-                  :disabled="!canMergeGroup(group) || merging"
-                  v-if="!isSimilarity"
-                  @click="mergeSuggested(group)"
-                >
-                  {{ t('media.dialogs.duplicate_review_merge_suggested') }}
-                </v-btn>
-                <v-btn
-                  size="small"
-                  color="primary"
-                  variant="flat"
-                  :disabled="group.items.length < 2 || merging || (isSimilarity && !canMergeGroup(group))"
-                  @click="isSimilarity ? mergeSuggested(group) : openMergeDialog(group)"
-                >
-                  {{ t('media.dialogs.duplicate_review_merge') }}
-                </v-btn>
-              </div>
-
-              <div v-if="isSimilarity" class="d-flex align-center flex-wrap ga-3 my-2">
-                <v-select v-model="group.fileAction" :items="groupFileActions" :label="t('duplicateSimilarity.otherFiles')"
-                  density="compact" variant="outlined" hide-details :disabled="merging" style="max-width: 280px" />
-                <v-select v-if="group.fileAction === 'selected'" v-model="group.keepIds" multiple chips
-                  :items="group.items.filter(item => Number(item.id) !== group.survivorId).map(item => ({value: Number(item.id), title: item.basename || item.name || item.path}))"
-                  :label="t('duplicateSimilarity.keepSelected')" density="compact" variant="outlined" hide-details :disabled="merging" style="max-width: 400px" />
-                <span v-if="isSimilarity && !canMergeGroup(group)" class="text-caption text-warning">{{ t('duplicateSimilarity.originalMismatch') }}</span>
-              </div>
-
-              <div class="dup-review-cards">
-                <button
-                  v-for="media in group.items"
-                  :key="media.id"
-                  type="button"
-                  class="dup-review-card"
-                  :class="{
-                    'dup-review-card--survivor': Number(media.id) === group.survivorId,
-                    'dup-review-card--favorite': Boolean(media.favorite),
-                  }"
-                  :disabled="merging"
-                  @click="pickSurvivor(group.key, Number(media.id))"
-                >
-                  <div
-                    class="dup-review-thumb"
-                    :class="{ 'no-file': !fileExists(media.id) }"
+          <template #default="{ item: group, ...slot }">
+            <div :ref="virtualItemRef(slot)" class="dup-review-group-wrap">
+              <section class="dup-review-group">
+                <header class="dup-review-group__header">
+                  <span class="dup-review-group__count">
+                    {{ t('media.dialogs.duplicate_review_group_items', {count: group.items.length}) }}
+                  </span>
+                  <v-chip
+                    v-if="group.survivorId != null"
+                    size="small"
+                    color="primary"
+                    variant="tonal"
                   >
-                    <ItemPreviewVideo
-                      v-if="isVideo"
-                      :media="media"
-                      :is-file-exists="fileExists(media.id)"
-                      preview-host="compact"
-                      :thumb-url="thumbUrl(media.id) || undefined"
-                    />
-                    <template v-else>
-                      <img
-                        v-if="thumbUrl(media.id)"
-                        :src="thumbUrl(media.id)"
-                        alt=""
-                      >
-                      <div
-                        v-else
-                        class="dup-review-thumb-fallback"
-                      />
+                    {{ t('media.dialogs.duplicate_review_suggested') }}
+                    <template v-if="group.suggestedId != null && group.survivorId !== group.suggestedId">
+                      → #{{ group.survivorId }}
                     </template>
+                  </v-chip>
+                  <v-chip
+                    v-if="group.confidence"
+                    size="small"
+                    variant="tonal"
+                    :color="group.confidence === 'possible' ? 'warning' : 'success'"
+                  >
+                    {{ t(`media.dialogs.visual_match_${group.confidence}`) }}
+                  </v-chip>
+                </header>
+
+                <div class="dup-review-cards">
+                  <button
+                    v-for="media in group.items"
+                    :key="media.id"
+                    type="button"
+                    class="dup-review-card"
+                    :class="{
+                      'dup-review-card--survivor': Number(media.id) === group.survivorId,
+                      'dup-review-card--favorite': Boolean(media.favorite),
+                    }"
+                    :disabled="merging"
+                    :aria-pressed="Number(media.id) === group.survivorId"
+                    @click="pickSurvivor(group.key, Number(media.id))"
+                  >
                     <div
-                      v-if="Number(media.id) === group.survivorId"
-                      class="dup-review-keep-badge"
+                      class="dup-review-thumb"
+                      :class="{ 'no-file': !fileExists(media.id) }"
                     >
-                      {{ t('media.dialogs.duplicate_review_keep') }}
+                      <ItemPreviewVideo
+                        v-if="isVideo"
+                        :media="media"
+                        :is-file-exists="fileExists(media.id)"
+                        preview-host="compact"
+                        :thumb-url="thumbUrl(media.id) || undefined"
+                      />
+                      <template v-else>
+                        <img
+                          v-if="thumbUrl(media.id)"
+                          :src="thumbUrl(media.id)"
+                          alt=""
+                        >
+                        <div
+                          v-else
+                          class="dup-review-thumb-fallback"
+                        />
+                      </template>
+                      <div
+                        v-if="Number(media.id) === group.survivorId"
+                        class="dup-review-keep-badge"
+                      >
+                        <v-icon size="12" icon="mdi-check-bold"/>
+                        <span>{{ t('media.dialogs.duplicate_review_keep') }}</span>
+                      </div>
                     </div>
+                    <div class="dup-review-meta">
+                      <div
+                        class="dup-review-name"
+                        :title="media.name || media.basename || `#${media.id}`"
+                      >
+                        {{ media.name || media.basename || `#${media.id}` }}
+                      </div>
+                      <div class="dup-review-path" :title="media.path || ''">
+                        <v-icon size="14" :icon="sourceIcon(media.path)"/>
+                        <span>{{ media.path || '' }}</span>
+                      </div>
+                      <div class="dup-review-stats">
+                        <span
+                          v-for="part in metaParts(media)"
+                          :key="part.key"
+                          class="dup-review-stat"
+                        >
+                          <v-icon v-if="part.icon" size="13" :icon="part.icon"/>
+                          {{ part.text }}
+                        </span>
+                      </div>
+                      <div
+                        v-if="isSimilarity || matchReasons(group, Number(media.id)).length"
+                        class="dup-review-match dup-review-reasons"
+                        :title="matchReasons(group, Number(media.id)).join('; ')"
+                      >
+                        <template v-if="isSimilarity">
+                          <span
+                            v-if="Number(media.id) === group.survivorId"
+                            class="dup-review-level dup-review-level--original"
+                          >
+                            {{ t('duplicateSimilarity.original') }}
+                          </span>
+                          <template v-else>
+                            <span
+                              v-if="matchInfo(group, Number(media.id)).level"
+                              class="dup-review-level"
+                              :class="`dup-review-level--${matchInfo(group, Number(media.id)).level}`"
+                            >
+                              {{ t(`duplicateSimilarity.level_${matchInfo(group, Number(media.id)).level}`) }}
+                            </span>
+                            <span
+                              v-for="signal in matchInfo(group, Number(media.id)).signals"
+                              :key="signal.key"
+                              class="dup-review-signal"
+                              :class="`dup-review-signal--${signal.state}`"
+                            >
+                              <v-icon size="13" :icon="signal.icon"/>
+                              {{ signal.label }}<template v-if="signal.value"> {{ signal.value }}</template>
+                            </span>
+                          </template>
+                        </template>
+                        <template v-else>
+                          <span
+                            v-for="(reason, reasonIndex) in matchReasons(group, Number(media.id))"
+                            :key="reasonIndex"
+                            class="dup-review-reason"
+                          >
+                            {{ reason }}
+                          </span>
+                        </template>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                <footer class="dup-review-group__footer">
+                  <div v-if="isSimilarity" class="dup-review-group__files">
+                    <span class="dup-review-group__files-label">{{ t('duplicateSimilarity.otherFiles') }}</span>
+                    <v-select
+                      v-model="group.fileAction"
+                      :items="groupFileActions"
+                      :aria-label="t('duplicateSimilarity.otherFiles')"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      :disabled="merging"
+                      :list-props="{density: 'compact'}"
+                      :menu-props="{contentClass: 'dup-review-menu'}"
+                      class="dup-review-group__select"
+                    />
+                    <v-select
+                      v-if="group.fileAction === 'selected'"
+                      v-model="group.keepIds"
+                      multiple
+                      :items="keepOptions(group)"
+                      :label="t('duplicateSimilarity.keepSelected')"
+                      single-line
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      :disabled="merging"
+                      :list-props="{density: 'compact'}"
+                      :menu-props="{contentClass: 'dup-review-menu'}"
+                      class="dup-review-group__select dup-review-group__select--keep"
+                    >
+                      <template #selection="{ item }">
+                        <span
+                          v-if="item.value === keptOtherIds(group)[0]"
+                          class="dup-review-group__kept"
+                        >
+                          <span class="dup-review-group__kept-name">{{ item.title }}</span>
+                          <span
+                            v-if="keptOtherIds(group).length > 1"
+                            class="dup-review-group__kept-more"
+                          >+{{ keptOtherIds(group).length - 1 }}</span>
+                        </span>
+                      </template>
+                    </v-select>
                   </div>
-                  <div class="dup-review-meta">
-                    <div class="text-caption font-weight-medium text-truncate">
-                      {{ media.name || media.basename || `#${media.id}` }}
-                    </div>
-                    <div class="text-caption text-medium-emphasis text-truncate">
-                      {{ media.path || '' }}
-                    </div>
-                    <div class="text-caption text-medium-emphasis">
-                      {{ formatMeta(media) }}
-                    </div>
-                    <div class="text-caption dup-review-reasons" :title="matchReasons(group, Number(media.id)).join('; ')">
-                      {{ matchReasons(group, Number(media.id)).join('; ') }}
-                    </div>
+                  <div class="dup-review-group__actions">
+                    <v-btn
+                      size="small"
+                      variant="text"
+                      :disabled="merging"
+                      @click="skipGroup(group.key)"
+                    >
+                      {{ t('media.dialogs.duplicate_review_skip') }}
+                    </v-btn>
+                    <v-btn
+                      v-if="!isSimilarity"
+                      size="small"
+                      color="primary"
+                      variant="tonal"
+                      :disabled="!canMergeGroup(group) || merging"
+                      @click="mergeSuggested(group)"
+                    >
+                      {{ t('media.dialogs.duplicate_review_merge_suggested') }}
+                    </v-btn>
+                    <v-btn
+                      size="small"
+                      color="primary"
+                      variant="flat"
+                      prepend-icon="mdi-set-merge"
+                      :disabled="group.items.length < 2 || merging || (isSimilarity && !canMergeGroup(group))"
+                      @click="isSimilarity ? mergeSuggested(group) : openMergeDialog(group)"
+                    >
+                      {{ t('media.dialogs.duplicate_review_merge') }}
+                    </v-btn>
                   </div>
-                </button>
-              </div>
+                  <div
+                    v-if="isSimilarity && !canMergeGroup(group)"
+                    class="dup-review-group__warning"
+                  >
+                    <v-icon size="14" icon="mdi-alert-outline"/>
+                    <span>{{ t('duplicateSimilarity.originalMismatch') }}</span>
+                  </div>
+                </footer>
+              </section>
             </div>
           </template>
         </v-virtual-scroll>
@@ -191,6 +323,7 @@
 import {useSettingsStore} from '@/stores/settings'
 import {parseDuplicatePolicy, compareSimilarity, pickSimilarityOriginal, SIMILARITY_SIGNALS, type SimilarityItem, type SimilarityEvidence} from '@shared/duplicateSimilarity'
 import {computed, ref, watch} from 'vue'
+import type {Ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
@@ -213,7 +346,12 @@ import {useItemsListSync} from '@/composable/itemsListSync'
 import type {MediaDuplicateGroupsResult} from '@shared/api/responses'
 import type {MediaItem} from '@/types/stores'
 
-const GROUP_HEIGHT = 360
+const GROUP_HEIGHT = 388
+
+// Vuetify types the renderless slot as a union, so `itemRef` can't be destructured directly.
+function virtualItemRef(slot: object): Ref<HTMLElement | undefined> | undefined {
+  return (slot as {itemRef?: Ref<HTMLElement | undefined>}).itemRef
+}
 const BASICS_CHUNK = 200
 
 type ReviewGroup = {
@@ -229,7 +367,14 @@ type ReviewGroup = {
   survivorId: number | null
 }
 
-const {t} = useI18n()
+const {t, te} = useI18n()
+
+/** Human-readable merge failure: known source/copy codes are translated, anything else is shown as-is. */
+function mergeErrorText(err: unknown): string {
+  const data = getErrorResponseData<{code?: string, message?: string}>(err)
+  const raw = data?.code || data?.message || (err instanceof Error ? err.message : String(err))
+  return te(`copies.errors.${raw}`) ? t(`copies.errors.${raw}`) : raw
+}
 const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
@@ -276,6 +421,12 @@ const headerSub = computed(() => {
   if (loading.value) {
     return t('media.dialogs.duplicate_review_loading')
   }
+  const targetName = dialogsStore.duplicateReview.targetName
+  if (dialogsStore.duplicateReview.targetMediaId != null) {
+    return `${targetName || `#${dialogsStore.duplicateReview.targetMediaId}`} · ${modeLabel.value} · ${t('media.dialogs.duplicate_review_target_count', {
+      count: Math.max(0, (visibleGroups.value[0]?.items.length ?? 1) - 1),
+    })}`
+  }
   return `${modeLabel.value} · ${t('media.dialogs.duplicate_review_groups_count', {
     count: visibleGroups.value.length,
   })}`
@@ -302,19 +453,49 @@ const headerButtons = computed(() => [
   },
 ])
 
-const listHeight = computed(() =>
-  Math.min(560, Math.max(240, visibleGroups.value.length * GROUP_HEIGHT)),
-)
+/** Files offered in "choose what to keep": everything except the main file, with the path to tell same-named copies apart. */
+function keepOptions(group: ReviewGroup) {
+  return group.items
+    .filter(item => Number(item.id) !== group.survivorId)
+    .map(item => ({
+      value: Number(item.id),
+      title: String(item.basename || item.name || item.path || `#${item.id}`),
+      props: {subtitle: String(item.path || '')},
+    }))
+}
 
-function formatMeta(item: MediaItem) {
-  const parts: string[] = []
-  parts.push(getReadableFileSize(Number(item.filesize || 0)))
+/** Kept files other than the main one, in card order (keepIds may also hold the main file's id). */
+function keptOtherIds(group: ReviewGroup): number[] {
+  return keepOptions(group).map(option => option.value).filter(id => group.keepIds.includes(id))
+}
+
+type MetaPart = {key: string, text: string, icon?: string}
+
+function metaParts(item: MediaItem): MetaPart[] {
+  const parts: MetaPart[] = [{key: 'size', text: getReadableFileSize(Number(item.filesize || 0))}]
   const width = Number(item.width || 0)
   const height = Number(item.height || 0)
-  if (width > 0 && height > 0) parts.push(`${width}×${height}`)
-  if (item.rating != null) parts.push(`★ ${item.rating}`)
-  if (item.views != null) parts.push(`${item.views}`)
-  return parts.join(' · ')
+  if (width > 0 && height > 0) parts.push({key: 'resolution', text: `${width}×${height}`})
+  if (Number(item.rating) > 0) parts.push({key: 'rating', text: String(item.rating), icon: 'mdi-star'})
+  if (Number(item.views) > 0) parts.push({key: 'views', text: String(item.views), icon: 'mdi-eye-outline'})
+  return parts
+}
+
+const SOURCE_ICONS: Record<string, string> = {
+  gdrive: 'mdi-google-drive',
+  onedrive: 'mdi-microsoft-onedrive',
+  dropbox: 'mdi-dropbox',
+  nas: 'mdi-server-network-outline',
+  smb: 'mdi-server-network-outline',
+  webdav: 'mdi-server-network-outline',
+  http: 'mdi-web',
+  https: 'mdi-web',
+}
+
+/** Icon for where the file lives, taken from the path scheme (gdrive://, nas://…); plain paths are local disks. */
+function sourceIcon(path: unknown): string {
+  const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(String(path || ''))?.[1]?.toLowerCase()
+  return scheme ? SOURCE_ICONS[scheme] || 'mdi-cloud-outline' : 'mdi-harddisk'
 }
 
 function similarityEvidence(group: ReviewGroup): SimilarityEvidence[] {
@@ -329,12 +510,36 @@ function filesToDelete(group: ReviewGroup): number[] {
   return group.items.map(item => Number(item.id)).filter(id => id !== group.survivorId &&
     (group.fileAction === 'delete' || group.fileAction === 'selected' && !group.keepIds.includes(id)))
 }
+type MatchSignalView = {key: string, label: string, value: string, state: 'match' | 'differs' | 'unchecked', icon: string}
+
+/** Same data as matchReasons for a similarity group, shaped for the card: level badge plus per-signal marks. */
+function matchInfo(group: ReviewGroup, mediaId: number): {level: SimilarityEvidence['level'] | null, signals: MatchSignalView[]} {
+  const match = similarityEvidence(group).find(match => match.ids[1] === mediaId)
+  if (!match) return {level: null, signals: []}
+  const shown = SIMILARITY_SIGNALS.filter(key => key !== 'path' && (key !== 'visual' || match.signals.visual != null))
+  return {
+    level: match.level,
+    signals: shown.map((key) => {
+      const raw = match.signals[key]
+      const state = raw == null ? 'unchecked' : key === 'visual' || raw === 100 ? 'match' : 'differs'
+      return {
+        key,
+        label: t(`duplicateSimilarity.${key}`),
+        value: key === 'visual' && raw != null ? `${Math.round(raw)}%` : '',
+        state,
+        icon: state === 'unchecked' ? 'mdi-help' : key === 'visual' ? 'mdi-image-outline' : state === 'match' ? 'mdi-check' : 'mdi-close',
+      }
+    }),
+  }
+}
 function matchReasons(group: ReviewGroup, mediaId: number): string[] {
   if (isSimilarity.value) {
     if (mediaId === group.survivorId) return [t('duplicateSimilarity.original')]
     const match = similarityEvidence(group).find(match => match.ids[1] === mediaId)
     if (!match) return []
-    return [t('duplicateSimilarity.score', {score: match.score}), ...SIMILARITY_SIGNALS.filter(key => policy.value.weights[key] > 0).map(key =>
+    // The level decides the merge; signals are context. Visual is listed only when frames were compared.
+    const shown = SIMILARITY_SIGNALS.filter(key => key !== 'path' && (key !== 'visual' || match.signals.visual != null))
+    return [t(`duplicateSimilarity.level_${match.level}`), ...shown.map(key =>
       `${t(`duplicateSimilarity.${key}`)}: ${match.signals[key] == null ? t('duplicateSimilarity.unchecked') : key === 'visual' ? `${Math.round(match.signals[key]!)}%` : t(match.signals[key] === 100 ? 'duplicateSimilarity.match' : 'duplicateSimilarity.noMatch')}`)]
   }
   return (group.matches || []).filter(match => match.ids.includes(mediaId)).map(match => {
@@ -386,7 +591,29 @@ function openMergeDialog(group: ReviewGroup) {
   dialogsStore.openMediaMerge(ordered, group.survivorId)
 }
 
-async function mergeGroupItems(group: ReviewGroup) {
+/** Re-checks the file to keep right before merging: a disk may have gone offline since the list was built. */
+async function withReadableSurvivor(group: ReviewGroup): Promise<ReviewGroup> {
+  // Similarity merges are tied to the policy's original, so only manual/by-field groups are swapped.
+  if (isSimilarity.value || group.survivorId == null) return group
+  const exists = async (item: MediaItem) => {
+    try {
+      return Boolean(item.path) && await checkPathExists(String(item.path))
+    } catch {
+      return false
+    }
+  }
+  const survivor = group.items.find((item) => Number(item.id) === group.survivorId)
+  if (!survivor || await exists(survivor)) return group
+  const readable: MediaItem[] = []
+  for (const item of group.items) {
+    if (Number(item.id) !== group.survivorId && await exists(item)) readable.push(item)
+  }
+  const replacement = readable.length ? pickDefaultSurvivorId(readable) : null
+  return replacement ? {...group, survivorId: replacement} : group
+}
+
+async function mergeGroupItems(originalGroup: ReviewGroup) {
+  const group = await withReadableSurvivor(originalGroup)
   const survivorId = Number(group.survivorId)
   if (!Number.isFinite(survivorId) || survivorId <= 0) {
     throw new Error('survivorId is required')
@@ -402,8 +629,10 @@ async function mergeGroupItems(group: ReviewGroup) {
     similarity: isSimilarity.value,
     deleteSourceIds: filesToDelete(group),
     confirmFileDeletion: filesToDelete(group).length > 0,
+    trustUnavailable: dialogsStore.mergeTrustUnavailable,
   })
 
+  if (res.data.unavailableCopyPaths?.length) notificationsStore.setNotification({type: 'info', title: t('media.dialogs.duplicate_review_unavailable_copies'), text: res.data.unavailableCopyPaths.join('\n')})
   if (res.data.fileWarnings?.length) notificationsStore.setNotification({type: 'warning', title: t('duplicateSimilarity.filesRetained'), text: res.data.fileWarnings.join('\n')})
   listSync.removeEntitiesFromState({
     ids: res.data.deletedIds || sourceIds,
@@ -436,8 +665,7 @@ async function mergeSuggested(group: ReviewGroup) {
       })
     } catch (err) {
       console.error(err)
-      error.value = getErrorResponseData<{message?: string}>(err)?.message
-        || (err instanceof Error ? err.message : String(err))
+      error.value = mergeErrorText(err)
       notificationsStore.setNotification({
         type: 'error',
         title: t('media.dialogs.merge_media_failed'),
@@ -450,6 +678,8 @@ async function mergeSuggested(group: ReviewGroup) {
 
   dialogsStore.confirm.text = t('duplicateSimilarity.mergeConfirm', {count: group.items.length - 1})
     + (filesToDelete(group).length ? ' ' + t('duplicateSimilarity.deleteConfirm', {count: filesToDelete(group).length}) : ' ' + t('duplicateSimilarity.keepConfirm'))
+  // Red "Delete" only when files are actually removed; a plain merge is a confirmation.
+  dialogsStore.confirm.variant = filesToDelete(group).length ? 'delete' : 'warning'
   dialogsStore.confirm.checkBox = false
   dialogsStore.confirm.checkBoxText = ''
   dialogsStore.confirm.checkBox2 = false
@@ -462,7 +692,9 @@ async function mergeSuggested(group: ReviewGroup) {
 
 async function mergeAllSuggested(automatic = false) {
   const pending = visibleGroups.value.filter((group) =>
-    canMergeGroup(group) && (!automatic || filesToDelete(group).length === 0),
+    canMergeGroup(group) && (!automatic || filesToDelete(group).length === 0
+      // Automatic merging covers exact copies only; other versions wait for review.
+      && (!isSimilarity.value || similarityEvidence(group).every(match => match.level === 'exact'))),
   )
   if (!pending.length || merging.value) return
 
@@ -478,6 +710,7 @@ async function mergeAllSuggested(automatic = false) {
     error.value = ''
     let merged = 0
     let failed = 0
+    const reasons = new Set<string>()
     try {
       for (const group of pending) {
         try {
@@ -487,6 +720,7 @@ async function mergeAllSuggested(automatic = false) {
         } catch (err) {
           console.error(err)
           failed += 1
+          reasons.add(mergeErrorText(err))
         }
       }
       notificationsStore.setNotification({
@@ -495,12 +729,12 @@ async function mergeAllSuggested(automatic = false) {
           ? t('media.dialogs.duplicate_review_bulk_failed')
           : t('media.dialogs.duplicate_review_bulk_done', {count: merged}),
         text: failed
-          ? t('media.dialogs.duplicate_review_bulk_done', {count: merged})
+          ? [t('media.dialogs.duplicate_review_bulk_done', {count: merged}), ...reasons].join('\n')
           : undefined,
       })
       await reload()
       if (failed) {
-        error.value = t('media.dialogs.duplicate_review_bulk_failed')
+        error.value = [t('media.dialogs.duplicate_review_bulk_failed'), ...reasons].join(': ')
       }
     } finally {
       merging.value = false
@@ -509,7 +743,11 @@ async function mergeAllSuggested(automatic = false) {
   if (automatic) await run()
   else {
     const deleteCount = pending.reduce((sum, group) => sum + filesToDelete(group).length, 0)
-    if (deleteCount) dialogsStore.confirm.text += ' ' + t('duplicateSimilarity.deleteConfirm', {count: deleteCount})
+    dialogsStore.confirm.text += ' ' + (deleteCount
+      ? t('duplicateSimilarity.deleteConfirm', {count: deleteCount})
+      : t('duplicateSimilarity.keepConfirm'))
+    // Red "Delete" only when files are actually removed; a plain merge is a confirmation.
+    dialogsStore.confirm.variant = deleteCount ? 'delete' : 'warning'
     dialogsStore.confirm.action = run
     dialogsStore.confirm.show = true
   }
@@ -564,6 +802,16 @@ async function checkFilesForItems(items: MediaItem[]) {
   fileExistsById.value = next
 }
 
+/** Never suggest keeping a card whose file is gone when another card in the group still has its file. */
+function preferExistingSurvivors() {
+  groups.value = groups.value.map((group) => {
+    if (group.survivorId == null || fileExistsById.value[String(group.survivorId)] !== false) return group
+    const existing = group.items.filter((item) => fileExistsById.value[String(item.id)] === true)
+    const suggestedId = existing.length ? pickDefaultSurvivorId(existing) : group.survivorId
+    return {...group, suggestedId, survivorId: suggestedId}
+  })
+}
+
 async function reload(automatic = false) {
   loading.value = true
   error.value = ''
@@ -578,6 +826,7 @@ async function reload(automatic = false) {
       mediaIds: dialogsStore.duplicateReview.mediaIds,
       filters: dialogsStore.duplicateReview.filters ?? undefined,
       filtersJoin: dialogsStore.duplicateReview.filtersJoin ?? undefined,
+      targetMediaId: dialogsStore.duplicateReview.targetMediaId,
     })
     const rawGroups = Array.isArray(res.data?.groups) ? res.data.groups : []
     const allIds = [...new Set(rawGroups.flatMap((group) => group.itemIds.map(Number)))]
@@ -610,6 +859,7 @@ async function reload(automatic = false) {
       loadThumbsForItems(flatItems),
       checkFilesForItems(flatItems),
     ])
+    if (!isSimilarity.value) preferExistingSurvivors()
   } catch (err) {
     console.error(err)
     groups.value = []
@@ -620,7 +870,9 @@ async function reload(automatic = false) {
   } finally {
     loading.value = false
   }
-  if (automatic && isSimilarity.value && policy.value.autoMerge && policy.value.files === 'keep') await mergeAllSuggested(true)
+  // Auto-merge belongs to library-wide maintenance runs, not to a single card opened from its context menu.
+  const singleCard = dialogsStore.duplicateReview.targetMediaId != null
+  if (automatic && !singleCard && isSimilarity.value && policy.value.autoMerge && policy.value.files === 'keep') await mergeAllSuggested(true)
 }
 
 watch(
@@ -658,49 +910,282 @@ watch(
   flex-direction: column;
 }
 
-.dup-review-with-file :deep(.v-label) {
+.dup-review-body {
+  padding: 12px 16px 16px !important;
+}
+
+/* Option row: unavailable files */
+.dup-review-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.dup-review-option:hover {
+  background: rgba(var(--v-theme-on-surface), 0.03);
+}
+
+.dup-review-option--on {
+  border-color: rgba(var(--v-theme-warning), 0.45);
+  background: rgba(var(--v-theme-warning), 0.06);
+}
+
+.dup-review-option--on:hover {
+  background: rgba(var(--v-theme-warning), 0.09);
+}
+
+.dup-review-option__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.dup-review-option--on .dup-review-option__icon {
+  background: rgba(var(--v-theme-warning), 0.16);
+  color: rgb(var(--v-theme-warning));
+}
+
+.dup-review-option__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dup-review-option__title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.dup-review-option__hint {
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.dup-review-option__switch {
+  flex: none;
+}
+
+.dup-review-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 2px 12px;
   font-size: 0.8125rem;
-  line-height: 1.25;
-  opacity: 1;
+  line-height: 1.4;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.dup-review-hint .v-icon {
+  flex: none;
+}
+
+.dup-review-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 16px;
+  text-align: center;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+/* Group */
+.dup-review-group-wrap {
+  box-sizing: border-box;
+  padding-bottom: 12px;
 }
 
 .dup-review-group {
-  box-sizing: border-box;
-  padding: 0 0 12px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 12px;
+  background: rgba(var(--v-theme-on-surface), 0.025);
+  overflow: hidden;
 }
 
 .dup-review-group__header {
-  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px 10px;
+}
+
+.dup-review-group__count {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .dup-review-cards {
   display: flex;
-  gap: 8px;
+  align-items: stretch;
+  gap: 10px;
   overflow-x: auto;
+  padding: 2px 14px 14px;
+}
+
+.dup-review-group__footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: 56px;
+  padding: 10px 14px;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  background: rgba(var(--v-theme-on-surface), 0.02);
+}
+
+.dup-review-group__files {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dup-review-group__files-label {
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.dup-review-group__select {
+  flex: none;
+  width: 230px;
+}
+
+.dup-review-group__select--keep {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 120px;
+  max-width: 300px;
+}
+
+.dup-review-group__select :deep(.v-select__selection) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dup-review-group__kept {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dup-review-group__kept-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dup-review-group__kept-more {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.6;
+  background: rgba(var(--v-theme-on-surface), 0.1);
+}
+
+.dup-review-group__select :deep(.v-field) {
+  --v-field-padding-start: 12px;
+  font-size: 0.8125rem;
+  border-radius: 8px;
+}
+
+.dup-review-group__select :deep(.v-field__input) {
+  min-height: 34px;
+  padding-top: 4px;
   padding-bottom: 4px;
 }
 
+.dup-review-group__actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.dup-review-group__warning {
+  flex-basis: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgb(var(--v-theme-warning));
+}
+
+.dup-review-group__warning .v-icon {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* File card */
 .dup-review-card {
-  flex: 0 0 160px;
-  width: 160px;
+  flex: 0 0 208px;
+  width: 208px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  font: inherit;
+  color: inherit;
   text-align: left;
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 8px;
-  background: transparent;
-  padding: 0;
+  border-radius: 10px;
+  background-color: rgb(var(--v-theme-surface));
   cursor: pointer;
   overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.dup-review-card:hover:not(:disabled):not(.dup-review-card--survivor) {
+  border-color: rgba(var(--v-theme-on-surface), 0.38);
+}
+
+.dup-review-card:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 1px;
+}
+
+.dup-review-card:disabled {
+  cursor: default;
+  opacity: 0.7;
 }
 
 .dup-review-card--survivor {
-  border: 1px solid rgb(var(--v-theme-primary));
-  box-shadow: none;
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 1px rgb(var(--v-theme-primary));
+  background-image: linear-gradient(rgba(var(--v-theme-primary), 0.1), rgba(var(--v-theme-primary), 0.1));
 }
 
 .dup-review-thumb {
   position: relative;
-  height: 90px;
-  background: rgba(0, 0, 0, 0.2);
+  flex: none;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: rgba(0, 0, 0, 0.25);
   overflow: hidden;
 }
 
@@ -722,29 +1207,168 @@ watch(
 
 .dup-review-keep-badge {
   position: absolute;
-  top: 6px;
-  left: 6px;
+  top: 8px;
+  left: 8px;
   z-index: 2;
-  padding: 2px 6px;
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 16px);
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
   font-size: 0.6875rem;
-  line-height: 1.2;
+  line-height: 1.3;
   font-weight: 600;
   color: rgb(var(--v-theme-on-primary));
   background: rgb(var(--v-theme-primary));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
   pointer-events: none;
-  max-width: calc(100% - 12px);
+}
+
+.dup-review-keep-badge span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.dup-review-reasons {
-  max-height: 3.6em;
-  overflow-y: auto;
+.dup-review-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 10px 12px;
 }
 
-.dup-review-meta {
-  padding: 8px;
+.dup-review-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dup-review-path,
+.dup-review-stats {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.dup-review-path {
+  gap: 5px;
+}
+
+.dup-review-path .v-icon {
+  flex: none;
+}
+
+.dup-review-path span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dup-review-stats {
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dup-review-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.dup-review-match {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(var(--v-border-color), var(--v-border-opacity));
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.dup-review-level {
+  --dup-tone: var(--v-theme-on-surface);
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+  color: rgb(var(--dup-tone));
+  background: rgba(var(--dup-tone), 0.16);
+}
+
+.dup-review-level--original {
+  --dup-tone: var(--v-theme-primary);
+}
+
+.dup-review-level--exact {
+  --dup-tone: var(--v-theme-success);
+}
+
+.dup-review-level--version {
+  --dup-tone: var(--v-theme-info);
+}
+
+.dup-review-level--pending {
+  --dup-tone: var(--v-theme-warning);
+}
+
+.dup-review-level--none {
+  --dup-tone: var(--v-theme-error);
+}
+
+.dup-review-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.dup-review-signal--match .v-icon {
+  color: rgb(var(--v-theme-success));
+}
+
+.dup-review-signal--differs {
+  color: rgb(var(--v-theme-error));
+}
+
+.dup-review-signal--unchecked {
+  opacity: 0.7;
+}
+
+.dup-review-reason {
+  flex-basis: 100%;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+</style>
+
+<style>
+/* Select menus are teleported out of the dialog, so they are sized here to match the compact fields. */
+.dup-review-menu .v-list-item {
+  min-height: 34px;
+}
+
+.dup-review-menu .v-list-item-title {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+
+.dup-review-menu .v-list-item-subtitle {
+  font-size: 0.6875rem;
 }
 </style>

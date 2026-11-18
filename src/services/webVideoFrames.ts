@@ -57,13 +57,57 @@ export function captureVideoFrameAt(src: string, time: number, signal: AbortSign
   })
 }
 
+/** Marker times are whole seconds (floored), so the playhead may sit up to one second past the marker. */
+const FRAME_TOLERANCE_BEFORE = 0.35
+const FRAME_TOLERANCE_AFTER = 1
+
+const isNearTime = (video: HTMLVideoElement, time: number) => (
+  video.currentTime >= time - FRAME_TOLERANCE_BEFORE && video.currentTime <= time + FRAME_TOLERANCE_AFTER
+)
+
+/** Seeks the live player to `time`, grabs the frame and puts the playhead back where it was. */
+async function captureFrameAtTime(video: HTMLVideoElement, time: number): Promise<string | null> {
+  if (video.readyState < 1 || !Number.isFinite(video.duration) || time > video.duration) return null
+  const previousTime = video.currentTime
+  const wasPlaying = !video.paused && !video.ended
+  if (wasPlaying) video.pause()
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => finish(new Error('Seek timed out.')), 8000)
+      const finish = (error?: Error) => {
+        window.clearTimeout(timeout)
+        video.removeEventListener('seeked', onSeeked)
+        video.removeEventListener('error', onError)
+        if (error) reject(error)
+        else resolve()
+      }
+      const onSeeked = () => { if (video.readyState >= 2) finish() }
+      const onError = () => finish(new Error('Seek failed.'))
+      video.addEventListener('seeked', onSeeked)
+      video.addEventListener('error', onError)
+      video.currentTime = time
+    })
+    return captureVideoFrame(video)
+  } catch {
+    return null
+  } finally {
+    video.currentTime = previousTime
+    if (wasPlaying) void video.play().catch(() => {})
+  }
+}
+
 export async function saveWebVideoCurrentFrame({video, mediaId, markId, expectedTime, mediaPath}: {
   video: HTMLVideoElement | null; mediaId: number; markId?: number; expectedTime?: number; mediaPath?: string
 }): Promise<boolean> {
   if (!video || video.seeking || video.readyState < 2) return false
-  // A marker can be edited without moving the playhead. Never save the wrong frame.
-  if (expectedTime != null && Math.abs(video.currentTime - expectedTime) > 0.35) return false
-  const image = captureVideoFrame(video)
+  let image: string | null
+  if (expectedTime == null || isNearTime(video, expectedTime)) {
+    image = captureVideoFrame(video)
+  } else {
+    // The playhead is elsewhere (edited marker time, drag, long dialog): take the frame at the marker itself.
+    image = await captureFrameAtTime(video, expectedTime)
+    if (!image) return false
+  }
   const route = isCloudMediaPath(mediaPath) ? `/api/cloud-accounts/media/${mediaId}/frame` : isDriveMediaPath(mediaPath) ? `/api/drive/media/${mediaId}/frame` : isNasMediaPath(mediaPath) ? `/api/nas/media/${mediaId}/frame` : `/api/web-video/${mediaId}/frame`
   await apiClient.post(route, {image, target: markId == null ? 'poster' : 'mark', markId})
   return true

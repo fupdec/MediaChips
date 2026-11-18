@@ -152,8 +152,33 @@ export async function fingerprintCopy(db: ApiDb, path: string, method: CopyVerif
 const comparisonKey = (checked: CopyFingerprint) => `${checked.verificationMethod}:${checked.file.size}:${checked.oshash || checked.sha256}`
 
 /** No writes until all selected cards and retained copies pass the configured comparison. */
+/** Version marker for a copy recorded while its file was unreachable: never matches, so playback re-checks the fingerprint first. */
+export const UNVERIFIED_COPY_VERSION = 'unverified:unavailable'
+/** Same, but recorded without any fingerprint on the user's explicit choice: the first readable file at this path is adopted. */
+export const TRUSTED_COPY_VERSION = 'unverified:trusted'
+
+const CONTENT_ERRORS = new Set(['copy_content_mismatch', 'source_version_changed', 'media_changed', 'media_not_found'])
+
+/** Any failure to reach a file that is not a content verdict or a cancellation. */
+export function isUnreachableCopyError(err: unknown, signal: AbortSignal): boolean {
+  if (signal.aborted) return false
+  const code = (err as {code?: unknown} | null)?.code
+  return !(typeof code === 'string' && CONTENT_ERRORS.has(code))
+}
+
+/** A local file that cannot be opened right now (deleted, moved, or its disk unplugged). */
+export function isUnavailableLocalFile(path: string, err: unknown): boolean {
+  if (provider(path) !== 'local') return false
+  const code = (err as {code?: unknown} | null)?.code ?? (err as {cause?: {code?: unknown}} | null)?.cause?.code
+  return code === 'ENOENT' || code === 'ENOTDIR'
+}
+
 export async function verifyCopiesForMerge(db: ApiDb, ids: number[], signal: AbortSignal, open = openCopySource,
-  method = copyVerificationMethod(db), allowDifferentContent = false) {
+  method = copyVerificationMethod(db), allowDifferentContent = false,
+  /** Merge sources whose unreachable local files are kept as unavailable backup copies, checked by their catalog fingerprint. */
+  backupUnavailableFor: number[] = [],
+  /** User accepted unreadable files without fingerprint checks (any source, any read failure). */
+  trustUnavailable = false) {
   const pinned = pinSourceDb(db)
   db = pinned.db
   const snapshot = () => JSON.stringify(ids.map(id => ({
@@ -161,14 +186,23 @@ export async function verifyCopiesForMerge(db: ApiDb, ids: number[], signal: Abo
   })))
   const initial = snapshot()
   const result: Array<Omit<VerifiedCopy, 'mediaId'>> = []
+  const unavailable: Array<{id: number, copy: CopyCandidate}> = []
   let expected: string | undefined
   for (const id of ids) {
     for (const copy of copyCandidates(db, id)) {
-      if (method === 'sha256' && copy.stored?.oshash && !copy.stored.sha256) {
-        const baseline = await fingerprintCopy(db, copy.path, 'oshash', signal, pinned.assertCurrent, open)
-        if (baseline.oshash !== copy.stored.oshash || baseline.file.size !== copy.stored.size) throw sourceError('copy_content_mismatch')
+      let checked: CopyFingerprint
+      try {
+        if (method === 'sha256' && copy.stored?.oshash && !copy.stored.sha256) {
+          const baseline = await fingerprintCopy(db, copy.path, 'oshash', signal, pinned.assertCurrent, open)
+          if (baseline.oshash !== copy.stored.oshash || baseline.file.size !== copy.stored.size) throw sourceError('copy_content_mismatch')
+        }
+        checked = await fingerprintCopy(db, copy.path, method, signal, pinned.assertCurrent, open)
+      } catch (err) {
+        if (backupUnavailableFor.includes(id) && (trustUnavailable ? isUnreachableCopyError(err, signal) : isUnavailableLocalFile(copy.path, err))) {
+          unavailable.push({id, copy}); continue
+        }
+        throw err
       }
-      const checked = await fingerprintCopy(db, copy.path, method, signal, pinned.assertCurrent, open)
       const {file, sha256, oshash, verificationMethod} = checked
       if (!matchesVersion(copy, file) && !copy.stored) throw sourceError('source_version_changed')
       const storedMismatch = copy.stored && (copy.stored.size !== file.size
@@ -185,8 +219,32 @@ export async function verifyCopiesForMerge(db: ApiDb, ids: number[], signal: Abo
         availability: 'available', verifiedAt: !sha256 && retainedSha256 && copy.stored ? copy.stored.verifiedAt : new Date().toISOString()})
     }
   }
-  if (!result.length) throw sourceError('copy_not_found', 404)
-  return {copies: result, method, assertUnchanged() {
+  if (!result.length && !(trustUnavailable && unavailable.length)) throw sourceError('copy_not_found', 404)
+  const unavailablePaths: string[] = []
+  for (const {id, copy} of unavailable) {
+    const path = canonicalPath(copy.path)
+    if (result.some(row => row.path === path)) continue
+    // A file we cannot read is trusted only through a fingerprint taken when it was readable.
+    const card = db.drizzle.select().from(media).where(eq(media.id, id)).get()
+    const oshash = copy.stored?.oshash || card?.oshash || null
+    const size = Number(copy.stored?.size || card?.filesize || 0)
+    const fingerprinted = Boolean(oshash && size > 0)
+    if (!fingerprinted && !trustUnavailable) throw sourceError('copy_unavailable_unverified')
+    const matchesReadable = result.some(row => row.size === size && row.oshash === oshash)
+      || ids.some(otherId => otherId !== id && !unavailable.some(row => row.id === otherId) && (() => {
+        const other = db.drizzle.select({oshash: media.oshash, filesize: media.filesize}).from(media).where(eq(media.id, otherId)).get()
+        return other?.oshash === oshash && Number(other.filesize) === size
+      })())
+    if (fingerprinted && !allowDifferentContent && copy.stored?.relationship !== 'version' && !matchesReadable) throw sourceError('copy_content_mismatch')
+    unavailablePaths.push(path)
+    result.push({id: copy.stored?.id || randomUUID(), path,
+      version: copy.stored?.version || (fingerprinted ? UNVERIFIED_COPY_VERSION : TRUSTED_COPY_VERSION),
+      sha256: copy.stored?.sha256 || '', oshash, relationship: copy.stored?.relationship || 'copy',
+      verificationMethod: copy.stored?.verificationMethod || 'oshash', size,
+      contentType: copy.stored?.contentType || mediaFileContentType(copy.path) || 'application/octet-stream',
+      availability: 'unavailable', verifiedAt: copy.stored?.verifiedAt || new Date().toISOString()})
+  }
+  return {copies: result, unavailablePaths, method, assertUnchanged() {
     pinned.assertCurrent(); signal.throwIfAborted()
     if (snapshot() !== initial) throw sourceError('media_changed')
   }}
@@ -241,20 +299,24 @@ export async function selectPlayableCopy(db: ApiDb, mediaId: number, signal: Abo
         if (!copy.stored) throw sourceError('source_version_changed')
         const method = copyVerificationMethod(db)
         const useFull = method === 'sha256' && Boolean(copy.stored.sha256)
-        const expectedOshash = copy.stored.oshash || copies.find(row => row.stored?.oshash && row.stored.size === copy.stored!.size)?.stored?.oshash
-        if (!useFull && !expectedOshash && file.size > 8) throw sourceError('copy_not_verified')
+        // A copy kept without a fingerprint is adopted on return: same size, and a sibling's oshash when one exists.
+        const trusted = copy.version === TRUSTED_COPY_VERSION
+        if (trusted && copy.stored.size > 0 && file.size !== copy.stored.size) throw sourceError('copy_content_mismatch')
+        const expectedSize = copy.stored.size || file.size
+        const expectedOshash = copy.stored.oshash || copies.find(row => row.id !== copy.id && row.stored?.oshash && row.stored.size === expectedSize)?.stored?.oshash
+        if (!useFull && !expectedOshash && file.size > 8 && !trusted) throw sourceError('copy_not_verified')
         // The probe session may be closed by FTP. Verification opens its own bounded sessions.
         adapter.close(); adapter = undefined
         const checked = await fingerprintCopy(db, copy.path, useFull ? 'sha256' : 'oshash', signal, pinned.assertCurrent, open)
-        if (checked.file.size !== copy.stored.size || (checked.verificationMethod === 'sha256'
-          ? checked.sha256 !== copy.stored.sha256 : checked.oshash !== expectedOshash)) throw sourceError('copy_content_mismatch')
+        if (checked.file.size !== expectedSize || (checked.verificationMethod === 'sha256'
+          ? checked.sha256 !== copy.stored.sha256 : Boolean(expectedOshash) && checked.oshash !== expectedOshash)) throw sourceError('copy_content_mismatch')
         const beforeWrite = copyCandidates(db, mediaId).find(row => row.id === copy.id)
         if (!beforeWrite || beforeWrite.path !== copy.path || beforeWrite.version !== copy.version
           || beforeWrite.stored?.sha256 !== copy.stored.sha256 || beforeWrite.stored?.oshash !== copy.stored.oshash) throw sourceError('media_changed')
-        db.drizzle.update(verifiedMediaCopies).set({version: checked.file.version, verifiedAt: new Date().toISOString(),
+        db.drizzle.update(verifiedMediaCopies).set({version: checked.file.version, verifiedAt: new Date().toISOString(), size: checked.file.size,
           sha256: checked.sha256, oshash: checked.oshash, verificationMethod: checked.verificationMethod}).where(eq(verifiedMediaCopies.id, copy.id)).run()
         copy.version = checked.file.version
-        copy.stored = {...copy.stored, version: checked.file.version, sha256: checked.sha256, oshash: checked.oshash, verificationMethod: checked.verificationMethod}
+        copy.stored = {...copy.stored, version: checked.file.version, size: checked.file.size, sha256: checked.sha256, oshash: checked.oshash, verificationMethod: checked.verificationMethod}
         file = checked.file
       } else if (copy.stored && !copy.stored.oshash && file.size > 8 && copyVerificationMethod(db) === 'oshash') {
         // Seed a cheap baseline for legacy SHA-verified rows while their original version still matches.

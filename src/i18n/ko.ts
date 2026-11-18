@@ -73,6 +73,7 @@ const ko = {
     processStarted: '프로세스 시작됨',
     openProcessInNotifications: '알림 목록에서 자세한 내용을 확인할 수 있습니다',
     activeProcessesCount: '활성 프로세스: {count}개. 자세한 내용은 알림 목록에 있습니다',
+    activeProcessesTitle: '활성 프로세스: {count}개',
     openNotificationsList: '목록 열기',
   },
   systemBar: {
@@ -456,6 +457,8 @@ const ko = {
     more: '더 보기',
     tools: '도구',
     find_similar: '유사 항목 찾기',
+    find_duplicates: '중복 찾기',
+    duplicates_by_policy: '유지 관리 설정 기준',
     bulk_auto_scrape: '선택 항목 TPDB 자동 스크랩',
     bulk_tmdb_auto_scrape: '선택 항목 TMDB 자동 스크랩',
     bulk_auto_scrape_scenes: 'TPDB 장면 자동 스크랩 (선택 항목)',

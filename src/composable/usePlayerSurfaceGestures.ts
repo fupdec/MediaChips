@@ -10,6 +10,7 @@ type PlayerStoreLike = {
   currentTime?: number
   player?: {currentTime: number} | null
   playerJumpTo?: (time: number) => void
+  zoom?: number
   changePlayerStatusText?: (payload: {
     text: string
     icon: string
@@ -72,6 +73,8 @@ export function usePlayerSurfaceGestures(options: {
   let handlers: PlayerGestureHandlers | null = createPlayerSurfaceGestureHandlers({
     seekStepSeconds,
     getSurfaceEl: () => surfaceEl.value,
+    // A zoomed picture is panned with one finger, so that drag must not switch to another video.
+    isSwipeEnabled: () => !((options.playerStore.zoom ?? 1) > 1),
     onAction: handleAction,
   })
 

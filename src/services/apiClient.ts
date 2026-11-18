@@ -58,7 +58,8 @@ function resolveRequestConfig(
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401) {
+    // Password checks from settings fail with 401 on purpose and must not lock the app.
+    if (error?.response?.status === 401 && !error?.config?.skipAuthLock) {
       clearAuthToken()
       try {
         const settingsStore = useSettingsStore()

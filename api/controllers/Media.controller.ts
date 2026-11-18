@@ -287,6 +287,7 @@ export default function (db: ApiDb) {
         similarity: body.similarity === true,
         confirmFileDeletion: body.confirmFileDeletion === true,
         deleteSourceIds: body.deleteSourceIds,
+        trustUnavailable: body.trustUnavailable === true,
         signal: createRequestAbortSignal(req, res),
       })
       sendOk(res, result)
@@ -301,6 +302,16 @@ export default function (db: ApiDb) {
       const mediaTypeId = body.mediaTypeId == null ? null : Number(body.mediaTypeId)
       const resolvedMediaTypeId =
         mediaTypeId != null && Number.isFinite(mediaTypeId) ? mediaTypeId : undefined
+
+      const targetMediaId = Number(body.targetMediaId)
+      if (Number.isFinite(targetMediaId) && targetMediaId > 0) {
+        sendOk(res, listMediaDuplicateGroups(db, {
+          duplicatesBy: String(body.duplicates_by || 'filesize'),
+          mediaTypeId: resolvedMediaTypeId,
+          targetMediaId,
+        }))
+        return
+      }
 
       let mediaIds: number[] | null = null
       if (Array.isArray(body.mediaIds)) {

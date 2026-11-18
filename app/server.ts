@@ -3,6 +3,7 @@ import type { ResolveFilePathFn } from './types/builtinRoutes'
 import {projectPath} from '../shared/projectRoot'
 import type { TranscodeManager } from './types/builtinRoutes'
 import dotenv from 'dotenv'
+import path from 'path'
 import { apiErrorMessage } from '../api/types/errors'
 import { getBestLocalIp, getAllIps } from './server/network'
 import { initializeServerConfig } from './server/serverConfig'
@@ -42,7 +43,8 @@ logStartup('database open')
 const {db} = setupDatabase({databasesPath, dbConfig})
 
 const {app, router} = createExpressApp()
-const authService = initAuthService(db)
+const authService = initAuthService(db, {dataDir: path.dirname(databasesPath)})
+authService.applyPendingPasswordReset(true)
 app.use(createAuthMiddleware(authService))
 registerAuthRoutes(app, authService)
 

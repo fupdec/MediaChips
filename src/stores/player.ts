@@ -8,6 +8,11 @@ import type { MediaItem, PlayerPlaylistItem } from '@/types/stores'
 import type { PlayerMark } from '@/types/player'
 import {isRemoteMediaPath} from '@shared/remoteMedia'
 import { playlistItemKey } from '@/utils/mediaItem'
+import type { PlayerAspectMode } from '@/utils/playerAspect'
+import type { PlayerRotation } from '@/utils/playerVideoGeometry'
+import { createDefaultPlayerFilters, type PlayerVideoFilters } from '@/utils/playerVideoFilters'
+import { createAbLoop, type AbLoop } from '@/utils/playerAbLoop'
+import type { SubtitleTrack } from '@shared/subtitles'
 
 type TimeoutHandle = ReturnType<typeof setTimeout>
 type IntervalHandle = ReturnType<typeof setInterval>
@@ -22,6 +27,8 @@ export const usePlayerStore = defineStore('player', {
     statusSubtitleKey: null as string | null,
     statusProgress: null as number | null,
     statusLarge: false,
+    statusColor: null as string | null,
+    statusDetails: null as string | null,
     backgroundStatusText: '',
     backgroundStatusIcon: '',
     statusTimeout: -1 as TimeoutHandle | number,
@@ -55,6 +62,32 @@ export const usePlayerStore = defineStore('player', {
     duration: 1,
     volume: 1,
     speed: 1,
+    /** Display aspect ratio override; remembered per library file, see usePlayerVideoGeometry. */
+    aspectMode: 'auto' as PlayerAspectMode,
+    /** Picture orientation; remembered per library file like aspectMode. */
+    rotation: 0 as PlayerRotation,
+    flipH: false,
+    flipV: false,
+    /** Zoom 1-4 and pan in px; session only, reset when another media starts. */
+    /** A-B loop points in seconds; cleared when another media starts. */
+    abLoop: createAbLoop() as AbLoop,
+    /** External subtitle files of the current local video, see usePlayerSubtitles. */
+    subtitleTracks: [] as SubtitleTrack[],
+    /** File name of the shown track; null = subtitles off. */
+    subtitleTrackName: null as string | null,
+    /** Seconds; positive shows the subtitles later. Resets with the media. */
+    subtitleDelay: 0,
+    /** Text size factor, remembered between sessions. */
+    subtitleScale: 1,
+    /** "Zoom to area" mode: the next drag over the picture selects the area to zoom into. */
+    areaSelecting: false,
+    /** Equalizer gains in dB, one per band of PLAYER_EQ_BANDS; global, see usePlayerEqualizer. */
+    equalizerGains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] as number[],
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+    /** Colour adjustments; kept between files of one playback session, reset when the player closes. */
+    videoFilters: createDefaultPlayerFilters() as PlayerVideoFilters,
     muted: false,
     paused: false,
     currentTime: 0,
@@ -186,7 +219,8 @@ export const usePlayerStore = defineStore('player', {
       this.currentTime = 0
       this.showTimedStatus(0, {subtitleKey: 'player.controls.stop', icon: 'stop'})
     },
-    playerJumpTo(time: number) {
+    /** `silent` skips the on-screen position status, e.g. for the A-B loop wrapping around. */
+    playerJumpTo(time: number, { silent = false }: { silent?: boolean } = {}) {
       if (!this.player || this.webVideoLoading || !Number.isFinite(time)) return
       if (time < 0) time = 0
       else if (time > this.duration) time = this.duration
@@ -194,13 +228,13 @@ export const usePlayerStore = defineStore('player', {
       if (this.usesLiveTranscode && this.liveStreamSeekHandler) {
         this.liveStreamSeekHandler(time)
         this.currentTime = time
-        this.showSeekStatus(time)
+        if (!silent) this.showSeekStatus(time)
         return
       }
 
       this.player.currentTime = time
       this.currentTime = time
-      this.showSeekStatus(time)
+      if (!silent) this.showSeekStatus(time)
     },
     showSeekStatus(time: number) {
       this.showTimedStatus(time, {icon: 'arrow-u-down-right'})
@@ -231,12 +265,16 @@ export const usePlayerStore = defineStore('player', {
       subtitleKey = null,
       progress = null,
       large = false,
+      color = null,
+      details = null,
     }: {
       text: string
       icon: string
       subtitleKey?: string | null
       progress?: number | null
       large?: boolean
+      color?: string | null
+      details?: string | null
     }) {
       clearTimeout(this.statusTimeout as TimeoutHandle)
       this.statusText = text
@@ -244,12 +282,16 @@ export const usePlayerStore = defineStore('player', {
       this.statusSubtitleKey = subtitleKey
       this.statusProgress = progress
       this.statusLarge = large
+      this.statusColor = color
+      this.statusDetails = details
       this.statusTimeout = setTimeout(() => {
         this.statusText = ''
         this.statusIcon = ''
         this.statusSubtitleKey = null
         this.statusProgress = null
         this.statusLarge = false
+        this.statusColor = null
+        this.statusDetails = null
       }, 3000)
     },
     setBackgroundStatus({ text, icon }: { text: string; icon: string }) {

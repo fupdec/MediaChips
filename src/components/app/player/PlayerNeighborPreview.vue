@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="rootEl"
     class="neighbor-preview"
     :class="[
       `neighbor-preview--${variant}`,
@@ -8,18 +9,15 @@
     role="group"
     @click.stop="onClick"
   >
-    <div class="neighbor-preview__media">
+    <div v-if="hasThumb" class="neighbor-preview__media">
       <img
-        v-if="thumb"
-        :src="thumb"
+        :src="thumb!"
         :alt="title"
         class="neighbor-preview__thumb"
         loading="lazy"
         decoding="async"
+        @error="thumbFailed = true"
       >
-      <div v-else class="neighbor-preview__placeholder">
-        <v-icon size="36" color="white">mdi-movie-open-outline</v-icon>
-      </div>
 
       <div class="neighbor-preview__shade"/>
 
@@ -49,6 +47,30 @@
     </div>
 
     <div class="neighbor-preview__meta">
+      <div v-if="!hasThumb" class="neighbor-preview__head">
+        <div class="neighbor-preview__badge neighbor-preview__badge--inline">
+          <v-icon
+            v-if="variant === 'up-next'"
+            size="14"
+            start
+          >
+            mdi-skip-next
+          </v-icon>
+          {{ label }}
+          <span
+            v-if="variant === 'up-next' && countdown != null"
+            class="neighbor-preview__countdown"
+          >
+            {{ countdown }}
+          </span>
+        </div>
+        <div
+          v-if="durationLabel"
+          class="neighbor-preview__duration neighbor-preview__duration--inline"
+        >
+          {{ durationLabel }}
+        </div>
+      </div>
       <div
         class="neighbor-preview__title"
         :title="title"
@@ -66,11 +88,12 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {getReadableDuration} from '@/services/formatUtils'
 import {getSegmentEnd, getSegmentStart} from '@/utils/mediaItem'
 import type {MediaItem} from '@/types/stores'
+import {applyPlayerEdgeShift} from '@/utils/playerEdgeClamp'
 
 const props = withDefaults(defineProps<{
   item: MediaItem
@@ -92,6 +115,10 @@ const emit = defineEmits<{
 
 const {t} = useI18n()
 
+const thumbFailed = ref(false)
+watch(() => props.thumb, () => { thumbFailed.value = false })
+const hasThumb = computed(() => !!props.thumb && !thumbFailed.value)
+
 const title = computed(() => props.item.name || props.item.basename || '')
 
 const durationLabel = computed(() => {
@@ -110,6 +137,13 @@ const countdown = computed(() => {
 })
 
 const hint = computed(() => t('player.controls.up_next_hint'))
+
+const rootEl = ref<HTMLElement | null>(null)
+
+onMounted(() => {
+  if (props.variant !== 'hover') return
+  void nextTick(() => applyPlayerEdgeShift(rootEl.value))
+})
 
 const onClick = () => {
   if (!props.clickable) return

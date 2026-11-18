@@ -107,6 +107,16 @@ Back up the data volume (`/data` → `config.json` + `app_storage`). Media files
 
 Point DSM reverse proxy / HTTPS to `http://localhost:12321`. Keep WebSocket support enabled for live tasks.
 
+## Forgot the password
+
+The password lock belongs to the active library. To reset it, create an empty `RESET_PASSWORD` (or `RESET_PASSWORD.txt`) file in the data volume next to `app_storage`, for example:
+
+```bash
+docker exec mediachips touch /data/RESET_PASSWORD
+```
+
+(use your container name and `MEDIA_CHIPS_DATA_DIR`). Then press **Log in** on the lock screen: the password of the active library is removed, the lock turns off and the file is deleted. Set a new password in Settings. Other libraries are not affected.
+
 ## Troubleshooting
 
 | Symptom | Fix |

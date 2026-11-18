@@ -2743,17 +2743,17 @@ defineExpose({
       background: rgba(var(--v-theme-primary), 0.05) !important;
     }
 
-    &.prop-row--dirty {
-      box-shadow: inset 3px 0 0 rgb(var(--v-theme-primary));
-    }
-
     // Floating restore sits in its own column instead of overlaying the input.
     &:has(.editing-field-restore--float) {
       padding-inline-end: var(--prop-row-pad-y) !important;
     }
 
     .editing-field-restore--float {
-      position: static;
+      // Stay in the grid flow but remain the containing block: with
+      // position: static the tonal underlay (absolute, inset 0, radius 50%)
+      // escaped to the row card and painted a primary ellipse over it.
+      position: relative;
+      inset: auto;
       align-self: center;
       transform: none;
       box-shadow: none;
@@ -3003,7 +3003,11 @@ defineExpose({
     }
 
     .editing-field-restore--float {
-      position: static;
+      // Stay in the grid flow but remain the containing block: with
+      // position: static the tonal underlay (absolute, inset 0, radius 50%)
+      // escaped to the row card and painted a primary ellipse over it.
+      position: relative;
+      inset: auto;
       transform: none;
       box-shadow: none;
       margin-inline-start: auto;

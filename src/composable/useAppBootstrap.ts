@@ -6,7 +6,7 @@ import {useI18n} from 'vue-i18n'
 import {loadLocale} from '@/i18n/loadLocale'
 import {typedApi} from '@/services/typedApi'
 import {getAuthToken, clearAuthToken} from '@/services/authSession'
-import {updateConfig} from '@/services/configService'
+import {refreshServerConfig, updateConfig} from '@/services/configService'
 import {getWatchedFolders} from '@/services/watcherService'
 import {getActiveWatchedFolders, type WatchedFolderEntry} from '@/services/watcherUtils'
 import {useWatcher} from '@/composable/Watcher'
@@ -518,10 +518,17 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
   }
 
   const handleAuthenticated: Handler = () => {
-    void loadMainAppData().then(() => {
-      startWatcherIfEnabled()
-      return markAppReady()
-    })
+    // Settings and /api/config were fetched before login with API keys blanked
+    // by the server; reload them so screens like TMDB settings don't show (and
+    // re-save) an empty key.
+    void refreshServerConfig()
+      .catch((error: unknown) => console.warn('Failed to refresh config after login:', error))
+      .then(() => initSettings())
+      .then(() => loadMainAppData())
+      .then(() => {
+        startWatcherIfEnabled()
+        return markAppReady()
+      })
   }
 
   let unregisterMetaCatalogLoader: (() => void) | null = null

@@ -11,7 +11,7 @@
       @click.stop="openViewer"
     >
       <v-img
-        v-if="previewActive && thumb"
+        v-if="previewActive && thumb && !isThumbMissing"
         :src="thumb || undefined"
         :aspect-ratio="previewAspectRatio"
         class="thumb"
@@ -19,6 +19,12 @@
         :contain="!isViewMasonry && !isViewSquares && !isListView"
         @load="onThumbLoad"
         @error="onThumbError"
+      />
+      <MediaThumbPlaceholder
+        v-else-if="previewActive && isThumbMissing"
+        type="image"
+        :file-path="media?.path"
+        class="thumb"
       />
       <div
         v-else
@@ -55,6 +61,7 @@ import {enqueueImageThumbAndMeta, isEmptyMediaSource} from '@/utils/quietMediaBa
 import {probeDisplayImageUrl} from '@/utils/probeImageUrl'
 import {galleryPerfCounters} from '@/utils/galleryPerfCounters'
 import type {MediaItem} from '@/types/stores'
+import MediaThumbPlaceholder from '@/components/items/MediaThumbPlaceholder.vue'
 
 const props = withDefaults(defineProps<{
   media: MediaItem
@@ -80,6 +87,8 @@ let thumbPainted = false
 let loadGeneration = 0
 
 const ITEMS = computed(() => itemsStore)
+
+const isThumbMissing = computed(() => Boolean(thumb.value?.includes('unavailable.png')))
 
 const isViewCard = computed(() =>
   Number(ITEMS.value.view) === 1 || Number(ITEMS.value.view) === 5

@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
-import {computed} from 'vue'
+import {computed, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useSettingsStore} from '@/stores/settings'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
 import SettingsGroupPanel from '@/components/ui/SettingsGroupPanel.vue'
 import {setOption} from '@/services/settingsService'
+import ItemsPaginationBar from '@/components/elements/ItemsPaginationBar.vue'
 
 const settingsStore = useSettingsStore()
 const SETTINGS = computed(() => settingsStore)
+const examplePage = ref(50)
 const {t} = useI18n()
 </script>
 
@@ -175,12 +177,11 @@ const {t} = useI18n()
       rounded="xl"
     >
       {{ t('settings_labels.appearance.example_pagination') }}
-      <v-pagination
-        :total-visible="SETTINGS.numberOfPagesLimit"
-        :length="99"
-        active-color="primary"
-        density="comfortable"
-        rounded
+      <ItemsPaginationBar
+        class="mt-2"
+        v-model:page="examplePage"
+        :pages="99"
+        :total-visible="Number(SETTINGS.numberOfPagesLimit) || 7"
       />
     </v-card>
   </SettingsGroupPanel>

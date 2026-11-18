@@ -14,6 +14,7 @@ const live = ['queued', 'discovering', 'verifying', 'paused']
 /** Server-owned scheduler: durable coalescing plus metadata-only reconnect probes. */
 export function createCopyDiscoveryAutomation(db: ApiDb, discovery: {
   create(input: CopyDiscoveryInput, triggers?: CopyDiscoveryTrigger[]): {id: string}
+  appendToQueued?(input: CopyDiscoveryInput, triggers: CopyDiscoveryTrigger[]): string | null
 }, options: {now?: () => number; probe?: (root: string) => Promise<{identity: string} | null>} = {}) {
   const now = options.now || Date.now
   let disposed = false, polling = false, lastPoll = -Infinity
@@ -102,7 +103,11 @@ export function createCopyDiscoveryAutomation(db: ApiDb, discovery: {
     }
     current.sqlite.transaction(() => {
       for (const group of groups.values()) {
-        const job = discovery.create({roots: group.map(entry => rootInput(entry.root))}, [...new Set(group.flatMap(entry => entry.reasons))])
+        const input = {roots: group.map(entry => rootInput(entry.root))}
+        const triggers = [...new Set(group.flatMap(entry => entry.reasons))]
+        // Fold into a job still waiting in the queue so bursts do not pile up dozens of jobs.
+        const queuedId = discovery.appendToQueued?.(input, triggers)
+        const job = queuedId ? {id: queuedId} : discovery.create(input, triggers)
         for (const {request} of group) current.sqlite.prepare('UPDATE copyDiscoveryAutoRequests SET jobId = ?, submittedGeneration = ? WHERE rootId = ?')
           .run(job.id, request.generation, request.rootId)
       }

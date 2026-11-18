@@ -29,9 +29,7 @@ describe('similarity search and merging', () => {
     return row
   }
   function visuals() {
-    const policy = defaultDuplicatePolicy()
-    policy.weights = {path: 0, name: 0, size: 0, oshash: 0, visual: 100}
-    policy.threshold = 90
+    const policy = {...defaultDuplicatePolicy(), searchSimilarVideos: true}
     createSettingsRepository(db.drizzle).upsertByOption(DUPLICATE_POLICY_SETTING, JSON.stringify(policy))
     fixture.sqlite.exec("UPDATE media SET visualHash = '1234567890abcdef'")
   }
@@ -90,6 +88,14 @@ describe('similarity search and merging', () => {
     expect(fs.existsSync(a.path)).toBe(true)
     expect(fs.existsSync(b.path)).toBe(false)
     expect(listMediaCopies(db, a.id).copies.map(copy => copy.path)).toEqual([a.path])
+  })
+  it('keeps a copy whose middle differs even though size and fingerprint match', async () => {
+    const edge = 'e'.repeat(100_000)
+    const a = await card('a.mp4', `${edge}complete${edge}`), b = await card('b.mp4', `${edge}partial!${edge}`)
+    const result = await mergeMediaItems(db, {survivorId: a.id, sourceIds: [b.id], similarity: true, deleteSourceIds: [b.id], confirmFileDeletion: true})
+    expect(fs.existsSync(b.path)).toBe(true)
+    expect(result.fileWarnings).toEqual([`${b.path}: sha256_mismatch`])
+    expect(listMediaCopies(db, a.id).copies.map(copy => copy.path).sort()).toEqual([a.path, b.path].sort())
   })
   it('combines full SHA verification with configured fingerprint evidence', async () => {
     const a = await card('a.mp4'), b = await card('b.mp4')

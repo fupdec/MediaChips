@@ -262,6 +262,19 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
     invalidateMediaDerivedCaches()
   }
 
+  const normalizeRoots = (current: ApiDb, roots: CopyDiscoveryInput['roots']) => {
+    for (const root of roots) {
+      if (!root.connectionId) root.key = localOriginalKey(root.key)
+      else {
+        if (isSourceProfileRemoved(current.sqlite, root.connectionId)) throw sourceError('connection_not_found', 404)
+        bindSourceProfile(current.sqlite, root.connectionId, ['nas', 'gdrive', 'onedrive', 'dropbox'])
+        const connection = current.sqlite.prepare('SELECT provider FROM sourceConnections WHERE id = ?').get(root.connectionId) as {provider: string} | undefined
+        if (!connection) throw sourceError('connection_not_found', 404)
+        root.key = connection.provider === 'nas' ? normalizeNasRelativePath(root.key) : root.connectionId === 'google-drive' ? DriveFileIdSchema.parse(root.key) : CloudKeySchema.parse(root.key || 'root')
+      }
+    }
+  }
+
   const service = {
     create(raw: CopyDiscoveryInput, triggers: CopyDiscoveryTrigger[] = []) {
       const input = CopyDiscoveryInputSchema.parse(raw)
@@ -269,21 +282,43 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
       if (input.mediaId && !current.sqlite.prepare('SELECT 1 FROM media WHERE id = ? AND deletedAt IS NULL').get(input.mediaId)) throw sourceError('media_not_found', 404)
       const id = randomUUID(), date = now()
       current.sqlite.transaction(() => {
-        for (const root of input.roots) {
-          if (!root.connectionId) root.key = localOriginalKey(root.key)
-          else {
-            if (isSourceProfileRemoved(current.sqlite, root.connectionId)) throw sourceError('connection_not_found', 404)
-            bindSourceProfile(current.sqlite, root.connectionId, ['nas', 'gdrive', 'onedrive', 'dropbox'])
-            const connection = current.sqlite.prepare('SELECT provider FROM sourceConnections WHERE id = ?').get(root.connectionId) as {provider: string} | undefined
-            if (!connection) throw sourceError('connection_not_found', 404)
-            root.key = connection.provider === 'nas' ? normalizeNasRelativePath(root.key) : root.connectionId === 'google-drive' ? DriveFileIdSchema.parse(root.key) : CloudKeySchema.parse(root.key || 'root')
-          }
-        }
+        normalizeRoots(current, input.roots)
         current.sqlite.prepare('INSERT INTO copyDiscoveryJobs (id,state,method,roots,mediaId,createdAt,updatedAt,triggers) VALUES (?,?,?,?,?,?,?,?)')
           .run(id, 'queued', copyVerificationMethod(current), JSON.stringify(input.roots), input.mediaId || null, date, date, JSON.stringify(triggers))
         if (!triggers.length) for (const root of input.roots) rememberCopyDiscoveryRoot(current, root, 'manual')
       })()
       return view(current, id)
+    },
+    /**
+     * Adds roots of one source to an automatic job that has not started yet, so a burst of imports or
+     * folder updates leaves a single queued job instead of one per notification. Returns that job, or
+     * null when nothing suitable is waiting (a running job is never changed).
+     */
+    appendToQueued(raw: CopyDiscoveryInput, triggers: CopyDiscoveryTrigger[]) {
+      const input = CopyDiscoveryInputSchema.parse(raw)
+      if (input.mediaId || !triggers.length) return null
+      const current = pinSourceDb(db).db
+      const source = (root: {connectionId?: string}) => root.connectionId || 'local'
+      const sourceKey = source(input.roots[0])
+      if (input.roots.some(root => source(root) !== sourceKey)) return null
+      let merged: string | null = null
+      current.sqlite.transaction(() => {
+        const queued = current.sqlite.prepare("SELECT id, roots, triggers FROM copyDiscoveryJobs WHERE state = 'queued' AND mediaId IS NULL AND triggers != '[]' ORDER BY rowid").all() as {id: string; roots: string; triggers: string}[]
+        for (const job of queued) {
+          const jobRoots = JSON.parse(job.roots) as CopyDiscoveryInput['roots']
+          if (jobRoots.some(root => source(root) !== sourceKey)) continue
+          normalizeRoots(current, input.roots)
+          const byKey = new Map(jobRoots.map(root => [`${root.connectionId || ''}\0${root.key}`, root]))
+          for (const root of input.roots) byKey.set(`${root.connectionId || ''}\0${root.key}`, root)
+          if (byKey.size > 32) continue
+          const jobTriggers = [...new Set([...(JSON.parse(job.triggers) as CopyDiscoveryTrigger[]), ...triggers])]
+          current.sqlite.prepare("UPDATE copyDiscoveryJobs SET roots = ?, triggers = ?, updatedAt = ? WHERE id = ? AND state = 'queued'")
+            .run(JSON.stringify([...byKey.values()]), JSON.stringify(jobTriggers), now(), job.id)
+          merged = job.id
+          return
+        }
+      })()
+      return merged
     },
     jobs() { const current = pinSourceDb(db).db; return (current.sqlite.prepare('SELECT id FROM copyDiscoveryJobs ORDER BY rowid DESC LIMIT 20').all() as {id: string}[]).map(row => view(current, row.id)) },
     activity() {

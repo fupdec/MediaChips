@@ -16,17 +16,6 @@
           <v-hotkey keys="f"/>
         </div>
       </v-btn>
-
-      <v-btn
-        v-if="!isAudioMode"
-        @click="emit('togglePictureInPicture')"
-        class="toggle-picture-in-picture"
-        icon
-        dark
-      >
-        <v-icon size="20">mdi-picture-in-picture-bottom-right</v-icon>
-        <div class="tip" v-html="t('player.controls.picture_in_picture')"/>
-      </v-btn>
     </v-btn-group>
 
     <v-btn-group @wheel.prevent="handleVolumeWheel"
@@ -52,7 +41,7 @@
         min="0"
         step="0.05"
         max="1"
-        track-size="1"
+        :track-size="4"
         hide-details
       />
     </v-btn-group>
@@ -67,7 +56,6 @@ const {t} = useI18n()
 const {
   player,
   playerStore,
-  isAudioMode,
   density,
   volumeIcon,
   toggleMute,

@@ -1,7 +1,7 @@
 import {afterEach, describe, expect, it} from 'vitest'
 import {createServer} from 'node:http'
 import {createExpressApp} from './createApp'
-import {createAuthMiddleware, createLoginThrottle, isProtectedWsPath, safeEqual} from './auth'
+import {createAuthMiddleware, createAuthService, createLoginThrottle, isProtectedWsPath, isSecretSettingOption} from './auth'
 
 type TestServer = {
   baseUrl: string
@@ -78,12 +78,6 @@ describe('auth middleware websocket routes', () => {
 })
 
 describe('login hardening', () => {
-  it('compares passwords in constant time without length leaks', () => {
-    expect(safeEqual('secret', 'secret')).toBe(true)
-    expect(safeEqual('secret', 'secreT')).toBe(false)
-    expect(safeEqual('', 'secret')).toBe(false)
-  })
-
   it('locks a client out after repeated failures and unlocks after the window', () => {
     let clock = 0
     const throttle = createLoginThrottle({windowMs: 1000, maxFailures: 3, now: () => clock})
@@ -100,5 +94,37 @@ describe('login hardening', () => {
     throttle.reset('a')
     throttle.recordFailure('a')
     expect(throttle.retryAfterMs('a')).toBe(0)
+  })
+})
+
+describe('secret settings', () => {
+  it('treats the password and third-party credentials as secret', () => {
+    for (const option of ['phrase', 'tmdbApiKey', 'tpdbApiKey', 'jellyfinApiKey', 'plexToken', 'clientSecret']) {
+      expect(isSecretSettingOption(option)).toBe(true)
+    }
+  })
+
+  it('keeps login-screen settings readable', () => {
+    for (const option of ['passwordProtection', 'passwordHint', 'theme', 'tmdbPersonMetaId']) {
+      expect(isSecretSettingOption(option)).toBe(false)
+    }
+  })
+})
+
+describe('settings sanitizing', () => {
+  const service = createAuthService({} as Parameters<typeof createAuthService>[0])
+  const rows = [
+    {option: 'phrase', value: 'scrypt$16384$8$1$c2FsdA==$aGFzaA=='},
+    {option: 'tmdbApiKey', value: 'tmdb-key'},
+    {option: 'passwordHint', value: 'pet name'},
+  ]
+
+  it('never sends the stored password hash, even after login', () => {
+    const value = (authenticated: boolean, protection: boolean) => Object.fromEntries(
+      service.sanitizeSettingRows(rows, protection, authenticated).map((row) => [row.option, row.value]),
+    )
+    expect(value(true, true)).toEqual({phrase: '', tmdbApiKey: 'tmdb-key', passwordHint: 'pet name'})
+    expect(value(false, true)).toEqual({phrase: '', tmdbApiKey: '', passwordHint: 'pet name'})
+    expect(value(false, false)).toEqual({phrase: '', tmdbApiKey: 'tmdb-key', passwordHint: 'pet name'})
   })
 })

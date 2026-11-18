@@ -119,10 +119,33 @@ const cloudAccounts = computed(() => [
     subtitle: serviceStyle(account.provider).title + ' · ' + tr(account.authenticated ? 'Подключён' : 'Не подключён', account.authenticated ? 'Connected' : 'Disconnected')
       + (account.provider === 'gdrive' ? ' · ' + tr('Только чтение', 'Read-only') : '')})),
 ])
+// The panel used to open on the main Google Drive even when it is not connected
+// and another account is. Remember the last choice and otherwise prefer a connected account.
+const ACCOUNT_KEY = 'mediachips.sources.account'
+const readSavedAccount = () => { try { return localStorage.getItem(ACCOUNT_KEY) || '' } catch { return '' } }
+const saveAccount = (id: string) => { try { localStorage.setItem(ACCOUNT_KEY, id) } catch { /* the choice just isn't remembered */ } }
+let initialAccountChosen = route.query.section === 'google_drive' || route.query.section === 'settings-google-drive'
 async function selectAccount(id: string) {
+  initialAccountChosen = true
+  saveAccount(id)
   driveSelected.value = id === 'drive'
   if (!driveSelected.value) await cloud.value?.selectAccount(id)
 }
+watch([() => drive.value?.status, () => cloud.value?.accounts, () => cloud.value?.busy], async () => {
+  if (initialAccountChosen || cloud.value?.busy) return
+  const status = drive.value?.status
+  const accounts = cloud.value?.accounts ?? []
+  if (!status || !accounts.length) return
+  initialAccountChosen = true
+  const saved = readSavedAccount()
+  let target = ''
+  if (saved === 'drive' || accounts.some(account => account.id === saved)) target = saved
+  else if (!status.authenticated) target = [...accounts].reverse().find(account => account.authenticated)?.id ?? ''
+  if (target && target !== 'drive') {
+    driveSelected.value = false
+    await cloud.value?.selectAccount(target)
+  }
+}, {flush: 'post'})
 watch(() => cloud.value?.accountId, id => { if (!id && !cloud.value?.busy) driveSelected.value = true }, {flush: 'post'})
 function addAccount() { cloud.value?.addAccount() }
 let accountBeforeEditing: string | undefined
@@ -130,6 +153,8 @@ watch(() => cloud.value?.editing, (editing, wasEditing) => {
   if (editing) { accountBeforeEditing = cloud.value?.accountId; return }
   if (!wasEditing) return
   if (cloud.value?.accountId && cloud.value.accountId !== accountBeforeEditing) {
+    initialAccountChosen = true
+    saveAccount(cloud.value.accountId)
     driveSelected.value = false
   } else if (!cloudAccounts.value.some(account => account.value === selectedAccount.value)) {
     const fallback = cloudAccounts.value[0]

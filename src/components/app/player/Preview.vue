@@ -3,7 +3,10 @@
     v-show="shouldShowPreview"
     :style="previewStyle"
     class="preview text-center"
-    :class="{'preview--time-only': playerStore.isWebVideo}"
+    :class="{
+      'preview--time-only': playerStore.isWebVideo,
+      'preview--hidden': isPreviewHidden,
+    }"
   >
     <div
       v-if="useTimelineFrames && gridFrameStyle"
@@ -74,6 +77,15 @@ const gridGenRequestedFor = ref<number | null>(null)
 const gridFrameCacheBust = ref(0)
 const gridFrameFailed = ref(false)
 
+// Last hover position, kept while the preview fades out.
+const lastHover = ref<number | null>(null)
+watch(() => playerStore.progress_hover, (value) => {
+  if (value != null) lastHover.value = value
+})
+watch(() => playerStore.media?.id, () => {
+  lastHover.value = null
+})
+
 const useTimelineFrames = computed(() => playerStore.usesLiveTranscode && !playerStore.isWebVideo)
 
 const aspectRatio = computed(() =>
@@ -82,12 +94,12 @@ const aspectRatio = computed(() =>
 
 const previewStyle = computed(() => {
   if (playerStore.isWebVideo) return {
-    left: `clamp(40px, ${playerStore.progress_hover ?? 0}%, calc(100% - 40px))`,
+    left: `clamp(40px, ${lastHover.value ?? 0}%, calc(100% - 40px))`,
     transform: 'translateX(-50%)',
   }
   const ratio = aspectRatio.value
-  const hover = playerStore.progress_hover ?? 0
-  const halfWidth = `calc(15vh * ${ratio} / 2 + 10px)`
+  const hover = lastHover.value ?? 0
+  const halfWidth = `calc(var(--player-timeline-preview-height, clamp(100px, 15vh, 180px)) * ${ratio} / 2 + 10px)`
 
   return {
     left: `clamp(${halfWidth}, ${hover}%, calc(100% - ${halfWidth}))`,
@@ -100,12 +112,17 @@ const shouldShowPreview = computed(() => {
   return Boolean(playerStore.media?.id) &&
     playerStore.is_file_exists &&
     !playerStore.webVideoLoading &&
-    playerStore.progress_hover != null &&
-    !playerStore.is_mark_hover
+    lastHover.value != null
 })
 
+// Mark hover / leaving the timeline fade the preview out instead of
+// removing it, so it cross-fades with the mark card.
+const isPreviewHidden = computed(() =>
+  playerStore.progress_hover == null || playerStore.is_mark_hover,
+)
+
 const formattedTime = computed(() => {
-  const hover = Number(playerStore.progress_hover ?? 0)
+  const hover = Number(lastHover.value ?? 0)
   let time = playerStore.duration / 100 * hover
   if (hover < 0) {
     time = 0
@@ -114,8 +131,8 @@ const formattedTime = computed(() => {
 })
 
 const gridFrameIndex = computed(() => {
-  if (playerStore.progress_hover == null) return null
-  return pickGridFrameIndex(playerStore.progress_hover)
+  if (lastHover.value == null) return null
+  return pickGridFrameIndex(lastHover.value)
 })
 
 const fallbackThumbUrl = computed(() => {

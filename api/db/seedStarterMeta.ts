@@ -19,6 +19,8 @@ type StarterMetaField = {
   color?: number
   measurementUnit?: string | null
   ratingMax?: number
+  /** Card image width / height; defaults to 1 (square). */
+  imageAspectRatio?: number
 }
 
 type StarterChildField = {
@@ -73,6 +75,7 @@ const STARTER_META: StarterMetaField[] = [
     favorite: 1,
     country: 1,
     color: 1,
+    imageAspectRatio: 5 / 8, // portrait cards for performer photos (the 5:8 preset)
   },
   {
     type: 'array',
@@ -280,6 +283,7 @@ function insertStarterMeta(
   const color = 'color' in field ? (field.color ?? 0) : 0
   const measurementUnit = field.measurementUnit ?? null
   const ratingMax = 'ratingMax' in field ? (field.ratingMax ?? 5) : 5
+  const imageAspectRatio = 'imageAspectRatio' in field ? (field.imageAspectRatio ?? 1) : 1
   const order = field.order
 
   const result = sqlite.prepare(`
@@ -291,7 +295,7 @@ function insertStarterMeta(
     ) VALUES (
       ?, ?, ?, ?, ?, ?, 0, 0, 0, 0,
       ?, ?, 0, ?, ?, ?, 'flat', 0, ?,
-      1, ?, 0, 'star', 'star-outline', 'star-half-full', ?,
+      ?, ?, 0, 'star', 'star-outline', 'star-half-full', ?,
       '#ffab00', 0, 'createdAt', 'asc', ?, ?
     )
   `).run(
@@ -307,6 +311,7 @@ function insertStarterMeta(
     rating,
     favorite,
     color,
+    imageAspectRatio,
     measurementUnit,
     ratingMax,
     timestamp,

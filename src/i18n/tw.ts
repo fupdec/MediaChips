@@ -73,6 +73,7 @@ const tw = {
     processStarted: '程序已啟動',
     openProcessInNotifications: '您可以在通知清單中查看詳細資訊',
     activeProcessesCount: '進行中的程序：{count}。詳細資訊請見通知清單',
+    activeProcessesTitle: '進行中的程序：{count}',
     openNotificationsList: '開啟清單',
   },
   systemBar: {
@@ -456,6 +457,8 @@ const tw = {
     more: '更多',
     tools: '工具',
     find_similar: '尋找相似項目',
+    find_duplicates: '尋找重複',
+    duplicates_by_policy: '依維護設定',
     bulk_auto_scrape: 'TPDB 自動抓取所選項目',
     bulk_tmdb_auto_scrape: 'TMDB 自動抓取所選項目',
     bulk_auto_scrape_scenes: 'TPDB 自動抓取場景（所選項目）',

@@ -1,4 +1,20 @@
 import { shouldUseWheelSeek, preventWheelDefault, getVolumeDeltaFromWheel } from '@/utils/playerWheel'
+import {
+  cycleAspectMode,
+  flipPicture,
+  resetPicture,
+  rotatePicture,
+  zoomPicture,
+  type PictureStoreLike,
+  type Translate,
+} from '@/utils/playerPictureActions'
+import { cycleAbLoop, type AbLoopStoreLike } from '@/utils/playerAbLoop'
+import {
+  cycleSubtitleTrack,
+  shiftSubtitleDelay,
+  SUBTITLE_DELAY_STEP,
+  type SubtitleStoreLike,
+} from '@/utils/playerSubtitleActions'
 
 export const SEEK_STEP_SECONDS = 10
 export const SEEK_SHIFT_MULTIPLIER = 3
@@ -10,8 +26,9 @@ export function isPlainKey(event: KeyboardEvent): boolean {
   return !event.ctrlKey && !event.metaKey && !event.altKey
 }
 
-interface PlayerStoreLike {
+interface PlayerStoreLike extends Partial<PictureStoreLike>, Partial<AbLoopStoreLike>, Partial<SubtitleStoreLike> {
   active?: boolean
+  areaSelecting?: boolean
   isKeyboardBlocked?: boolean
   studioMode?: boolean
   trimMode?: boolean
@@ -37,6 +54,23 @@ export function shouldHandlePlayerShortcut(event: KeyboardEvent, playerStore: Pl
   }
 
   return true
+}
+
+/** Picture hotkeys need the picture state and a video (not audio) playback. */
+function pictureStore(playerStore: PlayerStoreLike): PictureStoreLike | null {
+  if (playerStore.isAudioMode) return null
+  if (typeof playerStore.aspectMode !== 'string' || playerStore.videoFilters == null || typeof playerStore.zoom !== 'number') return null
+  return playerStore as PictureStoreLike
+}
+
+function abLoopStore(playerStore: PlayerStoreLike): AbLoopStoreLike | null {
+  if (typeof playerStore.currentTime !== 'number' || playerStore.abLoop == null) return null
+  return playerStore as AbLoopStoreLike
+}
+
+function subtitleStore(playerStore: PlayerStoreLike): SubtitleStoreLike | null {
+  if (!Array.isArray(playerStore.subtitleTracks) || typeof playerStore.subtitleDelay !== 'number') return null
+  return playerStore as SubtitleStoreLike
 }
 
 function shouldThrottleSeek(event: KeyboardEvent): boolean {
@@ -81,6 +115,8 @@ export interface PlayerHotkeyContext {
   changeVolume?: (payload: { deltaY: number }) => void
   openAddingMark?: (type: string) => void
   closePlayer?: () => void
+  /** Translates the on-screen status of picture hotkeys; keys are shown as is without it. */
+  t?: Translate
 }
 
 export function handlePlayerKeydown(event: KeyboardEvent, ctx: PlayerHotkeyContext): boolean {
@@ -92,12 +128,17 @@ export function handlePlayerKeydown(event: KeyboardEvent, ctx: PlayerHotkeyConte
     changeVolume,
     openAddingMark,
     closePlayer,
+    t = (key: string) => key,
   } = ctx
 
   let step = SEEK_STEP_SECONDS
 
   switch (true) {
     case event.code === 'Escape':
+      if (playerStore.areaSelecting) {
+        playerStore.areaSelecting = false
+        return true
+      }
       if (playerStore.trimMode) {
         return callControl(controls, 'exitTrimMode')
       }
@@ -211,6 +252,82 @@ export function handlePlayerKeydown(event: KeyboardEvent, ctx: PlayerHotkeyConte
 
     case event.code === 'KeyE' && isPlainKey(event):
       return callControl(controls, 'editVideo')
+
+    case event.code === 'KeyA' && isPlainKey(event): {
+      const store = pictureStore(playerStore)
+      if (!store) return false
+      cycleAspectMode(store, t, event.shiftKey ? -1 : 1)
+      return true
+    }
+
+    case event.code === 'KeyR' && isPlainKey(event): {
+      const store = pictureStore(playerStore)
+      if (!store) return false
+      rotatePicture(store, event.shiftKey ? -90 : 90)
+      return true
+    }
+
+    case event.code === 'KeyH' && isPlainKey(event): {
+      const store = pictureStore(playerStore)
+      if (!store) return false
+      flipPicture(store, 'h', t)
+      return true
+    }
+
+    case event.code === 'KeyV' && isPlainKey(event): {
+      const store = pictureStore(playerStore)
+      if (!store) return false
+      flipPicture(store, 'v', t)
+      return true
+    }
+
+    case event.code === 'KeyL' && isPlainKey(event): {
+      const store = abLoopStore(playerStore)
+      if (!store) return false
+      cycleAbLoop(store, t)
+      return true
+    }
+
+    case event.code === 'KeyS' && isPlainKey(event): {
+      if (typeof playerStore.areaSelecting !== 'boolean' || playerStore.isAudioMode) return false
+      playerStore.areaSelecting = !playerStore.areaSelecting
+      return true
+    }
+
+    case event.code === 'KeyJ' && isPlainKey(event): {
+      const store = subtitleStore(playerStore)
+      if (!store) return false
+      cycleSubtitleTrack(store, t)
+      return true
+    }
+
+    case (event.code === 'BracketLeft' || event.code === 'BracketRight') && isPlainKey(event): {
+      const store = subtitleStore(playerStore)
+      if (!store || store.subtitleTracks.length === 0) return false
+      shiftSubtitleDelay(store, event.code === 'BracketRight' ? SUBTITLE_DELAY_STEP : -SUBTITLE_DELAY_STEP)
+      return true
+    }
+
+    case (event.code === 'Equal' || event.code === 'NumpadAdd') && isPlainKey(event): {
+      const store = pictureStore(playerStore)
+      if (!store) return false
+      zoomPicture(store, 1)
+      return true
+    }
+
+    case (event.code === 'Minus' || event.code === 'NumpadSubtract') && isPlainKey(event): {
+      const store = pictureStore(playerStore)
+      if (!store) return false
+      zoomPicture(store, -1)
+      return true
+    }
+
+    case event.code === 'Digit0' && isPlainKey(event): {
+      const store = pictureStore(playerStore)
+      if (!store) return false
+      resetPicture(store, t)
+      return true
+    }
 
     case event.code === 'Backspace' || event.code === 'Delete':
       if (event.shiftKey && (event.ctrlKey || event.altKey)) {

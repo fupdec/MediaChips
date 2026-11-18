@@ -1270,8 +1270,18 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
 
   &--video {
     position: relative;
+    aspect-ratio: 16 / 9;
+    max-height: none;
+    min-height: 0;
     background: #000;
     border-color: transparent;
+
+    .inspector-panel__thumb {
+      width: 100%;
+      height: 100%;
+      max-height: none;
+      object-fit: cover;
+    }
   }
 }
 
@@ -1532,6 +1542,11 @@ function onSaved(payload: {id: number; type: 'tag' | 'media'}): void {
   font-weight: 600;
   line-height: 1.3;
   word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 
 .inspector-panel__path {

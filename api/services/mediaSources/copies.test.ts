@@ -13,7 +13,7 @@ import {createMediaRepository} from '../../db/repositories/media'
 import type {ApiDb} from '../../types/db'
 import {mergeMediaItems} from '../mediaMerge'
 import {copyCandidates, listMediaCopies, setPreferredCopy, selectPlayableCopy, verifyCopiesForMerge, hashCopy,
-  attachLocalMediaCopy, detachMediaCopy, type OpenCopySource} from './copies'
+  attachLocalMediaCopy, detachMediaCopy, UNVERIFIED_COPY_VERSION, TRUSTED_COPY_VERSION, type OpenCopySource} from './copies'
 import {updateVerifiedCopyPath} from './copyPathUpdates'
 import {createLocalOriginalAdapter} from './localAdapter'
 import {mediaCopiesRouter} from '../../routes/MediaCopies.routes'
@@ -272,6 +272,55 @@ describe('verified file copies', () => {
       return open(db, filename, signal)
     }
     expect((await selectPlayableCopy(db, a.id, signal(), unavailable)).url).toContain(verification.copies[0].id)
+  })
+
+  it('keeps an unreadable source file as an unavailable backup copy and re-checks it when it returns', async () => {
+    strict(false)
+    const a = local('kept.mp4'), b = local('gone.mp4')
+    const oshash = (await verifyCopiesForMerge(db, [a.id], signal())).copies[0].oshash
+    fixture.sqlite.prepare('UPDATE media SET oshash = ? WHERE id IN (?, ?)').run(oshash, a.id, b.id)
+    fs.rmSync(b.path)
+    const result = await merge(a.id, b.id)
+    expect(result.deletedIds).toEqual([b.id])
+    expect(result.unavailableCopyPaths).toEqual([b.path])
+    const backup = copyCandidates(db, a.id).find(copy => copy.path === b.path)!
+    expect(backup).toMatchObject({availability: 'unavailable', version: UNVERIFIED_COPY_VERSION, verified: true})
+    fs.writeFileSync(b.path, 'same movie bytes')
+    setPreferredCopy(db, a.id, backup.id)
+    expect((await selectPlayableCopy(db, a.id, signal())).url).toContain(encodeURIComponent(backup.id))
+    expect(copyCandidates(db, a.id).find(copy => copy.id === backup.id)?.version).not.toBe(UNVERIFIED_COPY_VERSION)
+  })
+
+  it('refuses to keep an unreadable source without a catalog fingerprint or with a different one', async () => {
+    strict(false)
+    const a = local('kept.mp4'), b = local('no-hash.mp4'), c = local('other.mp4')
+    fixture.sqlite.prepare("UPDATE media SET oshash = 'ffffffffffffffff' WHERE id = ?").run(c.id)
+    fs.rmSync(b.path); fs.rmSync(c.path)
+    await expect(merge(a.id, b.id)).rejects.toMatchObject({code: 'copy_unavailable_unverified'})
+    await expect(merge(a.id, c.id)).rejects.toMatchObject({code: 'copy_content_mismatch'})
+    expect(copyCandidates(db, a.id)).toHaveLength(1)
+  })
+
+  it('on explicit trust keeps unreadable files without a fingerprint, survivor included, and adopts them by size', async () => {
+    strict(false)
+    const a = local('kept.mp4'), b = local('unplugged.mp4'), c = local('survivor-unplugged.mp4'), d = local('online.mp4')
+    fs.rmSync(b.path); fs.rmSync(c.path)
+    await expect(merge(a.id, b.id)).rejects.toMatchObject({code: 'copy_unavailable_unverified'})
+    const result = await mergeMediaItems(db, {survivorId: a.id, sourceIds: [b.id], trustUnavailable: true})
+    expect(result.unavailableCopyPaths).toEqual([b.path])
+    const backup = copyCandidates(db, a.id).find(copy => copy.path === b.path)!
+    expect(backup).toMatchObject({availability: 'unavailable', version: TRUSTED_COPY_VERSION, relationship: 'copy'})
+    fs.writeFileSync(b.path, 'other movie size')
+    fs.appendFileSync(b.path, '!')
+    setPreferredCopy(db, a.id, backup.id)
+    expect((await selectPlayableCopy(db, a.id, signal())).url).not.toContain(encodeURIComponent(backup.id))
+    fs.writeFileSync(b.path, 'same movie bytes')
+    expect((await selectPlayableCopy(db, a.id, signal())).url).toContain(encodeURIComponent(backup.id))
+    expect(copyCandidates(db, a.id).find(copy => copy.id === backup.id)?.stored?.oshash).toBeTruthy()
+
+    const merged = await mergeMediaItems(db, {survivorId: c.id, sourceIds: [d.id], trustUnavailable: true})
+    expect(merged.unavailableCopyPaths).toEqual([c.path])
+    expect(copyCandidates(db, c.id).map(copy => copy.path).sort()).toEqual([c.path, d.path].sort())
   })
 
   it('rejects short reads, changing source validators, cancellation, and stale merge snapshots', async () => {

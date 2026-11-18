@@ -63,6 +63,8 @@ export interface MergeMediaPayload {
   similarity?: boolean
   confirmFileDeletion?: boolean
   deleteSourceIds?: number[]
+  /** Keep unreadable files as backup copies even without a catalog fingerprint (user's explicit choice). */
+  trustUnavailable?: boolean
 }
 
 export interface MediaDuplicateGroupsPayload {
@@ -71,6 +73,8 @@ export interface MediaDuplicateGroupsPayload {
   mediaIds?: Array<number | string> | null
   filters?: unknown[]
   filtersJoin?: 'and' | 'or'
+  /** Only groups that contain this media item (searched across the whole DB of its media type). */
+  targetMediaId?: number | string | null
 }
 
 export interface MoveTagsToCategoryPayload {

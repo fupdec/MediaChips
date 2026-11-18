@@ -42,12 +42,13 @@
         </v-btn>
 
         <div
-          :ref="setSurfaceEl"
+          :ref="bindSurfaceEl"
+          @click.capture="panClickCapture"
           @click="onSurfaceClick"
           @dblclick="onSurfaceDblClick"
           @click.middle="toggleFullscreen"
           @mousedown="clickOnVideo($event)"
-          @pointerdown="onSurfacePointerDown"
+          @pointerdown="onSurfacePointerDown($event); panPointerDown($event)"
           @pointermove="onSurfacePointerMove"
           @pointerup="onSurfacePointerUp"
           @pointercancel="onSurfacePointerCancel"
@@ -56,17 +57,36 @@
           :class="{
             'playback-error': showPlaybackError,
             'audio-mode': isAudioMode,
+            'video-wrapper--zoomed': playerStore.zoom > 1,
+            'video-wrapper--panning': panning,
           }"
           class="video-wrapper"
         >
+          <svg class="player-filter-defs" width="0" height="0" aria-hidden="true" focusable="false">
+            <filter :id="PLAYER_GAMMA_FILTER_ID" color-interpolation-filters="sRGB">
+              <feComponentTransfer>
+                <feFuncR type="gamma" :exponent="gammaFilterExponent"/>
+                <feFuncG type="gamma" :exponent="gammaFilterExponent"/>
+                <feFuncB type="gamma" :exponent="gammaFilterExponent"/>
+              </feComponentTransfer>
+            </filter>
+            <filter :id="PLAYER_SHARPEN_FILTER_ID" color-interpolation-filters="sRGB">
+              <feConvolveMatrix order="3" :kernelMatrix="sharpenKernelMatrix" divisor="1" preserveAlpha="true"/>
+            </filter>
+          </svg>
+
           <video
             :ref="setVideoPlayerRef"
+            :style="videoStyle"
             :class="{ 'audio-hidden': isAudioMode }"
             :autoplay="!player.usesLiveTranscode && !player.paused"
             :poster="videoPoster"
             preload="metadata"
             playsinline
           />
+
+          <PlayerSubtitles v-if="!isAudioMode" :surface-height="surfaceSize.height"/>
+          <PlayerAreaSelect v-if="!isAudioMode" :size="surfaceSize"/>
 
           <div v-if="isAudioMode && !showPlaybackError" class="audio-overlay">
             <v-img
@@ -151,6 +171,8 @@
             :class="{
               'status-text--timed': player.statusProgress != null,
               'status-text--title': player.statusLarge,
+              'status-text--detailed': !!player.statusDetails,
+              'status-text--captioned': !!player.statusSubtitleKey && player.statusProgress == null,
             }"
           >
             <div class="status-text__content">
@@ -158,16 +180,22 @@
                 v-if="player.displayStatusIcon && player.statusProgress == null"
                 dark
                 start
+                :style="player.statusColor ? {color: player.statusColor} : undefined"
               >
                 mdi-{{ player.displayStatusIcon }}
               </v-icon>
-              {{ player.displayStatusText }}
+              <span class="status-text__label" :title="player.displayStatusText">
+                {{ player.displayStatusText }}
+              </span>
             </div>
             <div v-if="player.statusProgress != null" class="status-text__progress">
               <div
                 class="status-text__progress-fill"
                 :style="{width: `${player.statusProgress}%`}"
               />
+            </div>
+            <div v-if="player.statusDetails" class="status-text__details">
+              {{ player.statusDetails }}
             </div>
             <div v-if="player.statusSubtitleKey" class="status-text__subtitle">
               {{ t(player.statusSubtitleKey) }}
@@ -196,7 +224,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, inject} from 'vue'
+import {computed, inject, shallowRef} from 'vue'
 import {useRemotePlaybackSpeed} from '@/composable/useRemotePlaybackSpeed'
 import {useAppStore} from '@/stores/app'
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
@@ -212,6 +240,13 @@ import Marks from '@/components/app/player/Marks.vue'
 import SystemBarPlayer from '@/components/app/SystemBarPlayer.vue'
 import {PLAYER_SESSION_KEY} from '@/composable/usePlayerSession'
 import {usePlayerSurfaceGestures} from '@/composable/usePlayerSurfaceGestures'
+import {usePlayerVideoGeometry} from '@/composable/usePlayerVideoGeometry'
+import {usePlayerVideoPan} from '@/composable/usePlayerVideoPan'
+import {usePlayerAbLoop} from '@/composable/usePlayerAbLoop'
+import {usePlayerEqualizer} from '@/composable/usePlayerEqualizer'
+import PlayerSubtitles from '@/components/app/player/PlayerSubtitles.vue'
+import PlayerAreaSelect from '@/components/app/player/PlayerAreaSelect.vue'
+import {PLAYER_GAMMA_FILTER_ID, PLAYER_SHARPEN_FILTER_ID} from '@/utils/playerVideoFilters'
 import {isTranscodeBusy} from '@/utils/playerTranscodeStatus'
 import {isPlaylistNavDisabled} from '@/composable/usePlayerTransportPlayback'
 
@@ -323,6 +358,16 @@ const {
   toggleFullscreen,
   showControls,
 })
+
+const surfaceEl = shallowRef<HTMLElement | null>(null)
+const bindSurfaceEl = (el: unknown) => {
+  surfaceEl.value = (el as HTMLElement | null) ?? null
+  setSurfaceEl(el)
+}
+const {videoStyle, gammaFilterExponent, sharpenKernelMatrix, size: surfaceSize} = usePlayerVideoGeometry(playerStore, surfaceEl)
+const {panning, onPointerDown: panPointerDown, onClickCapture: panClickCapture} = usePlayerVideoPan(playerStore, surfaceSize)
+usePlayerAbLoop(playerStore)
+usePlayerEqualizer(playerStore)
 
 const setVideoPlayerRef = (el: unknown) => {
   const video = el as HTMLVideoElement | null

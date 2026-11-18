@@ -27,12 +27,14 @@ import {
   MediaFolderBrowseRequestSchema,
 } from '../../shared/schemas/requests'
 import createMediaController from '../controllers/Media.controller'
+import {createMediaSubtitlesController} from '../controllers/MediaSubtitles.controller'
 import {listCatalogSources} from '../services/mediaCatalogSources'
 
 export default function registerRoutes(app: Express, db: ApiDb) {
   const Media = createMediaController(db)
   const router = express.Router()
   const relink = createMediaRelinkController(db)
+  const subtitles = createMediaSubtitlesController(db)
   const relinkItem = z.object({
     id: z.number().int().positive(),
     oldPath: z.string().min(1),
@@ -77,6 +79,9 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.put('/:id', validateBody(EntityUpdateRequestSchema), Media.update)
 
   router.use('/:id/copies', mediaCopiesRouter(db))
+
+  router.get('/:id/subtitles', subtitles.list)
+  router.get('/:id/subtitles/:name', subtitles.read)
 
   router.get('/:id', Media.getOneById)
 

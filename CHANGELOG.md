@@ -7,22 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-11-16
+## [2.0.0] - 2026-11-18
 
 ### Added
 
 - **Remote sources** — browse and import Google Drive, SFTP, FTP and WebDAV files through shared source controls; keep library metadata editable while originals are offline.
-- **Cloud accounts** — connect additional Google Drive, OneDrive and Dropbox accounts using your own OAuth app credentials; queue bounded background processing jobs.
+- **Cloud accounts** — connect additional Google Drive, OneDrive and Dropbox accounts using your own OAuth app credentials; queue bounded background processing jobs. OneDrive and Dropbox are **beta**: covered by tests, live acceptance on real accounts is not finished.
 - **File copies** — discover and verify alternate originals, retain multiple copies on one card, and restore missing file links.
 - **Original management** — preview conflicts and run recoverable transfers across local, NAS and Google Drive storage.
 - **Metadata history** — review changes, restore individual fields or operations, and preview conflicts before importing metadata from another library.
 - **Cloud sign-in on NAS and Docker** — Google Drive, Dropbox and OneDrive sign-ins now run on the server; the browser or desktop app only opens the consent page and waits for the result. When the server is on another machine (NAS, Docker, LAN, reverse proxy), paste the final redirect link back into MediaChips and it finishes the sign-in itself.
 - **Shared Google client** — extra Google Drive accounts added without their own Client ID reuse the main Google Drive OAuth client.
-- **Duplicate similarity** — choose between fingerprint and recommended presets (recommended by default), toggle which signals are required, and merge duplicates with awareness of versions and copy relationships.
+- **Duplicate levels** — copies are recognized at three fixed levels instead of adjustable weights: *exact copy* (same size and fingerprint, can be merged automatically), *awaiting check* (large files of exactly the same size whose fingerprint is still being computed in the background; never merged until confirmed) and *other version* (matching preview frames with loose, balanced or strict comparison; manual review only). Name, path and size alone never merge a pair. Before a copy is deleted it is verified in full with SHA-256, and files that differ are kept.
+- **Duplicate check on add** — every newly added file (folders, Google Drive, cloud, NAS) is compared with the library in the background. Exact copies are merged automatically, other matches are reported in a notification you can click to review. The task shows what is left, found and merged, and can be paused or skipped.
+- **Single-file duplicate review** — open the duplicates of one card, choose the primary file and merge the group; "Find duplicates" is also available by the maintenance settings.
+- **Unavailable copies on merge** — new setting that lets unreadable files (unplugged disk, offline source) be kept as backup copies without a fingerprint; they are re-checked when the file returns.
 - **Per-library backups** — create, browse and manage backup archives for any registered library, not only the active one.
 - **Media server libraries** — Jellyfin, Plex and Emby libraries use the same import controls as local folders and cloud sources.
 - **Copy discovery** — edit the source paths used to look for copies, see a summary of each discovery job, clear completed history, and fingerprint same-size local files as well as remote ones.
 - **Neutral theme** — a neutral appearance option in the theme colors.
+- **Player subtitles** — `.srt` and `.vtt` files next to local videos are found automatically, with a subtitle picker, delay and size settings.
+- **Player A-B loop** — loop a range of the video, shown as a range marker on the timeline.
+- **Player equalizer** — audio equalizer with Flat, Bass, Treble, Vocal, Rock, Pop and Classical presets.
+- **Player picture controls** — aspect ratio (auto, preset ratios, stretch, crop to fill), rotate and flip, zoom with panning, zoom to a dragged area, grayscale, sepia and invert presets, and brightness, contrast, saturation, hue, gamma, sharpness and blur sliders.
+- **Player hotkeys and gestures** — new hotkeys for aspect ratio, rotation, flips, zoom and the A-B loop; a zoomed picture is panned with one finger instead of switching to another video.
 - **Muted card tag colors** — new setting, on by default, that softens tag colors on cards.
 - **More languages** — Korean, Polish, Turkish, Italian and Traditional Chinese cover the core interface (about 1,500 strings; the rest falls back to English), and the existing translations now include every string from English.
 - **Backfill prerequisites** — backfill tasks that need something first (for example video grids) show a button to run it.
@@ -38,8 +46,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Filters** — alphabet, color and saved-view chips moved into the filters panel under Presets; while the panel is closed, only active quick filters show, as removable chips.
 - **Sidebar** — Library is pinned at the top, Library and Tags sections collapse, tag search and category headers stay in view while scrolling, and Settings, Inbox and Trash share a compact footer. Tags follow the sort order saved for their category page.
 - **Global search** — faster, with paginated media results.
-- **Dialogs and cards** — dialog headers get a tinted icon tile, tones, a scroll shadow and a clearer button hierarchy. Cards, hover cards, the player and playback settings, scraper dialogs and segmented controls are refreshed, the app bar is simpler in selection mode, and the home top tags widget uses the category image aspect ratio.
+- **Player controls** — a playback settings menu, a reworked transport bar and marks panel, a timeline with loading stripes, muted mark dots and range bars above the track, previews that stay inside the player, a mark form with type tabs, and a mark-saved notification that shows the type, icon, color, title and video name. Previous and next buttons are hidden when there is no neighbour.
+- **Cards** — rating, duration, resolution and favorite overlays use lighter glass chips that scale with the card size; the resolution label is a muted dot until the card is hovered; custom value chips use the same tonal look as tags.
+- **Thumbnails** — media without a preview get a placeholder tile, and the inspector thumbnail is 16:9.
+- **Pagination and sources** — the last page is clickable, and Originals and Refresh catalog moved into the connection action row.
+- **Dialogs and cards** — dialog headers get a tinted icon tile, tones, a scroll shadow and a clearer button hierarchy. Hover cards, scraper dialogs and segmented controls are refreshed, the app bar is simpler in selection mode, and the home top tags widget uses the category image aspect ratio.
 - **File serving and LAN access** — the server applies a file serve policy and updated authentication and LAN access handling to the files it delivers.
+
+- **Password lock** — the password is stored as a salted scrypt hash and is never sent to the app; the settings field is now "New password". Existing passwords keep working and are converted at the first sign-in.
+- **Forgotten password** — create an empty `RESET_PASSWORD` (or `RESET_PASSWORD.txt`) file in the data folder (next to `app_storage`; the lock screen shows the exact path). MediaChips removes the password of the active library, turns the lock off and deletes the file. Other libraries keep their passwords.
+- **Starter fields** — new libraries create the performer field with portrait (5:8) cards; existing libraries are unchanged.
 
 ### Fixed
 
@@ -49,14 +65,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **E2E isolation** — run against a new temporary profile, refuse to reuse a running application server, and align source tests with the shared controls and safe error messages.
 - **Packaged configuration** — exclude build-machine configuration and backups from static assets; initialize the interface from the running API, including custom Electron backend ports.
 - **NAS video posters** — regenerated through authenticated range reads; missing posters are also created when playback starts.
+- **Paged grid scrolling** — removed layout jumps and thumbnail flicker while scrolling non-virtual grids.
+- **Player playlist** — the playlist is built from the visible grid when the navigation list is stale.
+- **Remote mark frames** — frames saved for marks on remote videos are taken at the marker time.
+- **Pinned values** — the tonal highlight no longer escapes the row card.
 - **Saved views** — saved-view chips no longer clear every active filter when they unmount.
 - **Download actions** — labels are translated in all supported languages.
 - **Layout glitches** — long text buttons truncate with an ellipsis instead of overflowing, the category link on tag pages no longer stacks its icons vertically, and draggable dialogs stay inside the window.
+
+### Known limitations
+
+- **Web videos from dynamic pages** — embedded players and HLS streams rely on the installed yt-dlp and have not been verified live on every OS; treat this as conditional and report issues on GitHub.
+- **OneDrive and Dropbox** — beta, see Cloud accounts above.
+- **Cloud sign-in on Docker/NAS** — signing in by pasting the return link is covered by automated tests but has not been verified against a real provider; report issues on GitHub.
 
 ### Upgrade notes
 
 - **Back up first** — close MediaChips and copy the whole library folder before updating, and keep the 1.12 installer. 2.0 adds 13 database migrations.
 - **No way back** — a library opened in 2.0 cannot be opened by 1.12 or older. To go back, restore the copy made before updating; changes made in 2.0 will not carry over.
+- **Password** — after the first sign-in on 2.0 the stored password is a hash, so 1.x cannot verify it. To go back to 1.x, turn off `passwordProtection` in the library's `settings` table, or restore the copy made before updating.
 - **Connections** — NAS credentials and cloud tokens are stored on each computer outside the library and are not in backups. After moving a library, re-enter the credentials or sign in again on the existing connection instead of creating a new one, so cards keep their links.
 - **Google Drive** — the original Google Drive connection (full access) and additional Google accounts (read-only) remain separate connections with their own permissions.
 

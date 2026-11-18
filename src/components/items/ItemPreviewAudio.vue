@@ -14,12 +14,12 @@
         cover
         @error="thumbFailed = true"
       />
-      <div
+      <MediaThumbPlaceholder
         v-else
-        class="audio-preview-container__icon d-flex align-center justify-center"
-      >
-        <v-icon size="56" color="grey-lighten-1">mdi-music</v-icon>
-      </div>
+        type="audio"
+        :file-path="media?.path"
+        class="audio-preview-container__icon"
+      />
 
       <div
         v-if="id3Line"
@@ -56,6 +56,7 @@ import {buildLocalFileUrl} from '@/services/fileService'
 import path from 'path-browserify'
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import type {MediaItem} from '@/types/stores'
+import MediaThumbPlaceholder from '@/components/items/MediaThumbPlaceholder.vue'
 
 const props = defineProps<{
   media: MediaItem

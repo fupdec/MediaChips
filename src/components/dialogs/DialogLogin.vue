@@ -55,13 +55,34 @@
         >
           {{ t(throttled ? 'login.too_many_attempts' : 'login.wrong_password') }}
         </v-alert>
+
+        <div class="mt-4">
+          <v-btn
+            @click="toggleForgot"
+            variant="text"
+            size="small"
+            prepend-icon="mdi-help-circle-outline"
+          >
+            {{ t('login.forgot_password') }}
+          </v-btn>
+
+          <v-expand-transition>
+            <div v-if="showForgot" class="text-caption mt-2">
+              <div>{{ t('login.forgot_password_steps') }}</div>
+              <div v-if="resetPath" class="mt-2">
+                <div class="text-medium-emphasis">{{ t('login.forgot_password_file') }}</div>
+                <code class="d-block text-break user-select-all">{{ resetPath }}</code>
+              </div>
+            </div>
+          </v-expand-transition>
+        </div>
       </v-card-text>
     </v-card>
   </v-dialog>
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue';
+import {ref, computed, watch} from 'vue';
 import {useI18n} from 'vue-i18n'
 import DialogHeader from "@/components/elements/DialogHeader.vue";
 import {useSettingsStore} from '@/stores/settings';
@@ -70,7 +91,7 @@ import {setAuthToken} from '@/services/authSession';
 import {useEventBus} from '@/utils/eventBus';
 
 // Props
-defineProps({
+const props = defineProps({
   modelValue: {
     type: Boolean,
     required: true
@@ -91,6 +112,8 @@ const showPassword = ref(false);
 const error = ref(false);
 const throttled = ref(false);
 const loading = ref(false);
+const showForgot = ref(false);
+const resetPath = ref('');
 const buttons = computed(() => [
   {
     icon: "close",
@@ -111,6 +134,19 @@ const buttons = computed(() => [
   }
 ]);
 
+// The dialog component is reused for every lock, so wipe what was typed before.
+function resetForm() {
+  password.value = ''
+  showPassword.value = false
+  error.value = false
+  throttled.value = false
+  showForgot.value = false
+}
+
+watch(() => props.modelValue, (open) => {
+  if (open) resetForm()
+})
+
 // Methods
 const logIn = async () => {
   loading.value = true
@@ -119,6 +155,7 @@ const logIn = async () => {
   try {
     const res = await typedApi.login(password.value)
     setAuthToken(res.data.token)
+    resetForm()
     emit('success')
     eventBus.emit('app:authenticated')
   } catch (err: unknown) {
@@ -128,6 +165,17 @@ const logIn = async () => {
     loading.value = false
   }
 };
+
+const toggleForgot = async () => {
+  showForgot.value = !showForgot.value
+  if (!showForgot.value || resetPath.value) return
+  try {
+    const res = await typedApi.getAuthStatus()
+    resetPath.value = res.data.resetPath ?? ''
+  } catch {
+    // The generic steps are still shown without the exact path.
+  }
+}
 
 const close = () => {
   emit('update:modelValue', false);

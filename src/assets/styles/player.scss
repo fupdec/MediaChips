@@ -1,3 +1,7 @@
+// Played part of the seek / volume bars; the inactive remainder (and loading stripes) is slimmer.
+$player-track-thickness: 6px;
+$player-track-inactive-thickness: 4px;
+
 .player {
   display: flex;
   flex-direction: column;
@@ -266,6 +270,13 @@
     &.audio-hidden {
       opacity: 0;
       pointer-events: none;
+    }
+  }
+  .video-wrapper--zoomed {
+    cursor: grab;
+
+    &.video-wrapper--panning {
+      cursor: grabbing;
     }
   }
   .video-wrapper.audio-mode {
@@ -721,19 +732,21 @@
     transform: translateY(20px);
   }
 
+  // Small pointer from the form down to the mark on the timeline.
   .mark-inspector__caret {
     position: absolute;
-    bottom: -6px;
+    bottom: -7px;
     left: var(--mark-caret, 50%);
-    width: 12px;
-    height: 12px;
-    transform: translateX(-50%) rotate(45deg);
+    width: 14px;
+    height: 7px;
+    transform: translateX(-50%);
     background: var(--mark-form-surface, rgba(22, 24, 28, 0.48));
-    border-right: 1px solid rgba(255, 255, 255, 0.12);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 0 0 2px var(--mark-accent, #f44336);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
     z-index: 2;
     pointer-events: none;
+    transition: left 0.22s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .mark-inspector {
@@ -783,6 +796,17 @@
   .timeline-slider {
     margin: 0;
 
+    // Vuetify sizes the fill and background differently; pin them to one thickness.
+    &.v-slider.v-input--horizontal {
+      .v-slider-track__background {
+        height: $player-track-inactive-thickness;
+      }
+
+      .v-slider-track__fill {
+        height: $player-track-thickness;
+      }
+    }
+
     &--transcode {
       .v-slider-track {
         overflow: hidden;
@@ -802,6 +826,33 @@
           border-radius: inherit;
           pointer-events: none;
           transition: width 0.15s linear;
+        }
+      }
+    }
+
+    // Moving stripes over the not-yet-played part while the stream is loading.
+    &--loading {
+      .v-slider-track {
+        position: relative;
+        overflow: hidden;
+
+        &::after {
+          content: '';
+          position: absolute;
+          top: 50%;
+          height: $player-track-inactive-thickness;
+          transform: translateY(-50%);
+          left: var(--timeline-progress, 0%);
+          right: 0;
+          border-radius: inherit;
+          background: repeating-linear-gradient(
+            -45deg,
+            rgba(255, 255, 255, 0.55) 0 6px,
+            rgba(255, 255, 255, 0.18) 6px 12px
+          );
+          background-size: 17px 17px;
+          pointer-events: none;
+          animation: timeline-loading-stripes 0.7s linear infinite;
         }
       }
     }
@@ -830,14 +881,54 @@
     --player-timeline-preview-height: clamp(100px, 15vh, 180px);
     --player-timeline-preview-offset: 50px;
     --player-timeline-track-offset: 20px;
+    --player-track-height: 4px;
+    --player-mark-range-height: 3px;
 
     position: relative;
     overflow: visible;
-    &:hover {
-      .mark-icon {
-        opacity: 0.7;
-        transform: scale(1);
+    &:hover .mark {
+      --mark-dot-size: 12px;
+    }
+    // YouTube-style hover: lighten the track from the playhead to the pointer and show a dot there.
+    .timeline-hover {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: var(--player-timeline-track-offset, 20px);
+      height: 0;
+      z-index: 2;
+      pointer-events: none;
+
+      &__range {
+        position: absolute;
+        top: calc($player-track-inactive-thickness / -2);
+        height: $player-track-inactive-thickness;
+        left: var(--timeline-progress, 0%);
+        width: calc(var(--timeline-hover, 0%) - var(--timeline-progress, 0%));
+        border-radius: 99px;
+        background: rgba(255, 255, 255, 0.45);
       }
+
+      &__dot {
+        position: absolute;
+        top: 0;
+        left: var(--timeline-hover, 0%);
+        width: 12px;
+        height: 12px;
+        margin: -6px 0 0 -6px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 1px 4px rgba(0, 0, 0, 0.5);
+      }
+    }
+    // Pin the seek track so its centre sits exactly --player-timeline-track-offset
+    // from the bottom (pt-4 = 16px above a 32px control => centre is 16px up from
+    // the slider's top edge); mark dots use the same offset, so they stay centred.
+    &:not(.timeline--studio):not(.timeline--trim) > .timeline-slider.v-slider.v-input--horizontal {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: calc(var(--player-timeline-track-offset, 20px) - 16px);
     }
     &.timeline--studio {
       padding-top: 8px;
@@ -851,6 +942,44 @@
 
       .preview {
         z-index: 2;
+      }
+    }
+    .timeline-ab-loop {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 16px;
+      height: 32px;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .timeline-ab-loop__range {
+      position: absolute;
+      top: 10px;
+      bottom: 10px;
+      border-radius: 3px;
+      background: rgba(var(--v-theme-primary), 0.45);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    }
+    .timeline-ab-loop__tick {
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      margin-left: -1px;
+      border-radius: 1px;
+      background: rgba(255, 255, 255, 0.92);
+
+      span {
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        color: #fff;
+        text-shadow: 0 0 3px #000;
       }
     }
     .timeline-trim {
@@ -996,6 +1125,28 @@
       pointer-events: none;
       position: absolute;
       z-index: 12;
+      transform-origin: bottom center;
+      transition:
+        opacity 0.16s ease,
+        box-shadow 0.32s cubic-bezier(0.2, 0.9, 0.25, 1) 0.04s,
+        scale 0.22s cubic-bezier(0.2, 0.9, 0.25, 1),
+        translate 0.22s cubic-bezier(0.2, 0.9, 0.25, 1);
+
+      // Fades out while a mark card takes its place (cross-fade).
+      &.preview--hidden {
+        opacity: 0;
+        scale: 0.94;
+        translate: 0 6px;
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0),
+          0 1px 2px rgba(0, 0, 0, 0),
+          0 4px 8px rgba(0, 0, 0, 0);
+        transition:
+          opacity 0.14s ease,
+          box-shadow 0.12s ease,
+          scale 0.18s ease,
+          translate 0.18s ease;
+      }
       bottom: var(--player-timeline-preview-offset);
       width: auto;
       height: var(--player-timeline-preview-height);
@@ -1005,8 +1156,11 @@
       overflow: hidden;
       transform-origin: bottom center;
       border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      border: 0;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.2),
+        0 4px 10px rgba(0, 0, 0, 0.35),
+        0 14px 34px rgba(0, 0, 0, 0.5);
       background-color: #000;
 
       &.preview--time-only {
@@ -1069,67 +1223,113 @@
     border-radius: 5px;
   }
   .mark {
+    --mark-color-raw: #fff;
+    --mark-color: var(--mark-color-raw);
+    --mark-dot-size: 10px;
+
+    // Muted like tag chips on media cards: keep lightness, cut saturation.
+    &.mark--muted {
+      --mark-color: oklch(from var(--mark-color-raw) l calc(c * 0.45) h);
+    }
+
     cursor: pointer;
     position: absolute;
     bottom: var(--player-timeline-track-offset, 20px);
-    .breaker {
-      position: absolute;
-      top: auto;
-      bottom: 0;
-      width: 1px;
-      height: 8px;
-      transform: translateY(50%);
-      opacity: 1;
-      transition: 0.3s all;
-      background-color: #ffffffcc;
-      pointer-events: none;
-      box-shadow: 0px -3px 3px 1px #24242457;
-    }
-    &:hover {
-      > .timeline {
-        height: 5px;
-        opacity: 1;
-      }
-    }
+    width: 0;
+    height: 0;
+    z-index: 3;
+
+    // Range bar sits just above the main track so it doesn't tint the
+    // played (white) part of the timeline.
     .timeline {
-      background-color: white;
       position: absolute;
-      display: flex;
-      bottom: 0;
       left: 0;
-      height: 2px;
-      transform: translateY(50%);
-      opacity: 0.7;
-      border-radius: 3px;
+      // Up to the top of the dot, never higher; starts 1px inside the played track for a thicker bar.
+      bottom: calc(#{$player-track-thickness} / 2 - 1px);
+      height: calc(var(--mark-dot-size) / 2 - #{$player-track-thickness} / 2 + 1px);
+      min-width: 2px;
+      border-radius: 99px;
+      background: var(--mark-color);
+      opacity: 0.55;
       pointer-events: none;
-      transition: 0.3s all;
+      transition:
+        height 0.2s cubic-bezier(0.2, 0.9, 0.25, 1),
+        opacity 0.15s ease,
+        background-color 0.15s ease;
     }
-    .mark-icon {
+
+    .mark-dot {
       position: absolute;
-      bottom: 10px;
-      left: -11px;
-      right: 0;
-      opacity: 0;
-      transform: scale(0);
-      transition: transform 0.2s 0.1s ease-in, opacity 0.1s ease-in;
-      filter: drop-shadow(0 0 2px rgb(0 0 0 / 0.4));
+      left: 0;
+      bottom: 0;
+      width: var(--mark-dot-size);
+      height: var(--mark-dot-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--mark-color);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.85),
+        0 1px 3px rgba(0, 0, 0, 0.4);
+      transform: translate(-50%, 50%);
+      transition:
+        width 0.15s ease,
+        height 0.15s ease,
+        box-shadow 0.15s ease;
+      z-index: 1;
+
+      // Bigger invisible hit area around the small dot.
+      &::before {
+        content: '';
+        position: absolute;
+        inset: -7px;
+        border-radius: 50%;
+      }
+
+      &__icon {
+        opacity: 0;
+        transform: scale(0.4);
+        transition: opacity 0.12s ease, transform 0.15s ease;
+        pointer-events: none;
+      }
+
       &:hover {
-        opacity: 1;
-        z-index: 1;
+        --mark-dot-size: 22px;
+        // Hovered mark shows its full colour.
+        background: var(--mark-color-raw);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.9),
+          0 0 0 3px color-mix(in srgb, var(--mark-color) 30%, transparent),
+          0 2px 8px rgba(0, 0, 0, 0.5);
+
+        .mark-dot__icon {
+          opacity: 1;
+          transform: scale(1);
+        }
+
         & + .tooltip {
           opacity: 1;
-          transform: translateX(-50%) scale(1);
+          visibility: visible;
+          scale: 1;
+          translate: 0 0;
+          box-shadow: var(--mark-card-shadow);
+          transition:
+            opacity 0.18s ease,
+            box-shadow 0.32s cubic-bezier(0.2, 0.9, 0.25, 1) 0.04s,
+            scale 0.26s cubic-bezier(0.2, 0.9, 0.25, 1),
+            translate 0.26s cubic-bezier(0.2, 0.9, 0.25, 1),
+            visibility 0s;
         }
       }
     }
-    .meta-icon {
-      position: absolute;
-      top: 3px;
-      padding-top: 3px;
-      padding-left: 100%;
-      display: flex;
-      align-items: center;
+
+    &:hover .timeline {
+      height: 6px;
+      opacity: 1;
+      background: var(--mark-color-raw);
     }
+
     .tooltip {
       position: absolute;
       padding: 0;
@@ -1137,58 +1337,124 @@
       width: auto;
       height: var(--player-timeline-preview-height);
       min-height: 100px;
-      left: 50%;
+      left: 0;
       display: inline-flex;
       flex-direction: column;
       overflow: hidden;
-      transform: translateX(-50%) scale(0);
+      transform: translateX(calc(-50% + var(--edge-shift, 0px)));
       transform-origin: bottom center;
       opacity: 0;
-      transition: transform 0.01s ease, opacity 0.2s 0.1s ease;
+      visibility: hidden;
+      scale: 0.94;
+      translate: 0 6px;
+      will-change: opacity, scale, translate, box-shadow;
+      // Hide with a short delay so the cursor can travel from the dot to the
+      // card; visibility flips last so the card stays hoverable meanwhile.
+      transition:
+        opacity 0.16s ease 0.12s,
+        box-shadow 0.14s ease 0.12s,
+        scale 0.2s ease 0.12s,
+        translate 0.2s ease 0.12s,
+        visibility 0s linear 0.32s;
       z-index: 12;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      border-radius: 10px;
+      border: 0;
+      // Shadow grows in after the card, instead of popping with it.
+      --mark-card-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.2),
+        0 4px 10px rgba(0, 0, 0, 0.35),
+        0 14px 34px rgba(0, 0, 0, 0.5);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0),
+        0 1px 2px rgba(0, 0, 0, 0),
+        0 4px 8px rgba(0, 0, 0, 0);
       background-color: #000;
 
       &:hover {
         opacity: 1;
-        transform: translateX(-50%) scale(1);
+        visibility: visible;
+        scale: 1;
+        translate: 0 0;
+        box-shadow: var(--mark-card-shadow);
+        transition:
+          opacity 0.18s ease,
+          box-shadow 0.32s cubic-bezier(0.2, 0.9, 0.25, 1) 0.04s,
+          scale 0.26s cubic-bezier(0.2, 0.9, 0.25, 1),
+          translate 0.26s cubic-bezier(0.2, 0.9, 0.25, 1),
+          visibility 0s;
       }
     }
     .thumb {
       width: 100%;
       height: 100%;
-      border-radius: 8px;
-      background-color: #000000;
+      background-color: #000;
     }
-    .edit {
+    .mark-name,
+    .time,
+    .mark-actions {
       position: absolute;
-      left: 3px;
-      bottom: 3px;
-    }
-    .delete {
-      position: absolute;
-      left: 40px;
-      bottom: 3px;
-    }
-    .time {
-      position: absolute;
-      bottom: 2px;
-      right: 2px;
-      border-radius: 3px;
-      padding: 0px 4px;
-      white-space: nowrap;
-      opacity: 0.65;
+      color: #fff;
+      background: rgba(10, 10, 12, 0.62);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(8px);
+      border-radius: 6px;
     }
     .mark-name {
-      border-radius: 3px;
-      top: 2px;
-      left: 2px;
-      padding: 3px 5px;
+      top: 6px;
+      left: 6px;
+      max-width: calc(100% - 12px);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px 2px 6px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 18px;
       white-space: nowrap;
-      opacity: 0.65;
-      position: absolute;
+
+      &__swatch {
+        flex: 0 0 auto;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--mark-color-raw);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+      }
+
+      .name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+    .time {
+      right: 6px;
+      bottom: 6px;
+      padding: 1px 6px;
+      font-size: 11px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .mark-actions {
+      left: 6px;
+      bottom: 6px;
+      display: flex;
+      gap: 2px;
+      padding: 2px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .tooltip:hover .mark-actions {
+      opacity: 1;
+    }
+    .mark-action {
+      color: #fff;
+      width: 26px;
+      height: 26px;
+
+      &--danger:hover {
+        color: rgb(var(--v-theme-error));
+      }
     }
   }
   .marks-track {
@@ -1373,6 +1639,30 @@
       }
     }
 
+    // Unavailable control: stays in place (no layout jumps) but is quiet and inert.
+    // aria-disabled instead of :disabled so the hover tip with the reason still shows.
+    // Only the icon is dimmed and the tonal fill is dropped: buttons inside a group
+    // then melt into the group's own background instead of standing out as bright
+    // blocks, and the tip (a child of the button) does not fade with it.
+    .v-btn.is-disabled {
+      cursor: default;
+      box-shadow: none;
+      transition: none;
+
+      .v-icon {
+        opacity: 0.28;
+      }
+
+      .v-btn__underlay,
+      .v-btn__overlay {
+        opacity: 0 !important;
+      }
+
+      &:active {
+        transform: none;
+      }
+    }
+
     .tip {
       pointer-events: none;
       position: absolute;
@@ -1395,6 +1685,352 @@
         transition: none;
       }
     }
+  }
+
+  // Popup menus of the transport bar (file actions, playback settings).
+  .player-menu-card {
+    border-radius: 18px !important;
+    background: rgba(26, 26, 28, 0.78) !important;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow:
+      0 20px 48px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(22px) saturate(1.2);
+    -webkit-backdrop-filter: blur(22px) saturate(1.2);
+    color: rgba(255, 255, 255, 0.92);
+
+    .v-list,
+    .player-menu__list {
+      background: transparent !important;
+      padding: 6px !important;
+    }
+
+    .v-list-item {
+      min-height: 40px;
+      margin: 1px 0;
+      padding-inline: 12px;
+      // !important + overflow: Vuetify's hover/active layers must follow the rounding
+      border-radius: 11px !important;
+      overflow: hidden;
+      color: rgba(255, 255, 255, 0.92);
+
+      .v-list-item__underlay,
+      .v-list-item__overlay {
+        display: none;
+      }
+
+      // spacer between icon and text (Vuetify default is 32px)
+      .v-list-item__spacer {
+        width: 12px;
+      }
+
+      .v-list-item__prepend > .v-icon {
+        font-size: 20px;
+        opacity: 0.85;
+      }
+
+      .v-list-item-title {
+        font-size: 14px;
+        letter-spacing: 0.1px;
+      }
+
+      .v-list-item-subtitle {
+        margin-top: 1px;
+        font-size: 12px;
+        line-height: 1.3;
+        white-space: normal;
+        opacity: 0.6;
+      }
+
+      .v-list-item__append {
+        margin-inline-start: 20px;
+      }
+
+      &:hover:not(.v-list-item--disabled) {
+        background: rgba(255, 255, 255, 0.09);
+      }
+
+      // keep the focus ring neutral instead of the theme tint
+      &:focus-visible {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      &--active {
+        color: rgb(var(--v-theme-primary));
+        background: rgba(var(--v-theme-primary), 0.16);
+      }
+
+      &--disabled {
+        opacity: 0.45;
+      }
+
+      // aria-disabled item (keeps hover alive for its tooltip)
+      &.is-disabled {
+        opacity: 0.45;
+        cursor: default;
+
+        &:hover:not(.v-list-item--disabled) {
+          background: transparent;
+        }
+      }
+
+    }
+
+    .player-menu__divider,
+    .v-divider.player-menu__divider {
+      margin: 6px 8px;
+      opacity: 0.12;
+    }
+  }
+
+  .player-menu--settings {
+    // The bottom gap comes from the last section / list, so it equals the side gap instead of doubling up.
+    padding: 6px 0 0;
+    max-height: min(calc(100vh - 110px), 720px);
+    overflow-y: auto;
+
+    .player-menu__section {
+      padding: 8px 14px 4px;
+
+      &:last-child {
+        padding-bottom: 10px;
+      }
+    }
+
+    // Label on the left, controls on the right: saves a line for short controls.
+    .player-menu__section--inline {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      align-items: center;
+      column-gap: 8px;
+
+      .player-menu__label {
+        margin-bottom: 0;
+      }
+
+      .player-menu__slider--zoom {
+        padding-left: 6px;
+      }
+    }
+
+    // Foldable section header: the label, a dot when something inside is changed, and a chevron.
+    .player-menu__toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      margin-bottom: 6px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+
+      .player-menu__label {
+        margin-bottom: 0;
+      }
+
+      .v-icon {
+        margin-left: auto;
+        opacity: 0.7;
+      }
+    }
+
+    .player-menu__toggle-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .player-menu__label {
+      margin-bottom: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.9px;
+      text-transform: uppercase;
+      opacity: 0.55;
+    }
+
+    .player-menu__chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .player-menu__chip {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.07);
+      color: inherit;
+      font-size: 13px;
+      line-height: 1.2;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      &.is-active {
+        background: rgba(255, 255, 255, 0.92);
+        border-color: transparent;
+        color: #141414;
+        font-weight: 600;
+      }
+    }
+
+    .player-menu__slider {
+      display: grid;
+      grid-template-columns: 96px 1fr 44px 24px;
+      align-items: center;
+      column-gap: 8px;
+      min-height: 26px;
+
+      .v-input {
+        margin: 0;
+      }
+    }
+
+    // Ten vertical sliders side by side; the gain is above each one, the frequency below.
+    .player-menu__eq {
+      display: grid;
+      grid-template-columns: repeat(10, minmax(0, 1fr));
+      padding: 2px 0 2px;
+    }
+
+    .player-menu__eq-band {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+
+      // Vuetify gives a vertical slider a 150px minimum; the equalizer needs a short, narrow one.
+      .v-input,
+      .v-input__control,
+      .v-slider {
+        min-height: 0;
+        height: 72px;
+        flex: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .v-slider-track__background,
+      .v-slider-track__fill {
+        width: 3px;
+      }
+    }
+
+    .player-menu__eq-gain,
+    .player-menu__eq-freq {
+      font-size: 11px;
+      opacity: 0.7;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .player-menu__subtitle-delay {
+      display: grid;
+      grid-template-columns: 1fr 28px 56px 28px 28px;
+      align-items: center;
+      padding-left: 20px;
+      margin-bottom: 4px;
+    }
+
+    .player-menu__slider--zoom {
+      /* The last column is always reserved for the reset icon, so nothing shifts when it appears. */
+      grid-template-columns: 1fr 44px 28px;
+      /* Keeps the slider thumb at 100% off the left edge of the menu. */
+      padding-left: 20px;
+    }
+
+    .player-menu__slider--zoom-area {
+      grid-template-columns: 1fr 44px 28px 28px;
+      column-gap: 6px;
+    }
+
+    .player-menu__icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.07);
+      color: inherit;
+      cursor: pointer;
+      transition: background 0.15s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      &.is-hidden {
+        visibility: hidden;
+      }
+    }
+
+    .player-menu__slider-label {
+      font-size: 13px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    // Always reserves its column so every slider keeps the same width.
+    .player-menu__slider-reset {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: inherit;
+      opacity: 0.75;
+      cursor: pointer;
+      transition: opacity 0.15s ease, background-color 0.15s ease;
+
+      &:hover {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.14);
+      }
+
+      &.is-hidden {
+        visibility: hidden;
+        pointer-events: none;
+      }
+    }
+
+    .player-menu__slider-value {
+      font-size: 12px;
+      text-align: right;
+      opacity: 0.7;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .player-menu__list {
+      margin-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  .player-filter-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .player-settings__speed {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
   }
 
   .neighbor-nav {
@@ -1441,7 +2077,7 @@
       position: absolute;
       left: 50%;
       bottom: calc(100% + 14px);
-      transform: translateX(-50%);
+      transform: translateX(calc(-50% + var(--edge-shift, 0px)));
     }
 
     &--up-next {
@@ -1465,17 +2101,6 @@
       height: 100%;
       object-fit: cover;
       display: block;
-    }
-
-    &__placeholder {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background:
-        radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.08), transparent 55%),
-        linear-gradient(160deg, #1a1a1f, #0b0b0d);
     }
 
     &__shade {
@@ -1531,6 +2156,19 @@
       padding: 10px 12px 12px;
     }
 
+    &__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    &__badge--inline,
+    &__duration--inline {
+      position: static;
+    }
+
     &__title {
       font-size: 13px;
       font-weight: 600;
@@ -1560,7 +2198,7 @@
   .neighbor-preview-pop-enter-from,
   .neighbor-preview-pop-leave-to {
     opacity: 0;
-    transform: translateX(-50%) translateY(8px) scale(0.94);
+    transform: translateX(calc(-50% + var(--edge-shift, 0px))) translateY(8px) scale(0.94);
   }
 
   .up-next-slide-enter-active,
@@ -1584,6 +2222,16 @@
   .volume-slider {
     background-color: rgba(255, 255, 255, 0.12);
     border-radius: 0 50px 50px 0;
+
+    &.v-slider.v-input--horizontal {
+      .v-slider-track__background {
+        height: $player-track-inactive-thickness;
+      }
+
+      .v-slider-track__fill {
+        height: $player-track-thickness;
+      }
+    }
   }
   // .hoverable {
   //   &:useHoverStore {
@@ -1650,6 +2298,10 @@
   align-items: center;
   margin: 8px;
   padding: 4px 16px 4px 8px;
+  // Leave room for the close button on the right.
+  max-width: calc(100% - 80px);
+  min-width: 0;
+  overflow: hidden;
   border-radius: 16px;
   color: white;
   background: rgba(12, 12, 16, 0.38);
@@ -1671,8 +2323,22 @@
   &__content {
     display: flex;
     align-items: center;
+    min-width: 0;
+    max-width: 100%;
     font-variant-numeric: tabular-nums;
     line-height: 1.2;
+
+    .v-icon {
+      flex: 0 0 auto;
+    }
+  }
+
+  &__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &--timed &__content {
@@ -1680,17 +2346,47 @@
     font-weight: 500;
   }
 
+  // A short value with a caption under it (zoom, subtitle delay, …): the caption goes below, not beside.
+  &--captioned {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8px 16px 8px 10px;
+    gap: 0;
+  }
+
+  &--captioned &__subtitle {
+    margin: 2px 0 0 4px;
+  }
+
+  &--detailed {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px 16px 8px 10px;
+    max-width: min(calc(100% - 80px), 70vw, 520px);
+  }
+
+  &__details {
+    margin: 4px 0 0 4px;
+    font-size: 12px;
+    line-height: 1.35;
+    opacity: 0.8;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   &--title {
     padding: 8px 18px 8px 10px;
-    max-width: min(70vw, 560px);
+    max-width: min(calc(100% - 80px), 70vw, 560px);
   }
 
   &--title &__content {
     font-size: 18px;
     font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   &__subtitle {
@@ -1849,6 +2545,11 @@
       flex: 1;
       min-width: 0;
     }
+  }
+
+  // Marks panel: the action pill takes its own row, filters wrap below it.
+  &__actions {
+    flex: 1 1 100%;
   }
 
   &__body {
@@ -2197,6 +2898,12 @@
   }
 }
 
+@keyframes timeline-loading-stripes {
+  to {
+    background-position: 17px 0;
+  }
+}
+
 @keyframes timeline-stream {
   to {
     transform: translateX(2px);
@@ -2209,5 +2916,57 @@
   }
   50% {
     box-shadow: 0 0 0 4px rgba(255, 255, 255, 0);
+  }
+}
+
+.player-subtitles {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  bottom: 9%;
+  z-index: 2;
+  text-align: center;
+  pointer-events: none;
+  line-height: 1.3;
+
+  &__text {
+    display: inline-block;
+    max-width: 100%;
+    padding: 0.1em 0.5em;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 4px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+    white-space: pre-wrap;
+  }
+}
+
+.player-area-select {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  cursor: crosshair;
+  touch-action: none;
+  background: rgba(0, 0, 0, 0.25);
+
+  &__rect {
+    position: absolute;
+    border: 2px solid #fff;
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+  }
+
+  &__hint {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 13px;
+    pointer-events: none;
   }
 }

@@ -28,6 +28,7 @@
   .v-btn :deep(.v-icon) { font-size: 17px; }
   .v-btn:not(:disabled):hover { color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .07); }
   .v-btn:focus-visible { outline: 2px solid rgba(var(--v-theme-primary), .65); outline-offset: 1px; }
+  .connection-actions-divider { flex-shrink: 0; width: 1px; height: 18px; margin-inline: 4px; background: rgba(var(--v-theme-on-surface), .16); }
   .connection-action--primary { color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .08); }
   .connection-action--disconnect:not(:disabled):hover { color: rgb(var(--v-theme-error)); background: rgba(var(--v-theme-error), .07); }
 

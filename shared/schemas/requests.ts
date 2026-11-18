@@ -82,6 +82,8 @@ export const MediaDuplicateGroupsRequestSchema = z.object({
   mediaIds: z.array(z.union([z.number(), z.string()])).optional().nullable(),
   filters: z.array(FilterObjectSchema).optional(),
   filtersJoin: z.enum(['and', 'or']).optional(),
+  /** Only groups that contain this media item (searched across the whole DB of its media type). */
+  targetMediaId: z.union([z.number(), z.string()]).optional().nullable(),
 })
 
 export const MediaFolderBrowseRequestSchema = z.object({
@@ -110,6 +112,8 @@ export const MergeMediaRequestSchema = z.object({
   survivorId: z.union([z.number(), z.string()]),
   sourceIds: z.array(z.union([z.number(), z.string()])).min(1),
   with_file: z.boolean().optional(),
+  /** Keep unreadable files as backup copies even without a catalog fingerprint (user's explicit choice). */
+  trustUnavailable: z.boolean().optional(),
 })
 
 export const MoveTagsToCategoryRequestSchema = z.object({

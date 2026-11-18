@@ -164,4 +164,43 @@ describe('createPlayerSurfaceGestureHandlers', () => {
     expect(actions).toEqual([])
     handlers.dispose()
   })
+  it('does not swipe while swipes are disabled (zoomed picture is panned instead)', () => {
+    const actions: string[] = []
+    const surface = makeSurface()
+    const handlers = createPlayerSurfaceGestureHandlers({
+      seekStepSeconds: 10,
+      getSurfaceEl: () => surface,
+      isSwipeEnabled: () => false,
+      onAction: (action) => actions.push(action.type),
+    })
+    const toX = 200 - PLAYER_GESTURE_SWIPE_THRESHOLD_PX - 10
+    handlers.onPointerDown(pointerEvent('pointerdown', {clientX: 200, clientY: 100}))
+    handlers.onPointerMove(pointerEvent('pointermove', {clientX: toX, clientY: 102}))
+    handlers.onPointerUp(pointerEvent('pointerup', {clientX: toX, clientY: 102}))
+    expect(actions).toEqual([])
+  })
+
+  it('treats the whole two-finger sequence as a pinch: no swipe, no tap', () => {
+    const actions: string[] = []
+    const surface = makeSurface()
+    const handlers = createPlayerSurfaceGestureHandlers({
+      seekStepSeconds: 10,
+      getSurfaceEl: () => surface,
+      onAction: (action) => actions.push(action.type),
+      schedule: (fn) => { fn(); return 0 as unknown as ReturnType<typeof setTimeout> },
+    })
+    const toX = 200 - PLAYER_GESTURE_SWIPE_THRESHOLD_PX - 10
+    handlers.onPointerDown(pointerEvent('pointerdown', {pointerId: 1, clientX: 200, clientY: 100}))
+    handlers.onPointerDown(pointerEvent('pointerdown', {pointerId: 2, clientX: 100, clientY: 100}))
+    handlers.onPointerMove(pointerEvent('pointermove', {pointerId: 1, clientX: toX, clientY: 100}))
+    handlers.onPointerUp(pointerEvent('pointerup', {pointerId: 2, clientX: 100, clientY: 100}))
+    handlers.onPointerUp(pointerEvent('pointerup', {pointerId: 1, clientX: toX, clientY: 100}))
+    expect(actions).toEqual([])
+
+    // The next single swipe works again.
+    handlers.onPointerDown(pointerEvent('pointerdown', {pointerId: 3, clientX: 200, clientY: 100}))
+    handlers.onPointerMove(pointerEvent('pointermove', {pointerId: 3, clientX: toX, clientY: 102}))
+    handlers.onPointerUp(pointerEvent('pointerup', {pointerId: 3, clientX: toX, clientY: 102}))
+    expect(actions).toEqual(['next'])
+  })
 })

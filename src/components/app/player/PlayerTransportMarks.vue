@@ -20,24 +20,7 @@
       </v-btn>
 
       <v-btn
-        @click="toggleStudioMode"
-        :color="player.studioMode ? 'primary' : undefined"
-        icon
-        dark
-      >
-        <v-icon size="20">mdi-movie-open-edit-outline</v-icon>
-        <div class="tip">
-          <span class="mr-2">{{ t(player.studioMode ? 'player.studio_mode_on' : 'player.studio_mode') }}</span>
-          <v-hotkey keys="shift+m"/>
-          <span class="mx-1">·</span>
-          <v-hotkey keys="1"/>
-          ,
-          <v-hotkey keys="2"/>
-        </div>
-      </v-btn>
-
-      <v-btn
-        v-if="player.marks.length > 0"
+        v-if="!noMarks"
         @click="jumpToMark('prev')"
         class="mark-prev"
         icon
@@ -51,7 +34,7 @@
       </v-btn>
 
       <v-btn
-        v-if="player.marks.length > 0"
+        v-if="!noMarks"
         @click="jumpToMark('next')"
         class="mark-next"
         icon
@@ -66,18 +49,20 @@
     </v-btn-group>
 
     <v-btn
-      v-if="player.playlist.length > 1"
-      @click="togglePlaylist"
+      @click="!playlistSingle && togglePlaylist()"
       variant="tonal"
       :density="density"
       :color="playerStore.playlistVisible ? 'primary' : undefined"
+      :class="{'is-disabled': playlistSingle}"
+      :aria-disabled="playlistSingle"
       class="playlist-buttons mx-1"
       icon
       dark
     >
       <v-icon v-if="playerStore.playlistVisible">mdi-view-list</v-icon>
       <v-icon v-else>mdi-format-list-bulleted</v-icon>
-      <div class="tip">
+      <div v-if="playlistSingle" class="tip">{{ t('player.playlist_single') }}</div>
+      <div v-else class="tip">
         <span class="mr-2">{{ t('player.playlist') }}</span>
         <v-hotkey keys="p"/>
       </div>
@@ -85,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import {inject} from 'vue'
+import {computed, inject} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {PLAYER_TRANSPORT_KEY} from '@/composable/playerTransportKey'
 
@@ -95,8 +80,10 @@ const {
   playerStore,
   density,
   toggleMarks,
-  toggleStudioMode,
   jumpToMark,
   togglePlaylist,
 } = inject(PLAYER_TRANSPORT_KEY)!
+
+const noMarks = computed(() => player.value.marks.length === 0)
+const playlistSingle = computed(() => player.value.playlist.length <= 1)
 </script>

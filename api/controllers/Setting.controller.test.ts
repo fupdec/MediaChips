@@ -48,6 +48,7 @@ vi.mock('../../app/server/lanAccess', () => ({
   applyLanAccessChange,
 }))
 
+import {verifyStoredPassword} from '../utils/passwordHash'
 import createSettingController from './Setting.controller'
 
 function createResponse() {
@@ -123,6 +124,34 @@ describe('Setting.controller', () => {
     expect(invalidateSettingsCache).toHaveBeenCalled()
     expect(res.statusCode).toBe(200)
     expect(res.body).toEqual([1])
+  })
+
+  it('stores the password as a hash, never in plain text', async () => {
+    const req = {
+      params: {option: 'phrase'},
+      body: {value: 'hunter2'},
+    } as unknown as ApiRequest
+    const res = createResponse()
+
+    await controller.update(req, res)
+
+    const calls = upsertByOption.mock.calls
+    const stored = calls[calls.length - 1]?.[1] as string
+    expect(upsertByOption).toHaveBeenLastCalledWith('phrase', expect.stringMatching(/^scrypt\$/))
+    expect(stored).not.toContain('hunter2')
+    expect(await verifyStoredPassword('hunter2', stored)).toBe(true)
+    expect(invalidateSettingsCache).toHaveBeenCalled()
+  })
+
+  it('clears the password when an empty value is saved', async () => {
+    const req = {
+      params: {option: 'phrase'},
+      body: {value: ''},
+    } as unknown as ApiRequest
+
+    await controller.update(req, createResponse())
+
+    expect(upsertByOption).toHaveBeenLastCalledWith('phrase', '')
   })
 
   it('blocks LAN access updates when controlled by environment', async () => {

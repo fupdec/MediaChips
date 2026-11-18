@@ -2,6 +2,7 @@ const Settings = [
   {"option": "showHistoryInAppBar", "value": 0},
   {"option": "remoteOshashBackground", "value": 1},
   {"option": "copyDiscoveryOnImport", "value": 1},
+  {"option": "duplicatesCheckOnAdd", "value": 1},
   {"option": "copyDiscoveryOnFolderUpdate", "value": 1},
   {"option": "copyDiscoveryOnReconnect", "value": 1},
   {
