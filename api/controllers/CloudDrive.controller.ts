@@ -14,6 +14,11 @@ import {WebVideoFrameSchema} from '../../shared/webVideo'
 import {saveWebVideoFrame} from '../services/webVideo/frames'
 import type {ApiDb} from '../types/db'
 import {z} from 'zod'
+
+function isClientAbort(err: unknown): boolean {
+  const e = err as {code?: string; name?: string} | null
+  return e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError' || e?.name === 'AbortError'
+}
 import {markCatalogSourceDisconnected} from '../services/mediaCatalogSources'
 import {DEFAULT_DRIVE_CONNECTION_ID} from '../../shared/mediaSources'
 import {checkOAuthClient, validateOAuthClient} from '../services/cloudDrive/oauth'
@@ -204,7 +209,10 @@ function createCloudDriveController(db: ApiDb) {
         }
         await service.streamFile(req, res, service.transport, fileId)
       } catch (err: unknown) {
-        console.error('Drive stream route error:', err)
+        // Клиент оборвал запрос (seek / смена источника) — это штатная ситуация.
+        if (isClientAbort(err) || req.aborted || res.destroyed) return
+        // Не логируем объект целиком: в axios-ошибке лежит Authorization с токеном.
+        console.error('Drive stream route error:', err instanceof Error ? err.message : String(err))
         if (!res.headersSent) {
           failure(res, err)
         }
