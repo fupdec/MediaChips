@@ -82,11 +82,12 @@ export function createLoadingWindowController(deps: {
       alwaysOnTop: false,
       backgroundColor: '#f3f1f8',
       icon: resolveWindowIconPath(deps.getAppRoot()),
+      // loading.html is static markup (no scripts), so it gets the most
+      // restrictive renderer: no Node, isolated, sandboxed.
       webPreferences: {
-        nodeIntegration: true,
-        nodeIntegrationInWorker: true,
-        webSecurity: false,
-        contextIsolation: false,
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
       },
     })
 
