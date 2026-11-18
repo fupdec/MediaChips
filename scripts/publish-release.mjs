@@ -99,7 +99,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const { GITHUB_REF_TYPE, GITHUB_REF_NAME: tag, GITHUB_SHA: sha } = process.env
   assert(GITHUB_REF_TYPE === 'tag' && tag === `v${version}` && sha, 'Release requires a tag matching package.json')
   const files = validateArtifacts('release-artifacts', version)
-  const gh = args => execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] })
+  const gh = args => execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 1024 * 1024 * 512, stdio: ['ignore', 'pipe', 'inherit'] })
   const temp = mkdtempSync(path.join(tmpdir(), 'mediachips-notes-'))
   try {
     const notes = path.join(temp, 'notes.md')
