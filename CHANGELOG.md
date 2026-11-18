@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Password lock** — the password is stored as a salted scrypt hash and is never sent to the app; the settings field is now "New password". Existing passwords keep working and are converted at the first sign-in.
 - **Forgotten password** — create an empty `RESET_PASSWORD` file in the data folder (next to `app_storage`; the lock screen shows the exact path). MediaChips removes the password of the active library, turns the lock off and deletes the file. Other libraries keep their passwords.
+- **Starter fields** — new libraries create the performer field with portrait (5:8) cards; existing libraries are unchanged.
 
 ### Fixed
 
