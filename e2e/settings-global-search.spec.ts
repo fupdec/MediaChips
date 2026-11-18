@@ -45,8 +45,13 @@ test('global search retains media results alongside settings and supports a sett
   await page.goto('/')
   await waitForAppShell(page)
   await dismissOnboardingIfVisible(page)
-  await page.keyboard.press('/')
-  await page.locator('.global-search__input-text').fill('conversion')
+  const input=page.locator('.global-search__input-text')
+  // App hotkeys are ignored while any blocking overlay is still closing, so a single press can be lost on a busy run.
+  await expect(async()=>{
+    if(!await input.isVisible())await page.keyboard.press('/')
+    await expect(input).toBeVisible({timeout:1_000})
+  }).toPass({timeout:10_000})
+  await input.fill('conversion')
   await expect(page.locator('.global-search__item').filter({hasText:'conversion demo'})).toBeVisible()
   const setting=page.locator('.global-search__setting').first()
   await expect(setting).toBeVisible()
