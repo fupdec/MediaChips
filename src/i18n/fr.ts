@@ -2984,6 +2984,8 @@ const fr = {
       new_password: 'Nouveau mot de passe',
       new_password_hint: 'Laissez vide pour conserver le mot de passe actuel. Il est stocké sous forme de hachage et ne peut pas être affiché.',
       password_updated: 'Mot de passe mis à jour',
+      check_password: 'Vérifier',
+      password_correct: 'Le mot de passe est correct',
       password: 'Mot de passe',
       auto_lock_idle: 'Verrouillage auto en cas d’inactivité',
       auto_lock_idle_hint: 'Verrouille l’application après une période sans souris, clavier ni tactile. Nécessite la protection par mot de passe.',

@@ -82,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed} from 'vue';
+import {ref, computed, watch} from 'vue';
 import {useI18n} from 'vue-i18n'
 import DialogHeader from "@/components/elements/DialogHeader.vue";
 import {useSettingsStore} from '@/stores/settings';
@@ -91,7 +91,7 @@ import {setAuthToken} from '@/services/authSession';
 import {useEventBus} from '@/utils/eventBus';
 
 // Props
-defineProps({
+const props = defineProps({
   modelValue: {
     type: Boolean,
     required: true
@@ -134,6 +134,19 @@ const buttons = computed(() => [
   }
 ]);
 
+// The dialog component is reused for every lock, so wipe what was typed before.
+function resetForm() {
+  password.value = ''
+  showPassword.value = false
+  error.value = false
+  throttled.value = false
+  showForgot.value = false
+}
+
+watch(() => props.modelValue, (open) => {
+  if (open) resetForm()
+})
+
 // Methods
 const logIn = async () => {
   loading.value = true
@@ -142,6 +155,7 @@ const logIn = async () => {
   try {
     const res = await typedApi.login(password.value)
     setAuthToken(res.data.token)
+    resetForm()
     emit('success')
     eventBus.emit('app:authenticated')
   } catch (err: unknown) {

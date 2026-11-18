@@ -2984,6 +2984,8 @@ const es = {
       new_password: 'Nueva contraseña',
       new_password_hint: 'Déjalo vacío para mantener la contraseña actual. Se guarda como hash y no se puede mostrar.',
       password_updated: 'Contraseña actualizada',
+      check_password: 'Comprobar',
+      password_correct: 'La contraseña es correcta',
       password: 'Contraseña',
       auto_lock_idle: 'Bloqueo automático por inactividad',
       auto_lock_idle_hint: 'Bloquear la app tras un periodo sin ratón, teclado o toques. Requiere protección con contraseña.',

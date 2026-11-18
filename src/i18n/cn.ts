@@ -2984,6 +2984,8 @@ const cn = {
       new_password: '新密码',
       new_password_hint: '留空则保留当前密码。密码以哈希形式存储，无法显示。',
       password_updated: '密码已更新',
+      check_password: '检查',
+      password_correct: '密码正确',
       password: '密码',
       auto_lock_idle: '空闲自动锁定',
       auto_lock_idle_hint: '在一段时间没有鼠标、键盘或触摸操作后锁定应用。需要启用密码保护。',

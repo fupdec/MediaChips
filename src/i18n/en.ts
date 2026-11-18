@@ -3621,6 +3621,8 @@ const en = {
       new_password: 'New password',
       new_password_hint: 'Leave empty to keep the current password. It is stored hashed and can\'t be shown.',
       password_updated: 'Password updated',
+      check_password: 'Check',
+      password_correct: 'Password is correct',
       password: 'Password',
       auto_lock_idle: 'Auto-lock when idle',
       auto_lock_idle_hint: 'Lock the app after a period without mouse, keyboard, or touch activity. Requires password protection.',

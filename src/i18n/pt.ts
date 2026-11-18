@@ -2984,6 +2984,8 @@ const pt = {
       new_password: 'Nova senha',
       new_password_hint: 'Deixe em branco para manter a senha atual. Ela é armazenada como hash e não pode ser exibida.',
       password_updated: 'Senha atualizada',
+      check_password: 'Verificar',
+      password_correct: 'A senha está correta',
       password: 'Senha',
       auto_lock_idle: 'Bloqueio automático por inatividade',
       auto_lock_idle_hint: 'Bloqueia o app após um período sem mouse, teclado ou toque. Requer proteção por senha.',

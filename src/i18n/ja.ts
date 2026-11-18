@@ -2984,6 +2984,8 @@ const ja = {
       new_password: '新しいパスワード',
       new_password_hint: '現在のパスワードを維持する場合は空欄のままにしてください。パスワードはハッシュとして保存され、表示できません。',
       password_updated: 'パスワードを更新しました',
+      check_password: '確認',
+      password_correct: 'パスワードは正しいです',
       password: 'パスワード',
       auto_lock_idle: 'アイドル時の自動ロック',
       auto_lock_idle_hint: 'マウス・キーボード・タッチ操作がない時間が続くとアプリをロックします。パスワード保護が必要です。',

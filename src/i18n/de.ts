@@ -2984,6 +2984,8 @@ const de = {
       new_password: 'Neues Passwort',
       new_password_hint: 'Leer lassen, um das aktuelle Passwort zu behalten. Es wird als Hash gespeichert und kann nicht angezeigt werden.',
       password_updated: 'Passwort aktualisiert',
+      check_password: 'Prüfen',
+      password_correct: 'Passwort ist korrekt',
       password: 'Passwort',
       auto_lock_idle: 'Automatische Sperre bei Inaktivität',
       auto_lock_idle_hint: 'App nach einer Zeit ohne Maus-, Tastatur- oder Touch-Aktivität sperren. Erfordert Passwortschutz.',
