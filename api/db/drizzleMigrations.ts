@@ -227,6 +227,57 @@ export function stampSatisfiedAddColumnMigrations(sqlite: Database.Database): st
   return stamped
 }
 
+/**
+ * Libraries that were upgraded by older builds (or by schemaRepair) can already
+ * contain columns that a still-unrecorded migration wants to ADD. Stamping stops
+ * at the first migration it cannot verify (e.g. one that creates a missing
+ * table), so drizzle's migrate() would later hit "duplicate column name" and
+ * the whole upgrade would fail. In that situation apply the pending migrations
+ * here, in journal order and in one transaction, skipping only ADD COLUMN
+ * statements whose column already exists. Anything else still fails loudly and
+ * rolls back, exactly like migrate().
+ */
+export function applyPendingMigrationsSkippingExistingColumns(sqlite: Database.Database): string[] {
+  if (!hasTable(sqlite, '__drizzle_migrations')) {
+    return []
+  }
+
+  const latest = sqlite.prepare('SELECT MAX(created_at) AS stamp FROM __drizzle_migrations').get() as {stamp: number | null}
+  const latestStamp = latest.stamp === null ? null : Number(latest.stamp)
+  const addColumn = /^ALTER\s+TABLE\s+[`"]?(\w+)[`"]?\s+ADD(?:\s+COLUMN)?\s+[`"]?(\w+)[`"]?/i
+
+  const pending = readJournal().entries
+    .filter(entry => latestStamp === null || entry.when > latestStamp)
+    .map(entry => {
+      const sql = fs.readFileSync(migrationSqlPath(entry.tag), 'utf8')
+      const statements = sql.split(/-->\s*statement-breakpoint/).map(part => part.trim()).filter(Boolean)
+      return {entry, hash: hashMigrationSql(sql), statements}
+    })
+    .filter(item => !sqlite.prepare('SELECT 1 FROM __drizzle_migrations WHERE hash = ? LIMIT 1').get(item.hash))
+
+  const hasConflict = pending.some(item => item.statements.some((statement) => {
+    const match = statement.match(addColumn)
+    return Boolean(match && hasColumn(sqlite, match[1] as string, match[2] as string))
+  }))
+  if (!hasConflict) {
+    return []
+  }
+
+  sqlite.transaction(() => {
+    for (const item of pending) {
+      for (const statement of item.statements) {
+        const match = statement.match(addColumn)
+        if (match && hasColumn(sqlite, match[1] as string, match[2] as string)) continue
+        sqlite.exec(statement)
+      }
+      sqlite.prepare('INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)')
+        .run(item.hash, item.entry.when)
+    }
+  })()
+
+  return pending.map(item => item.entry.tag)
+}
+
 export function ensureLegacyDrizzleBaseline(sqlite: Database.Database) {
   if (!hasTable(sqlite, 'media')) {
     return
@@ -307,6 +358,14 @@ export function runDrizzleMigrations(dbPath: string) {
       console.log(
         '\x1b[33m%s\x1b[0m',
         `⚙️ Stamped already-applied column migrations: ${stamped.join(', ')}`,
+      )
+    }
+
+    const replayed = applyPendingMigrationsSkippingExistingColumns(sqlite)
+    if (replayed.length > 0) {
+      console.log(
+        '\x1b[33m%s\x1b[0m',
+        `⚙️ Applied migrations around already-existing columns: ${replayed.join(', ')}`,
       )
     }
 
