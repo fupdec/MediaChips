@@ -65,7 +65,7 @@
 
         <div class="notifications-list">
           <v-card-text class="notifications-stack">
-            <div v-if="hasPinnedTasks" class="notifications-pinned" data-testid="notifications-pinned">
+            <div v-if="hasPinnedTasks" class="notifications-pinned" :class="{'notifications-pinned--separated': notificationItems.length > 0}" data-testid="notifications-pinned">
               <div class="notifications-pinned__head">
                 <v-icon size="14" icon="mdi-progress-clock" />
                 <span>{{ t('appbar.activeProcessesTitle', {count: pinnedTaskCount}) }}</span>
@@ -538,6 +538,10 @@ const closeAll = () => {
 .notifications-pinned {
   display: grid;
   gap: 8px;
+}
+
+/* The dashed line only separates tasks from the notifications below them. */
+.notifications-pinned--separated {
   padding-bottom: 14px;
   margin-bottom: 6px;
   border-bottom: 1px dashed rgba(var(--v-theme-on-surface), 0.18);
