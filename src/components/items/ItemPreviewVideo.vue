@@ -334,7 +334,7 @@
 
 <script setup lang="ts">
 import {isRemoteMediaPath} from '@shared/remoteMedia'
-import {ref, computed, watch, onBeforeUnmount, onMounted} from 'vue'
+import {ref, computed, watch, onBeforeUnmount} from 'vue'
 import type {ComponentPublicInstance} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'
@@ -363,7 +363,7 @@ import {useItemPreviewTimelineFrames} from '@/composable/useItemPreviewTimelineF
 import {useStaticGridPoster} from '@/composable/useStaticGridPoster'
 import {useVideoBigPreview} from '@/composable/useVideoBigPreview'
 import {useVideoPreviewThumb} from '@/composable/useVideoPreviewThumb'
-import {subscribeElectronIpc} from '@/utils/electronIpc'
+import {useMainWindowFullscreen} from '@/composable/useMainWindowFullscreen'
 import {detectAppPlatform} from '@/composable/useAppPlatform'
 import type {MediaItem} from '@/types/stores'
 import MediaThumbPlaceholder from '@/components/items/MediaThumbPlaceholder.vue'
@@ -403,23 +403,7 @@ const gridBigPreview = useVideoBigPreview()
 /* macOS — avoid overlapping traffic-light window controls in Electron */
 const platform = detectAppPlatform()
 const isDarwinElectron = computed(() => platform.isMac && platform.isElectron)
-const isDarwinFullscreen = ref(false)
-
-let unsubscribeEnterFs: (() => void) | undefined
-let unsubscribeLeaveFs: (() => void) | undefined
-
-async function syncDarwinFullscreen() {
-  if (!platform.isElectron || !window.electronAPI?.invoke) return
-  try {
-    const value = await window.electronAPI.invoke('isMainFullscreen')
-    isDarwinFullscreen.value = value === true
-  } catch {
-    // keep last known state
-  }
-}
-
-const handleEnterFullScreen = () => { isDarwinFullscreen.value = true }
-const handleLeaveFullScreen = () => { isDarwinFullscreen.value = false }
+const {isFullscreen: isDarwinFullscreen} = useMainWindowFullscreen()
 
 const isRemoteVideo = computed(() => isRemoteMediaPath(props.media.path))
 const canHoverPreview = computed(() => props.isFileExists && !isRemoteVideo.value)
@@ -858,17 +842,9 @@ watch(() => gridBigPreview.isVisual.value, (visual) => {
   window.removeEventListener('keydown', handlePreviewKeydown)
 })
 
-onMounted(() => {
-  void syncDarwinFullscreen()
-  unsubscribeEnterFs = subscribeElectronIpc('enter-full-screen', handleEnterFullScreen)
-  unsubscribeLeaveFs = subscribeElectronIpc('leave-full-screen', handleLeaveFullScreen)
-})
-
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handlePreviewKeydown)
   stopTimelineScrub()
-  unsubscribeEnterFs?.()
-  unsubscribeLeaveFs?.()
 })
 
 useItemPreviewLifecycle({
