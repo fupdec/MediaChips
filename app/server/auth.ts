@@ -5,6 +5,7 @@ import { createSettingsRepository } from '../../api/db/repositories/settings'
 import { validateBody } from '../../api/middleware/validateBody'
 import { AuthLoginRequestSchema } from '../../shared/schemas/requests'
 import { hashPassword, isPasswordHash, verifyStoredPassword } from '../../api/utils/passwordHash'
+import { createPasswordResetWatcher } from './passwordReset'
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const SETTINGS_CACHE_MS = 10_000
@@ -72,7 +73,12 @@ function clientKey(req: Request): string {
   return req.ip || req.socket?.remoteAddress || 'unknown'
 }
 
-function createAuthService(db: ApiDb) {
+interface AuthServiceOptions {
+  /** Folder that holds app_storage; a RESET_PASSWORD file there resets the lock. */
+  dataDir?: string
+}
+
+function createAuthService(db: ApiDb, options: AuthServiceOptions = {}) {
   const sessions = new Map<string, Session>()
   let settingsCache: { at: number; settings: SecuritySettings } | null = null
 
@@ -80,7 +86,26 @@ function createAuthService(db: ApiDb) {
     settingsCache = null
   }
 
+  const resetWatcher = options.dataDir
+    ? createPasswordResetWatcher({
+        db,
+        dataDir: options.dataDir,
+        onReset: () => {
+          sessions.clear()
+          invalidateSettingsCache()
+        },
+      })
+    : null
+
+  /** Path of the file the owner creates to reset the password, when enabled. */
+  const resetFlagPath = resetWatcher?.flagPath ?? null
+
+  function applyPendingPasswordReset(force = false): boolean {
+    return resetWatcher ? resetWatcher.applyPendingReset(force) : false
+  }
+
   async function loadSecuritySettings(): Promise<SecuritySettings> {
+    applyPendingPasswordReset()
     if (settingsCache && Date.now() - settingsCache.at < SETTINGS_CACHE_MS) {
       return settingsCache.settings
     }
@@ -200,6 +225,8 @@ function createAuthService(db: ApiDb) {
 
   return {
     invalidateSettingsCache,
+    applyPendingPasswordReset,
+    resetFlagPath,
     loadSecuritySettings,
     createSession,
     validateToken,
@@ -273,6 +300,8 @@ function registerAuthRoutes(app: Express, authService: AuthService, throttle = c
       res.json({
         required,
         authenticated: authService.isRequestAuthenticated(req),
+        // Shown on the lock screen so the owner knows where to put the flag file.
+        ...(required && authService.resetFlagPath ? {resetPath: authService.resetFlagPath} : {}),
       })
     } catch (_err: unknown) {
       res.status(500).json({message: 'Failed to read auth status'})

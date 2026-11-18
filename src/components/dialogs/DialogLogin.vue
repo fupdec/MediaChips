@@ -55,6 +55,27 @@
         >
           {{ t(throttled ? 'login.too_many_attempts' : 'login.wrong_password') }}
         </v-alert>
+
+        <div class="mt-4">
+          <v-btn
+            @click="toggleForgot"
+            variant="text"
+            size="small"
+            prepend-icon="mdi-help-circle-outline"
+          >
+            {{ t('login.forgot_password') }}
+          </v-btn>
+
+          <v-expand-transition>
+            <div v-if="showForgot" class="text-caption mt-2">
+              <div>{{ t('login.forgot_password_steps') }}</div>
+              <div v-if="resetPath" class="mt-2">
+                <div class="text-medium-emphasis">{{ t('login.forgot_password_file') }}</div>
+                <code class="d-block text-break user-select-all">{{ resetPath }}</code>
+              </div>
+            </div>
+          </v-expand-transition>
+        </div>
       </v-card-text>
     </v-card>
   </v-dialog>
@@ -91,6 +112,8 @@ const showPassword = ref(false);
 const error = ref(false);
 const throttled = ref(false);
 const loading = ref(false);
+const showForgot = ref(false);
+const resetPath = ref('');
 const buttons = computed(() => [
   {
     icon: "close",
@@ -128,6 +151,17 @@ const logIn = async () => {
     loading.value = false
   }
 };
+
+const toggleForgot = async () => {
+  showForgot.value = !showForgot.value
+  if (!showForgot.value || resetPath.value) return
+  try {
+    const res = await typedApi.getAuthStatus()
+    resetPath.value = res.data.resetPath ?? ''
+  } catch {
+    // The generic steps are still shown without the exact path.
+  }
+}
 
 const close = () => {
   emit('update:modelValue', false);

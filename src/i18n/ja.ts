@@ -1644,6 +1644,9 @@ const ja = {
     password_required: 'パスワードを入力',
     wrong_password: 'パスワードが間違っています',
     too_many_attempts: '失敗回数が多すぎます。15 分後にもう一度お試しください。',
+    forgot_password: 'パスワードを忘れた場合',
+    forgot_password_steps: 'MediaChips を実行しているコンピューターまたはサーバー上の、下記のパスに空のファイルを作成し、パスワードを空のまま「ログイン」を押してください。現在のライブラリのパスワードが削除され、設定で新しいパスワードを設定できます。他のライブラリには影響しません。',
+    forgot_password_file: 'リセット用ファイル',
   },
   bulk_editing: {
     title: '一括編集',

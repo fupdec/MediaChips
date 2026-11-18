@@ -1644,6 +1644,9 @@ const pt = {
     password_required: 'Digite sua senha',
     wrong_password: 'Senha errada',
     too_many_attempts: 'Muitas tentativas falhadas. Tente novamente em 15 minutos.',
+    forgot_password: 'Esqueceu a senha?',
+    forgot_password_steps: 'Crie um arquivo vazio no caminho abaixo, no computador ou servidor em que o MediaChips está em execução, e clique em «Entrar» com a senha em branco. A senha da biblioteca atual é removida e você poderá definir uma nova nas configurações. As outras bibliotecas não são afetadas.',
+    forgot_password_file: 'Arquivo de redefinição',
   },
   bulk_editing: {
     title: 'Edição em massa',

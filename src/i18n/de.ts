@@ -1644,6 +1644,9 @@ const de = {
     password_required: 'Passwort eingeben',
     wrong_password: 'Falsches Passwort',
     too_many_attempts: 'Zu viele Fehlversuche. Versuche es in 15 Minuten erneut.',
+    forgot_password: 'Passwort vergessen?',
+    forgot_password_steps: 'Erstelle auf dem Computer oder Server, auf dem MediaChips läuft, eine leere Datei unter dem unten angegebenen Pfad und klicke dann mit leerem Passwort auf „Anmelden“. Das Passwort der aktuellen Bibliothek wird entfernt, und du kannst in den Einstellungen ein neues festlegen. Andere Bibliotheken sind nicht betroffen.',
+    forgot_password_file: 'Reset-Datei',
   },
   bulk_editing: {
     title: 'Massenbearbeitung',

@@ -1644,6 +1644,9 @@ const fr = {
     password_required: 'Entrez votre mot de passe',
     wrong_password: 'Mauvais mot de passe',
     too_many_attempts: 'Trop de tentatives échouées. Réessayez dans 15 minutes.',
+    forgot_password: 'Mot de passe oublié ?',
+    forgot_password_steps: 'Créez un fichier vide au chemin indiqué ci-dessous, sur l\'ordinateur ou le serveur qui exécute MediaChips, puis cliquez sur « Se connecter » avec un mot de passe vide. Le mot de passe de la bibliothèque actuelle est supprimé et vous pouvez en définir un nouveau dans les paramètres. Les autres bibliothèques ne sont pas touchées.',
+    forgot_password_file: 'Fichier de réinitialisation',
   },
   bulk_editing: {
     title: 'Modification en masse',

@@ -1644,6 +1644,9 @@ const cn = {
     password_required: '输入密码',
     wrong_password: '密码错误',
     too_many_attempts: '失败次数过多。请在 15 分钟后重试。',
+    forgot_password: '忘记密码？',
+    forgot_password_steps: '在运行 MediaChips 的电脑或服务器上，按下方路径创建一个空文件，然后在密码留空的情况下点击“登录”。当前资料库的密码将被清除，您可以在设置中设置新密码。其他资料库不受影响。',
+    forgot_password_file: '重置文件',
   },
   bulk_editing: {
     title: '批量编辑',

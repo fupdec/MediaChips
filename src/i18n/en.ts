@@ -2281,6 +2281,9 @@ const en = {
     password_required: 'Enter your password',
     wrong_password: 'Wrong password',
     too_many_attempts: 'Too many failed attempts. Try again in 15 minutes.',
+    forgot_password: 'Forgot password?',
+    forgot_password_steps: 'Create an empty file at the path below, on the computer or server that runs MediaChips, then press "Log in" with an empty password. The password of the current library is removed and you can set a new one in Settings. Other libraries are not affected.',
+    forgot_password_file: 'Reset file',
   },
   bulk_editing: {
     title: 'Bulk Editing',

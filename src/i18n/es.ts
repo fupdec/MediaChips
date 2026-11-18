@@ -1644,6 +1644,9 @@ const es = {
     password_required: 'Introduce tu contraseña',
     wrong_password: 'Contraseña incorrecta',
     too_many_attempts: 'Demasiados intentos fallidos. Inténtalo de nuevo en 15 minutos.',
+    forgot_password: '¿Olvidaste la contraseña?',
+    forgot_password_steps: 'Crea un archivo vacío en la ruta indicada abajo, en el equipo o servidor donde se ejecuta MediaChips, y pulsa «Iniciar sesión» con la contraseña vacía. Se elimina la contraseña de la biblioteca actual y podrás establecer una nueva en Ajustes. Las demás bibliotecas no se ven afectadas.',
+    forgot_password_file: 'Archivo de restablecimiento',
   },
   bulk_editing: {
     title: 'Edición masiva',

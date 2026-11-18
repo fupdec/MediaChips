@@ -53,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dialogs and cards** — dialog headers get a tinted icon tile, tones, a scroll shadow and a clearer button hierarchy. Hover cards, scraper dialogs and segmented controls are refreshed, the app bar is simpler in selection mode, and the home top tags widget uses the category image aspect ratio.
 - **File serving and LAN access** — the server applies a file serve policy and updated authentication and LAN access handling to the files it delivers.
 
+- **Password lock** — the password is stored as a salted scrypt hash and is never sent to the app; the settings field is now "New password". Existing passwords keep working and are converted at the first sign-in.
+- **Forgotten password** — create an empty `RESET_PASSWORD` file in the data folder (next to `app_storage`; the lock screen shows the exact path). MediaChips removes the password of the active library, turns the lock off and deletes the file. Other libraries keep their passwords.
+
 ### Fixed
 
 - **NAS thumbnails** — return cached covers immediately and generate missing covers in the background without holding image requests open.
@@ -78,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Back up first** — close MediaChips and copy the whole library folder before updating, and keep the 1.12 installer. 2.0 adds 13 database migrations.
 - **No way back** — a library opened in 2.0 cannot be opened by 1.12 or older. To go back, restore the copy made before updating; changes made in 2.0 will not carry over.
+- **Password** — after the first sign-in on 2.0 the stored password is a hash, so 1.x cannot verify it. To go back to 1.x, turn off `passwordProtection` in the library's `settings` table, or restore the copy made before updating.
 - **Connections** — NAS credentials and cloud tokens are stored on each computer outside the library and are not in backups. After moving a library, re-enter the credentials or sign in again on the existing connection instead of creating a new one, so cards keep their links.
 - **Google Drive** — the original Google Drive connection (full access) and additional Google accounts (read-only) remain separate connections with their own permissions.
 
