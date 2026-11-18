@@ -25,6 +25,16 @@ interface SettingRow {
 
 type AuthService = ReturnType<typeof createAuthService>
 
+/**
+ * Settings that must not reach a client before it logs in: the password itself
+ * and any third-party credential (tmdbApiKey, tpdbApiKey, jellyfinApiKey, …).
+ * Matched by suffix so new keys are covered without touching this list.
+ * Not /password/i — passwordProtection and passwordHint are needed by the login screen.
+ */
+function isSecretSettingOption(option: string): boolean {
+  return option === 'phrase' || /(api_?key|token|secret)$/i.test(option)
+}
+
 /** Constant-time compare; hashing first equalizes lengths for timingSafeEqual. */
 function safeEqual(a: string, b: string): boolean {
   const left = crypto.createHash('sha256').update(a, 'utf8').digest()
@@ -156,7 +166,7 @@ function createAuthService(db: ApiDb) {
     if (!passwordProtection || authenticated) return rows
 
     return rows.map((row) =>
-      row.option === 'phrase' ? {...row, value: ''} : row,
+      isSecretSettingOption(row.option) ? {...row, value: ''} : row,
     )
   }
 
@@ -167,7 +177,7 @@ function createAuthService(db: ApiDb) {
   ): SettingRow | null {
     if (!row) return row
     if (!passwordProtection || authenticated) return row
-    if (row.option === 'phrase') return {...row, value: ''}
+    if (isSecretSettingOption(row.option)) return {...row, value: ''}
     return row
   }
 
@@ -303,4 +313,4 @@ function registerAuthRoutes(app: Express, authService: AuthService, throttle = c
   })
 }
 
-export { createAuthService, createAuthMiddleware, registerAuthRoutes, isProtectedWsPath, createLoginThrottle, safeEqual }
+export { isSecretSettingOption, createAuthService, createAuthMiddleware, registerAuthRoutes, isProtectedWsPath, createLoginThrottle, safeEqual }

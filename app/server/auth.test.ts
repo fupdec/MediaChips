@@ -1,7 +1,7 @@
 import {afterEach, describe, expect, it} from 'vitest'
 import {createServer} from 'node:http'
 import {createExpressApp} from './createApp'
-import {createAuthMiddleware, createLoginThrottle, isProtectedWsPath, safeEqual} from './auth'
+import {createAuthMiddleware, createLoginThrottle, isProtectedWsPath, isSecretSettingOption, safeEqual} from './auth'
 
 type TestServer = {
   baseUrl: string
@@ -100,5 +100,19 @@ describe('login hardening', () => {
     throttle.reset('a')
     throttle.recordFailure('a')
     expect(throttle.retryAfterMs('a')).toBe(0)
+  })
+})
+
+describe('secret settings', () => {
+  it('treats the password and third-party credentials as secret', () => {
+    for (const option of ['phrase', 'tmdbApiKey', 'tpdbApiKey', 'jellyfinApiKey', 'plexToken', 'clientSecret']) {
+      expect(isSecretSettingOption(option)).toBe(true)
+    }
+  })
+
+  it('keeps login-screen settings readable', () => {
+    for (const option of ['passwordProtection', 'passwordHint', 'theme', 'tmdbPersonMetaId']) {
+      expect(isSecretSettingOption(option)).toBe(false)
+    }
   })
 })
