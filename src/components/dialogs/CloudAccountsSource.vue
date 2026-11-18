@@ -127,6 +127,7 @@
                           :path-titles="exclusionBrowser.pathTitles" :favorites-scope="exclusionBrowser.favoritesScope"
                           :error-message="exclusionBrowser.errorMessage" :disabled="busy"
                           :enable-folder-tags="false" select-addable-only>
+        <template v-if="$slots['browser-footer']" #footerActions><slot name="browser-footer" :folder-browser="exclusionBrowser"/></template>
         <template #entryActions="{entry}">
           <v-btn v-if="!entry.isDirectory && entry.addable" size="x-small" variant="plain" :rounded="0" :ripple="false" icon
                  :href="preview(keyOfPath(entry.path))" target="_blank" rel="noopener" :aria-label="tr('Просмотр', 'View')" @click.stop>
@@ -134,7 +135,6 @@
           </v-btn>
         </template>
       </MediaFolderBrowser>
-      <footer v-if="$slots['browser-footer']" class="d-flex align-center justify-end flex-wrap ga-2 mt-1"><slot name="browser-footer" :folder-browser="exclusionBrowser"/></footer>
     </template>
     <v-progress-linear v-if="busy" indeterminate class="my-3" />
     <v-list v-if="imported.length">
