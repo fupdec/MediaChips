@@ -4526,12 +4526,25 @@ body > .video-preview-container.video-preview-container--expanded {
   --chip-font: calc(var(--chip-unit) * 0.7 + 3.5px);
   --chip-gap: calc(var(--chip-font) * 0.4);
 
-  &.item__size-1 { --chip-unit: 7px; }
+  &.item__size-1 { --chip-unit: 8px; }
   &.item__size-2 { --chip-unit: 8.5px; }
   &.item__size-3 { --chip-unit: 10px; }
   &.item__size-4 { --chip-unit: 12.5px; }
   &.item__size-5 { --chip-unit: 16px; }
   &.item__size-6 { --chip-unit: 22px; }
+
+  // XS…L cards: move the chips a bit further from the card edge.
+  &.item__size-1:not(.item-view-5),
+  &.item__size-2:not(.item-view-5),
+  &.item__size-3:not(.item-view-5),
+  &.item__size-4:not(.item-view-5) {
+    --chip-gap: calc(var(--chip-font) * 0.65);
+  }
+
+  // XS is the tightest card: a bit more air around the chips.
+  &.item__size-1:not(.item-view-5) {
+    --chip-gap: calc(var(--chip-font) * 0.85);
+  }
 
   // List rows have a small fixed-width preview: keep chips small.
   &.item-view-5.item__size-1 { --chip-unit: 4px; }
@@ -4715,7 +4728,7 @@ body > .video-preview-container.video-preview-container--expanded {
     display: block;
     width: calc(var(--chip-font) * 0.85);
     height: calc(var(--chip-font) * 0.85);
-    margin: calc(var(--chip-font) * 0.15);
+    margin: 0;
     border-radius: 50%;
     background: var(--res-color);
     filter: saturate(0.55) brightness(0.9);
@@ -4724,6 +4737,13 @@ body > .video-preview-container.video-preview-container--expanded {
 
   // Dot only: hide the badge parts and drop the clipping/rounding of the badge.
   &:not(.resolution--full) {
+    // Compact round box: the dot is centered in it and sits at an equal,
+    // small distance from the top and left edges.
+    box-sizing: border-box;
+    width: calc(var(--chip-font) * 1.4);
+    height: calc(var(--chip-font) * 1.4);
+    align-items: center;
+    justify-content: center;
     border-radius: 50%;
     opacity: 1;
 
@@ -4734,7 +4754,16 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 }
 
-.item-media:hover .resolution--dot {
+// XS: pull the dot (not the hover badge) a bit closer to the corner.
+.item-media.item__size-1:not(.item-view-5) .resolution--dot:not(.resolution--full) {
+  margin: calc(var(--chip-font) * -0.25) 0 0 calc(var(--chip-font) * -0.25);
+}
+
+.item-media:hover .resolution--dot,
+.item-media.item__size-1:not(.item-view-5):hover .resolution--dot:not(.resolution--full) {
+  margin: 0;
+  width: auto;
+  height: auto;
   border-radius: 0.65em;
   opacity: 0.9;
 
@@ -4750,5 +4779,5 @@ body > .video-preview-container.video-preview-container--expanded {
 
 // Smallest grid size: shrink the resolution label further.
 .item-media.item__size-1:not(.item-view-5) .resolution {
-  font-size: calc(var(--chip-font) * 0.78);
+  font-size: calc(var(--chip-font) * 0.9);
 }
