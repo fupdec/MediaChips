@@ -7,6 +7,8 @@ import {useI18n} from 'vue-i18n'
 import {useSettingsStore} from '@/stores/settings'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {setOption} from '@/services/settingsService'
+import {typedApi} from '@/services/typedApi'
+import {getAuthToken, setAuthToken} from '@/services/authSession'
 import {
   AUTO_LOCK_IDLE_MINUTE_OPTIONS,
   parseAutoLockIdleMinutes,
@@ -18,6 +20,32 @@ const {t} = useI18n()
 const password = ref('')
 const hint = ref('')
 const showPassword = ref(false)
+const passwordSaved = ref(false)
+
+// The server stores only a hash, so the field is for setting a new password,
+// never for showing the current one. Empty blur = keep the current password.
+async function ensureSession() {
+  if (getAuthToken()) return
+  // Right after the protection switch is turned on there is no password yet and
+  // no session (none is issued while protection is off), so the PUT below would
+  // 401 and lock the app. An empty-password login succeeds in exactly that state.
+  try {
+    const res = await typedApi.login('')
+    setAuthToken(res.data.token)
+  } catch {
+    // A password is already set — the user is logged in through the normal flow.
+  }
+}
+
+async function saveNewPassword() {
+  const value = password.value
+  if (!value) return
+  await ensureSession()
+  await setOption(value, 'phrase')
+  SETTINGS.phrase = ''
+  password.value = ''
+  passwordSaved.value = true
+}
 
 const idleMinuteItems = computed(() =>
   AUTO_LOCK_IDLE_MINUTE_OPTIONS.map((minutes) => ({
@@ -36,7 +64,6 @@ const idleMinutesModel = computed({
 })
 
 onMounted(() => {
-  password.value = SETTINGS.phrase
   hint.value = SETTINGS.passwordHint
 })
 </script>
@@ -65,14 +92,17 @@ onMounted(() => {
         >
           <v-text-field
             v-model="password"
-            @blur="setOption(password, 'phrase')"
+            @blur="saveNewPassword"
+            @update:model-value="passwordSaved = false"
             :type="showPassword ? 'text' : 'password'"
             :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
             @click:append-inner="showPassword = !showPassword"
-            :label="t('settings_labels.security.password')"
+            :label="t('settings_labels.security.new_password')"
+            :hint="passwordSaved ? t('settings_labels.security.password_updated') : t('settings_labels.security.new_password_hint')"
+            persistent-hint
+            autocomplete="new-password"
             rounded
             variant="outlined"
-            hide-details
           />
         </v-col>
 

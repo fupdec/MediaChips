@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import { createSettingsRepository } from '../../api/db/repositories/settings'
 import { validateBody } from '../../api/middleware/validateBody'
 import { AuthLoginRequestSchema } from '../../shared/schemas/requests'
+import { hashPassword, isPasswordHash, verifyStoredPassword } from '../../api/utils/passwordHash'
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const SETTINGS_CACHE_MS = 10_000
@@ -35,12 +36,6 @@ function isSecretSettingOption(option: string): boolean {
   return option === 'phrase' || /(api_?key|token|secret)$/i.test(option)
 }
 
-/** Constant-time compare; hashing first equalizes lengths for timingSafeEqual. */
-function safeEqual(a: string, b: string): boolean {
-  const left = crypto.createHash('sha256').update(a, 'utf8').digest()
-  const right = crypto.createHash('sha256').update(b, 'utf8').digest()
-  return crypto.timingSafeEqual(left, right)
-}
 
 const LOGIN_WINDOW_MS = 15 * 60 * 1000
 const LOGIN_MAX_FAILURES = 10
@@ -134,7 +129,19 @@ function createAuthService(db: ApiDb) {
   async function verifyPassword(password: string): Promise<boolean> {
     const settings = await loadSecuritySettings()
     if (!settings.passwordProtection) return true
-    return safeEqual(password, settings.phrase)
+
+    const valid = await verifyStoredPassword(password, settings.phrase)
+    // Installs from before hashing stored the phrase in plain text; upgrade it
+    // the first time the owner logs in with it.
+    if (valid && settings.phrase && !isPasswordHash(settings.phrase)) {
+      try {
+        createSettingsRepository(db.drizzle).upsertByOption('phrase', await hashPassword(password))
+        invalidateSettingsCache()
+      } catch (error) {
+        console.warn('Failed to upgrade stored password hash:', error)
+      }
+    }
+    return valid
   }
 
   function extractToken(req: Request): string | null {
@@ -158,16 +165,19 @@ function createAuthService(db: ApiDb) {
     return validateToken(extractToken(req))
   }
 
+  function sanitizeRow(row: SettingRow, passwordProtection: boolean, authenticated: boolean): SettingRow {
+    // The stored password is a hash — useless to any client, so never sent.
+    if (row.option === 'phrase') return {...row, value: ''}
+    if (!passwordProtection || authenticated) return row
+    return isSecretSettingOption(row.option) ? {...row, value: ''} : row
+  }
+
   function sanitizeSettingRows(
     rows: SettingRow[],
     passwordProtection: boolean,
     authenticated: boolean,
   ): SettingRow[] {
-    if (!passwordProtection || authenticated) return rows
-
-    return rows.map((row) =>
-      isSecretSettingOption(row.option) ? {...row, value: ''} : row,
-    )
+    return rows.map((row) => sanitizeRow(row, passwordProtection, authenticated))
   }
 
   function sanitizeSettingRow(
@@ -176,9 +186,7 @@ function createAuthService(db: ApiDb) {
     authenticated: boolean,
   ): SettingRow | null {
     if (!row) return row
-    if (!passwordProtection || authenticated) return row
-    if (isSecretSettingOption(row.option)) return {...row, value: ''}
-    return row
+    return sanitizeRow(row, passwordProtection, authenticated)
   }
 
   setInterval(() => {
@@ -313,4 +321,4 @@ function registerAuthRoutes(app: Express, authService: AuthService, throttle = c
   })
 }
 
-export { isSecretSettingOption, createAuthService, createAuthMiddleware, registerAuthRoutes, isProtectedWsPath, createLoginThrottle, safeEqual }
+export { isSecretSettingOption, createAuthService, createAuthMiddleware, registerAuthRoutes, isProtectedWsPath, createLoginThrottle }

@@ -8,6 +8,7 @@ import { applyLanAccessChange, isLanAccessEnvLocked } from '../../app/server/lan
 import { isGlobalAppConfigKey } from '../../shared/appGlobalConfig'
 import { getAppConfigPath } from '../utils/appConfigPath'
 import { loadConfigFile, saveConfigFile } from '../../app/server/configFile'
+import { hashPassword } from '../utils/passwordHash'
 
 export default function (db: ApiDb) {
   const settingsRepo = createSettingsRepository(db.drizzle)
@@ -83,7 +84,13 @@ export default function (db: ApiDb) {
         return sendOk(res, [1])
       }
 
-      settingsRepo.upsertByOption(option, req.body.value)
+      if (option === 'phrase') {
+        // Always hash, even if the client sends something hash-shaped.
+        const plain = String(req.body.value ?? '')
+        settingsRepo.upsertByOption(option, plain === '' ? '' : await hashPassword(plain))
+      } else {
+        settingsRepo.upsertByOption(option, req.body.value)
+      }
 
       if (option === 'phrase' || option === 'passwordProtection') {
         getAuthService().invalidateSettingsCache()
