@@ -77,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Web videos from dynamic pages** — embedded players and HLS streams rely on the installed yt-dlp and have not been verified live on every OS; treat this as conditional and report issues on GitHub.
 - **OneDrive and Dropbox** — beta, see Cloud accounts above.
+- **Cloud sign-in on Docker/NAS** — signing in by pasting the return link is covered by automated tests but has not been verified against a real provider; report issues on GitHub.
 
 ### Upgrade notes
 
