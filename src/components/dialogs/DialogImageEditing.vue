@@ -3,7 +3,7 @@
     :activator="detached ? undefined : 'parent'"
     v-model="dialog"
     scrollable
-    width="800"
+    width="880"
     :fullscreen="xs"
   >
     <template v-slot:activator="{ props: activatorProps }">
@@ -59,6 +59,7 @@
               v-if="src && dialog"
               :key="src"
               @change="updateSize"
+              @ready="cropperReady = true"
               :src="src"
               :stencil-props="options"
               :auto-zoom="true"
@@ -81,6 +82,30 @@
                 mdi-check
               </v-icon>
               {{ width }} x {{ height }}
+            </div>
+          </div>
+
+          <div
+            v-if="src"
+            class="cropper-tools"
+            role="toolbar"
+            :aria-label="t('image.cropper.tools')"
+          >
+            <div v-for="(group, groupIndex) in toolGroups" :key="groupIndex" class="cropper-tools__group">
+              <v-btn
+                v-for="tool in group"
+                :key="tool.id"
+                icon
+                size="small"
+                variant="text"
+                density="comfortable"
+                :disabled="!cropperReady"
+                :aria-label="tool.label"
+                v-tooltip:top="tool.label"
+                @click="tool.action"
+              >
+                <v-icon size="20">{{ tool.icon }}</v-icon>
+              </v-btn>
             </div>
           </div>
         </v-card-text>
@@ -114,8 +139,34 @@ interface FilePondInstance {
   getFiles: () => Array<{ getFileEncodeDataURL?: () => string }>
 }
 
+interface CropperRect {
+  width: number
+  height: number
+  left: number
+  top: number
+}
+
+interface CropperTransformContext {
+  coordinates: CropperRect
+  imageSize: { width: number; height: number }
+}
+
+type CropperTransform = (context: CropperTransformContext) => Partial<CropperRect>
+
 interface CropperInstance {
   getResult: () => { canvas?: HTMLCanvasElement } | null
+  setCoordinates: (transform: CropperTransform | CropperTransform[]) => void
+  zoom: (factor: number) => void
+  rotate: (angle: number) => void
+  flip: (horizontal: boolean, vertical: boolean) => void
+  reset: () => Promise<void> | void
+}
+
+interface CropperTool {
+  id: string
+  icon: string
+  label: string
+  action: () => void
 }
 
 
@@ -206,6 +257,7 @@ const pond = ref<FilePondInstance | null>(null)
 const cropper = ref<CropperInstance | null>(null)
 const dialogImageDeleting = ref(false)
 const dialog = ref(false)
+const cropperReady = ref(false)
 
 // Cropper data
 const src = ref<string | null>(null)
@@ -388,6 +440,66 @@ const crop = async () => {
   }
 }
 
+// Crop area tools. The cropper keeps the stencil's aspect ratio and stays
+// inside the image on its own, so the transforms only describe the wanted size/position.
+const centerTransform: CropperTransform = ({coordinates, imageSize}) => ({
+  left: (imageSize.width - coordinates.width) / 2,
+  top: (imageSize.height - coordinates.height) / 2,
+})
+
+const applyTransforms = (...transforms: CropperTransform[]) => {
+  cropper.value?.setCoordinates(transforms)
+}
+
+const maximizeArea = () => applyTransforms(
+  ({imageSize}) => ({width: imageSize.width, height: imageSize.height}),
+  centerTransform,
+)
+
+const fitWidth = () => applyTransforms(
+  ({coordinates, imageSize}) => ({
+    width: imageSize.width,
+    height: imageSize.width * coordinates.height / coordinates.width,
+  }),
+  centerTransform,
+)
+
+const fitHeight = () => applyTransforms(
+  ({coordinates, imageSize}) => ({
+    width: imageSize.height * coordinates.width / coordinates.height,
+    height: imageSize.height,
+  }),
+  centerTransform,
+)
+
+const centerArea = () => applyTransforms(centerTransform)
+
+const resetCropper = () => {
+  void cropper.value?.reset()
+}
+
+const toolGroups = computed<CropperTool[][]>(() => [
+  [
+    {id: 'maximize', icon: 'mdi-arrow-expand-all', label: t('image.cropper.maximize'), action: maximizeArea},
+    {id: 'fit-width', icon: 'mdi-arrow-expand-horizontal', label: t('image.cropper.fit_width'), action: fitWidth},
+    {id: 'fit-height', icon: 'mdi-arrow-expand-vertical', label: t('image.cropper.fit_height'), action: fitHeight},
+    {id: 'center', icon: 'mdi-image-filter-center-focus', label: t('image.cropper.center'), action: centerArea},
+  ],
+  [
+    {id: 'zoom-in', icon: 'mdi-magnify-plus-outline', label: t('image.cropper.zoom_in'), action: () => cropper.value?.zoom(1.25)},
+    {id: 'zoom-out', icon: 'mdi-magnify-minus-outline', label: t('image.cropper.zoom_out'), action: () => cropper.value?.zoom(0.8)},
+  ],
+  [
+    {id: 'rotate-left', icon: 'mdi-rotate-left', label: t('image.cropper.rotate_left'), action: () => cropper.value?.rotate(-90)},
+    {id: 'rotate-right', icon: 'mdi-rotate-right', label: t('image.cropper.rotate_right'), action: () => cropper.value?.rotate(90)},
+    {id: 'flip-horizontal', icon: 'mdi-flip-horizontal', label: t('image.cropper.flip_horizontal'), action: () => cropper.value?.flip(true, false)},
+    {id: 'flip-vertical', icon: 'mdi-flip-vertical', label: t('image.cropper.flip_vertical'), action: () => cropper.value?.flip(false, true)},
+  ],
+  [
+    {id: 'reset', icon: 'mdi-restore', label: t('image.cropper.reset'), action: resetCropper},
+  ],
+])
+
 const updateSize = ({coordinates}: { coordinates?: { width: number; height: number } }) => {
   if (coordinates) {
     width.value = Math.round(coordinates.width)
@@ -416,8 +528,13 @@ watch(() => props.image, () => {
   }
 })
 
+watch(src, () => {
+  cropperReady.value = false
+})
+
 watch(dialog, async (isOpen) => {
   if (!isOpen) {
+    cropperReady.value = false
     revokeCropperObjectUrl()
     return
   }
@@ -435,10 +552,30 @@ watch(dialog, async (isOpen) => {
 
 .cropper {
   width: 100%;
-  height: 400px;
+  height: clamp(260px, 52vh, 560px);
   background: #f5f5f5;
   border-radius: 8px;
   overflow: hidden;
+}
+
+.cropper-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+
+.cropper-tools__group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cropper-tools__group + .cropper-tools__group {
+  padding-inline-start: 12px;
+  border-inline-start: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
 .cropper-size {
