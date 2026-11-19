@@ -331,6 +331,10 @@ async function applyGeneratedTheme(mode: 'light' | 'dark' | 'both') {
 }
 
 .theme-setting-swatch {
+  // Inside a block .v-btn__content a span is inline and ignores width/height.
+  display: inline-block;
+  vertical-align: middle;
+  flex: none;
   width: 16px;
   height: 16px;
   border: 1px solid rgba(var(--v-theme-on-surface), 0.3);

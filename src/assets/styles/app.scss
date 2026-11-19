@@ -71,6 +71,12 @@ header {
     text-overflow: ellipsis;
     white-space: nowrap;
     text-align: center;
+
+    // The content is a block now (needed for the ellipsis), so inline
+    // children sit on the text baseline instead of being centered by flex.
+    > .v-icon {
+      vertical-align: middle;
+    }
   }
 }
 
