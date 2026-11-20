@@ -78,9 +78,11 @@
         >
           <v-icon size="40" icon="mdi-check-circle-outline"/>
           <div class="text-body-2">
-            {{ dialogsStore.duplicateReview.targetMediaId != null
-              ? t('media.dialogs.duplicate_review_target_empty')
-              : t('media.dialogs.duplicate_review_empty') }}
+            {{ dialogsStore.duplicateReview.targetMediaIds != null
+              ? t('media.dialogs.duplicate_review_targets_empty')
+              : dialogsStore.duplicateReview.targetMediaId != null
+                ? t('media.dialogs.duplicate_review_target_empty')
+                : t('media.dialogs.duplicate_review_empty') }}
           </div>
         </div>
 
@@ -422,6 +424,12 @@ const headerSub = computed(() => {
     return t('media.dialogs.duplicate_review_loading')
   }
   const targetName = dialogsStore.duplicateReview.targetName
+  const targetMediaIds = dialogsStore.duplicateReview.targetMediaIds
+  if (targetMediaIds != null) {
+    return `${t('media.dialogs.duplicate_review_selection_count', {count: targetMediaIds.length})} · ${modeLabel.value} · ${t('media.dialogs.duplicate_review_groups_count', {
+      count: visibleGroups.value.length,
+    })}`
+  }
   if (dialogsStore.duplicateReview.targetMediaId != null) {
     return `${targetName || `#${dialogsStore.duplicateReview.targetMediaId}`} · ${modeLabel.value} · ${t('media.dialogs.duplicate_review_target_count', {
       count: Math.max(0, (visibleGroups.value[0]?.items.length ?? 1) - 1),
@@ -827,6 +835,7 @@ async function reload(automatic = false) {
       filters: dialogsStore.duplicateReview.filters ?? undefined,
       filtersJoin: dialogsStore.duplicateReview.filtersJoin ?? undefined,
       targetMediaId: dialogsStore.duplicateReview.targetMediaId,
+      targetMediaIds: dialogsStore.duplicateReview.targetMediaIds,
     })
     const rawGroups = Array.isArray(res.data?.groups) ? res.data.groups : []
     const allIds = [...new Set(rawGroups.flatMap((group) => group.itemIds.map(Number)))]
@@ -870,8 +879,9 @@ async function reload(automatic = false) {
   } finally {
     loading.value = false
   }
-  // Auto-merge belongs to library-wide maintenance runs, not to a single card opened from its context menu.
+  // Auto-merge belongs to library-wide maintenance runs, not to cards opened from their context menu.
   const singleCard = dialogsStore.duplicateReview.targetMediaId != null
+    || dialogsStore.duplicateReview.targetMediaIds != null
   if (automatic && !singleCard && isSimilarity.value && policy.value.autoMerge && policy.value.files === 'keep') await mergeAllSuggested(true)
 }
 

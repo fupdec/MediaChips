@@ -84,6 +84,8 @@ export const MediaDuplicateGroupsRequestSchema = z.object({
   filtersJoin: z.enum(['and', 'or']).optional(),
   /** Only groups that contain this media item (searched across the whole DB of its media type). */
   targetMediaId: z.union([z.number(), z.string()]).optional().nullable(),
+  /** Only groups that contain any of these media items (bulk check of a selection, searched across the whole DB). */
+  targetMediaIds: z.array(z.union([z.number(), z.string()])).optional().nullable(),
 })
 
 export const MediaFolderBrowseRequestSchema = z.object({

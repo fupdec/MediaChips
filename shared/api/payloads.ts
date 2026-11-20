@@ -75,6 +75,8 @@ export interface MediaDuplicateGroupsPayload {
   filtersJoin?: 'and' | 'or'
   /** Only groups that contain this media item (searched across the whole DB of its media type). */
   targetMediaId?: number | string | null
+  /** Only groups that contain any of these media items (bulk check of a selection, searched across the whole DB). */
+  targetMediaIds?: Array<number | string> | null
 }
 
 export interface MoveTagsToCategoryPayload {

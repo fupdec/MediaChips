@@ -65,6 +65,8 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       /** Single-file mode: only duplicates of this media item. */
       targetMediaId: null as number | null,
       targetName: null as string | null,
+      /** Bulk mode: only duplicates of these selected media items. */
+      targetMediaIds: null as number[] | null,
     },
     /** Session choice shared by merge dialogs: keep unreadable files as backup copies without fingerprint checks. */
     mergeTrustUnavailable: false,
@@ -297,10 +299,14 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       filtersJoin?: 'and' | 'or' | null
       targetMediaId?: number | null
       targetName?: string | null
+      targetMediaIds?: number[] | null
     }) {
       const targetMediaId = Number(options?.targetMediaId)
       this.duplicateReview.targetMediaId = Number.isFinite(targetMediaId) && targetMediaId > 0 ? targetMediaId : null
       this.duplicateReview.targetName = options?.targetName || null
+      this.duplicateReview.targetMediaIds = Array.isArray(options?.targetMediaIds)
+        ? [...new Set(options.targetMediaIds.map(Number).filter((id) => Number.isFinite(id) && id > 0))]
+        : null
       this.duplicateReview.duplicatesBy = options?.duplicatesBy ?? null
       this.duplicateReview.mediaTypeId = options?.mediaTypeId == null
         ? null
@@ -325,6 +331,7 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       this.duplicateReview.filtersJoin = null
       this.duplicateReview.targetMediaId = null
       this.duplicateReview.targetName = null
+      this.duplicateReview.targetMediaIds = null
     },
     openSimilarWall(options: {
       seedId: number

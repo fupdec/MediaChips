@@ -313,6 +313,17 @@ export default function (db: ApiDb) {
         return
       }
 
+      if (Array.isArray(body.targetMediaIds)) {
+        sendOk(res, listMediaDuplicateGroups(db, {
+          duplicatesBy: String(body.duplicates_by || 'filesize'),
+          mediaTypeId: resolvedMediaTypeId,
+          targetMediaIds: body.targetMediaIds
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0),
+        }))
+        return
+      }
+
       let mediaIds: number[] | null = null
       if (Array.isArray(body.mediaIds)) {
         mediaIds = body.mediaIds

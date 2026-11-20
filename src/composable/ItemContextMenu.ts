@@ -477,13 +477,14 @@ export default function useItemContextMenu(
 
       // One entry using the shared similarity policy (exact copies, pending, other versions).
       // Legacy per-field modes (path / size / fingerprint / visual hash) stay in the app bar and Settings.
+      // While multi-selecting two or more cards, the whole selection is checked; otherwise the seed is the right-clicked item.
+      const bulkDuplicates = isSelectMode() && itemsStore.selection.length > 1
       const duplicatesEntry: ItemContextMenuEntry | null = isMediaPageItem(item, type)
         ? {
           name: t('context_menu.find_duplicates'),
           type: 'item' as const,
           icon: 'content-duplicate',
-          // Seed is the right-clicked item (also available while multi-selecting).
-          action: () => findDuplicatesOfItem('similarity'),
+          action: () => bulkDuplicates ? findDuplicatesOfSelection('similarity') : findDuplicatesOfItem('similarity'),
         }
         : null
 
@@ -816,6 +817,21 @@ export default function useItemContextMenu(
       duplicatesBy: mode,
       targetMediaId: Number(item.id),
       targetName: item.name || (itemPath ? path.basename(itemPath) : null),
+    })
+  }
+
+  const findDuplicatesOfSelection = (mode: string): void => {
+    if (!isMediaPageItem(item, type)) return
+    const targetMediaIds = [...new Set(itemsStore.selection.map(Number).filter((id) => Number.isFinite(id) && id > 0))]
+    if (targetMediaIds.length < 2) {
+      findDuplicatesOfItem(mode)
+      return
+    }
+    const mediaTypeId = Number(item.mediaTypeId || itemsStore.environment?.media_type_id)
+    dialogsStore.openDuplicateReview({
+      mediaTypeId: Number.isFinite(mediaTypeId) && mediaTypeId > 0 ? mediaTypeId : null,
+      duplicatesBy: mode,
+      targetMediaIds,
     })
   }
 
