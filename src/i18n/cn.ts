@@ -2345,8 +2345,6 @@ const cn = {
       editing_overview_expanded_hint: '在媒体/标签编辑对话框中显示文件信息、日期和路径。也可在对话框内展开或折叠。',
       mixed_tags_input: '编辑对话框中的合并标签字段',
       mixed_tags_input_hint: '用一个包含所有已分配标签分类的输入框，替代按分类分开的字段',
-      icons_filter_chips: '筛选标签块中的图标',
-      filter_chip_sample: '“演员”不等于“John”',
       gap_size_between_items: '项目之间的间距大小',
       image_viewer: '图片查看器',
       slideshow_interval: '幻灯片间隔',

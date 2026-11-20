@@ -51,35 +51,6 @@ const {t} = useI18n()
       :hint="t('settings_labels.appearance.quick_action_button_hint')"
       option="show_quick_action_button"
     />
-    <settings-switch
-      option="showIconsInsteadTextOnFiltersChips"
-      :hide-details="false"
-    >
-      <template #label>
-        <div class="d-flex flex-column ml-4">
-          <div class="text-body-1 text-high-emphasis">{{ t('settings_labels.appearance.icons_filter_chips') }}</div>
-          <div class="text-caption text-medium-emphasis mt-1">
-            <span class="mr-4">{{ t('common.sample') }}</span>
-            <v-chip
-              v-if="SETTINGS.showIconsInsteadTextOnFiltersChips == '0'"
-              color="primary"
-              size="small"
-            >
-              {{ t('settings_labels.appearance.filter_chip_sample') }}
-            </v-chip>
-            <v-chip
-              v-else
-              color="primary"
-              size="small"
-            >
-              <v-icon start>mdi-account</v-icon>
-              <v-icon start>mdi-not-equal-variant</v-icon>
-              "John"
-            </v-chip>
-          </div>
-        </div>
-      </template>
-    </settings-switch>
   </SettingsGroupPanel>
 
   <SettingsGroupPanel icon="pencil-outline" :title="t('settings_labels.appearance.group_editing')">

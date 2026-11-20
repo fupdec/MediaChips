@@ -2345,8 +2345,6 @@ const pt = {
       editing_overview_expanded_hint: 'Mostra info do arquivo, datas e caminho nos diálogos de edição de mídia/tags. Também pode expandir ou recolher no próprio diálogo.',
       mixed_tags_input: 'Campo de tags combinado na caixa de diálogo de edição',
       mixed_tags_input_hint: 'Um único campo com tags de todas as categorias atribuídas em vez de um campo por categoria',
-      icons_filter_chips: 'Ícones em chips de filtro',
-      filter_chip_sample: '"Ator" não é igual a "John"',
       gap_size_between_items: 'Tamanho do intervalo entre itens',
       image_viewer: 'Visualizador de imagens',
       slideshow_interval: 'Intervalo do slideshow',

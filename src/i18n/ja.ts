@@ -2345,8 +2345,6 @@ const ja = {
       editing_overview_expanded_hint: 'メディア/タグ編集ダイアログでファイル情報・日付・パスを表示します。ダイアログ内でも展開/折りたたみできます。',
       mixed_tags_input: '編集ダイアログの統合タグ入力',
       mixed_tags_input_hint: 'カテゴリごとのフィールドではなく、割り当てられたすべてのタグカテゴリを一つの入力欄にまとめます',
-      icons_filter_chips: 'フィルターチップのアイコン',
-      filter_chip_sample: '「俳優」は「ジョン」と等しくありません',
       gap_size_between_items: 'アイテム間のギャップサイズ',
       image_viewer: '画像ビューア',
       slideshow_interval: 'スライドショー間隔',

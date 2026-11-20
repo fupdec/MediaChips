@@ -1,43 +1,47 @@
 <template>
-  <div class="d-flex flex-wrap align-center">
+  <div class="filter-chips d-flex flex-wrap align-center">
     <v-chip
       v-if="itemsStore.find_duplicates"
-      class="ma-1 px-2"
+      class="filter-chip"
+      :class="{readonly: isTooltip || readonly}"
       color="primary"
       size="small"
-      variant="flat"
+      variant="tonal"
       :title="t('filters.deactivate_filter')"
       @click="switchOffDuplicates"
     >
       <v-icon size="14" class="mr-1">mdi-content-duplicate</v-icon>
       {{ duplicatesLabel }}
+      <v-icon v-if="!readonly && !isTooltip" size="13" class="filter-chip__dismiss" aria-hidden="true">mdi-close</v-icon>
     </v-chip>
 
     <v-chip
       v-if="hasListScope"
-      class="ma-1 px-2"
+      class="filter-chip"
+      :class="{readonly: isTooltip || readonly}"
       color="primary"
       size="small"
-      variant="flat"
+      variant="tonal"
       :title="t('filters.deactivate_filter')"
       @click="switchOffListScope"
     >
       <v-icon size="14" class="mr-1">{{ listScopeIcon }}</v-icon>
       {{ listScopeLabel }}
+      <v-icon v-if="!readonly && !isTooltip" size="13" class="filter-chip__dismiss" aria-hidden="true">mdi-close</v-icon>
     </v-chip>
 
     <v-chip
       v-for="(filter, index) in filters"
       :key="index"
       v-show="shouldShowFilter(filter)"
-      class="ma-1 px-2"
+      class="filter-chip"
       :class="{
-        readonly: isTooltip,
+        readonly: isTooltip || readonly,
         'filter-chip--inactive': isTooltip && !isFilterRowActive(filter),
       }"
       :color="getChipColor(filter)"
       size="small"
-      :variant="getChipVariant(filter)"
+      variant="tonal"
       :disabled="(filter.lock && !isTooltip) || !itemsStore.isFiltersLoaded"
       :title="getChipTitle(filter)"
       @click="deactivate(index)"
@@ -50,50 +54,31 @@
         mdi-lock
       </v-icon>
 
-      <span v-if="showIcons" class="d-flex align-center">
-        <v-icon size="14" class="mr-1">
-          mdi-{{ getBy(filter.param, 'icon') }}
-        </v-icon>
-        <v-icon size="14">
-          mdi-{{ getCond(filter.type, filter.cond, 'icon') }}
-        </v-icon>
-      </span>
+      <v-icon size="15" class="filter-chip__icon" aria-hidden="true">
+        mdi-{{ getBy(filter.param, 'icon') || 'filter-outline' }}
+      </v-icon>
+      <span class="filter-chip__field">{{ getBy(filter.param, 'text') }}</span>
+      <span class="filter-chip__condition">{{ getCond(filter.type, filter.cond, 'text') }}</span>
 
-      <span v-else>
-        <span class="mr-1">
-          "{{ getBy(filter.param, 'text') }}"
+      <template v-if="filter.type === 'array'">
+        <span class="filter-chip__value">{{ getArrayPreview(filter).text }}</span>
+        <span v-if="getArrayPreview(filter).hidden" class="filter-chip__more">
+          +{{ getArrayPreview(filter).hidden }}
         </span>
-        <span>
-          {{ getCond(filter.type, filter.cond, 'text') }}
-        </span>
-      </span>
+      </template>
 
-      <span v-if="filter.type === 'array'" class="ml-1">
-        <template v-if="filter.param === 'source' || filter.param === 'availability'">
-          "{{ Array.isArray(filter.val) ? filter.val.map(value => catalogLabel(filter.param, value)).join(', ') : '' }}"
-        </template>
-        <template v-else-if="filter.param === 'country'">
-          "{{ Array.isArray(filter.val) ? filter.val.join(', ') : '' }}"
-        </template>
-        <template v-else-if="filter.param === 'ext'">
-          "{{ Array.isArray(filter.val) ? filter.val.join(', ') : '' }}"
-        </template>
-        <template v-else>
-          "{{ getTagName(filter.param, filter.val) }}"
-        </template>
-      </span>
-
-      <span v-else-if="filter.type === 'number'" class="ml-1">
+      <span v-else-if="filter.type === 'number'" class="filter-chip__value">
         <span v-html="getValForTypeNumber(filter.param, filter.val)"/>
       </span>
 
-      <span v-else-if="filter.type === 'date'" class="ml-1">
-        "{{ formatFilterDateDisplay(filter.val, locale) }}"
+      <span v-else-if="filter.type === 'date'" class="filter-chip__value">
+        {{ formatFilterDateDisplay(filter.val, locale) }}
       </span>
 
-      <span v-else-if="filter.type !== 'boolean'" class="ml-1">
-        "{{ filter.val }}"
+      <span v-else-if="filter.type !== 'boolean'" class="filter-chip__value">
+        {{ filter.val }}
       </span>
+      <v-icon v-if="!readonly && !isTooltip && !filter.lock" size="13" class="filter-chip__dismiss" aria-hidden="true">mdi-close</v-icon>
     </v-chip>
   </div>
 </template>
@@ -106,7 +91,6 @@ import Cols from '../../../app/configs/filter-cols'
 
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
-import {useSettingsStore} from '@/stores/settings'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import {getCurrentMediaType} from '@/utils/mediaType'
 import {getListCond, getReadableFileSize, getReadableDuration, formatFilterDateDisplay} from '@/services/formatUtils'
@@ -134,13 +118,8 @@ const colsCache = ref<FilterListParam[] | null>(null)
 
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
-const settingsStore = useSettingsStore()
 const filtersController = useItemsFiltersController()
 const {t, locale} = useI18n()
-
-const showIcons = computed(() =>
-  settingsStore.showIconsInsteadTextOnFiltersChips === '1'
-)
 
 const hasActiveScopeFilters = computed(() =>
   (itemsStore.filters || []).some((filter) =>
@@ -230,7 +209,7 @@ const switchOffListScope = () => {
 }
 
 const deactivate = (index: number) => {
-  if (props.readonly) return
+  if (props.readonly || props.isTooltip) return
   filtersController.deactivate(index)
 }
 
@@ -242,20 +221,15 @@ const shouldShowFilter = (filter: FilterObject) => {
   return isFilterRowActive(filter)
 }
 
-const getChipVariant = (filter: FilterObject) => {
-  if (!props.isTooltip) return 'tonal'
-  return isFilterRowActive(filter) ? 'flat' : 'outlined'
-}
-
 const getChipColor = (filter: FilterObject) => {
   if (!props.isTooltip) return 'primary'
   return isFilterRowActive(filter) ? 'primary' : 'default'
 }
 
 const getChipTitle = (filter: FilterObject) => {
-  if (!props.isTooltip) return t('filters.deactivate_filter')
-  if (isFilterRowActive(filter)) return t('filters.filter_row_active')
-  return t('filters.filter_row_inactive')
+  const description = [getBy(filter.param, 'text'), getCond(filter.type, filter.cond, 'text'), getFilterValue(filter)].filter(Boolean).join(' ')
+  if (!props.isTooltip && !props.readonly && !filter.lock) return `${description} · ${t('filters.deactivate_filter')}`
+  return description
 }
 
 const getBy = (param: string | number | null, show: string) => {
@@ -292,13 +266,28 @@ const getCond = (type: string | null, cond: string | null, show: string) => {
   }
 }
 
-const getTagName = (metaId: string | number | null, val: unknown) => {
-  const list = tags.value.filter(t => t.metaId == metaId)
-  if (!val || !Array.isArray(val)) return ''
+const getArrayLabels = (filter: FilterObject): string[] => {
+  if (!Array.isArray(filter.val)) return []
+  if (filter.param === 'source' || filter.param === 'availability') {
+    return filter.val.map(value => catalogLabel(filter.param, value))
+  }
+  if (filter.param === 'country' || filter.param === 'ext') return filter.val.map(String)
+  const names = new Map(tags.value.filter(tag => tag.metaId == filter.param).map(tag => [tag.id, tag.name]))
+  return filter.val.map(id => names.get(id) || String(id))
+}
 
-  return val
-    .map(id => list.find(t => t.id === id)?.name || '')
-    .join(', ')
+const getArrayPreview = (filter: FilterObject) => {
+  const labels = getArrayLabels(filter)
+  // Always show the first tag; add a second only when the names stay compact.
+  const shown = labels.length > 1 && Array.from(labels.slice(0, 2).join(', ')).length <= 32 ? 2 : 1
+  return {text: labels.slice(0, shown).join(', '), hidden: Math.max(0, labels.length - shown)}
+}
+
+const getFilterValue = (filter: FilterObject): string => {
+  if (filter.type === 'array') return getArrayLabels(filter).join(', ')
+  if (filter.type === 'date') return formatFilterDateDisplay(filter.val, locale.value)
+  if (filter.type === 'number') return String(getValForTypeNumber(filter.param, filter.val) ?? '')
+  return filter.type === 'boolean' ? '' : String(filter.val ?? '')
 }
 
 const getValForTypeNumber = (parameter: string | number | null, number: unknown) => {
@@ -314,6 +303,68 @@ const getValForTypeNumber = (parameter: string | number | null, number: unknown)
 </script>
 
 <style scoped lang="scss">
+.filter-chips {
+  gap: 6px;
+  min-width: 0;
+}
+
+.filter-chip.v-chip {
+  height: 30px;
+  max-width: 100%;
+  margin: 0;
+  padding-inline: 9px;
+  border: 1px solid rgba(var(--v-theme-primary), 0.16);
+  border-radius: 9px;
+  font-size: 12px;
+  letter-spacing: 0;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+
+  &:hover:not(.readonly) {
+    border-color: rgba(var(--v-theme-primary), 0.38);
+    box-shadow: 0 2px 6px rgba(var(--v-theme-primary), 0.08);
+  }
+
+  :deep(.v-chip__content) {
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+
+.filter-chip__icon { flex-shrink: 0; opacity: 0.8; }
+.filter-chip__field {
+  min-width: 0;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.filter-chip__condition { flex-shrink: 0; opacity: 0.65; }
+.filter-chip__value {
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 650;
+}
+.filter-chip__more {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(var(--v-theme-primary), 0.1);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.filter-chip__dismiss {
+  flex-shrink: 0;
+  margin-inline-start: 2px;
+  opacity: 0.5;
+}
+.filter-chip:hover .filter-chip__dismiss { opacity: 1; }
+
 .readonly {
   pointer-events: none;
 }

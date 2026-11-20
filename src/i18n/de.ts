@@ -2345,8 +2345,6 @@ const de = {
       editing_overview_expanded_hint: 'Dateiinfos, Daten und Pfad in Medien-/Tag-Bearbeitungsdialogen anzeigen. Auch im Dialog selbst ein- und ausklappbar.',
       mixed_tags_input: 'Kombiniertes Tag-Feld im Bearbeitungsdialog',
       mixed_tags_input_hint: 'Ein Eingabefeld mit Tags aus allen zugewiesenen Tag-Kategorien statt eines Feldes pro Kategorie',
-      icons_filter_chips: 'Symbole in Filterchips',
-      filter_chip_sample: '„Schauspieler“ ist nicht gleich „John“',
       gap_size_between_items: 'Lückengröße zwischen Elementen',
       image_viewer: 'Bildbetrachter',
       slideshow_interval: 'Diashow-Intervall',

@@ -2345,8 +2345,6 @@ const fr = {
       editing_overview_expanded_hint: 'Affiche les infos fichier, dates et chemin dans les dialogues d\'édition média/tag. Aussi expandable depuis le dialogue.',
       mixed_tags_input: 'Champ de tags combiné dans la boîte de dialogue d\'édition',
       mixed_tags_input_hint: 'Un seul champ avec les tags de toutes les catégories assignées au lieu d\'un champ par catégorie',
-      icons_filter_chips: 'Icônes dans les puces de filtre',
-      filter_chip_sample: '"Acteur" n\'est pas égal à "John"',
       gap_size_between_items: 'Taille de l\'écart entre les éléments',
       image_viewer: 'Visionneuse d\'images',
       slideshow_interval: 'Intervalle du diaporama',

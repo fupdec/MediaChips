@@ -2983,8 +2983,6 @@ const en = {
       editing_overview_expanded_hint: 'Show file info, dates and path in media/tag editing dialogs. You can also expand or collapse it from the dialog itself.',
       mixed_tags_input: 'Combined tags field in editing dialog',
       mixed_tags_input_hint: 'Show one input with tags from all assigned tag categories instead of a separate field per category',
-      icons_filter_chips: 'Icons in filter chips',
-      filter_chip_sample: '"Actor" not equal "John"',
       gap_size_between_items: 'Gap size between items',
       image_viewer: 'Image viewer',
       slideshow_interval: 'Slideshow interval',

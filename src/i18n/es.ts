@@ -2345,8 +2345,6 @@ const es = {
       editing_overview_expanded_hint: 'Muestra info del archivo, fechas y ruta en los diálogos de edición de medios/etiquetas. También se puede expandir o contraer desde el diálogo.',
       mixed_tags_input: 'Campo de etiquetas combinado en el diálogo de edición',
       mixed_tags_input_hint: 'Un solo campo con etiquetas de todas las categorías asignadas en lugar de un campo por categoría',
-      icons_filter_chips: 'Iconos en chips de filtro',
-      filter_chip_sample: '"Actor" no es igual a "John"',
       gap_size_between_items: 'Tamaño del espacio entre elementos',
       image_viewer: 'Visor de imágenes',
       slideshow_interval: 'Intervalo de la presentación',

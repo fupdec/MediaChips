@@ -178,7 +178,6 @@ export type SettingsState = {
   editingOverviewExpanded: string
   mixedTagsInputInEditingDialog: string
   showEmptyMetaValueInCard: string
-  showIconsInsteadTextOnFiltersChips: string
   showHeaderImageAboveProfile: string
   showExperimentalFeatures: string
   showSavedFilters: string
@@ -352,7 +351,6 @@ export const defaultSettingsState = (): SettingsState => ({
   editingOverviewExpanded: '0',
   mixedTagsInputInEditingDialog: '0',
   showEmptyMetaValueInCard: '1',
-  showIconsInsteadTextOnFiltersChips: '0',
   showHeaderImageAboveProfile: '1',
   showExperimentalFeatures: '0',
   showSavedFilters: '1',
