@@ -1,8 +1,13 @@
 @mixin surface {
   padding: 12px;
   background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.10);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.22);
   border-radius: 12px !important;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.06),
+    0 3px 8px rgba(0, 0, 0, 0.22),
+    0 12px 28px rgba(0, 0, 0, 0.32),
+    0 28px 64px rgba(0, 0, 0, 0.40);
 }
 
 @mixin icon {

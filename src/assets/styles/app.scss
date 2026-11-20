@@ -77,6 +77,17 @@ header {
     > .v-icon {
       vertical-align: middle;
     }
+
+    // Vuetify gives start/end icons a negative outer margin (height / -9).
+    // overflow: hidden above would clip that overhang, cutting the icon's
+    // edge, so drop the negative side and keep the gap to the label.
+    > .v-icon--start {
+      margin-inline-start: 0;
+    }
+
+    > .v-icon--end {
+      margin-inline-end: 0;
+    }
   }
 }
 
