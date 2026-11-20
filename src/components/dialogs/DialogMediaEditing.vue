@@ -189,6 +189,8 @@ function onBigPreviewChange(value: boolean) {
 
 const fileName = computed(() => {
   const filePath = media.value?.path || ''
+  // Remote cards are stored by ID-based addresses; the last segment would be an ID.
+  if (/^(gdrive|nas|onedrive|dropbox):\/\//.test(filePath)) return media.value?.name || media.value?.basename || ''
   return filePath.split('/').pop() || ''
 })
 
