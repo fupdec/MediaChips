@@ -461,7 +461,7 @@ const pl = {
     duplicates_by_policy: 'Według ustawień konserwacji',
     bulk_auto_scrape: 'Automatyczne pobieranie z TPDB (zaznaczone)',
     bulk_tmdb_auto_scrape: 'Automatyczne pobieranie z TMDB (zaznaczone)',
-    bulk_auto_scrape_scenes: 'Automatyczne pobieranie scen z TPDB (zaznaczone)',
+    bulk_auto_scrape_scenes: 'Automatyczne pobieranie scen z TPDB',
     auto_scrape: 'Automatyczne pobieranie z TPDB',
     tmdb_auto_scrape: 'Automatyczne pobieranie z TMDB',
     auto_scrape_scene: 'Automatyczne pobieranie sceny z TPDB',

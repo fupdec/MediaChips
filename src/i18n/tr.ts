@@ -461,7 +461,7 @@ const tr = {
     duplicates_by_policy: 'Bakım ayarlarına göre',
     bulk_auto_scrape: 'Seçilenler için TPDB otomatik veri çekme',
     bulk_tmdb_auto_scrape: 'Seçilenler için TMDB otomatik veri çekme',
-    bulk_auto_scrape_scenes: 'TPDB sahneleri otomatik veri çekme (seçilenler)',
+    bulk_auto_scrape_scenes: 'TPDB sahneleri otomatik veri çekme',
     auto_scrape: 'TPDB otomatik veri çekme',
     tmdb_auto_scrape: 'TMDB otomatik veri çekme',
     auto_scrape_scene: 'TPDB sahnesi otomatik veri çekme',

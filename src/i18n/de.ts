@@ -906,7 +906,7 @@ const de = {
     duplicates_by_policy: 'Nach Wartungseinstellungen',
     bulk_auto_scrape: 'TPDB ausgewählte automatisch scrapen',
     bulk_tmdb_auto_scrape: 'TMDB ausgewählte automatisch scrapen',
-    bulk_auto_scrape_scenes: 'TPDB ausgewählte Szenen automatisch scrapen',
+    bulk_auto_scrape_scenes: 'TPDB Szenen automatisch scrapen',
     auto_scrape: 'TPDB automatisch scrapen',
     tmdb_auto_scrape: 'TMDB automatisch scrapen',
     auto_scrape_scene: 'TPDB Szene automatisch scrapen',

@@ -906,7 +906,7 @@ const fr = {
     duplicates_by_policy: 'Selon les réglages de maintenance',
     bulk_auto_scrape: 'TPDB grattage automatique sélectionné',
     bulk_tmdb_auto_scrape: 'TMDB grattage automatique sélectionné',
-    bulk_auto_scrape_scenes: 'TPDB scènes de scraping automatique (sélectionnées)',
+    bulk_auto_scrape_scenes: 'TPDB scènes de scraping automatique',
     auto_scrape: 'TPDB grattage automatique',
     tmdb_auto_scrape: 'TMDB grattage automatique',
     auto_scrape_scene: 'TPDB scène de grattage automatique',

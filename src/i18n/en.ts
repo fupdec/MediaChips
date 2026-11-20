@@ -1543,7 +1543,7 @@ const en = {
     duplicates_by_policy: 'By maintenance settings',
     bulk_auto_scrape: 'TPDB auto scrape selected',
     bulk_tmdb_auto_scrape: 'TMDB auto scrape selected',
-    bulk_auto_scrape_scenes: 'TPDB auto scrape scenes (selected)',
+    bulk_auto_scrape_scenes: 'TPDB auto scrape scenes',
     auto_scrape: 'TPDB auto scrape',
     tmdb_auto_scrape: 'TMDB auto scrape',
     auto_scrape_scene: 'TPDB auto scrape scene',

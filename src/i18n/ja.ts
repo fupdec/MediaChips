@@ -906,7 +906,7 @@ const ja = {
     duplicates_by_policy: 'メンテナンス設定に従う',
     bulk_auto_scrape: 'TPDB 選択項目を自動スクレイプ',
     bulk_tmdb_auto_scrape: 'TMDB 選択項目を自動スクレイプ',
-    bulk_auto_scrape_scenes: 'TPDB 選択したシーンを自動スクレイプ',
+    bulk_auto_scrape_scenes: 'TPDB シーンを自動スクレイプ',
     auto_scrape: 'TPDB 自動スクレイプ',
     tmdb_auto_scrape: 'TMDB 自動スクレイプ',
     auto_scrape_scene: 'TPDB シーンを自動スクレイプ',

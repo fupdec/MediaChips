@@ -906,7 +906,7 @@ const cn = {
     duplicates_by_policy: '按维护设置',
     bulk_auto_scrape: 'TPDB 自动抓取所选',
     bulk_tmdb_auto_scrape: 'TMDB 自动抓取所选',
-    bulk_auto_scrape_scenes: 'TPDB 自动抓取场景（所选）',
+    bulk_auto_scrape_scenes: 'TPDB 自动抓取场景',
     auto_scrape: 'TPDB 自动抓取',
     tmdb_auto_scrape: 'TMDB 自动抓取',
     auto_scrape_scene: 'TPDB 自动抓取场景',

@@ -461,7 +461,7 @@ const tw = {
     duplicates_by_policy: '依維護設定',
     bulk_auto_scrape: 'TPDB 自動抓取所選項目',
     bulk_tmdb_auto_scrape: 'TMDB 自動抓取所選項目',
-    bulk_auto_scrape_scenes: 'TPDB 自動抓取場景（所選項目）',
+    bulk_auto_scrape_scenes: 'TPDB 自動抓取場景',
     auto_scrape: 'TPDB 自動抓取',
     tmdb_auto_scrape: 'TMDB 自動抓取',
     auto_scrape_scene: 'TPDB 自動抓取場景',

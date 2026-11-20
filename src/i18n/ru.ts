@@ -1544,7 +1544,7 @@ const ru = {
     duplicates_by_policy: 'По настройкам обслуживания',
     bulk_auto_scrape: 'TPDB авто-скрапинг выбранных',
     bulk_tmdb_auto_scrape: 'TMDB авто-скрапинг выбранных',
-    bulk_auto_scrape_scenes: 'TPDB авто-скрапинг сцен (выбранные)',
+    bulk_auto_scrape_scenes: 'TPDB авто-скрапинг сцен',
     auto_scrape: 'TPDB авто-скрапинг',
     tmdb_auto_scrape: 'TMDB авто-скрапинг',
     auto_scrape_scene: 'TPDB авто-скрапинг сцены',

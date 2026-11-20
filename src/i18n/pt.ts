@@ -906,7 +906,7 @@ const pt = {
     duplicates_by_policy: 'Pelas configurações de manutenção',
     bulk_auto_scrape: 'TPDB extração automática selecionada',
     bulk_tmdb_auto_scrape: 'TMDB extração automática selecionada',
-    bulk_auto_scrape_scenes: 'TPDB cenas de extração automática (selecionadas)',
+    bulk_auto_scrape_scenes: 'TPDB cenas de extração automática',
     auto_scrape: 'TPDB extração automática',
     tmdb_auto_scrape: 'TMDB extração automática',
     auto_scrape_scene: 'TPDB cena de extração automática',

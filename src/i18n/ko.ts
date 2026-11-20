@@ -461,7 +461,7 @@ const ko = {
     duplicates_by_policy: '유지 관리 설정 기준',
     bulk_auto_scrape: '선택 항목 TPDB 자동 스크랩',
     bulk_tmdb_auto_scrape: '선택 항목 TMDB 자동 스크랩',
-    bulk_auto_scrape_scenes: 'TPDB 장면 자동 스크랩 (선택 항목)',
+    bulk_auto_scrape_scenes: 'TPDB 장면 자동 스크랩',
     auto_scrape: 'TPDB 자동 스크랩',
     tmdb_auto_scrape: 'TMDB 자동 스크랩',
     auto_scrape_scene: 'TPDB 장면 자동 스크랩',

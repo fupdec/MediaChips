@@ -461,7 +461,7 @@ const it = {
     duplicates_by_policy: 'Secondo le impostazioni di manutenzione',
     bulk_auto_scrape: 'Scraping automatico TPDB dei selezionati',
     bulk_tmdb_auto_scrape: 'Scraping automatico TMDB dei selezionati',
-    bulk_auto_scrape_scenes: 'Scraping automatico scene TPDB (selezionati)',
+    bulk_auto_scrape_scenes: 'Scraping automatico scene TPDB',
     auto_scrape: 'Scraping automatico TPDB',
     tmdb_auto_scrape: 'Scraping automatico TMDB',
     auto_scrape_scene: 'Scraping automatico scena TPDB',
