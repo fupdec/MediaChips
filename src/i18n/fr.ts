@@ -2329,6 +2329,7 @@ const fr = {
       grid_3x3: 'Grille 3×3',
       hover_preview: 'Au survol',
       hover_preview_hint: 'Comportement au survol d’une carte vidéo',
+      hover_preview_grid_fallback: 'Si le fichier vidéo est indisponible mais qu’une grille d’images existe, l’aperçu en grille s’affiche à la place',
       timeline: 'Chronologie',
       video: 'Vidéo',
       play_sound: 'Jouer du son',

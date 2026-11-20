@@ -2329,6 +2329,7 @@ const de = {
       grid_3x3: 'Raster 3×3',
       hover_preview: 'Bei Hover',
       hover_preview_hint: 'Verhalten beim Überfahren einer Videokarte',
+      hover_preview_grid_fallback: 'Ist die Videodatei nicht verfügbar, aber ein Bildraster vorhanden, wird stattdessen die Raster-Vorschau gezeigt',
       timeline: 'Zeitleiste',
       video: 'Video',
       play_sound: 'Ton abspielen',

@@ -2329,6 +2329,7 @@ const es = {
       grid_3x3: 'Cuadrícula 3×3',
       hover_preview: 'Al pasar el cursor',
       hover_preview_hint: 'Qué ocurre al pasar el cursor sobre una tarjeta de video',
+      hover_preview_grid_fallback: 'Si el archivo de video no está disponible pero existe una cuadrícula de fotogramas, se muestra la vista previa de la cuadrícula',
       timeline: 'Línea de tiempo',
       video: 'Video',
       play_sound: 'Reproducir sonido',

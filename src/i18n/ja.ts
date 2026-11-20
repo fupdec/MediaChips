@@ -2329,6 +2329,7 @@ const ja = {
       grid_3x3: 'グリッド 3×3',
       hover_preview: 'ホバー時',
       hover_preview_hint: '動画カードにマウスを乗せたときの動作',
+      hover_preview_grid_fallback: '動画ファイルが利用できなくてもフレームグリッドがある場合は、グリッドのプレビューを表示します',
       timeline: 'タイムライン',
       video: 'ビデオ',
       play_sound: 'サウンドを再生する',

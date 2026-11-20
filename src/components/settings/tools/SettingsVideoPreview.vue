@@ -41,6 +41,12 @@
           <div class="text-caption text-medium-emphasis">
             {{ t('settings_labels.appearance.hover_preview_hint') }}
           </div>
+          <div
+            v-if="SETTINGS.videoPreviewHover === 'video' || SETTINGS.videoPreviewHover === 'timeline'"
+            class="text-caption text-medium-emphasis"
+          >
+            {{ t('settings_labels.appearance.hover_preview_grid_fallback') }}
+          </div>
         </div>
 
         <SettingsSegmentedControl

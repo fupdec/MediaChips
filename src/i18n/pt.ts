@@ -2329,6 +2329,7 @@ const pt = {
       grid_3x3: 'Grade 3×3',
       hover_preview: 'Ao passar o mouse',
       hover_preview_hint: 'O que acontece ao passar o mouse sobre um cartão de vídeo',
+      hover_preview_grid_fallback: 'Se o arquivo de vídeo estiver indisponível mas existir uma grade de quadros, a pré-visualização da grade é exibida',
       timeline: 'Linha do tempo',
       video: 'Vídeo',
       play_sound: 'Reproduzir som',

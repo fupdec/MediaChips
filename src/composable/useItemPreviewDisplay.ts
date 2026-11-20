@@ -25,6 +25,8 @@ export type PreviewContainerClassesInput = {
   /** Mounted and seeking — hide <video> so t≈0 never shows; leave must NOT set this. */
   hoverPreviewPending?: boolean
   isFullscreenBigPreview: boolean
+  /** Playback-error notice is on screen — rating/favorite overlays must stay usable. */
+  isPreviewUnavailable?: boolean
   isVideoPreviewEnabled: boolean
   isGridExpanding: boolean
   isGridCollapsing: boolean
@@ -57,6 +59,7 @@ export function buildPreviewContainerClasses(
     // Pending only hides video on the card; cinema/big preview must stay opaque.
     'is-hover-preview-pending': Boolean(input.hoverPreviewPending) && !input.isFullscreenBigPreview,
     'is-video-preview-enabled': input.isVideoPreviewEnabled,
+    'is-preview-unavailable': Boolean(input.isPreviewUnavailable),
     'video-preview-container--expanded': input.isFullscreenBigPreview,
     'video-preview-container--expanding': input.isGridExpanding,
     'video-preview-container--collapsing': input.isGridCollapsing,
@@ -89,6 +92,8 @@ export function getPlaybackTimelinePercent(playbackTime: number, duration: numbe
 export type ItemPreviewDisplayOptions = {
   previewHost: MaybeRefOrGetter<PreviewHost>
   isFileExists: MaybeRefOrGetter<boolean>
+  /** Source video is missing but a grid sprite exists — allow the grid hover preview. */
+  allowTimelineWithoutFile?: MaybeRefOrGetter<boolean>
   isEmbeddedHost: MaybeRefOrGetter<boolean>
   isViewCard: MaybeRefOrGetter<boolean>
   videoPreviewHover: MaybeRefOrGetter<string>
@@ -161,7 +166,7 @@ export function useItemPreviewDisplay(options: ItemPreviewDisplayOptions) {
 
   const showTimelinePreview = computed(() =>
     toValue(options.videoPreviewHover) === 'timeline' &&
-    toValue(options.isFileExists) &&
+    (toValue(options.isFileExists) || Boolean(toValue(options.allowTimelineWithoutFile))) &&
     toValue(options.isHovered) &&
     !toValue(options.isShrinking),
   )
@@ -205,6 +210,7 @@ export function useItemPreviewDisplay(options: ItemPreviewDisplayOptions) {
       hoverPreviewReady: toValue(options.hoverPreviewReady),
       hoverPreviewPending: Boolean(toValue(options.hoverPreviewPending)),
       isFullscreenBigPreview: options.gridBigPreview.isVisual.value,
+      isPreviewUnavailable: showPreviewUnavailableNotice.value,
       isVideoPreviewEnabled: isVideoPreviewEnabled.value,
       isGridExpanding: options.gridBigPreview.isExpanding.value,
       isGridCollapsing: options.gridBigPreview.isCollapsing.value,

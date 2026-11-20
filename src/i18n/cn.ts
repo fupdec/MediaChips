@@ -2329,6 +2329,7 @@ const cn = {
       grid_3x3: '3×3 网格',
       hover_preview: '悬停预览',
       hover_preview_hint: '将鼠标悬停在视频卡片上时的行为',
+      hover_preview_grid_fallback: '如果视频文件不可用但存在帧网格，则改为显示网格预览',
       timeline: '时间线',
       video: '视频',
       play_sound: '播放声音',

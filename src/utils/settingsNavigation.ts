@@ -203,6 +203,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
       "settings_labels.appearance.grid_3x3",
       "settings_labels.appearance.hover_preview",
       "settings_labels.appearance.hover_preview_hint",
+      "settings_labels.appearance.hover_preview_grid_fallback",
       "settings_labels.appearance.play_sound",
       "settings_labels.appearance.preview_delay",
       "settings_labels.appearance.static_preview",

@@ -23,16 +23,16 @@
         v-ripple="gridBigPreview.isExpanded.value ? false : { class: `text-primary` }"
         :aspect-ratio="16 / 9"
         class="video-preview-container"
-        :class="[previewContainerClasses, { 'timeline-preview-active': showTimelinePreview, 'video-preview-container--chrome-hidden': chromeHidden, 'video-preview-container--darwin-electron': isDarwinElectron && !isDarwinFullscreen }]"
+        :class="[previewContainerClasses, { 'timeline-preview-active': showTimelinePreview, 'is-grid-fallback': isGridFallbackActive, 'video-preview-container--chrome-hidden': chromeHidden, 'video-preview-container--darwin-electron': isDarwinElectron && !isDarwinFullscreen }]"
         :style="previewAppearStyle"
         @blur="handlePreviewBlur"
         @click="handlePreviewClick"
         @dblclick.stop="handlePreviewDblClick"
         @contextmenu="handlePreviewContextMenu"
         @mousedown="handlePreviewMouseDown"
-        @mouseleave="handleMouseLeave"
+        @mouseleave="onPreviewMouseLeave"
         @mousemove="onPreviewMouseMove"
-        @mouseenter="handleMouseEnter"
+        @mouseenter="onPreviewMouseEnter"
       >
       <div
         v-if="showStaticGridPoster"
@@ -334,6 +334,7 @@
 
 <script setup lang="ts">
 import {isRemoteMediaPath} from '@shared/remoteMedia'
+import {resolveGridSpriteDisplayUrl} from '@/utils/thumbSource'
 import {ref, computed, watch, onBeforeUnmount} from 'vue'
 import type {ComponentPublicInstance} from 'vue'
 import {useI18n} from 'vue-i18n'
@@ -406,7 +407,29 @@ const isDarwinElectron = computed(() => platform.isMac && platform.isElectron)
 const {isFullscreen: isDarwinFullscreen} = useMainWindowFullscreen()
 
 const isRemoteVideo = computed(() => isRemoteMediaPath(props.media.path))
-const canHoverPreview = computed(() => props.isFileExists && !isRemoteVideo.value)
+
+/**
+ * Source video is unavailable (file missing, or hover playback failed) but its
+ * grid sprite exists: hover shows the grid (timeline) preview instead of an
+ * error / nothing. Only for the "video" / "timeline" hover settings.
+ */
+const gridFallbackAvailable = ref(false)
+const isGridFallbackCandidate = computed(() =>
+  (!props.isFileExists || playbackError.value)
+  && !isRemoteVideo.value
+  && (settingsStore.videoPreviewHover === 'video' || settingsStore.videoPreviewHover === 'timeline'),
+)
+const isGridFallbackActive = computed(() =>
+  isGridFallbackCandidate.value && gridFallbackAvailable.value,
+)
+const canHoverPreview = computed(() =>
+  (props.isFileExists && !isRemoteVideo.value) || isGridFallbackActive.value,
+)
+const effectiveHoverMode = computed(() => {
+  if (isRemoteVideo.value) return 'none'
+  if (isGridFallbackActive.value) return 'timeline'
+  return settingsStore.videoPreviewHover
+})
 
 const hasFixedPreviewTime = computed(() => props.previewStartTime != null)
 const isEmbeddedHost = computed(() => props.previewHost === 'embedded')
@@ -514,6 +537,7 @@ const {
   mediaId: () => Number(props.media.id),
   mediaDuration: () => mediaDuration.value,
   isFileExists: () => canHoverPreview.value,
+  videoPreviewHover: () => effectiveHoverMode.value,
   previewStartTime: () => props.previewStartTime,
   previewEndTime: () => props.previewEndTime,
   hasFixedPreviewTime: () => hasFixedPreviewTime.value,
@@ -558,7 +582,7 @@ const {
   isFileExists: () => props.isFileExists,
   playbackError: () => playbackError.value,
   hoverPreviewReady: () => hoverPreviewReady.value,
-  isVideoPreviewEnabled: () => settingsStore.videoPreviewHover === 'video' && canHoverPreview.value,
+  isVideoPreviewEnabled: () => effectiveHoverMode.value === 'video' && canHoverPreview.value,
   mediaWidth: () => mediaWidth.value,
   mediaHeight: () => mediaHeight.value,
   isContextMenuOpen: () => contextMenuStore.show,
@@ -634,7 +658,8 @@ const {
   isFileExists: () => props.isFileExists,
   isEmbeddedHost: () => isEmbeddedHost.value,
   isViewCard: () => isViewCard.value,
-  videoPreviewHover: () => isRemoteVideo.value ? 'none' : settingsStore.videoPreviewHover,
+  videoPreviewHover: () => effectiveHoverMode.value,
+  allowTimelineWithoutFile: () => isGridFallbackActive.value,
   playSoundOnVideoPreview: () => settingsStore.play_sound_on_video_preview,
   bigVideoPreviewSize: () => settingsStore.big_video_preview_size,
   delayVideoPreview: () => settingsStore.delayVideoPreview,
@@ -643,7 +668,8 @@ const {
   mediaDuration: () => mediaDuration.value,
   progress: () => progress.value,
   playbackTime: () => playbackTime.value,
-  playbackError: () => playbackError.value,
+  // Grid fallback replaces the "preview unavailable" notice.
+  playbackError: () => playbackError.value && !isGridFallbackActive.value,
   isHovered: () => isHovered.value,
   isShrinking: () => isShrinking.value,
   hoverPreviewReady: () => hoverPreviewReady.value,
@@ -758,6 +784,61 @@ const {
 })
 
 initTimelineFrames = initFrames
+
+// Grid fallback: the sprite is checked on hover (never generated — no source file).
+let pointerInsidePreview = false
+let gridFallbackProbe: Promise<boolean> | null = null
+
+const checkGridFallback = (): Promise<boolean> => {
+  if (!isGridFallbackCandidate.value) return Promise.resolve(false)
+  if (gridFallbackAvailable.value) return Promise.resolve(true)
+  if (gridFallbackProbe) return gridFallbackProbe
+
+  const id = props.media.id
+  const url = id == null ? null : resolveGridSpriteDisplayUrl(store.mediaPath, id)
+  if (!url) return Promise.resolve(false)
+
+  gridFallbackProbe = runImageProbe(url)
+    .catch(() => false)
+    .then((exists) => {
+      if (props.media.id !== id || !isGridFallbackCandidate.value) return false
+      gridFallbackAvailable.value = exists
+      return exists
+    })
+    .finally(() => {
+      gridFallbackProbe = null
+    })
+  return gridFallbackProbe
+}
+
+watch(() => [props.media.id, props.isFileExists], () => {
+  gridFallbackAvailable.value = false
+})
+
+// Hover playback failed while the file exists: look for a grid to show instead.
+watch(playbackError, (failed) => {
+  if (failed && props.isFileExists) void checkGridFallback()
+})
+
+const onPreviewMouseEnter = (e: MouseEvent) => {
+  pointerInsidePreview = true
+  // Only a missing file needs the grid probe before hover can start.
+  if (props.isFileExists || !isGridFallbackCandidate.value || gridFallbackAvailable.value) {
+    handleMouseEnter(e)
+    return
+  }
+  const clientX = e.clientX
+  void checkGridFallback().then((exists) => {
+    if (exists && pointerInsidePreview) {
+      handleMouseEnter({clientX} as MouseEvent)
+    }
+  })
+}
+
+const onPreviewMouseLeave = () => {
+  pointerInsidePreview = false
+  handleMouseLeave()
+}
 
 const clearPreviewResources = () => {
   // Keep the last thumb URL mounted — clearing it mid-load trips a Vuetify VImg bug.

@@ -551,14 +551,21 @@
   }
 
   // Keep rating/favorite on the static poster; hide while hover video preview plays.
-  .item_preview:has(.video-preview-container.is-hovered) > .rating,
-  .item_preview:has(.video-preview-container.is-hovered) > .fav-btn,
-  .item_preview:has(.video-preview-container.is-preview-active) > .rating,
-  .item_preview:has(.video-preview-container.is-preview-active) > .fav-btn,
+  .item_preview:has(.video-preview-container.is-hovered:not(.is-preview-unavailable):not(.is-grid-fallback)) > .rating,
+  .item_preview:has(.video-preview-container.is-hovered:not(.is-preview-unavailable):not(.is-grid-fallback)) > .fav-btn,
+  .item_preview:has(.video-preview-container.is-preview-active:not(.is-preview-unavailable):not(.is-grid-fallback)) > .rating,
+  .item_preview:has(.video-preview-container.is-preview-active:not(.is-preview-unavailable):not(.is-grid-fallback)) > .fav-btn,
   &.big-preview .item_preview > .rating,
   &.big-preview .item_preview > .fav-btn {
     opacity: 0;
     pointer-events: none;
+  }
+
+  // "Preview unavailable" notice covers the poster: keep rating/favorite above it
+  // and clickable (the notice itself still opens the media on click).
+  .item_preview:has(.video-preview-container.is-preview-unavailable) > .rating,
+  .item_preview:has(.video-preview-container.is-preview-unavailable) > .fav-btn {
+    z-index: 8;
   }
 
   .rating {

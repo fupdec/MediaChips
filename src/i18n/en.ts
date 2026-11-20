@@ -2967,6 +2967,7 @@ const en = {
       grid_3x3: 'Grid 3×3',
       hover_preview: 'On hover',
       hover_preview_hint: 'What happens when you hover a video card',
+      hover_preview_grid_fallback: 'If the video file is unavailable but a frame grid exists, the grid preview is shown instead',
       timeline: 'Timeline',
       video: 'Video',
       play_sound: 'Play sound',

@@ -58,6 +58,8 @@ export type HoverPreviewPlaybackOptions = {
   mediaId: MaybeRefOrGetter<number>
   mediaDuration: MaybeRefOrGetter<number>
   isFileExists: MaybeRefOrGetter<boolean>
+  /** Effective hover mode for this card; defaults to the global setting. */
+  videoPreviewHover?: MaybeRefOrGetter<string>
   previewStartTime: MaybeRefOrGetter<number | undefined>
   previewEndTime: MaybeRefOrGetter<number | null | undefined>
   hasFixedPreviewTime: MaybeRefOrGetter<boolean>
@@ -98,6 +100,11 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   let hoverNeedsRemux = false
   let hoverPlayablePromise: Promise<void> | null = null
   let hoverPlayableToken = 0
+
+  const getHoverMode = (): string =>
+    options.videoPreviewHover != null
+      ? toValue(options.videoPreviewHover)
+      : settingsStore.videoPreviewHover
 
   const isHoverTranscodeEnabled = () => settingsStore.transcodeUnsupportedFormats === '1'
 
@@ -334,7 +341,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
       hasFixedPreviewTime: toValue(options.hasFixedPreviewTime),
       isFileExists: toValue(options.isFileExists),
       playbackError: playbackError.value,
-      videoPreviewHover: settingsStore.videoPreviewHover,
+      videoPreviewHover: getHoverMode(),
       mediaDuration: toValue(options.mediaDuration),
     })) return null
 
@@ -648,7 +655,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
 
   const schedulePreviewPlayback = () => {
     clearPreviewDelayTimer()
-    if (settingsStore.videoPreviewHover !== 'video' || !toValue(options.isFileExists)) return
+    if (getHoverMode() !== 'video' || !toValue(options.isFileExists)) return
 
     const mediaId = toValue(options.mediaId)
     if (isHoverPreviewUnavailableCached(mediaId)) {
@@ -713,7 +720,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
   const scheduleHoverPreviewUi = () => {
     if (!shouldScheduleHoverPreviewVideo({
       isHovered: toValue(options.isHovered),
-      videoPreviewHover: settingsStore.videoPreviewHover,
+      videoPreviewHover: getHoverMode(),
     })) return
 
     schedulePreviewPlayback()
