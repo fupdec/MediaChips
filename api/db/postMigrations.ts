@@ -11,6 +11,7 @@ import {
   repairOrphanedWatchedFolderLinks,
 } from './schemaRepair'
 import { ensureSearchFtsIndex } from './searchFts'
+import { renameLegacyCountryNames } from './countryRename'
 
 export type PostMigrationOptions = {
   /** When false, skip starter Tags seed (e.g. during LowDB migration). Default true. */
@@ -49,6 +50,10 @@ export function runPostMigrations(dbPath: string, options: PostMigrationOptions 
         '\x1b[33m%s\x1b[0m',
         `⚙️ Removed ${orphanedWatchedFolderLinks} orphaned watched-folder type link(s)`,
       )
+    }
+    const renamedCountries = renameLegacyCountryNames(sqlite)
+    if (renamedCountries) {
+      console.log('\x1b[33m%s\x1b[0m', `⚙️ Renamed legacy country names in ${renamedCountries} row(s)`)
     }
     const installedFts = ensureSearchFtsIndex(sqlite)
     if (installedFts.length) {

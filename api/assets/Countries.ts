@@ -205,7 +205,7 @@ const Countries: CountryEntry[] = [
   {"name": "Saudi Arabia", "code": "SA"},
   {"name": "Scotland", "code": "gb-sct"},
   {"name": "Senegal", "code": "SN"},
-  {"name": "Serbia and Montenegro", "code": "RS"},
+  {"name": "Serbia", "code": "RS"},
   {"name": "Seychelles", "code": "SC"},
   {"name": "Sierra Leone", "code": "SL"},
   {"name": "Singapore", "code": "SG"},
