@@ -1248,6 +1248,7 @@ const en = {
   folders_browser: {
     refresh: 'Refresh',
     roots: 'Library folders',
+    network_connections: 'Network connections',
     up: 'Go up',
     back: 'Back',
     forward: 'Forward',

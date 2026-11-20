@@ -1248,6 +1248,7 @@ const ru = {
   folders_browser: {
     refresh: 'Обновить',
     roots: 'Папки библиотеки',
+    network_connections: 'Сетевые подключения',
     up: 'Наверх',
     back: 'Назад',
     forward: 'Вперёд',

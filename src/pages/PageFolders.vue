@@ -269,6 +269,19 @@
                       @click="onSelectPlace(place.path)"
                     />
                   </template>
+                  <template v-if="remotePlaces.length">
+                    <v-divider class="my-1"/>
+                    <v-list-subheader>{{ t('folders_browser.network_connections') }}</v-list-subheader>
+                    <v-list-item
+                      v-for="place in remotePlaces"
+                      :key="place.id"
+                      :prepend-icon="place.icon"
+                      :title="place.name"
+                      :active="activePlaceId === place.id"
+                      slim
+                      @click="onSelectPlace(place.path)"
+                    />
+                  </template>
                 </v-list>
               </v-menu>
             </div>
@@ -314,7 +327,7 @@
               </span>
             </div>
             <div class="folders-page__actions">
-              <template v-if="currentPath">
+              <template v-if="currentPath && !isRemoteBrowse">
                 <v-btn
                   size="small"
                   variant="flat"
@@ -395,7 +408,7 @@
                 </v-btn>
               </template>
               <v-btn
-                v-else
+                v-else-if="!currentPath"
                 size="small"
                 variant="flat"
                 color="success"
@@ -574,18 +587,14 @@
       v-else-if="!visibleFolders.length && !visibleMedia.length && !fsFiles.length && !missingMedia.length && !searchQuery && tagFilterId == null"
       class="folders-page__empty"
     >
-      <div
-        class="folders-page__empty-orb"
+      <v-img
+        src="/images/no-data.svg"
+        width="200"
+        aspect-ratio="1.55"
+        class="folders-page__empty-art"
+        alt=""
         aria-hidden="true"
-      >
-        <span class="folders-page__empty-glow"/>
-        <v-icon
-          size="44"
-          :icon="presenceFilter === 'new'
-            ? 'mdi-sparkles'
-            : currentPath ? 'mdi-folder-open-outline' : 'mdi-folder-plus-outline'"
-        />
-      </div>
+      />
       <p class="folders-page__empty-copy">
         {{ presenceFilter === 'new'
           ? t('folders_browser.empty_new')
@@ -903,6 +912,8 @@ import {useAppShell} from '@/composable/appShell'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {useEventBus} from '@/utils/eventBus'
 import {typedApi} from '@/services/typedApi'
+import {importRemoteFile, isRemoteFolderPath, isRemoteMediaPath, listRemoteDirectory, listRemotePlaces, resolveRemoteBreadcrumbs} from '@/services/foldersRemote'
+import {remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 import {setNotification} from '@/services/notificationService'
 import {openPath} from '@/services/shellService'
 import {copyToClipboard} from '@/utils/copyToClipboard'
@@ -1049,6 +1060,8 @@ const ingestingPaths = ref(new Set<string>())
 
 const showHidden = ref(false)
 const places = ref<BrowsePlace[]>([])
+const remotePlaces = ref<BrowsePlace[]>([])
+const isRemoteBrowse = computed(() => isRemoteFolderPath(currentPath.value || pathFromQuery.value))
 const fsParentPath = ref<string | null>(null)
 const fsRootPath = ref<string | null>(null)
 const fsEntries = ref<FsBrowseEntry[]>([])
@@ -1401,7 +1414,7 @@ function placeLabel(place: BrowsePlace): string {
 const activePlaceId = computed(() => {
   const current = currentPath.value
   if (!current) return LIBRARY_PLACE_ID
-  const matches = places.value
+  const matches = [...places.value, ...remotePlaces.value]
     .filter((place) => {
       if (current === place.path) return true
       const prefix = place.path.endsWith('/') || place.path.endsWith('\\')
@@ -1479,6 +1492,11 @@ async function loadPlaces() {
     places.value = data.places
   } catch {
     places.value = []
+  }
+  try {
+    remotePlaces.value = await listRemotePlaces(t('drive.title'))
+  } catch {
+    remotePlaces.value = []
   }
 }
 
@@ -1646,6 +1664,79 @@ async function applyLibraryBrowse(data: {
   await reloadFolderTags()
 }
 
+/** Network connection folders: their sub-folders and media files; files already in the library open as cards. */
+async function loadRemoteBrowse(targetPath: string) {
+  pendingFiles.value = []
+  missingMedia.value = []
+  media.value = []
+  folderTagsByPath.value = {}
+  syncPlaylist([])
+  try {
+    const result = await listRemoteDirectory(targetPath, {
+      showHidden: showHidden.value,
+      extensions: browseExtensions.value,
+    })
+    currentPath.value = result.currentPath
+    parentPath.value = result.parentPath
+    fsParentPath.value = result.parentPath
+    fsRootPath.value = result.rootPath
+    fsTruncated.value = result.truncated
+    writeFoldersPageState({
+      path: result.currentPath,
+      libraryPath: result.currentPath,
+      filesystemPath: result.currentPath,
+    })
+    const toFsEntry = (entry: (typeof result.files)[number]): FsBrowseEntry => ({
+      name: entry.name,
+      path: entry.path,
+      isDirectory: entry.isDirectory,
+      size: entry.size,
+      mtimeMs: entry.mtimeMs,
+      extension: entry.extension,
+      inLibrary: entry.inLibrary,
+      addable: entry.addable,
+      mediaId: entry.mediaId,
+    })
+    const presence = presenceFilter.value
+    const libraryIds = presence === 'new'
+      ? []
+      : result.files.filter((entry) => entry.mediaId != null).map((entry) => Number(entry.mediaId))
+    const pending = presence === 'library'
+      ? []
+      : result.files.filter((entry) => !entry.inLibrary && entry.addable).map(toFsEntry)
+    fsEntries.value = [...result.folders.map(toFsEntry), ...pending]
+    pendingFiles.value = pending
+    folders.value = result.folders.map((entry) => ({
+      path: entry.path,
+      name: entry.name,
+      mediaCount: 0,
+      newCount: 0,
+      coverMediaIds: [],
+    }))
+    breadcrumbs.value = result.rootPath ? await resolveRemoteBreadcrumbs(result.currentPath, result.rootPath) : []
+    buildCoverUrls(folders.value)
+    if (libraryIds.length) {
+      try {
+        const basics = await typedApi.getMediaBasics({ids: libraryIds})
+        media.value = (basics.data.items || []) as MediaItem[]
+      } catch (error) {
+        console.error('Failed to load indexed media cards', error)
+      }
+    }
+    syncPlaylist(media.value)
+  } catch (error) {
+    currentPath.value = targetPath
+    parentPath.value = null
+    fsParentPath.value = null
+    fsRootPath.value = null
+    fsTruncated.value = false
+    fsEntries.value = []
+    folders.value = []
+    breadcrumbs.value = []
+    fsError.value = remoteSourceErrorMessage(error, t)
+  }
+}
+
 async function loadBrowse() {
   if (!appStore.localhost || !appStore.is_app_ready) return
 
@@ -1684,6 +1775,11 @@ async function loadBrowse() {
         media.value = []
         syncPlaylist([])
       }
+      return
+    }
+
+    if (isRemoteFolderPath(targetPath)) {
+      await loadRemoteBrowse(targetPath)
       return
     }
 
@@ -2150,6 +2246,12 @@ async function ensureInLibrary(filePath: string): Promise<MediaItem | null> {
 
   markIngesting(filePath, true)
   try {
+    if (isRemoteMediaPath(filePath)) {
+      const imported = await importRemoteFile(filePath)
+      const item = await loadMediaItemById(imported.id)
+      if (item) adoptIndexedFile(filePath, item)
+      return item
+    }
     const mediaType = inferMediaTypeFromPaths([filePath], appStore.mediaTypes)
     const response = await typedApi.addMedia({
       path: filePath,
@@ -3074,6 +3176,12 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: radial-gradient(circle, rgba(var(--v-theme-primary), 0.28), transparent 70%);
   filter: blur(2px);
+  pointer-events: none;
+}
+
+.folders-page__empty-art {
+  flex: 0 0 auto;
+  max-width: 100%;
   pointer-events: none;
 }
 
