@@ -49,7 +49,8 @@
         </v-switch>
 
         <SettingsSegmentedControl
-          v-if="filters.length >= 2"
+          v-if="conditionsCount >= 2"
+          :disabled="activeConditionsCount < 2"
           :model-value="filtersJoin"
           @update:model-value="onFiltersJoinChange"
           :label="t('filters.join_and')"
@@ -98,80 +99,91 @@
       class="filters-panel__toolbar"
       :class="{'filters-panel__toolbar--deck': variant === 'top'}"
     >
-      <!-- Top / full mode: one compact toolbar row -->
-      <div
-        v-if="variant === 'top' && (editMode || filters.length === 0)"
-        class="filters-panel__toolbar-row"
+      <!-- Top panel: collapsible section header, toolbar actions sit to the right of the title -->
+      <EditingSectionHeader
+        v-if="variant === 'top'"
+        v-model:collapsed="conditionsCollapsed"
+        class="filters-panel__section-head"
+        icon="mdi-filter-variant"
+        :title="t('filters.quick_conditions')"
+        collapsible
       >
-        <v-btn
-          v-if="canToggleAiSection"
-          :variant="showAiBlock ? 'tonal' : 'outlined'"
-          rounded="xl"
-          size="small"
-          color="primary"
-          class="filters-panel__toolbar-btn"
-          :aria-label="showAiBlock ? t('filters.ai_hide') : t('filters.ai_show')"
-          :title="showAiBlock ? t('filters.ai_hide') : t('filters.ai_show')"
-          @click="toggleAiBlock"
+        <template
+          v-if="!conditionsCollapsed && (editMode || filters.length === 0)"
+          #actions
         >
-          <v-icon
-            start
-            size="small"
-          >
-            mdi-creation
-          </v-icon>
-          {{ t('filters.ai_short') }}
-        </v-btn>
+          <div class="filters-panel__head-actions">
+            <v-btn
+              v-if="canToggleAiSection"
+              :variant="showAiBlock ? 'tonal' : 'outlined'"
+              rounded="xl"
+              size="small"
+              color="primary"
+              class="filters-panel__toolbar-btn"
+              :aria-label="showAiBlock ? t('filters.ai_hide') : t('filters.ai_show')"
+              :title="showAiBlock ? t('filters.ai_hide') : t('filters.ai_show')"
+              @click="toggleAiBlock"
+            >
+              <v-icon
+                start
+                size="small"
+              >
+                mdi-creation
+              </v-icon>
+              {{ t('filters.ai_short') }}
+            </v-btn>
 
-        <v-btn
-          v-if="editMode"
-          variant="tonal"
-          rounded="xl"
-          size="small"
-          color="primary"
-          class="filters-panel__toolbar-btn"
-          @click="emit('open-saved')"
-        >
-          <v-icon
-            start
-            size="small"
-          >
-            mdi-content-save
-          </v-icon>
-          {{ t('filters.saved_short') }}
-        </v-btn>
+            <v-btn
+              v-if="editMode"
+              variant="tonal"
+              rounded="xl"
+              size="small"
+              color="primary"
+              class="filters-panel__toolbar-btn"
+              @click="emit('open-saved')"
+            >
+              <v-icon
+                start
+                size="small"
+              >
+                mdi-content-save
+              </v-icon>
+              {{ t('filters.saved_short') }}
+            </v-btn>
 
-        <FiltersAdd
-          v-if="isReady && (editMode || filters.length === 0)"
-          class="filters-panel__add"
-          hide-floating-label
-          :params="listBy"
-          @add="emit('add', $event)"
-        />
+            <FiltersAdd
+              v-if="isReady && (editMode || filters.length === 0)"
+              class="filters-panel__add"
+              hide-floating-label
+              :params="listBy"
+              @add="emit('add', $event)"
+            />
 
-        <v-btn
-          v-if="editMode && showRemoveAll"
-          variant="tonal"
-          rounded="xl"
-          size="small"
-          color="error"
-          class="filters-panel__toolbar-btn"
-          :aria-label="t('filters.remove_all')"
-          :title="t('filters.remove_all')"
-          @click="emit('remove-all')"
-        >
-          <v-icon
-            start
-            size="small"
-          >
-            mdi-filter-off
-          </v-icon>
-          {{ t('filters.remove_all') }}
-        </v-btn>
-      </div>
+            <v-btn
+              v-if="editMode && showRemoveAll"
+              variant="tonal"
+              rounded="xl"
+              size="small"
+              color="error"
+              class="filters-panel__toolbar-btn"
+              :aria-label="t('filters.remove_all')"
+              :title="t('filters.remove_all')"
+              @click="emit('remove-all')"
+            >
+              <v-icon
+                start
+                size="small"
+              >
+                mdi-filter-off
+              </v-icon>
+              {{ t('filters.remove_all') }}
+            </v-btn>
+          </div>
+        </template>
+      </EditingSectionHeader>
 
       <!-- Drawer / classic stacked toolbar -->
-      <template v-else-if="variant !== 'top'">
+      <template v-if="variant !== 'top'">
         <div
           class="d-flex align-center mb-2 ga-2 filters-panel__actions"
           :class="editMode ? 'justify-space-between' : ''"
@@ -262,6 +274,7 @@
 
       <div
         v-if="showAiSection"
+        v-show="!listHidden"
         class="filters-panel__ai-section"
       >
         <LocalAiAssistPanel
@@ -279,6 +292,7 @@
 
     <div
       v-if="isReady"
+      v-show="!listHidden"
       class="filters-list"
     >
       <Draggable
@@ -348,6 +362,8 @@ import {computed, defineAsyncComponent, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import FilterRow from '@/components/app/FilterRow.vue'
 import FiltersAdd from '@/components/dialogs/filters/FiltersAdd.vue'
+import EditingSectionHeader from '@/components/items/EditingSectionHeader.vue'
+import {useCollapsedSection} from '@/composable/useCollapsedSection'
 import LocalAiAssistPanel from '@/components/regex/LocalAiAssistPanel.vue'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 import {useItemsStore} from '@/stores/items'
@@ -415,7 +431,19 @@ const emit = defineEmits([
 const {t} = useI18n()
 const itemsStore = useItemsStore()
 
+// "Field conditions" section can be folded (top panel only); state is remembered.
+const conditionsCollapsed = useCollapsedSection('conditions')
+const listHidden = computed(() => props.variant === 'top' && conditionsCollapsed.value)
+
 const filtersJoin = computed(() => itemsStore.filtersJoin === 'or' ? 'or' : 'and')
+
+/** AND/OR is shown with two or more conditions and works once two are on. */
+const conditionsCount = computed(() =>
+  props.filters.filter((filter) => !filter.removed).length,
+)
+const activeConditionsCount = computed(() =>
+  props.filters.filter((filter) => filter.active && !filter.removed).length,
+)
 
 const onFiltersJoinChange = (value: unknown) => {
   const next = value === 'or' ? 'or' : 'and'
@@ -580,16 +608,18 @@ function dragItemKey(filter: FilterObject) {
     margin: 0;
   }
 
-  .filters-panel__toolbar-row {
+  // Section header with the toolbar on its right (replaces the former tinted toolbar row).
+  .filters-panel__toolbar .filters-panel__section-head {
+    flex-wrap: wrap;
+    row-gap: 4px;
+    padding: 8px 4px 6px;
+  }
+
+  .filters-panel__head-actions {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
-    margin-bottom: 8px;
-    padding: 6px 8px;
-    border-radius: 12px;
-    background: rgba(var(--v-theme-primary), 0.04);
-    border: 1px solid rgba(var(--v-theme-primary), 0.1);
   }
 
   .filters-panel__toolbar-btn {
@@ -716,7 +746,7 @@ function dragItemKey(filter: FilterObject) {
     max-height: min(28vh, 240px);
     overflow-y: auto;
     align-content: start;
-    align-items: stretch;
+    align-items: start;
   }
 
   .filters-list:has(.filters-draggable),
@@ -729,13 +759,13 @@ function dragItemKey(filter: FilterObject) {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 6px;
     align-content: start;
-    align-items: stretch;
+    align-items: start;
   }
 
   .filter-form {
     min-width: 0;
     width: 100%;
-    height: 100%;
+    height: auto;
     display: flex;
   }
 
@@ -743,7 +773,7 @@ function dragItemKey(filter: FilterObject) {
     margin-bottom: 0 !important;
     width: 100%;
     max-width: none;
-    height: 100%;
+    height: auto;
     min-height: 36px;
     border-radius: 16px !important;
     padding: 4px 8px 4px 6px !important;
@@ -757,7 +787,7 @@ function dragItemKey(filter: FilterObject) {
 
     &.active {
       background: rgba(var(--v-theme-primary), 0.08) !important;
-      border-color: rgba(var(--v-theme-primary), 0.18);
+      border-color: rgba(var(--v-theme-primary), 0.45);
     }
 
     // Same footprint for cards with a value row so neighbors match.
@@ -829,11 +859,22 @@ function dragItemKey(filter: FilterObject) {
     opacity: 0.7;
   }
 
+  // Inactive cards are muted so the state reads at a glance.
+  .filter-form .filter:not(.active) .filter__title {
+    opacity: 0.65;
+  }
+
   .filter__cond {
     max-width: 52px;
     min-width: 44px;
     margin: 0 !important;
     padding: 0 !important;
+
+    // Condition shown as words (includes / excludes / under folder …) needs more room than a symbol.
+    &.filter__cond--text {
+      max-width: 76px;
+      min-width: 60px;
+    }
 
     .v-field {
       --v-input-control-height: 28px;
@@ -844,6 +885,21 @@ function dragItemKey(filter: FilterObject) {
       padding-top: 0 !important;
       padding-bottom: 0 !important;
       font-size: 0.75rem;
+    }
+  }
+
+  .filter__cond {
+    .v-field__outline {
+      --v-field-border-opacity: 0.6;
+      color: rgb(var(--v-theme-primary));
+    }
+
+    .v-field:hover .v-field__outline {
+      --v-field-border-opacity: 0.87;
+    }
+
+    .v-field.v-field--focused .v-field__outline {
+      --v-field-border-opacity: 1;
     }
   }
 
@@ -943,9 +999,19 @@ function dragItemKey(filter: FilterObject) {
       overflow: visible;
     }
 
+    // Accent-colored resting border; hover/focus states restated so they still win over it.
     .v-field__outline {
       --v-field-border-width: 1px;
-      --v-field-border-opacity: 0.38;
+      --v-field-border-opacity: 0.6;
+      color: rgb(var(--v-theme-primary));
+    }
+
+    .v-field:hover .v-field__outline {
+      --v-field-border-opacity: 0.87;
+    }
+
+    .v-field.v-field--focused .v-field__outline {
+      --v-field-border-opacity: 1;
     }
 
     .v-field__field {

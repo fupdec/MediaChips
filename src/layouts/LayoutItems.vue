@@ -222,59 +222,63 @@
         #quick
       >
         <EditingSectionHeader
+          v-model:collapsed="presetsCollapsed"
           icon="mdi-lightning-bolt-outline"
           :title="t('filters.quick_presets')"
+          collapsible
         />
-        <div
-          v-if="showAlphabetBar || showColorFilterBar"
-          class="items-quick-row"
-        >
+        <div v-show="!presetsCollapsed" class="items-quick-body">
           <div
-            v-if="showAlphabetBar"
-            class="items-alphabet"
+            v-if="showAlphabetBar || showColorFilterBar"
+            class="items-quick-row"
           >
-            <button
-              v-for="letter in alphabetLetters"
-              :key="letter"
-              type="button"
-              class="items-alphabet__btn"
-              :class="{
-                'items-alphabet__btn--active': letterFilter === letter,
-              }"
-              @click="toggleLetterFilter(letter)"
+            <div
+              v-if="showAlphabetBar"
+              class="items-alphabet"
             >
-              {{ letter }}
-            </button>
-          </div>
+              <button
+                v-for="letter in alphabetLetters"
+                :key="letter"
+                type="button"
+                class="items-alphabet__btn"
+                :class="{
+                  'items-alphabet__btn--active': letterFilter === letter,
+                }"
+                @click="toggleLetterFilter(letter)"
+              >
+                {{ letter }}
+              </button>
+            </div>
 
-          <div
-            v-if="showColorFilterBar"
-            class="items-color-filter"
-          >
-            <button
-              type="button"
-              class="items-color-filter__swatch items-color-filter__swatch--none"
-              :class="{'items-color-filter__swatch--active': colorFilter === TAG_COLOR_FILTER_NONE}"
-              :aria-pressed="colorFilter === TAG_COLOR_FILTER_NONE ? 'true' : 'false'"
-              :aria-label="t('items.color_filter_none')"
-              v-tooltip:top="t('items.color_filter_none')"
-              @click="toggleColorFilter(TAG_COLOR_FILTER_NONE)"
-            />
-            <button
-              v-for="color in categoryTagColors"
-              :key="color"
-              type="button"
-              class="items-color-filter__swatch"
-              :class="{'items-color-filter__swatch--active': colorFilter === color}"
-              :style="{backgroundColor: color}"
-              :aria-pressed="colorFilter === color ? 'true' : 'false'"
-              :aria-label="color"
-              v-tooltip:top="color"
-              @click="toggleColorFilter(color)"
-            />
+            <div
+              v-if="showColorFilterBar"
+              class="items-color-filter"
+            >
+              <button
+                type="button"
+                class="items-color-filter__swatch items-color-filter__swatch--none"
+                :class="{'items-color-filter__swatch--active': colorFilter === TAG_COLOR_FILTER_NONE}"
+                :aria-pressed="colorFilter === TAG_COLOR_FILTER_NONE ? 'true' : 'false'"
+                :aria-label="t('items.color_filter_none')"
+                v-tooltip:top="t('items.color_filter_none')"
+                @click="toggleColorFilter(TAG_COLOR_FILTER_NONE)"
+              />
+              <button
+                v-for="color in categoryTagColors"
+                :key="color"
+                type="button"
+                class="items-color-filter__swatch"
+                :class="{'items-color-filter__swatch--active': colorFilter === color}"
+                :style="{backgroundColor: color}"
+                :aria-pressed="colorFilter === color ? 'true' : 'false'"
+                :aria-label="color"
+                v-tooltip:top="color"
+                @click="toggleColorFilter(color)"
+              />
+            </div>
           </div>
+          <SavedFilters v-if="showSavedChips"/>
         </div>
-        <SavedFilters v-if="showSavedChips"/>
       </template>
     </Filters>
 
@@ -622,6 +626,7 @@ import Filters from '@/components/app/Filters.vue'
 import SavedFilters from '@/components/elements/FiltersSaved.vue'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
 import EditingSectionHeader from '@/components/items/EditingSectionHeader.vue'
+import {useCollapsedSection} from '@/composable/useCollapsedSection'
 import ItemsPaginationBar from '@/components/elements/ItemsPaginationBar.vue'
 import QuickActionButton from '@/components/app/QuickActionButton.vue'
 import ToolbarSort from '@/components/app/toolbar/ToolbarSort.vue'
@@ -1151,6 +1156,9 @@ const showSavedChips = computed(() => (
   settingsStore.showSavedFilters === '1' && (itemsStore.filters_saved?.length ?? 0) > 0
 ))
 
+// "Presets" section of the filters panel can be folded; state is remembered.
+const presetsCollapsed = useCollapsedSection('presets')
+
 const quickAllHidden = computed(() => (
   !showAlphabetBar.value && !showColorFilterBar.value && !showSavedChips.value
 ))
@@ -1488,6 +1496,11 @@ defineEmits<{
 /* ── Quick filters inside the filters panel, grouped by type ── */
 .filters-top__quick .editing-group-header {
   padding: 8px 4px 6px;
+}
+
+// Wrapper only exists to fold the presets; it must not change the layout.
+.filters-top__quick .items-quick-body {
+  display: contents;
 }
 
 .filters-top__quick .items-quick-row {

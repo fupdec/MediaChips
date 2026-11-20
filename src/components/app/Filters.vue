@@ -28,15 +28,15 @@
                 @update:model-value="setFiltersViewMode"
                 :label="t('filters.simple')"
                 :items="[
-                  {value: 'simple', title: t('filters.simple'), disabled: !showTopChips && isPanelView},
-                  {value: 'advanced', title: t('filters.advanced')},
+                  {value: 'simple', title: t('filters.simple'), disabled: !showTopChips && isPanelView, tooltip: !showTopChips && isPanelView ? t('filters.simple_empty_hint') : t('filters.simple_hint')},
                   {value: 'full', title: t('filters.full'), tooltip: t('filters.edit_mode_hint')},
                 ]"
                 compact
               />
 
               <SettingsSegmentedControl
-                v-if="isPanelView && filters.length >= 2"
+                v-if="isPanelView && conditionsCount >= 2"
+                :disabled="activeConditionsCount < 2"
                 :model-value="filtersJoin"
                 class="filters-top__join-segmented"
                 @update:model-value="onFiltersJoinChange"
@@ -53,7 +53,7 @@
 
             <div class="filters-top__chrome-end">
               <v-btn
-                v-if="showTopChips"
+                v-if="showTopChips || (isPanelView && activeConditionsCount > 0)"
                 class="filters-top__chrome-btn filters-top__chrome-btn--text"
                 variant="text"
                 size="small"
@@ -103,10 +103,6 @@
             class="filters-top__quick"
           >
             <slot name="quick"/>
-            <EditingSectionHeader
-              icon="mdi-filter-variant"
-              :title="t('filters.quick_conditions')"
-            />
           </div>
 
           <v-expand-transition>
@@ -225,7 +221,6 @@
 </template>
 
 <script setup lang="ts">
-import EditingSectionHeader from '@/components/items/EditingSectionHeader.vue'
 import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
 import {ref, computed, watch, onMounted, onUnmounted} from 'vue'
 import {useI18n} from 'vue-i18n'
@@ -395,16 +390,14 @@ const showTopChips = computed(() => {
 
 const showTopShell = computed(() => filtersVisible.value || showTopChips.value)
 
-type TopFiltersMode = 'simple' | 'advanced' | 'full'
-const topFiltersMode = ref<TopFiltersMode>('simple')
+// Two modes: 'simple' = active filters as chips, 'full' = the editing panel.
+const topFiltersMode = ref<'simple' | 'full'>('simple')
 
-const isPanelView = computed(() =>
-  topFiltersMode.value === 'advanced' || topFiltersMode.value === 'full',
-)
+const isPanelView = computed(() => topFiltersMode.value === 'full')
 const filtersViewMode = computed(() => topFiltersMode.value)
 
 const setFiltersViewMode = (mode: unknown) => {
-  if (mode !== 'simple' && mode !== 'advanced' && mode !== 'full') return
+  if (mode !== 'simple' && mode !== 'full') return
   topFiltersMode.value = mode
   if (mode === 'simple') {
     filtersStore.visible = false
@@ -416,6 +409,14 @@ const setFiltersViewMode = (mode: unknown) => {
 }
 
 const filtersJoin = computed(() => itemsStore.filtersJoin === 'or' ? 'or' : 'and')
+
+/** AND/OR is shown with two or more conditions and works once two are on. */
+const conditionsCount = computed(() =>
+  filters.value.filter((filter) => !filter.removed).length,
+)
+const activeConditionsCount = computed(() =>
+  filters.value.filter((filter) => filter.active && !filter.removed).length,
+)
 
 const onFiltersJoinChange = (value: unknown) => {
   const next = value === 'or' ? 'or' : 'and'
@@ -685,7 +686,7 @@ const applyAiFilters = async (payload: Record<string, unknown>) => {
   if (!added) return 0
   editMode.value = true
   if (!isPanelView.value) {
-    setFiltersViewMode('advanced')
+    setFiltersViewMode('full')
   }
   return added
 }
@@ -986,8 +987,8 @@ watch(filtersVisible, (visible) => {
     return
   }
   if (topFiltersMode.value === 'simple') {
-    topFiltersMode.value = 'advanced'
-    editMode.value = false
+    topFiltersMode.value = 'full'
+    editMode.value = true
   }
 })
 </script>

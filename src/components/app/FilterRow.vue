@@ -54,9 +54,10 @@
           <div
             class="d-flex align-center min-width-0 filter__title_content"
             :class="{ 'pl-3': !editable }"
+            @click="toggleActiveByTitle"
           >
             <v-icon size="small" class="flex-shrink-0 filter__icon">mdi-{{ icon }}</v-icon>
-            <div class="text-body-2 font-weight-regular filter__title">{{ title }}</div>
+            <div class="text-body-2 font-weight-regular filter__title" :title="title">{{ title }}</div>
           </div>
         </div>
 
@@ -69,6 +70,7 @@
             :rules="[(v) => !!v || t('validation.condition_required')]"
             item-value="cond"
             class="filter__cond mt-0 pt-0"
+            :class="{'filter__cond--text': condAsText}"
             :title="getConditionTitle(filter.type, condition)"
             hide-details
             density="compact"
@@ -79,7 +81,8 @@
             }"
           >
             <template v-slot:selection="{ item }">
-              <v-icon :icon="`mdi-${item.raw.icon}`"
+              <span v-if="condAsText" class="filter__cond-text">{{ shortConditionText(item.raw.text) }}</span>
+              <v-icon v-else :icon="`mdi-${item.raw.icon}`"
                 size="small"></v-icon>
             </template>
             <template v-slot:item="{ item, props: menuProps }">
@@ -396,6 +399,8 @@ const conditionOptions = computed(() => isCatalogFilter.value
   ? getListCond('array').filter(option => ['in', 'not in'].includes(option.cond))
   : getListCond(modelFilter.value.type))
 const condition = computed(() => modelFilter.value.cond)
+// Numeric-like types keep the compact symbol (=, >, <); the rest show the condition as words.
+const condAsText = computed(() => !['number', 'date', 'rating'].includes(String(modelFilter.value.type)))
 const is_locked = computed(() => modelFilter.value.lock)
 const isDisabled = computed(() => !!is_locked.value)
 const metaIdParam = computed(() => {
@@ -551,11 +556,21 @@ const setActiveValue = async (value: boolean | null) => {
   }
 }
 
+// Clicking the title toggles the condition, same as the switch.
+const toggleActiveByTitle = () => {
+  if (isDisabled.value) return
+  setActiveValue(!active.value)
+}
+
 const getConditionTitle = (type: string | null, condition: string | null) => {
   const conditions = getListCond(type)
   const item = conditions.find(i => i.cond == condition)
   return item ? getConditionText(item.text) : ''
 }
+
+// Compact label for the closed select: first 3 characters (full text stays in the list and tooltip).
+const shortConditionText = (conditionText?: string) =>
+  Array.from(getConditionText(conditionText)).slice(0, 3).join('')
 
 const getConditionText = (conditionText?: string) => {
   const key = conditionText?.replaceAll(' ', '_')
@@ -581,6 +596,20 @@ defineExpose({
 <style scoped>
 .filter__title {
   font-weight: 400;
+}
+
+.filter__title_content {
+  cursor: pointer;
+}
+
+.filter__cond-text {
+  display: inline-block;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  line-height: 1.2;
 }
 
 .filter__number {
