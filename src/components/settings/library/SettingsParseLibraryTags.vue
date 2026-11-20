@@ -17,20 +17,39 @@
       </span>
     </v-alert>
 
-    <div class="text-body-2 mb-4">
+    <div class="parse-status d-flex flex-wrap align-center ga-2 mb-4">
       <template v-if="statusLoaded && hasParserMetas">
-        {{ t('settings_labels.library.parse_library_tags_status', {
-          totalMedia: status.totalMedia,
-          parserMetas: parserMetaNames,
-          parserTags: status.parserTags,
-        }) }}
+        <v-chip variant="tonal" color="primary" prepend-icon="mdi-multimedia">
+          {{ t('settings_labels.library.parse_library_tags_status_media', {count: status.totalMedia}) }}
+        </v-chip>
+        <v-chip variant="tonal" color="secondary" prepend-icon="mdi-tag-multiple-outline">
+          {{ t('settings_labels.library.parse_library_tags_status_tags', {count: status.parserTags}) }}
+        </v-chip>
+        <span class="parse-status__label text-caption text-medium-emphasis ml-1">
+          {{ t('settings_labels.library.parse_library_tags_status_fields') }}
+        </span>
+        <v-chip
+          v-for="meta in status.parserMetas"
+          :key="meta.id"
+          variant="outlined"
+          size="small"
+          :prepend-icon="`mdi-${metaIcon(meta.id)}`"
+        >
+          {{ meta.name }}
+        </v-chip>
       </template>
-      <template v-else-if="statusLoaded">
+      <v-chip
+        v-else-if="statusLoaded"
+        variant="tonal"
+        color="warning"
+        prepend-icon="mdi-alert-circle-outline"
+        class="parse-status__warning"
+      >
         {{ t('settings_labels.library.parse_library_tags_status_no_parser') }}
-      </template>
-      <template v-else>
+      </v-chip>
+      <v-chip v-else variant="tonal" prepend-icon="mdi-help-circle-outline">
         {{ t('settings_labels.database.status_not_loaded') }}
-      </template>
+      </v-chip>
     </div>
 
     <div class="mb-4">
@@ -431,7 +450,6 @@ const clearParseLibraryTagsTask = () => {
 }
 
 const hasParserMetas = computed(() => status.value.parserMetas.length > 0)
-const parserMetaNames = computed(() => status.value.parserMetas.map((meta) => meta.name).join(', '))
 const canStart = computed(() => statusLoaded.value && hasParserMetas.value && !active.value)
 
 type MatchPrecisionPreset = 'strict' | 'balanced' | 'permissive'
@@ -934,6 +952,16 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+.parse-status__warning {
+  height: auto;
+  min-height: 32px;
+  padding-block: 6px;
+
+  :deep(.v-chip__content) {
+    white-space: normal;
+  }
+}
+
 .parse-library-tags-dialog__card {
   display: flex;
   flex-direction: column;
