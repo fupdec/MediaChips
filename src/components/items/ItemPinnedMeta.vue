@@ -267,6 +267,7 @@ import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 import {useEventBus} from "@/utils/eventBus"
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
+import {applyTagColorFromMainImage, canPickTagColorFromImage} from '@/composable/tagColorFromMainImage'
 import {refreshPageTag} from '@/composable/pageTagLayoutRemount'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useSessionFocusActions} from '@/composable/useSessionFocusActions'
@@ -906,6 +907,22 @@ const showMenu = (e: MouseEvent | KeyboardEvent, tag: TagWithMeta): void => {
       },
     },
   ]
+
+  if (canPickTagColorFromImage({tagId: tag.id, metaId: tag.metaId, colorsEnabled: tag.meta?.color}, appStore.dbPath)) {
+    contextMenu.push({
+      name: t('meta.settings.color_from_image'),
+      type: 'item',
+      icon: 'eyedropper',
+      action: () => {
+        void applyTagColorFromMainImage(
+          {tagId: tag.id, metaId: tag.metaId, colorsEnabled: tag.meta?.color},
+          appStore.dbPath,
+          t,
+          () => listSync.getItemsFromDb({ids: [tag.id], type: 'tag'}),
+        )
+      },
+    })
+  }
 
   const inTray = sessionFocusStore.hasTag(Number(tag.id))
   contextMenu.push({

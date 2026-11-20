@@ -11,6 +11,7 @@ import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
 import {useMoveTagsToCategory} from '@/composable/useMoveTagsToCategory'
+import {applyTagColorFromMainImage, canPickTagColorFromImage} from '@/composable/tagColorFromMainImage'
 import {flattenTagCategories} from '@/utils/tagCategoryTree'
 import path from 'path-browserify'
 import {
@@ -144,6 +145,22 @@ export default function useItemContextMenu(
       }
 
       if (type === 'tag' && isTagPageItem(item, type) && meta) {
+        const colorTarget = {tagId: item.id, metaId: meta.id, colorsEnabled: meta.color}
+        if (canPickTagColorFromImage(colorTarget, store.dbPath)) {
+          contextMenu.push({
+            name: t('meta.settings.color_from_image'),
+            type: 'item',
+            icon: 'eyedropper',
+            action: () => {
+              void applyTagColorFromMainImage(
+                colorTarget,
+                store.dbPath,
+                t,
+                () => listSync.getItemsFromDb({ids: [item.id], type: 'tag'}),
+              )
+            },
+          })
+        }
         contextMenu.push({
           name: t('common.duplicate'),
           type: 'item',
