@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Diagnostic logs** — the server and the desktop shell now keep a rolling log in the data folder (`logs/server.log`, `logs/main.log`, about 2 MB each plus two older copies). Settings → About shows the latest lines and lets you copy or download them. Access tokens, passwords and your home folder name are masked before anything is written. Crashes of the GPU or renderer process and the display session (X11/Wayland) are recorded too, so a bug report can include real data.
+- **Linux: `MEDIA_CHIPS_DISABLE_GPU=1`** now works on Linux as well as Windows, as an opt-in workaround for GPU driver problems. Nothing changes unless it is set.
+
 ## [2.0.0] - 2026-11-18
 
 ### Added

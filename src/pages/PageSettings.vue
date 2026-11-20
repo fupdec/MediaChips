@@ -206,6 +206,9 @@
               <SettingsSection id="settings-about">
                 <About/>
               </SettingsSection>
+              <SettingsSection id="settings-server-logs">
+                <SettingsServerLogs/>
+              </SettingsSection>
             </SettingsList>
           </div>
 
@@ -321,6 +324,9 @@ const SettingsRegistration = defineAsyncComponent(() =>
 )
 const SettingsPlugins = defineAsyncComponent(() =>
   import("@/components/settings/plugins/SettingsPlugins.vue")
+)
+const SettingsServerLogs = defineAsyncComponent(() =>
+  import("@/components/settings/about/SettingsServerLogs.vue")
 )
 const About = defineAsyncComponent(() =>
   import("@/components/app/About.vue")

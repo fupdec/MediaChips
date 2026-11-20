@@ -20,6 +20,16 @@ export type ServerConfig = {
   [key: string]: unknown
 }
 
+export type AppLogSource = 'server' | 'main'
+
+export type AppLogResponse = {
+  source: AppLogSource
+  available: boolean
+  sizeBytes: number
+  path: string | null
+  lines: string[]
+}
+
 export type PingResponse = {
   pong?: number | string
   ip?: string
@@ -48,6 +58,16 @@ export const systemApi = {
       ...res,
       data: validated(parseServerConfig, res.data) as ServerConfig,
     }))
+  },
+
+  getLogs(params: {source: AppLogSource; lines?: number}, config: AxiosRequestConfig = {}) {
+    return apiClient.get<AppLogResponse>(API_ROUTES.logs, {...config, params}).then((res) => res.data)
+  },
+
+  downloadLogs(source: AppLogSource, config: AxiosRequestConfig = {}) {
+    return apiClient
+      .get<string>(API_ROUTES.logsDownload, {...config, params: {source}, responseType: 'text', transformResponse: [(data: unknown) => data]})
+      .then((res) => res.data)
   },
 
   getMachineId(config: AxiosRequestConfig & {path?: string} = {}) {

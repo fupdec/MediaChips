@@ -85,6 +85,8 @@ export const API_ROUTES = {
   checkFiles: '/api/check-files',
   ping: '/api/ping',
   config: '/api/config',
+  logs: '/api/logs',
+  logsDownload: '/api/logs/download',
   getMachineId: '/api/getMachineId',
   updateConfig: '/api/update-config',
   switchDatabase: '/api/switch-database',

@@ -13,6 +13,9 @@ import { initAuthService, getAuthService } from './server/authRegistry'
 import { createAuthMiddleware, registerAuthRoutes } from './server/auth'
 import { registerPingRoute } from './server/pingRoute'
 import { registerConfigRoute } from './server/configRoute'
+import { attachLogDir, initAppLog } from './server/appLog'
+import { registerLogRoutes } from './server/logRoute'
+import packageJson from '../package.json'
 import { createServerStarter } from './server/startup'
 import {
   initLanAccess,
@@ -24,6 +27,11 @@ import {
 dotenv.config({
   path: projectPath('.env'),
 })
+
+initAppLog('server', packageJson.version)
+// Electron (and Docker) pass the data folder up front, so even an early crash leaves a log on disk.
+const earlyDataDir = process.env.MEDIA_CHIPS_DATA_DIR?.trim()
+if (earlyDataDir) attachLogDir(path.join(path.resolve(earlyDataDir), 'logs'))
 
 const startupStartedAt = Date.now()
 const logStartup = (message: string) => {
@@ -37,6 +45,7 @@ const networkHelpers = {
 
 logStartup('config init')
 const {config, configPath, databasesPath} = initializeServerConfig(networkHelpers)
+attachLogDir(path.join(path.dirname(databasesPath), 'logs'))
 
 const dbConfig = config.databases.find((i: ServerDatabaseEntry) => i.active)
 logStartup('database open')
@@ -51,6 +60,7 @@ registerAuthRoutes(app, authService)
 // Answer Electron waitForBackend / SPA boot before loading Task/face/transcode graphs.
 registerPingRoute(app, config)
 registerConfigRoute(app, config, databasesPath)
+registerLogRoutes(app)
 logStartup('ping+config ready')
 
 const {startServer, restartNetworkListener, bindShutdownHandler, getListener} = createServerStarter({

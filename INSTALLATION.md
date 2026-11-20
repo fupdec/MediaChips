@@ -92,6 +92,27 @@ chmod +x MediaChips-*.AppImage
 ./MediaChips-*.AppImage
 ```
 
+### Linux: the window is blank, black or the app closes right after start
+
+Try these in order and note which one helps; then attach the log (see below) to your report.
+
+```bash
+# 1. Software rendering (graphics driver problems, e.g. Nvidia)
+MEDIA_CHIPS_DISABLE_GPU=1 ./MediaChips-*.AppImage
+
+# 2. Force X11 instead of Wayland
+./MediaChips-*.AppImage --ozone-platform=x11
+
+# 3. AppImage sandbox errors ("chrome-sandbox", "SUID sandbox helper")
+./MediaChips-*.AppImage --no-sandbox
+```
+
+`--no-sandbox` turns off a Chromium security feature, so use it only if option 3 is the one that fixes the start.
+
+### Where the logs are
+
+Open **Settings → About → Diagnostic logs** to read, copy or download them. If the app does not start far enough to open Settings, the files are in the data folder (on Linux usually `~/.config/MediaChips/logs/`): `server.log` for the background server and `main.log` for the desktop shell. Please include `XDG_SESSION_TYPE` (`echo $XDG_SESSION_TYPE`) and your graphics driver (`nvidia-smi` or `glxinfo -B`) when reporting a Linux problem.
+
 ---
 
 ## Troubleshooting (macOS)

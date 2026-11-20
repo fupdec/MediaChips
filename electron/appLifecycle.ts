@@ -9,6 +9,11 @@ import {
 import {machineId} from 'node-machine-id'
 import {parseJumpListAction} from './windowsJumpList'
 
+/** Platforms where `MEDIA_CHIPS_DISABLE_GPU` is honoured. */
+export function supportsGpuToggle(platform: string): boolean {
+  return platform === 'win32' || platform === 'linux'
+}
+
 export function shouldDisableHardwareAcceleration(envValue: unknown): boolean {
   return ['1', 'true', 'yes', 'on'].includes(String(envValue || '').toLowerCase())
 }

@@ -15,6 +15,7 @@ import {
   createAppLifecycleController,
   resolveElectronConfigPath,
   shouldDisableHardwareAcceleration,
+  supportsGpuToggle,
 } from './electron/appLifecycle'
 import { createLoadingWindowController } from './electron/loadingWindow'
 import { createMainWindowController } from './electron/mainWindow'
@@ -45,6 +46,7 @@ import {
   type ConfigFileRecord,
 } from './app/server/configFile'
 import { resolveListenPort } from './app/server/ports'
+import { attachLogDir, initAppLog } from './app/server/appLog'
 
 type ServerWindowConfig = {
   win?: WindowBoundsConfig
@@ -55,6 +57,9 @@ type ServerWindowConfig = {
 type ShellConfig = ConfigFileRecord & ServerWindowConfig
 
 process.electron_app = app
+
+// Mirrors console output into <data dir>/logs/main.log (shown next to server.log in Settings → About).
+initAppLog('main', app.getVersion())
 
 if (app.isPackaged) {
   process.env.NODE_ENV = 'production'
@@ -69,11 +74,13 @@ if (!gotTheLock) {
   process.exit(0)
 }
 
+// Opt-in escape hatch for broken GPU drivers (Windows, and Linux e.g. Nvidia + Wayland).
 if (
-  process.platform === 'win32'
+  supportsGpuToggle(process.platform)
   && shouldDisableHardwareAcceleration(process.env.MEDIA_CHIPS_DISABLE_GPU)
 ) {
   app.disableHardwareAcceleration()
+  console.log('[gpu] hardware acceleration disabled via MEDIA_CHIPS_DISABLE_GPU')
 }
 
 // Keep Portable/installer taskbar grouping on the MediaChips identity (not Electron's default).
@@ -101,6 +108,32 @@ const configPath = resolveElectronConfigPath({
 const dataDir = resolveElectronDataDir({
   portableExecutableDir: process.env.PORTABLE_EXECUTABLE_DIR,
   userDataPath: app.getPath('userData'),
+})
+
+attachLogDir(path.join(dataDir, 'logs'))
+
+app.on('child-process-gone', (_event, details) => {
+  console.error(
+    `[crash] child process gone: type=${details.type} reason=${details.reason} exitCode=${details.exitCode}`
+    + (details.name ? ` name=${details.name}` : ''),
+  )
+})
+app.on('render-process-gone', (_event, _webContents, details) => {
+  console.error(`[crash] renderer gone: reason=${details.reason} exitCode=${details.exitCode}`)
+})
+void app.whenReady().then(async () => {
+  try {
+    const info = await app.getGPUInfo('basic') as {gpuDevice?: Array<Record<string, unknown>>}
+    const devices = (info.gpuDevice || []).map(device => ({
+      vendorId: device.vendorId,
+      deviceId: device.deviceId,
+      active: device.active,
+      driverVersion: device.driverVersion,
+    }))
+    console.log(`[gpu] devices=${JSON.stringify(devices)} features=${JSON.stringify(app.getGPUFeatureStatus())}`)
+  } catch (error) {
+    console.warn('[gpu] could not read GPU info:', error)
+  }
 })
 
 const loaded = loadConfigFile(configPath)

@@ -9,6 +9,7 @@ import {
   formatPortInUseErrorMessage,
   resolveElectronConfigPath,
   shouldDisableHardwareAcceleration,
+  supportsGpuToggle,
   shouldHideWindowOnCloseApp,
 } from './appLifecycle'
 
@@ -40,6 +41,14 @@ describe('shouldDisableHardwareAcceleration', () => {
     expect(shouldDisableHardwareAcceleration('on')).toBe(true)
     expect(shouldDisableHardwareAcceleration('0')).toBe(false)
     expect(shouldDisableHardwareAcceleration(undefined)).toBe(false)
+  })
+})
+
+describe('supportsGpuToggle', () => {
+  it('covers Windows and Linux but leaves macOS untouched', () => {
+    expect(supportsGpuToggle('win32')).toBe(true)
+    expect(supportsGpuToggle('linux')).toBe(true)
+    expect(supportsGpuToggle('darwin')).toBe(false)
   })
 })
 
