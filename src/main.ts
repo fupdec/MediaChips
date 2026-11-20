@@ -127,6 +127,9 @@ router.isReady().then(async () => {
     import('@/composable/useOnboarding').then(({openOnboarding}) => {
       ;(window as Window & {__openOnboarding?: () => void}).__openOnboarding = openOnboarding
     })
+    import('@/utils/devTestNotifications').then(({fireTestNotifications}) => {
+      ;(window as Window & {__testToasts?: () => void}).__testToasts = fireTestNotifications
+    })
     import('@/utils/galleryPerfCounters').then(({getGalleryPerfSnapshot}) => {
       ;(window as Window & {__galleryPerf?: () => ReturnType<typeof getGalleryPerfSnapshot>}).__galleryPerf = getGalleryPerfSnapshot
     })

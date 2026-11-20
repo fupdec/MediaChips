@@ -484,13 +484,20 @@ onUnmounted(() => {
     z-index: auto;
   }
 
+  // Close + hide buttons are stacked at the top-right corner. The card must be
+  // tall enough for both, otherwise the second (hide) button is clipped by
+  // `overflow: hidden` on one-line toasts.
+  &:not(.notification--history) {
+    min-height: 66px;
+  }
+
   &__manage {
     position: absolute;
-    right: 5px;
-    top: 5px;
+    right: 4px;
+    top: 4px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
   }
 
   &__close-btn {
@@ -498,7 +505,7 @@ onUnmounted(() => {
     height: 24px;
     border-radius: 7px;
     font-size: 12px;
-    margin-top: 4px;
+    margin: 0;
   }
 }
 
