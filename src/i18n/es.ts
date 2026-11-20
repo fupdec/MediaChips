@@ -1661,7 +1661,7 @@ const es = {
   },
   bulk_editing: {
     title: 'Edición masiva',
-    mode_hint: 'Haga clic en el icono para cambiar el modo.',
+    mode_hint: 'Elige qué hacer con cada campo. Los campos en «Conservar» no cambian.',
     processing_hint: 'Cómo se aplica el campo (icono a la izquierda):',
     mode_keep: 'Conservar',
     mode_delete: 'Vaciar',
@@ -1680,6 +1680,9 @@ const es = {
     save_error: 'No se pudo aplicar la edición masiva',
     preset_section: 'Campos estándar',
     pinned_section: 'Campos de metadatos fijados',
+    mode_add_short: 'Añadir',
+    reset_all: 'Restablecer todo',
+    hint_delete: 'Se vaciará en todos los elementos seleccionados',
   },
   empty_states: {
     no_items_add_first: 'Aún no hay nada — añade elementos para empezar',

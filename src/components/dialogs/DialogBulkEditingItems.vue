@@ -1,205 +1,139 @@
 <template>
-  <v-dialog
+  <EditDialogShell
     v-if="dialog"
-    v-model="dialog"
-    :fullscreen="xs"
-    :width="xl ? 1500 : 900"
-    scrollable
+    :show="dialog"
+    :header="t('bulk_editing.title')"
+    :subheader="t('bulk_editing.selected_count', { count: itemsStore.selection.length })"
+    icon="pencil-plus"
+    :buttons="hasEditableFields ? buttons : []"
+    :dirty="activeChangesCount > 0"
+    :loading="saving"
+    v-model:unsaved-confirm="unsavedConfirm"
+    @visibility-change="onVisibilityChange"
+    @request-close="requestClose"
+    @discard="close"
   >
-    <v-card class="bulk-editing-dialog">
-      <DialogHeader
-        @close="close"
-        :header="t('bulk_editing.title')"
-        :buttons="hasEditableFields ? buttons : []"
-        icon="pencil-plus"
-        closable
-      />
-
-      <v-card-text class="pa-2 pa-sm-4">
-        <div v-if="hasEditableFields" class="bulk-editing-summary mb-4">
-          <v-chip
-            v-if="itemsStore.selection.length"
-            color="primary"
-            variant="tonal"
-            size="small"
-            prepend-icon="mdi-checkbox-multiple-marked-outline"
-            class="mr-2 mb-2"
-          >
-            {{ t('bulk_editing.selected_count', { count: itemsStore.selection.length }) }}
-          </v-chip>
-
+    <div class="editing editing--sections bulk-editing">
+      <template v-if="hasEditableFields">
+        <div class="bulk-editing-toolbar">
+          <span class="bulk-editing-hint">{{ t('bulk_editing.mode_hint') }}</span>
+          <v-spacer/>
           <v-chip
             v-if="activeChangesCount"
             color="success"
             variant="tonal"
             size="small"
             prepend-icon="mdi-playlist-edit"
-            class="mr-2 mb-2"
           >
             {{ t('bulk_editing.changes_count', { count: activeChangesCount }) }}
           </v-chip>
-
-          <v-chip
-            v-if="saving"
-            color="warning"
-            variant="tonal"
-            size="small"
-            prepend-icon="mdi-timer-sand"
-            class="mb-2"
-          >
-            {{ t('bulk_editing.saving') }}
-          </v-chip>
-        </div>
-
-        <v-sheet
-          v-if="hasEditableFields && showModeLegend"
-          class="mode-legend rounded-xl pa-3 mb-4"
-          color="rgba(150, 150, 150, 0.09)"
-        >
-          <div class="text-caption text-medium-emphasis mb-2">
-            {{ t('bulk_editing.mode_hint') }}
-          </div>
-          <div class="d-flex flex-wrap ga-2">
-            <v-chip
-              v-for="mode in editModes"
-              :key="mode.type"
-              :color="mode.color"
-              variant="tonal"
-              size="small"
-              :prepend-icon="mode.icon"
-            >
-              {{ mode.label }}
-            </v-chip>
-          </div>
-        </v-sheet>
-
-        <div
-          v-else-if="hasEditableFields"
-          class="mb-4"
-        >
           <v-btn
+            v-if="activeChangesCount && !saving"
             size="small"
             variant="text"
-            color="primary"
-            @click="showModeLegend = true"
+            prepend-icon="mdi-restore"
+            @click="resetAll"
           >
-            <v-icon start size="small">mdi-help-circle-outline</v-icon>
-            {{ t('bulk_editing.show_modes') }}
+            {{ t('bulk_editing.reset_all') }}
           </v-btn>
         </div>
 
-        <v-alert
-          v-else
-          type="warning"
-          class="text-caption mb-4"
-          variant="tonal"
-          density="compact"
-          rounded="xl"
-        >
-          <div class="mb-2">
-            {{ t('bulk_editing.no_meta_assigned', { type: itemsStore.type }) }}
-            <br>
-            {{ t('bulk_editing.assign_in_settings') }}
-          </div>
-          <div class="d-flex flex-wrap align-center ga-2">
-            <v-btn
-              color="primary"
-              size="small"
-              variant="flat"
-              rounded="xl"
-              :to="{ path: '/settings', query: { tab: 'library', view: 'media' } }"
-              @click="dialogsStore.bulkEditingItems = false"
-            >
-              <v-icon start size="small">mdi-pin</v-icon>
-              {{ t('bulk_editing.open_field_pinning') }}
-            </v-btn>
-            <button-documentation id="meta.assign"/>
-          </div>
-        </v-alert>
+        <div class="editing-grid">
+          <EditingSectionHeader
+            v-if="presetFields.length && pinnedFields.length"
+            class="field--full"
+            :title="t('bulk_editing.preset_section')"
+            icon="mdi-star-outline"
+          />
+          <BulkEditFieldCard
+            v-for="field in presetFields"
+            :key="field.key"
+            :field="field"
+            :edit-type="getEditType(field.key)"
+            :all-modes="editModes"
+            :value="values[field.key]"
+            :show-icons="showIcons"
+            :disabled="isFieldInputDisabled(field.key)"
+            @set-mode="setEditMode(field, $event)"
+            @update:value="setVal($event, field.key)"
+          />
 
-        <template v-if="presetFields.length">
-          <div class="text-subtitle-2 font-weight-medium mb-3">
-            {{ t('bulk_editing.preset_section') }}
-          </div>
+          <EditingSectionHeader
+            v-if="pinnedFields.length"
+            class="field--full"
+            :title="presetFields.length ? t('bulk_editing.pinned_section') : t('bulk_editing.title')"
+            icon="mdi-pin-outline"
+          />
+          <BulkEditFieldCard
+            v-for="field in pinnedFields"
+            :key="field.key"
+            :field="field"
+            :edit-type="getEditType(field.key)"
+            :all-modes="editModes"
+            :value="values[field.key]"
+            :show-icons="showIcons"
+            :disabled="isFieldInputDisabled(field.key)"
+            @set-mode="setEditMode(field, $event)"
+            @update:value="setVal($event, field.key)"
+            @pick-date="pickDate(field.key)"
+            @clear-date="clearDate(field.key)"
+          />
+        </div>
+      </template>
 
-          <v-row class="mb-2">
-            <v-col
-              v-for="field in presetFields"
-              :key="field.key"
-              cols="12"
-              md="6"
-              xl="4"
-            >
-              <BulkEditFieldCard
-                :field="field"
-                :edit-type="getEditType(field.key)"
-                :edit-mode="editModeMeta(field.key)"
-                :value="values[field.key]"
-                :show-icons="showIcons"
-                :disabled="isFieldInputDisabled(field.key)"
-                :refresh-key="key"
-                @toggle-mode="toggleEditMode(field)"
-                @update:value="setVal($event, field.key)"
-              />
-            </v-col>
-          </v-row>
-        </template>
-
-        <template v-if="pinned.length">
-          <div
-            v-if="presetFields.length"
-            class="text-subtitle-2 font-weight-medium mb-3 mt-2"
-          >
-            {{ t('bulk_editing.pinned_section') }}
-          </div>
-
-          <v-row>
-            <v-col
-              v-for="field in pinnedFields"
-              :key="field.key"
-              cols="12"
-              md="6"
-              xl="4"
-            >
-              <BulkEditFieldCard
-                :field="field"
-                :edit-type="getEditType(field.key)"
-                :edit-mode="editModeMeta(field.key)"
-                :value="values[field.key]"
-                :show-icons="showIcons"
-                :disabled="isFieldInputDisabled(field.key)"
-                :refresh-key="key"
-                @toggle-mode="toggleEditMode(field)"
-                @update:value="setVal($event, field.key)"
-                @pick-date="pickDate(field.key)"
-                @clear-date="clearDate(field.key)"
-              />
-            </v-col>
-          </v-row>
-        </template>
-      </v-card-text>
-    </v-card>
-
-    <v-dialog v-model="datePicker.dialog" width="290">
-      <v-date-picker
-        @update:model-value="setDate"
-        :model-value="datePicker.value"
-        :title="t('filters.select_date')"
-        :header="t('filters.enter_date')"
-        color="primary"
+      <v-alert
+        v-else
+        type="warning"
+        class="text-caption"
+        variant="tonal"
+        density="compact"
         rounded="xl"
-      />
-    </v-dialog>
-  </v-dialog>
+      >
+        <div class="mb-2">
+          {{ t('bulk_editing.no_meta_assigned', { type: itemsStore.type }) }}
+          <br>
+          {{ t('bulk_editing.assign_in_settings') }}
+        </div>
+        <div class="d-flex flex-wrap align-center ga-2">
+          <v-btn
+            color="primary"
+            size="small"
+            variant="flat"
+            rounded="xl"
+            :to="{ path: '/settings', query: { tab: 'library', view: 'media' } }"
+            @click="dialogsStore.bulkEditingItems = false"
+          >
+            <v-icon start size="small">mdi-pin</v-icon>
+            {{ t('bulk_editing.open_field_pinning') }}
+          </v-btn>
+          <button-documentation id="meta.assign"/>
+        </div>
+      </v-alert>
+    </div>
+
+    <template #dialogs>
+      <v-dialog v-model="datePicker.dialog" width="290">
+        <v-date-picker
+          @update:model-value="setDate"
+          :model-value="datePicker.value"
+          :title="t('filters.select_date')"
+          :header="t('filters.enter_date')"
+          color="primary"
+          rounded="xl"
+        />
+      </v-dialog>
+    </template>
+  </EditDialogShell>
 </template>
 
 <script setup lang="ts">
 import {ref, computed, onMounted, watch, defineAsyncComponent} from 'vue'
 import {useI18n} from 'vue-i18n'
-import {useDisplay} from 'vuetify'
 import dayjs from 'dayjs'
 import {typedApi} from '@/services/typedApi'
-import DialogHeader from '@/components/elements/DialogHeader.vue'
+import EditDialogShell from '@/components/dialogs/editing/EditDialogShell.vue'
+import EditingSectionHeader from '@/components/items/EditingSectionHeader.vue'
+import {useEditDialogButtons} from '@/composable/useEditDialog'
 import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useSettingsStore} from '@/stores/settings'
@@ -247,7 +181,6 @@ const BulkEditFieldCard = defineAsyncComponent(() =>
   import('@/components/dialogs/BulkEditFieldCard.vue')
 )
 
-const {xs, xl} = useDisplay()
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const settingsStore = useSettingsStore()
@@ -256,11 +189,10 @@ const eventBus = useEventBus()
 const {t} = useI18n()
 
 const dialog = ref(true)
+const unsavedConfirm = ref(false)
 const values = ref<Record<FieldKey, FieldValue>>({})
 const edits = ref<Record<FieldKey, number>>({})
-const key = ref(Date.now())
 const saving = ref(false)
-const showModeLegend = ref(false)
 const datePicker = ref<{
   dialog: boolean
   metaId: FieldKey | null
@@ -387,25 +319,18 @@ const editModes = computed((): BulkEditMode[] => [
     type: 3,
     icon: 'mdi-plus-circle-outline',
     color: 'success',
-    label: t('bulk_editing.mode_add'),
+    label: t('bulk_editing.mode_add_short'),
   },
 ])
 
-const buttons = computed(() => [{
-  icon: 'content-save',
-  text: t('common.save'),
-  color: 'success',
-  variant: 'flat',
+const {build: buildButtons} = useEditDialogButtons()
+
+const buttons = computed(() => buildButtons({onSave: save}).map((button) => ({
+  ...button,
   disabled: saving.value || activeChangesCount.value === 0,
-  action: save,
-}])
+})))
 
 const getEditType = (fieldKey: FieldKey) => edits.value[fieldKey] || 0
-
-const editModeMeta = (fieldKey: FieldKey) => {
-  const editType = getEditType(fieldKey)
-  return editModes.value.find((mode) => mode.type === editType) || editModes.value[0]
-}
 
 const isFieldInputDisabled = (fieldKey: FieldKey) => {
   const editType = getEditType(fieldKey)
@@ -433,8 +358,21 @@ const initValues = () => {
 }
 
 const close = () => {
+  unsavedConfirm.value = false
   dialog.value = false
   dialogsStore.bulkEditingItems = false
+}
+
+const requestClose = () => {
+  if (activeChangesCount.value > 0 && !saving.value) {
+    unsavedConfirm.value = true
+    return
+  }
+  close()
+}
+
+const onVisibilityChange = (show: boolean) => {
+  if (!show) requestClose()
 }
 
 const save = async () => {
@@ -511,17 +449,12 @@ const save = async () => {
   }
 }
 
-const toggleEditMode = (field: BulkEditField) => {
-  const fieldKey = field.key
-  edits.value[fieldKey] = (edits.value[fieldKey] || 0) + 1
+const setEditMode = (field: BulkEditField, mode: number) => {
+  edits.value[field.key] = mode
+}
 
-  if (edits.value[fieldKey] > 2 && field.type !== 'array') {
-    edits.value[fieldKey] = 0
-  } else if (edits.value[fieldKey] > 3 && field.type === 'array') {
-    edits.value[fieldKey] = 0
-  }
-
-  key.value = Date.now()
+const resetAll = () => {
+  initValues()
 }
 
 const setVal = (val: FieldValue, fieldKey: FieldKey) => {
@@ -560,9 +493,17 @@ watch(() => dialogsStore.bulkEditingItems, (newValue) => {
 </script>
 
 <style scoped>
-.bulk-editing-summary {
+.bulk-editing-toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: 8px;
+  margin-block: 4px 8px;
+  padding-inline: 12px;
+}
+
+.bulk-editing-hint {
+  font-size: 0.8125rem;
+  color: rgba(var(--v-theme-on-surface), 0.6);
 }
 </style>

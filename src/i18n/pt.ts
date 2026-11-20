@@ -1661,7 +1661,7 @@ const pt = {
   },
   bulk_editing: {
     title: 'Edição em massa',
-    mode_hint: 'Clique no ícone para alterar o modo.',
+    mode_hint: 'Escolha o que fazer com cada campo. Campos em «Manter» não são alterados.',
     processing_hint: 'Como o campo é aplicado (ícone à esquerda):',
     mode_keep: 'Manter',
     mode_delete: 'Limpar',
@@ -1680,6 +1680,9 @@ const pt = {
     save_error: 'Falha ao aplicar a edição em massa',
     preset_section: 'Campos padrão',
     pinned_section: 'Campos de metadados fixados',
+    mode_add_short: 'Adicionar',
+    reset_all: 'Redefinir tudo',
+    hint_delete: 'Será limpo em todos os itens selecionados',
   },
   empty_states: {
     no_items_add_first: 'Nada aqui ainda — adicione itens para começar',

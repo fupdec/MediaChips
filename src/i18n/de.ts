@@ -1661,7 +1661,7 @@ const de = {
   },
   bulk_editing: {
     title: 'Massenbearbeitung',
-    mode_hint: 'Klicken Sie auf das Symbol, um den Modus zu ändern.',
+    mode_hint: 'Wähle für jedes Feld, was passieren soll. Felder auf „Behalten“ bleiben unverändert.',
     processing_hint: 'So wird das Feld angewendet (Symbol links):',
     mode_keep: 'Behalten',
     mode_delete: 'Leeren',
@@ -1680,6 +1680,9 @@ const de = {
     save_error: 'Die Massenbearbeitung konnte nicht angewendet werden',
     preset_section: 'Standardfelder',
     pinned_section: 'Angeheftete Metadatenfelder',
+    mode_add_short: 'Hinzufügen',
+    reset_all: 'Alles zurücksetzen',
+    hint_delete: 'Wird bei allen ausgewählten Elementen geleert',
   },
   empty_states: {
     no_items_add_first: 'Noch nichts hier — fügen Sie Elemente hinzu',

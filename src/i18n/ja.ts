@@ -1661,7 +1661,7 @@ const ja = {
   },
   bulk_editing: {
     title: '一括編集',
-    mode_hint: 'アイコンをクリックしてモードを変更します。',
+    mode_hint: '各フィールドの処理を選択してください。「そのまま」のフィールドは変更されません。',
     processing_hint: 'フィールドの適用方法（左のアイコン）:',
     mode_keep: '維持',
     mode_delete: 'クリア',
@@ -1680,6 +1680,9 @@ const ja = {
     save_error: '一括編集の適用に失敗しました',
     preset_section: '標準フィールド',
     pinned_section: '固定されたメタデータ フィールド',
+    mode_add_short: '追加',
+    reset_all: 'すべてリセット',
+    hint_delete: '選択したすべての項目で空になります',
   },
   empty_states: {
     no_items_add_first: 'まだ何もありません — 項目を追加してください',

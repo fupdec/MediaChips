@@ -2298,7 +2298,7 @@ const en = {
   },
   bulk_editing: {
     title: 'Bulk Editing',
-    mode_hint: 'Click on the icon to change the mode.',
+    mode_hint: 'Choose what to do with each field. Fields set to “Keep” stay untouched.',
     processing_hint: 'How the field is applied (icon on the left):',
     mode_keep: 'Keep',
     mode_delete: 'Clear',
@@ -2317,6 +2317,9 @@ const en = {
     save_error: 'Failed to apply bulk edit',
     preset_section: 'Standard fields',
     pinned_section: 'Pinned metadata fields',
+    mode_add_short: 'Add',
+    reset_all: 'Reset all',
+    hint_delete: 'Will be cleared for all selected items',
   },
   empty_states: {
     no_items_add_first: 'Nothing here yet — add items to get started',

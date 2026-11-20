@@ -1661,7 +1661,7 @@ const fr = {
   },
   bulk_editing: {
     title: 'Modification en masse',
-    mode_hint: 'Cliquez sur l\'icône pour changer de mode.',
+    mode_hint: 'Choisissez l’action pour chaque champ. Les champs sur « Conserver » ne changent pas.',
     processing_hint: 'Comment le champ est appliqué (icône à gauche) :',
     mode_keep: 'Conserver',
     mode_delete: 'Effacer',
@@ -1680,6 +1680,9 @@ const fr = {
     save_error: 'Échec de l\'application de la modification groupée',
     preset_section: 'Champs standards',
     pinned_section: 'Champs de métadonnées épinglés',
+    mode_add_short: 'Ajouter',
+    reset_all: 'Tout réinitialiser',
+    hint_delete: 'Sera vidé pour tous les éléments sélectionnés',
   },
   empty_states: {
     no_items_add_first: 'Rien ici pour l’instant — ajoutez des éléments',

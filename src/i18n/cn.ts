@@ -1661,7 +1661,7 @@ const cn = {
   },
   bulk_editing: {
     title: '批量编辑',
-    mode_hint: '点击图标以更改模式。',
+    mode_hint: '为每个字段选择操作。设为“保持”的字段不会改变。',
     processing_hint: '字段应用方式（左侧图标）：',
     mode_keep: '保留',
     mode_delete: '清除',
@@ -1680,6 +1680,9 @@ const cn = {
     save_error: '批量编辑应用失败',
     preset_section: '标准字段',
     pinned_section: '固定的元数据字段',
+    mode_add_short: '添加',
+    reset_all: '全部重置',
+    hint_delete: '将清空所有所选项目中的该值',
   },
   empty_states: {
     no_items_add_first: '这里还是空的 — 添加项目开始使用',
