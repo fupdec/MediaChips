@@ -1,3 +1,4 @@
+import { defaultThemePalette } from '@shared/recommendedThemePalettes'
 export type { DatabaseSizesResponse, BackupEntry } from '@shared/api/responses'
 
 export type DatabaseEntry = {
@@ -309,14 +310,15 @@ export const defaultSettingsState = (): SettingsState => ({
   videoPreviewStatic: 'thumb',
   videoPreviewHover: 'video',
   delayVideoPreview: '0',
-  appColorLightHeader: '#9298EB',
-  appColorLightPrimary: '#8A86F2',
-  appColorLightSecondary: '#F8B31A',
-  appColorDarkHeader: '#6E6AAD',
-  appColorDarkPrimary: '#887ED5',
-  appColorDarkSecondary: '#E98700',
-  headerGradientLight: 'linear-gradient(to right,#ffb458,#6868eb)',
-  headerGradientDark: 'linear-gradient(to right,#a9743d,#4a3c81)',
+  // Default theme = the 'default' recommended palette (violet + amber)
+  appColorLightHeader: defaultThemePalette.light.header,
+  appColorLightPrimary: defaultThemePalette.light.primary,
+  appColorLightSecondary: defaultThemePalette.light.secondary,
+  appColorDarkHeader: defaultThemePalette.dark.header,
+  appColorDarkPrimary: defaultThemePalette.dark.primary,
+  appColorDarkSecondary: defaultThemePalette.dark.secondary,
+  headerGradientLight: `linear-gradient(to right, ${defaultThemePalette.light.header}, ${defaultThemePalette.light.headerEnd})`,
+  headerGradientDark: `linear-gradient(to right, ${defaultThemePalette.dark.header}, ${defaultThemePalette.dark.headerEnd})`,
   darkMode: '0',
   neutralTheme: '0',
   headerGradient: '1',

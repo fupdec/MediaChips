@@ -2375,6 +2375,7 @@ const es = {
       recommended_colors_hint: "Elige el tema que quieres actualizar y después una paleta para aplicar sus colores y el degradado de la barra de herramientas.",
       palette_target: "Aplicar a",
       palette_target_both: "Ambos",
+      palette_default: "Predeterminado",
       palette_ocean: "Océano",
       palette_forest: "Bosque",
       palette_iris: "Iris",

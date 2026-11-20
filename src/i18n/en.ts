@@ -3014,6 +3014,7 @@ const en = {
       palette_target_light: 'Light',
       palette_target_dark: 'Dark',
       palette_target_both: 'Both',
+      palette_default: 'Default',
       palette_ocean: 'Ocean',
       palette_forest: 'Forest',
       palette_iris: 'Iris',

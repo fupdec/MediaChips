@@ -2375,6 +2375,7 @@ const cn = {
       recommended_colors_hint: "选择要更新的主题，再选择配色方案，以应用其颜色和工具栏渐变。",
       palette_target: "应用到",
       palette_target_both: "两者",
+      palette_default: "默认",
       palette_ocean: "海洋",
       palette_forest: "森林",
       palette_iris: "鸢尾",

@@ -3014,6 +3014,7 @@ const ru = {
       palette_target_light: 'Светлая',
       palette_target_dark: 'Тёмная',
       palette_target_both: 'Обе темы',
+      palette_default: 'По умолчанию',
       palette_ocean: 'Океан',
       palette_forest: 'Лес',
       palette_iris: 'Ирис',

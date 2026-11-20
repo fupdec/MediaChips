@@ -2375,6 +2375,7 @@ const fr = {
       recommended_colors_hint: "Choisissez le thème à modifier, puis une palette pour appliquer ses couleurs et le dégradé de la barre d’outils.",
       palette_target: "Appliquer à",
       palette_target_both: "Les deux",
+      palette_default: "Par défaut",
       palette_ocean: "Océan",
       palette_forest: "Forêt",
       palette_iris: "Iris",

@@ -2375,6 +2375,7 @@ const de = {
       recommended_colors_hint: "Wählen Sie das zu ändernde Farbschema und anschließend eine Palette, um deren Farben und Werkzeugleistenverlauf anzuwenden.",
       palette_target: "Anwenden auf",
       palette_target_both: "Beide",
+      palette_default: "Standard",
       palette_ocean: "Ozean",
       palette_forest: "Wald",
       palette_iris: "Iris",

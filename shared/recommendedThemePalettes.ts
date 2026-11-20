@@ -1,5 +1,10 @@
 export const recommendedThemePalettes = [
   {
+    id: 'default',
+    light: { header: '#E4E3F7', headerEnd: '#F4EBD7', primary: '#3B368C', secondary: '#9A5B00' },
+    dark: { header: '#29274F', headerEnd: '#413825', primary: '#BBB8FF', secondary: '#FFC24D' },
+  },
+  {
     id: 'ocean',
     light: { header: '#DCEBFA', headerEnd: '#D9F3EF', primary: '#174B8D', secondary: '#115E59' },
     dark: { header: '#172F4D', headerEnd: '#214347', primary: '#9AC9FF', secondary: '#88E2D2' },
@@ -72,3 +77,6 @@ export const recommendedThemePalettes = [
 ] as const
 
 export type RecommendedPaletteId = typeof recommendedThemePalettes[number]['id']
+
+/** Theme used for new databases; also selectable as the first recommended palette. */
+export const defaultThemePalette = recommendedThemePalettes[0]

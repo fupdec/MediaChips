@@ -600,6 +600,7 @@ export function normalizeAppMenuLocale(value: unknown): AppMenuLocale {
 
 const PALETTE_NAMES = {
   en: {
+    default: 'Default',
     ocean: 'Ocean',
     forest: 'Forest',
     iris: 'Iris',
@@ -616,6 +617,7 @@ const PALETTE_NAMES = {
     moss: 'Moss',
   },
   ru: {
+    default: 'По умолчанию',
     ocean: 'Океан',
     forest: 'Лес',
     iris: 'Ирис',

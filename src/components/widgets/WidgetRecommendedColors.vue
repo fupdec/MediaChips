@@ -74,6 +74,7 @@ async function selectPalette(palette: Palette) {
         :variant="isPaletteActive(palette, target) ? 'tonal' : 'outlined'"
         :color="isPaletteActive(palette, target) ? 'primary' : undefined"
         rounded="lg"
+        class="palette-chip"
         :disabled="saving"
         :aria-pressed="isPaletteActive(palette, target)"
         @click="selectPalette(palette)"
@@ -95,7 +96,6 @@ async function selectPalette(palette: Palette) {
           />
         </span>
         {{ t(`settings_labels.appearance.palette_${palette.id}`) }}
-        <v-icon v-if="isPaletteActive(palette, target)" end size="small">mdi-check</v-icon>
       </v-btn>
     </div>
     <p v-if="saveFailed" role="alert" class="text-body-2 text-error mt-3">
@@ -122,6 +122,14 @@ async function selectPalette(palette: Palette) {
   .palette-tabs :deep(.v-icon) {
     display: none;
   }
+}
+
+.palette-chip {
+  padding-inline: 10px;
+}
+
+.palette-chip.v-btn--variant-outlined {
+  border-color: rgba(var(--v-theme-on-surface), 0.14);
 }
 
 .palette-swatch {

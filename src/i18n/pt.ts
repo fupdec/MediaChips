@@ -2375,6 +2375,7 @@ const pt = {
       recommended_colors_hint: "Escolha o tema a atualizar e depois uma paleta para aplicar as cores e o gradiente da barra de ferramentas.",
       palette_target: "Aplicar a",
       palette_target_both: "Ambos",
+      palette_default: "Padrão",
       palette_ocean: "Oceano",
       palette_forest: "Floresta",
       palette_iris: "Íris",

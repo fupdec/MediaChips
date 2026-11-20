@@ -2375,6 +2375,7 @@ const ja = {
       recommended_colors_hint: "更新するテーマを選んでから、パレットを選択して色とツールバーのグラデーションを適用します。",
       palette_target: "適用先",
       palette_target_both: "両方とも",
+      palette_default: "デフォルト",
       palette_ocean: "オーシャン",
       palette_forest: "森林",
       palette_iris: "アイリス",
