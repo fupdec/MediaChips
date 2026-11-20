@@ -2346,7 +2346,7 @@ const de = {
       slideshow_interval_hint: 'Wie lange jedes Bild in der Diashow angezeigt wird',
       slideshow_loop: 'Diashow wiederholen',
       slideshow_loop_hint: 'Nach dem letzten Bild wieder von vorne beginnen',
-      virtual_image_grid: 'Große Bildraster virtualisieren',
+      virtual_image_grid: 'Große Bildraster virtualisieren (experimentell)',
       virtual_image_grid_hint: 'Nur sichtbare Karten in großen Bibliotheken rendern (empfohlen ab 1k+)',
       visible_pages_pagination: 'Anzahl der sichtbaren Seiten in der Paginierung',
       example_pagination: 'Beispiel-Paginierung',

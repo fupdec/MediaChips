@@ -340,7 +340,7 @@ export const defaultSettingsState = (): SettingsState => ({
   gapSize: '2',
   imageSlideshowInterval: '4',
   imageSlideshowLoop: '0',
-  virtualImageGrid: '1',
+  virtualImageGrid: '0',
   isPlayVideoInSystemPlayer: '0',
   typingFiltersDefault: '0',
   watchFolders: '0',

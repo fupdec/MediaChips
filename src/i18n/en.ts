@@ -2983,7 +2983,7 @@ const en = {
       slideshow_interval_hint: 'How long each image stays on screen during slideshow',
       slideshow_loop: 'Loop slideshow',
       slideshow_loop_hint: 'After the last image, start again from the first',
-      virtual_image_grid: 'Virtualize large image grids',
+      virtual_image_grid: 'Virtualize large image grids (experimental)',
       virtual_image_grid_hint: 'Only render visible cards in large libraries (recommended for 1k+ images)',
       visible_pages_pagination: 'Number of visible pages in pagination',
       example_pagination: 'Example pagination',

@@ -2346,7 +2346,7 @@ const pt = {
       slideshow_interval_hint: 'Quanto tempo cada imagem fica na tela',
       slideshow_loop: 'Repetir slideshow',
       slideshow_loop_hint: 'Após a última imagem, recomeçar da primeira',
-      virtual_image_grid: 'Virtualizar grelhas grandes de imagens',
+      virtual_image_grid: 'Virtualizar grelhas grandes de imagens (experimental)',
       virtual_image_grid_hint: 'Renderizar apenas cartões visíveis em bibliotecas grandes (recomendado a partir de 1k+)',
       visible_pages_pagination: 'Número de páginas visíveis na paginação',
       example_pagination: 'Exemplo de paginação',

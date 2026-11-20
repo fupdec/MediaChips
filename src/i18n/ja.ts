@@ -2346,7 +2346,7 @@ const ja = {
       slideshow_interval_hint: '各画像の表示時間',
       slideshow_loop: 'スライドショーをループ',
       slideshow_loop_hint: '最後の画像の後、最初から再開',
-      virtual_image_grid: '大きな画像グリッドを仮想化',
+      virtual_image_grid: '大きな画像グリッドを仮想化（実験的）',
       virtual_image_grid_hint: '大規模ライブラリでは表示中のカードのみ描画（1k+推奨）',
       visible_pages_pagination: 'ページネーションで表示されるページ数',
       example_pagination: 'ページネーションの例',

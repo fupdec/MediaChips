@@ -2346,7 +2346,7 @@ const fr = {
       slideshow_interval_hint: 'Durée d\'affichage de chaque image',
       slideshow_loop: 'Boucler le diaporama',
       slideshow_loop_hint: 'Après la dernière image, recommencer à la première',
-      virtual_image_grid: 'Virtualiser les grandes grilles d’images',
+      virtual_image_grid: 'Virtualiser les grandes grilles d’images (expérimental)',
       virtual_image_grid_hint: 'N’afficher que les cartes visibles dans les grandes bibliothèques (recommandé dès 1k+)',
       visible_pages_pagination: 'Nombre de pages visibles dans la pagination',
       example_pagination: 'Exemple de pagination',

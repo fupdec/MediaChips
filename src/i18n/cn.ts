@@ -2346,7 +2346,7 @@ const cn = {
       slideshow_interval_hint: '每张图片显示的时长',
       slideshow_loop: '循环幻灯片',
       slideshow_loop_hint: '播完最后一张后从头开始',
-      virtual_image_grid: '虚拟化大型图片网格',
+      virtual_image_grid: '虚拟化大型图片网格（实验性）',
       virtual_image_grid_hint: '大型图库仅渲染可见卡片（建议 1k+ 开启）',
       visible_pages_pagination: '分页中可见页数',
       example_pagination: '分页示例',

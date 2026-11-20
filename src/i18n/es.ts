@@ -2346,7 +2346,7 @@ const es = {
       slideshow_interval_hint: 'Cuánto tiempo se muestra cada imagen',
       slideshow_loop: 'Repetir presentación',
       slideshow_loop_hint: 'Tras la última imagen, volver a la primera',
-      virtual_image_grid: 'Virtualizar rejillas de imágenes grandes',
+      virtual_image_grid: 'Virtualizar rejillas de imágenes grandes (experimental)',
       virtual_image_grid_hint: 'Renderizar solo las tarjetas visibles en bibliotecas grandes (recomendado desde 1k+)',
       visible_pages_pagination: 'Número de páginas visibles en la paginación',
       example_pagination: 'Paginación de ejemplo',
