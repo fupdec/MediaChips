@@ -136,7 +136,11 @@ body {
   overflow: hidden !important;
   --app-content-offset-top: 48px;
   --app-content-offset-bottom: 0px;
-  --app-bottom-bar-height: 56px;
+  --floating-nav-clearance: 0px;
+
+  &.has-bottom-bar {
+    --floating-nav-clearance: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
 
   &.added-top-tabs {
     --app-content-offset-top: calc(48px + 28px);
@@ -150,9 +154,6 @@ body {
     }
   }
 
-  &.has-bottom-bar {
-    --app-content-offset-bottom: calc(var(--app-bottom-bar-height) + env(safe-area-inset-bottom, 0px));
-  }
 }
 
 .main-drop-target {
@@ -225,9 +226,14 @@ body {
   }
 }
 
-/* Bottom bar height already includes safe-area-inset-bottom via Vuetify layout. */
+/* The floating bar overlays content without reducing the page height. */
 .app-main-layout.has-bottom-bar .main-scroll-inner {
   padding-bottom: 0;
+}
+
+/* Extra scroll range belongs inside the scrolling content, not its viewport. */
+.app-main-layout.has-bottom-bar .main-scroll-inner:not(.main-scroll-inner--settings) {
+  padding-bottom: var(--floating-nav-clearance);
 }
 
 .main-scroll--settings {
@@ -263,9 +269,6 @@ body {
     }
   }
 
-  .app-main-layout.has-bottom-bar .main-scroll-inner--settings {
-    padding-bottom: var(--app-content-offset-bottom);
-  }
 }
 
 // Windows Electron header chrome (no glass blur — content no longer scrolls under the bar)

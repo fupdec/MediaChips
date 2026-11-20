@@ -598,7 +598,7 @@ watch(() => route.fullPath, applyRouteSettings)
 .settings-page-layout__container {
   width: 100%;
   padding-inline: 0;
-  padding-block: 16px 24px;
+  padding-block: 16px calc(24px + var(--floating-nav-clearance, 0px));
 }
 
 @media (max-width: 959px) {

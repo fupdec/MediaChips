@@ -39,7 +39,7 @@ function syncDockReserve() {
   if (typeof document === 'undefined') return
 
   const laneHeight = stacked.value ? 112 : 56
-  const bottomOffset = useBottomBar.value ? 72 : 16
+  const bottomOffset = useBottomBar.value ? 80 : 16
   const reserve = hasLanes.value ? `${laneHeight + bottomOffset + 16}px` : '0px'
   document.documentElement.style.setProperty('--floating-bottom-dock-reserve', reserve)
 }
@@ -95,7 +95,8 @@ onBeforeUnmount(() => {
 }
 
 .floating-bottom-dock--bottom-nav {
-  bottom: 72px;
+  /* floating bottom bar: 12px gap + 56px card + 12px gap above it */
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
 
 .floating-bottom-dock--hidden {

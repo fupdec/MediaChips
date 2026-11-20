@@ -1,7 +1,6 @@
 import {computed} from 'vue'
 import {useRoute} from 'vue-router'
 import {useDisplay} from 'vuetify'
-import {useNavigationLayout} from '@/composable/useNavigationLayout'
 
 /** Pages that render an items grid (media / meta category / tag page / folders). */
 export function isItemsGridRoute(path: string): boolean {
@@ -24,7 +23,6 @@ export function isInspectorRoute(path: string): boolean {
 export function useBrowserLayout() {
   const route = useRoute()
   const {mobile} = useDisplay()
-  const {useBottomBar} = useNavigationLayout()
 
   /** Always on — classic layout has been removed. */
   const browserLayoutEnabled = computed(() => true)
@@ -32,9 +30,9 @@ export function useBrowserLayout() {
   /** Compact control deck on items pages. */
   const useItemsControlDeck = computed(() => true)
 
-  /** Full three-panel chrome (browser sidebar + inspector) — desktop only. */
+  /** Desktop inspector interactions are independent of navigation placement. */
   const useBrowserLayout = computed(() =>
-    !useBottomBar.value && !mobile.value,
+    !mobile.value,
   )
 
   const showInspector = computed(() =>

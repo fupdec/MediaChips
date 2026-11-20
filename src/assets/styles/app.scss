@@ -60,7 +60,9 @@ header {
 // a label that does not fit is truncated with an ellipsis.
 // Buttons with block-level markup in the default slot keep Vuetify's
 // own flex layout, otherwise their children would stack vertically.
-.v-btn:not(.v-btn--icon):not(.v-tab):not(:has(> .v-btn__content > div)) {
+// Bottom navigation buttons are excluded: they rely on Vuetify's stacked
+// layout (icon above label, shift mode), which `display: block` breaks.
+.v-btn:not(.v-btn--icon):not(.v-tab):not(.v-bottom-navigation__content > .v-btn):not(:has(> .v-btn__content > div)) {
   max-width: 100%;
   grid-template-columns: max-content minmax(0, auto) max-content;
 
