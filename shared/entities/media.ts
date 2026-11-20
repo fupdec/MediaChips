@@ -77,6 +77,7 @@ export interface MediaItem {
 /** Minimal media shape accepted by the player and playlist actions. */
 export type PlayableMedia = Pick<MediaItem, 'id'> & Partial<Pick<MediaItem,
   | 'path'
+  | 'hasCopies'
   | 'name'
   | 'mediaTypeId'
   | 'duration'

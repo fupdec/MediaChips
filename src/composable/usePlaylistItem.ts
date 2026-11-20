@@ -3,6 +3,7 @@ import { useAppStore } from '@/stores/app'
 import { usePlayerStore } from '@/stores/player'
 import { useItemsStore } from '@/stores/items'
 import { checkFileExists as checkPathExists } from '@/services/fileService'
+import { isMediaFileAvailable } from '@/services/mediaCopyAvailability'
 import { getReadableDuration } from '@/services/formatUtils'
 import { getCachedThumb, isPersistentThumbUrl, mediaThumbKey } from '@/utils/thumbDisplayCache'
 import { resolveMediaThumbDisplayUrl } from '@/utils/thumbSource'
@@ -47,7 +48,7 @@ export function usePlaylistItem(
   const getDuration = (time: number) => getReadableDuration(time)
 
   const checkVideoFileExists = async () => {
-    is_file_exists.value = await checkPathExists(props.video.path || '')
+    is_file_exists.value = await isMediaFileAvailable(props.video, checkPathExists)
   }
 
   const play = () => {

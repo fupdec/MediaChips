@@ -59,6 +59,7 @@ export function ensureMediaItem(item: PlayableMedia): MediaItem {
   return {
     id: item.id,
     path: item.path,
+    hasCopies: item.hasCopies,
     name: item.name,
     basename: item.basename,
     mediaTypeId: item.mediaTypeId,

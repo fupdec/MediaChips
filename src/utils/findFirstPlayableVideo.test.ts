@@ -33,4 +33,20 @@ describe('findFirstPlayableVideo', () => {
       .resolves.toBeNull()
     expect(check).toHaveBeenCalledTimes(2)
   })
+
+  it('falls back to a usable copy only when the original is missing', async () => {
+    const check = vi.fn(async () => false)
+    const copy = vi.fn(async () => true)
+    const videos = [{id: 1, path: '/gone.mp4', hasCopies: true}]
+    await expect(findFirstPlayableVideo(videos, check, copy)).resolves.toEqual(videos[0])
+    expect(copy).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not consult copies when the original exists or there are no copies', async () => {
+    const copy = vi.fn(async () => true)
+    const present = [{id: 1, path: '/a.mp4', hasCopies: true}]
+    await expect(findFirstPlayableVideo(present, async () => true, copy)).resolves.toEqual(present[0])
+    await expect(findFirstPlayableVideo([{id: 2, path: '/b.mp4'}], async () => false, copy)).resolves.toBeNull()
+    expect(copy).not.toHaveBeenCalled()
+  })
 })

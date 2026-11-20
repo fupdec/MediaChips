@@ -11,6 +11,7 @@ import {getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
 import {openSeparatePlayer, canOpenSeparatePlayer} from '@/utils/playerWindow'
 import {typedApi} from '@/services/typedApi'
 import {checkFileExists} from '@/services/fileService'
+import {isMediaFileAvailable, hasUsableMediaCopy} from '@/services/mediaCopyAvailability'
 import {getDateForDB} from '@/services/formatUtils'
 import {setNotification} from '@/services/notificationService'
 import {openPath} from '@/services/shellService'
@@ -282,7 +283,7 @@ export const useItemsStore = defineStore('items', {
         .map((item) => ensureMediaItem(toRaw(item)))
         .filter((candidate) => candidate?.path)
 
-      return findFirstPlayableVideo(candidates, checkFileExists)
+      return findFirstPlayableVideo(candidates, checkFileExists, (candidate) => hasUsableMediaCopy(Number(candidate.id)))
     },
 
     async playVideo({video, time, in_system, player, videos, trustPath = false, inline = false}: {
@@ -319,7 +320,7 @@ export const useItemsStore = defineStore('items', {
         } else {
           const requestedPath = targetVideo?.path
           const requestedOk = requestedPath
-            ? await checkFileExists(requestedPath)
+            ? await isMediaFileAvailable(targetVideo, checkFileExists)
             : false
           if (!requestedOk) {
             const playable = await this.findFirstPlayableVideo(playlistVideos || [])
@@ -339,7 +340,8 @@ export const useItemsStore = defineStore('items', {
           return false
         }
       } else if (!trustPath && targetVideo.path) {
-        const isFileExists = await checkFileExists(targetVideo.path)
+        // Original first; then a usable copy (network copy always, local copy only if on disk).
+        const isFileExists = await isMediaFileAvailable(targetVideo, checkFileExists)
 
         if (!isFileExists) {
           setNotification({
@@ -353,8 +355,12 @@ export const useItemsStore = defineStore('items', {
 
       const resolvedPlayer: 'default' | 'builtin' | 'system' = player
         ?? (in_system === true ? 'system' : in_system === false ? 'builtin' : 'default')
-      const useSystemPlayer = !isRemoteMediaPath(targetVideo.path) && (resolvedPlayer === 'system'
+      let useSystemPlayer = !isRemoteMediaPath(targetVideo.path) && (resolvedPlayer === 'system'
         || (resolvedPlayer === 'default' && settingsStore.isPlayVideoInSystemPlayer === '1'))
+      // System player needs a real local path; with only a copy left, use the built-in player.
+      if (useSystemPlayer && targetVideo.hasCopies && targetVideo.path && !(await checkFileExists(targetVideo.path))) {
+        useSystemPlayer = false
+      }
 
       if (useSystemPlayer) {
         if (targetVideo.path) {

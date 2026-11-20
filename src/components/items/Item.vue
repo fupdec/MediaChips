@@ -294,6 +294,7 @@ import {useLazyInView} from '@/composable/useLazyInView'
 import {useBrowserLayout, isInspectorRoute} from '@/composable/useBrowserLayout'
 import {isAudioMediaType, isImageMediaType, isTextMediaType, isVideoMediaType, getMediaDeleteAssetFolder, findMediaTypeById} from '@/utils/mediaType'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
+import {isMediaFileAvailable} from '@/services/mediaCopyAvailability'
 import {getTagChipTextStyle, hexToRgba} from '@/services/formatUtils'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
@@ -946,14 +947,16 @@ onBeforeUnmount(() => {
 })
 
 watch(
-  () => [wasInView.value, mediaItem.value?.path] as const,
-  ([visible, path]) => {
+  () => [wasInView.value, mediaItem.value?.path, Boolean(mediaItem.value?.hasCopies)] as const,
+  ([visible, path, hasCopies]) => {
     if (!visible || !path) return
-    if (checkedFilePath.value === path) return
+    const checkKey = hasCopies ? `${path}#copies` : path
+    if (checkedFilePath.value === checkKey) return
 
-    checkedFilePath.value = path
-    void checkPathExists(path).then((exists) => {
-      if (mediaItem.value?.path !== path) return
+    checkedFilePath.value = checkKey
+    // Original first; a copy is consulted only if it is missing (network copy => always shown).
+    void isMediaFileAvailable(mediaItem.value, checkPathExists).then((exists) => {
+      if (checkedFilePath.value !== checkKey) return
       is_file_exists.value = exists
     })
   },
