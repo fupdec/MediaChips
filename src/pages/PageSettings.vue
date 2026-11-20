@@ -77,13 +77,13 @@
 
           <div v-else-if="tab === 'library'">
             <SettingsList>
+              <SettingsMetaAssignment/>
               <SettingsSection id="settings-tag-categories">
                 <SettingsTagCategories/>
               </SettingsSection>
               <SettingsSection id="settings-meta">
                 <SettingsMeta/>
               </SettingsSection>
-              <SettingsMetaAssignment/>
               <SettingsSection id="settings-media-types">
                 <SettingsMediaTypes/>
               </SettingsSection>

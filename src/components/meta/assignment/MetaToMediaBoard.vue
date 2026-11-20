@@ -1,71 +1,31 @@
 <template>
-  <div class="meta-to-media-board">
-    <div class="meta-assignment-board">
-      <aside class="meta-assignment-board__pool">
-        <div class="d-flex align-center justify-space-between flex-wrap ga-2 mb-3">
-          <div class="text-caption text-medium-emphasis">
-            {{ t('meta.settings.available_fields') }}
-          </div>
-          <v-btn
-            size="x-small"
-            variant="tonal"
-            color="primary"
-            rounded="lg"
-            prepend-icon="mdi-plus"
-            @click="$emit('create-field')"
-          >
-            {{ t('meta.settings.add_field') }}
-          </v-btn>
-        </div>
+  <div class="meta-to-media-board meta-field-board">
+    <MetaFieldToggleList
+      class="meta-field-board__list"
+      :rows="rows"
+      :all-meta="allMeta"
+      @pin="$emit('pin-meta', $event)"
+      @unpin="onUnpin"
+      @reorder="onReorder"
+      @toggle-show="onToggleShow"
+      @create-field="$emit('create-field')"
+    />
 
-        <div class="text-caption text-medium-emphasis mb-3">
-          <v-icon size="14" start>mdi-gesture-tap</v-icon>
-          {{ t('meta.settings.assignment_fields_add_hint') }}
-        </div>
-
-        <MetaFieldPool
-          :items="allMeta"
-          :exclude-ids="pinnedMetaIds"
-          drag-group="meta-fields-assign"
-          :compact="true"
-          :empty-text="t('meta.settings.all_meta_pinned')"
-          @select="requestPinMeta"
-        />
-      </aside>
-
-      <main class="meta-assignment-board__target">
-        <div class="meta-assignment-board__target-header text-caption text-medium-emphasis mb-2">
-          {{ t('meta.settings.assigned_fields') }}
-        </div>
-
-        <MediaTypePreviewCard
-          v-if="anchorMediaType"
-          :media-type="anchorMediaType"
-          :is-pinned="true"
-          hero
-          editable
-          :pinned-items="pinnedItems"
-          :show-visibility-toggle="true"
-          drag-group="meta-fields-assign"
-          @items-change="onPinnedMetaChange"
-          @unpin="requestUnpinMeta"
-          @toggle-show="$emit('toggle-show', $event)"
-        />
-
-        <div v-if="pinnedItems.length" class="text-caption text-medium-emphasis mt-3">
-          <v-icon size="14" start>mdi-drag</v-icon>
-          {{ t('meta.settings.drag_to_reorder_or_remove') }}
-        </div>
-      </main>
-    </div>
+    <MetaCardPreview
+      class="meta-field-board__preview"
+      :icon="anchorMediaType?.icon || 'folder'"
+      :title="t('meta.settings.media_card_preview_sample_name')"
+      :fields="previewFields"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
-import MediaTypePreviewCard from './MediaTypePreviewCard.vue'
-import MetaFieldPool from './MetaFieldPool.vue'
+import MetaFieldToggleList from './MetaFieldToggleList.vue'
+import type {MetaToggleRow} from './MetaFieldToggleList.vue'
+import MetaCardPreview from './MetaCardPreview.vue'
 import type {
   MediaType,
   Meta,
@@ -92,44 +52,31 @@ const emit = defineEmits<{
 
 const {t} = useI18n()
 
-const pinnedMetaIds = computed(() => props.pinnedItems.map((i) => i.metaId))
+const isShown = (item: MetaInMediaTypeRow) => !(item.show === 0 || item.show === false)
 
-const findAddedMeta = (next: MetaInMediaTypeRow[], prev: MetaInMediaTypeRow[]) => {
-  const prevIds = new Set(prev.map((item) => item.metaId))
-  return next.find((item) => !prevIds.has(item.metaId))
-}
+const rows = computed((): MetaToggleRow[] =>
+  props.pinnedItems.map((item) => ({id: item.metaId, meta: item.meta, show: isShown(item)}))
+)
 
-const findRemovedMeta = (next: MetaInMediaTypeRow[], prev: MetaInMediaTypeRow[]) => {
-  const nextIds = new Set(next.map((item) => item.metaId))
-  return prev.find((item) => !nextIds.has(item.metaId))
-}
+const previewFields = computed(() =>
+  rows.value.map((row) => ({id: row.id, icon: row.meta?.icon, name: row.meta?.name, type: row.meta?.type, hidden: !row.show}))
+)
 
-const onPinnedMetaChange = (next: MetaInMediaTypeRow[]) => {
-  const prev = props.pinnedItems
+const findItem = (metaId: number) => props.pinnedItems.find((item) => item.metaId === metaId)
 
-  if (next.length > prev.length) {
-    const added = findAddedMeta(next, prev)
-    if (added?.metaId) {
-      emit('reorder', next)
-      return
-    }
-    if (added) {
-      emit('pin-meta', added as unknown as Meta)
-    }
-    return
-  }
-
-  if (next.length < prev.length) {
-    const removed = findRemovedMeta(next, prev)
-    if (removed) emit('unpin-meta', removed)
-    return
-  }
-
-  emit('reorder', next)
-}
-
-const requestPinMeta = (meta: Meta) => emit('pin-meta', meta)
-const requestUnpinMeta = (item?: MetaInMediaTypeRow) => {
+const onUnpin = (metaId: number) => {
+  const item = findItem(metaId)
   if (item) emit('unpin-meta', item)
+}
+
+const onToggleShow = (metaId: number) => {
+  const item = findItem(metaId)
+  if (item) emit('toggle-show', item)
+}
+
+const onReorder = (ids: number[]) => {
+  const byId = new Map(props.pinnedItems.map((item) => [item.metaId, item]))
+  const next = ids.map((id) => byId.get(id)).filter((item): item is MetaInMediaTypeRow => !!item)
+  emit('reorder', next)
 }
 </script>

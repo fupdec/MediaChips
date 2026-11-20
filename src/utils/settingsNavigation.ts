@@ -360,6 +360,24 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     ]
   },
   {
+    "key": "field_pinning",
+    "icon": "mdi-pin-outline",
+    "elementId": "settings-meta-assignment",
+    "tab": "library",
+    "titleKey": "settings_labels.field_pinning.title",
+    "searchKeys": [
+      "settings_labels.field_pinning.assigned_fields_count",
+      "settings_labels.field_pinning.child_fields_count",
+      "settings_labels.field_pinning.hint",
+      "settings_labels.field_pinning.no_tag_categories",
+      "settings_labels.field_pinning.select_media_type",
+      "settings_labels.field_pinning.select_tag_category",
+      "settings_labels.field_pinning.title",
+      "settings_labels.field_pinning.view_by_media",
+      "settings_labels.field_pinning.view_by_tags"
+    ]
+  },
+  {
     "key": "meta",
     "icon": "mdi-shape-outline",
     "elementId": "settings-meta",
@@ -434,24 +452,6 @@ export const SETTINGS_SECTIONS: SettingsSectionDefinition[] = [
     "titleKey": "settings.tabs.media",
     "searchKeys": [
       "settings.tabs.media"
-    ]
-  },
-  {
-    "key": "field_pinning",
-    "icon": "mdi-pin-outline",
-    "elementId": "settings-meta-assignment",
-    "tab": "library",
-    "titleKey": "settings_labels.field_pinning.title",
-    "searchKeys": [
-      "settings_labels.field_pinning.assigned_fields_count",
-      "settings_labels.field_pinning.child_fields_count",
-      "settings_labels.field_pinning.hint",
-      "settings_labels.field_pinning.no_tag_categories",
-      "settings_labels.field_pinning.select_media_type",
-      "settings_labels.field_pinning.select_tag_category",
-      "settings_labels.field_pinning.title",
-      "settings_labels.field_pinning.view_by_media",
-      "settings_labels.field_pinning.view_by_tags"
     ]
   },
   {

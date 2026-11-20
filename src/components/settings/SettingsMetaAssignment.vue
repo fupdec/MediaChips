@@ -36,37 +36,25 @@
 
     <div v-else class="settings-meta-assignment__layout">
       <aside class="settings-meta-assignment__sidebar">
-        <v-list
-          v-model:selected="selectedIds"
-          select-strategy="single-independent"
-          class="settings-meta-assignment__list"
-          color="primary"
-          density="compact"
-          nav
-        >
-          <v-list-item
+        <nav class="assignment-nav" :aria-label="navTitle">
+          <button
             v-for="item in listItems"
             :key="item.id"
-            :value="item.id"
-            rounded="md"
-            class="settings-meta-assignment__list-item"
+            type="button"
+            class="assignment-nav__item"
+            :class="{'assignment-nav__item--active': selectedIds[0] === item.id}"
+            :aria-current="selectedIds[0] === item.id ? 'true' : undefined"
+            @click="selectedIds = [item.id]"
           >
-            <template #prepend>
-              <v-icon size="16">mdi-{{ item.icon }}</v-icon>
-            </template>
-
-            <v-list-item-title class="text-caption">{{ item.title }}</v-list-item-title>
-
-            <template #append>
-              <span
-                class="text-caption text-medium-emphasis settings-meta-assignment__count"
-                :title="item.pinnedCountHint"
-              >
-                {{ item.pinnedCount }}
-              </span>
-            </template>
-          </v-list-item>
-        </v-list>
+            <v-icon size="18" class="assignment-nav__icon">mdi-{{ item.icon || 'shape' }}</v-icon>
+            <span class="assignment-nav__title">{{ item.title }}</span>
+            <span
+              class="assignment-nav__count"
+              :class="{'assignment-nav__count--empty': !item.pinnedCount}"
+              :title="item.pinnedCountHint"
+            >{{ item.pinnedCount }}</span>
+          </button>
+        </nav>
       </aside>
 
       <main class="settings-meta-assignment__panel">
@@ -178,6 +166,12 @@ const listItems = computed((): AssignmentListItem[] => {
 })
 
 const hasItems = computed(() => listItems.value.length > 0)
+
+const navTitle = computed(() =>
+  viewMode.value === 'media'
+    ? t('settings_labels.field_pinning.view_by_media')
+    : t('settings_labels.field_pinning.view_by_tags')
+)
 
 const selectedItem = computed(() => {
   const id = selectedIds.value[0]
