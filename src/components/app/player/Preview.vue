@@ -86,7 +86,11 @@ watch(() => playerStore.media?.id, () => {
   lastHover.value = null
 })
 
-const useTimelineFrames = computed(() => playerStore.usesLiveTranscode && !playerStore.isWebVideo)
+// A hidden <video> cannot seek reliably over a copy/network stream (it keeps showing the
+// same frame), so copy sources use the library grid sprite, like live transcode does.
+const useTimelineFrames = computed(() =>
+  (playerStore.usesLiveTranscode || playerStore.usesCopySource) && !playerStore.isWebVideo,
+)
 
 const aspectRatio = computed(() =>
   getPlayerPreviewAspectRatio(playerStore.playlist, playerStore.nowPlaying),

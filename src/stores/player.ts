@@ -130,6 +130,10 @@ export const usePlayerStore = defineStore('player', {
     isWebVideo(state): boolean {
       return isRemoteMediaPath(state.media?.path)
     },
+    /** Played through the verified-copies stream (Drive/NAS/cloud or a local copy), not the original file. */
+    usesCopySource(state): boolean {
+      return Boolean(state.media?.hasCopies)
+    },
     isKeyboardBlocked(state): boolean {
       return Object.keys(state.keyboardBlockers).length > 0
     },
