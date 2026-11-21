@@ -4013,6 +4013,7 @@ const en = {
       duplicate_review_selection_count: 'Selected cards: {count}',
       duplicate_review_unavailable_copies: 'File unavailable now — kept as a backup copy; it will be re-checked when it returns',
       duplicate_review_loading: 'Scanning for duplicates…',
+      duplicate_review_stopped: 'Search stopped.',
       duplicate_review_open: 'Review duplicates',
       duplicate_review_with_file: 'Also delete loser files on disk',
       duplicate_review_bulk_done: 'Merged {count} group(s)',

@@ -3344,6 +3344,7 @@ const de = {
       duplicate_review_selection_count: 'Ausgewählte Karten: {count}',
       duplicate_review_unavailable_copies: 'Datei derzeit nicht verfügbar — als Ersatzkopie behalten; sie wird geprüft, sobald sie wieder da ist',
       duplicate_review_loading: 'Duplikate werden gesucht…',
+      duplicate_review_stopped: 'Suche gestoppt.',
       duplicate_review_open: 'Überprüfen Sie Duplikate',
       duplicate_review_with_file: 'Löschen Sie auch Loser-Dateien auf der Festplatte',
       duplicate_review_bulk_done: 'Zusammengeführte {count}-Gruppe(n)',

@@ -284,8 +284,8 @@ export const mediaApi = {
     return apiClient.post<MergeMediaResult>(API_ROUTES.mediaMerge, body, {timeout: 30 * 60_000})
   },
 
-  getMediaDuplicateGroups(body: MediaDuplicateGroupsPayload) {
-    return apiClient.post<MediaDuplicateGroupsResult>(API_ROUTES.mediaDuplicateGroups, body)
+  getMediaDuplicateGroups(body: MediaDuplicateGroupsPayload, signal?: AbortSignal) {
+    return apiClient.post<MediaDuplicateGroupsResult>(API_ROUTES.mediaDuplicateGroups, body, {signal})
   },
 
   getMarksForVideo(id: number) {

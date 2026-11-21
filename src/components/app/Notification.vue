@@ -8,7 +8,7 @@
     class="notification"
     :class="[swipeClass, {'notification--clickable': Boolean(notificationClick), 'notification--history': isHidden}]"
     :style="notificationSwipeStyle"
-    :elevation="isHidden ? 0 : 9"
+    :elevation="isHidden ? 0 : 3"
   >
     <v-btn :color="notification.color" class="notification__icon" variant="tonal" icon>
       <v-icon>mdi-{{ notification.icon }}</v-icon>

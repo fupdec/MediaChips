@@ -4013,6 +4013,7 @@ const ru = {
       duplicate_review_selection_count: 'Выбрано карточек: {count}',
       duplicate_review_unavailable_copies: 'Файл сейчас недоступен — сохранён как запасная копия и будет проверен, когда появится',
       duplicate_review_loading: 'Поиск дубликатов…',
+      duplicate_review_stopped: 'Поиск остановлен.',
       duplicate_review_open: 'Просмотр дубликатов',
       duplicate_review_with_file: 'Также удалить файлы проигравших на диске',
       duplicate_review_bulk_done: 'Объединено групп: {count}',

@@ -3344,6 +3344,7 @@ const cn = {
       duplicate_review_selection_count: '已选卡片：{count}',
       duplicate_review_unavailable_copies: '文件当前不可用 — 已保留为备用副本，恢复后将重新校验',
       duplicate_review_loading: '正在扫描重复项…',
+      duplicate_review_stopped: '搜索已停止。',
       duplicate_review_open: '检查重复项',
       duplicate_review_with_file: '同时删除磁盘上的失败文件',
       duplicate_review_bulk_done: '合并的 {count} 组',

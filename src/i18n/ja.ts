@@ -3344,6 +3344,7 @@ const ja = {
       duplicate_review_selection_count: '選択したカード: {count}',
       duplicate_review_unavailable_copies: 'ファイルは現在利用できません — 予備コピーとして保持し、戻ったときに確認します',
       duplicate_review_loading: '重複を検索中…',
+      duplicate_review_stopped: '検索を停止しました。',
       duplicate_review_open: '重複をレビューする',
       duplicate_review_with_file: 'ディスク上の敗者ファイルも削除します',
       duplicate_review_bulk_done: '{count} グループを結合しました',

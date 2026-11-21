@@ -18,7 +18,7 @@ Updated 2026-11-22 against the code and the CHANGELOG (most of this shipped in 1
 | Inline edit in Inspector | Done | Rating, favorite, tags and pinned metadata; view/edit toggle, auto-save on item switch. Thumbs and scrapers still use the full editor |
 | Empty states → CTAs | Done | Media/tags/playlists/markers + Home Similar/Spotlight/Calendar + Inbox empty → one primary next step |
 | Saved views (filter+sort+group+card) | Done | Store filters, sort, group-by, card size and the AND/OR join; chips live in the filters panel under Presets |
-| Created-at calendar | Partial | `WidgetCreatedCalendar` on Home; no calendar/timeline view inside the media list |
+| Created-at calendar | Done | `WidgetCreatedCalendar` on Home only; deliberately no calendar inside the media list toolbar |
 | Review / keyboard tagging | Done | Fullscreen Review mode: digits rate, F favorite, Q–O pinned tags, arrows/HJKL move; Inbox handoff (D = done & next) |
 | Home Similar + Continue | Done | CLIP-neighbor widget with Continue exclusions and a context-menu entry |
 | Auto-collections | Partial | Group-by + smart playlists; no auto entities from path / date / duration |
@@ -71,12 +71,12 @@ New visual layer — calendar/timeline, not just another sort key.
 
 ## Top-5 (in order)
 
-Items 1, 2, 3 and 5 are shipped (see the status table). What is left:
+Items 1–5 are shipped (see the status table). What is left:
 
 1. ~~Library setup wizard~~ — done
 2. ~~New media Inbox~~ — done
 3. ~~Review / keyboard tagging~~ — done
-4. **Created-at calendar** — extend the Home widget into a calendar/timeline view in the media list
+4. ~~Created-at calendar~~ — done as a Home widget only
 5. ~~Command palette + empty-state CTAs~~ — done
 6. **Auto-collections** — from path / date / duration, without manual smart-playlist setup
 

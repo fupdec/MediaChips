@@ -78,7 +78,7 @@
         >
           <v-icon size="40" icon="mdi-check-circle-outline"/>
           <div class="text-body-2">
-            {{ dialogsStore.duplicateReview.targetMediaIds != null
+            {{ stopped ? t('media.dialogs.duplicate_review_stopped') : dialogsStore.duplicateReview.targetMediaIds != null
               ? t('media.dialogs.duplicate_review_targets_empty')
               : dialogsStore.duplicateReview.targetMediaId != null
                 ? t('media.dialogs.duplicate_review_target_empty')
@@ -384,6 +384,7 @@ const notificationsStore = useNotificationsStore()
 const listSync = useItemsListSync()
 
 const loading = ref(false)
+const stopped = ref(false)
 const merging = ref(false)
 const policy = computed(() => parseDuplicatePolicy(useSettingsStore().duplicateSimilarityPolicy))
 const isSimilarity = computed(() => duplicatesBy.value === 'similarity')
@@ -420,9 +421,7 @@ const visibleGroups = computed(() =>
 )
 
 const headerSub = computed(() => {
-  if (loading.value) {
-    return t('media.dialogs.duplicate_review_loading')
-  }
+  if (loading.value) return modeLabel.value
   const targetName = dialogsStore.duplicateReview.targetName
   const targetMediaIds = dialogsStore.duplicateReview.targetMediaIds
   if (targetMediaIds != null) {
@@ -441,6 +440,14 @@ const headerSub = computed(() => {
 })
 
 const headerButtons = computed(() => [
+  ...(loading.value ? [{
+    icon: 'stop',
+    text: t('common.stop'),
+    color: 'error',
+    outlined: true,
+    order: 0,
+    action: stopSearch,
+  }] : []),
   {
     icon: 'set-merge',
     text: t('media.dialogs.duplicate_review_merge_all'),
@@ -820,8 +827,21 @@ function preferExistingSurvivors() {
   })
 }
 
+let searchAbort: AbortController | null = null
+
+/** Cancels the running search; the dialog stays open with an empty list so it can be refreshed or closed. */
+function stopSearch() {
+  stopped.value = true
+  searchAbort?.abort()
+}
+
 async function reload(automatic = false) {
+  searchAbort?.abort()
+  const abort = new AbortController()
+  searchAbort = abort
+  const {signal} = abort
   loading.value = true
+  stopped.value = false
   error.value = ''
   try {
     const mediaTypeId = Number(
@@ -836,10 +856,12 @@ async function reload(automatic = false) {
       filtersJoin: dialogsStore.duplicateReview.filtersJoin ?? undefined,
       targetMediaId: dialogsStore.duplicateReview.targetMediaId,
       targetMediaIds: dialogsStore.duplicateReview.targetMediaIds,
-    })
+    }, signal)
+    if (signal.aborted) return
     const rawGroups = Array.isArray(res.data?.groups) ? res.data.groups : []
     const allIds = [...new Set(rawGroups.flatMap((group) => group.itemIds.map(Number)))]
     const basics = await loadBasicsByIds(allIds)
+    if (signal.aborted) return
     const byId = new Map(basics.map((item) => [Number(item.id), item]))
 
     groups.value = rawGroups
@@ -868,8 +890,10 @@ async function reload(automatic = false) {
       loadThumbsForItems(flatItems),
       checkFilesForItems(flatItems),
     ])
+    if (signal.aborted) return
     if (!isSimilarity.value) preferExistingSurvivors()
   } catch (err) {
+    if (signal.aborted) return
     console.error(err)
     groups.value = []
     thumbs.value = {}
@@ -877,8 +901,12 @@ async function reload(automatic = false) {
     const message = getErrorResponseData<{message?: string}>(err)?.message || (err instanceof Error ? err.message : String(err))
     error.value = message === 'similarity_scope_too_large' ? t('duplicateSimilarity.scopeTooLarge') : message === 'similarity_threshold_not_met' ? t('duplicateSimilarity.thresholdFailed') : message
   } finally {
-    loading.value = false
+    if (searchAbort === abort) {
+      loading.value = false
+      searchAbort = null
+    }
   }
+  if (signal.aborted) return
   // Auto-merge belongs to library-wide maintenance runs, not to cards opened from their context menu.
   const singleCard = dialogsStore.duplicateReview.targetMediaId != null
     || dialogsStore.duplicateReview.targetMediaIds != null
@@ -1199,8 +1227,18 @@ watch(
   overflow: hidden;
 }
 
+/* An animation, not a transition: cards are mounted after the file check, already marked no-file. */
 .dup-review-thumb.no-file > :not(.dup-review-keep-badge) {
+  filter: grayscale(1);
   opacity: 0.45;
+  animation: dup-review-thumb-fade 1.2s ease-out 0.15s backwards;
+}
+
+@keyframes dup-review-thumb-fade {
+  from {
+    filter: grayscale(0);
+    opacity: 1;
+  }
 }
 
 .dup-review-thumb img,

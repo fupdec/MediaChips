@@ -3344,6 +3344,7 @@ const es = {
       duplicate_review_selection_count: 'Tarjetas seleccionadas: {count}',
       duplicate_review_unavailable_copies: 'Archivo no disponible ahora: se guardó como copia de respaldo y se comprobará cuando vuelva',
       duplicate_review_loading: 'Buscando duplicados…',
+      duplicate_review_stopped: 'Búsqueda detenida.',
       duplicate_review_open: 'Revisar duplicados',
       duplicate_review_with_file: 'También elimine los archivos perdedores en el disco.',
       duplicate_review_bulk_done: 'Grupo(s) {count} fusionados',

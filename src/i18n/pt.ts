@@ -3344,6 +3344,7 @@ const pt = {
       duplicate_review_selection_count: 'Cartões selecionados: {count}',
       duplicate_review_unavailable_copies: 'Arquivo indisponível agora — mantido como cópia de reserva; será verificado quando voltar',
       duplicate_review_loading: 'Procurando duplicatas…',
+      duplicate_review_stopped: 'Pesquisa interrompida.',
       duplicate_review_open: 'Revise duplicatas',
       duplicate_review_with_file: 'Exclua também os arquivos perdidos do disco',
       duplicate_review_bulk_done: 'Grupo(s) {count} mesclado(s)',
