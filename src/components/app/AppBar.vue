@@ -72,6 +72,7 @@
             min-width="180"
           >
             <v-list-item
+              v-if="advancedUi"
               :disabled="route.path === '/tag'"
               link
               prepend-icon="mdi-tab"
@@ -79,7 +80,7 @@
               @click="runFromMoreMenu(createTab)"
             />
             <v-list-item
-              v-if="itemsStore.type == 'tag'"
+              v-if="advancedUi && itemsStore.type == 'tag'"
               link
               prepend-icon="mdi-wrench-cog"
               :title="t('appbar.buttons.edit_meta')"
@@ -93,6 +94,7 @@
               @click="runFromMoreMenu(openRandomItem)"
             />
             <v-list-item
+              v-if="advancedUi"
               :disabled="itemsStore.entities.length == 0"
               link
               prepend-icon="mdi-card-search-outline"
@@ -100,7 +102,7 @@
               @click="runFromMoreMenu(openReviewFromMenu)"
             />
             <v-list-item
-              v-if="itemsStore.type === 'media'"
+              v-if="advancedUi && itemsStore.type === 'media'"
               link
               class="pr-2"
             >
@@ -200,7 +202,7 @@
         <div class="mr-1">
           <GlobalSearch/>
         </div>
-        <MediaTrash/>
+        <MediaTrash v-if="advancedUi"/>
         <DialogChangeHistory v-if="settingsStore.showHistoryInAppBar === '1'">
           <template #activator="{open}">
             <v-btn class="history-toolbar-trigger" icon :title="t('change_history.title')" :aria-label="t('change_history.title')" @click="open">
@@ -269,6 +271,8 @@ const DialogTabEditing = defineAsyncComponent(() => import('@/components/dialogs
 
 /* Stores */
 const settingsStore = useSettingsStore()
+// Simple mode keeps only the everyday actions in the top bar; the rest is in the advanced interface.
+const advancedUi = computed(() => settingsStore.advancedUi === '1')
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const app = useAppStore()

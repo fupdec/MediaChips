@@ -74,12 +74,12 @@
           <span>{{ ratingBadgeText }}</span>
         </div>
         <ItemRating
-          v-if="!isImageOnlyView && !isListView && settingsStore.ratingAndFavoriteInCard != '1' && is_rating_active"
+          v-if="!isImageOnlyView && !isListView && !ratingFavoriteInCard && is_rating_active"
           :item="item"
           :type="type"
         ></ItemRating>
         <ItemFavorite
-          v-if="!isImageOnlyView && !isListView && settingsStore.ratingAndFavoriteInCard != '1' && is_favorite_active"
+          v-if="!isImageOnlyView && !isListView && !ratingFavoriteInCard && is_favorite_active"
           :item="item"
           :type="type"
         ></ItemFavorite>
@@ -92,7 +92,7 @@
         @dblclick.stop="editItem"
       >
         <div
-          v-if="settingsStore.ratingAndFavoriteInCard == '1' && (is_rating_active || is_favorite_active)"
+          v-if="ratingFavoriteInCard && (is_rating_active || is_favorite_active)"
           class="masonry-meta-overlay__rating"
           @click.stop
         >
@@ -120,6 +120,7 @@
         </div>
 
         <ItemPinnedMeta
+          v-if="advancedUi"
           muted-tags
           :item="item"
           :tags="item.tags"
@@ -141,7 +142,7 @@
         v-ripple="{ class: `text-primary` }"
         class="description"
       >
-        <div v-if="!isListView && settingsStore.ratingAndFavoriteInCard == '1' && (is_rating_active || is_favorite_active)"
+        <div v-if="!isListView && ratingFavoriteInCard && (is_rating_active || is_favorite_active)"
              @click.stop
              class="rating-favorite-in-description">
           <div class="rating-favorite-in-description__left">
@@ -165,13 +166,14 @@
           />
         </div>
         <div
-          v-if="meta?.synonyms && item.synonyms"
+          v-if="advancedUi && !lean && meta?.synonyms && item.synonyms"
           class="px-1 synonyms text-medium-emphasis"
           :title="synonymsPlainText"
           v-html="item.synonyms"
         />
 
         <ItemPinnedMeta
+          v-if="advancedUi && !lean"
           muted-tags
           :item="item"
           :tags="item.tags"
@@ -195,7 +197,7 @@
       </div>
 
       <v-icon
-        v-if="!isImageOnlyView && item.bookmark && settingsStore.show_bookmark_on_card === '1'"
+        v-if="advancedUi && !isImageOnlyView && item.bookmark && settingsStore.show_bookmark_on_card === '1'"
         :title="item.bookmark"
         icon="mdi-bookmark"
         class="bookmark"
@@ -364,6 +366,10 @@ const emit = defineEmits<{
 
 const itemsStore = useItemsStore()
 const settingsStore = useSettingsStore()
+// Simple mode keeps the card to preview + title: rating/favorite appear on hover (the "off"
+// layout of ratingAndFavoriteInCard), and tag chips, synonyms and the bookmark are hidden.
+const advancedUi = computed(() => settingsStore.advancedUi === '1')
+const ratingFavoriteInCard = computed(() => settingsStore.ratingAndFavoriteInCard == '1' && advancedUi.value)
 const dialogsStore = useDialogsStore()
 const appStore = useAppStore()
 const contextMenuStore = useContextMenu()
@@ -412,7 +418,7 @@ const isListView = computed(() => Number(itemsStore.view) === 5)
 const showPreviewRatingBadge = computed(() =>
   !isImageOnlyView.value
   && !isListView.value
-  && settingsStore.ratingAndFavoriteInCard != '1'
+  && !ratingFavoriteInCard.value
   && is_rating_active.value
   && Number(props.item.rating) > 0,
 )

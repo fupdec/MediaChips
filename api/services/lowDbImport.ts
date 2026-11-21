@@ -95,9 +95,11 @@ function importLowDbDataSync(db: ApiDb, obj: LowDbImportObject) {
       return acc
     }, {})
 
-  settingsRepo.bulkUpsertByOptions(
-    Object.entries(filteredOptions).map(([option, value]) => ({option, value})),
-  )
+  settingsRepo.bulkUpsertByOptions([
+    ...Object.entries(filteredOptions).map(([option, value]) => ({option, value})),
+    // Users migrating from the legacy app keep the full interface.
+    {option: 'advancedUi', value: '1'},
+  ])
 
   for (const m of obj.meta) {
     try {

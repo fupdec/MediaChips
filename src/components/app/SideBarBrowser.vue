@@ -12,7 +12,7 @@
       class="sidebar-browser__rail"
     >
       <v-tooltip
-        v-for="link in libraryLinks"
+        v-for="link in railLibraryLinks"
         :key="link.key"
         location="end"
       >
@@ -39,12 +39,12 @@
       </v-tooltip>
 
       <div
-        v-if="metaCategoryLinks.length"
+        v-if="railMetaCategoryLinks.length"
         class="sidebar-browser__rail-divider"
       />
 
       <v-tooltip
-        v-for="link in metaCategoryLinks"
+        v-for="link in railMetaCategoryLinks"
         :key="link.key"
         location="end"
       >
@@ -222,6 +222,7 @@
             <span class="sidebar-section__label">{{ t('navigation.section_library') }}</span>
           </button>
           <div
+            v-if="advancedUi"
             class="sidebar-section__actions"
             :class="{'sidebar-section__actions--pinned': libraryEditMode}"
           >
@@ -267,7 +268,7 @@
               >
                 <template #item="{element: link}">
                   <v-list-item
-                    v-show="libraryEditMode || !link.hidden"
+                    v-show="libraryEditMode || (!link.hidden && !isSimpleHiddenLink(link.key))"
                     :to="libraryEditMode ? undefined : link.to"
                     :title="link.title"
                     :exact="link.exact"
@@ -332,6 +333,72 @@
       </section>
 
       <section
+        v-if="!advancedUi"
+        class="sidebar-browser__group sidebar-browser__more"
+      >
+        <div class="sidebar-section">
+          <button
+            type="button"
+            class="sidebar-section__toggle"
+            :aria-expanded="moreOpen"
+            @click="moreOpen = !moreOpen"
+          >
+            <v-icon
+              size="14"
+              class="sidebar-section__chevron"
+              :class="{'sidebar-section__chevron--closed': !moreOpen}"
+            >
+              mdi-chevron-down
+            </v-icon>
+            <span class="sidebar-section__label">{{ t('navigation.more') }}</span>
+          </button>
+        </div>
+
+        <v-expand-transition>
+          <div v-show="moreOpen">
+            <v-list
+              nav
+              density="compact"
+              class="sidebar-browser__nav"
+            >
+              <v-list-item
+                :to="allTagsLink.to"
+                :title="allTagsLink.title"
+                :exact="allTagsLink.exact"
+                :active="isAllTagsActive"
+                color="primary"
+                link
+              >
+                <template #prepend>
+                  <v-icon
+                    :icon="allTagsLink.icon"
+                    size="20"
+                  />
+                </template>
+              </v-list-item>
+              <v-list-item
+                v-if="simpleMarkersLink"
+                :to="simpleMarkersLink.to"
+                :title="simpleMarkersLink.title"
+                :exact="simpleMarkersLink.exact"
+                :active="isNavLinkActive(simpleMarkersLink)"
+                color="primary"
+                link
+              >
+                <template #prepend>
+                  <v-icon
+                    :icon="simpleMarkersLink.icon"
+                    size="20"
+                  />
+                </template>
+              </v-list-item>
+            </v-list>
+          </div>
+        </v-expand-transition>
+      </section>
+
+      <section
+        v-if="advancedUi"
         class="sidebar-browser__group sidebar-browser__tags"
         :class="{'sidebar-browser__tags--closed': !tagsOpen}"
       >
@@ -570,6 +637,15 @@ const railWidth = 52
 
 const collapsed = computed(() => settingsStore.sidebarCollapsed === '1')
 
+// Simple mode keeps the sidebar to the essentials: tag categories, library editing and
+// markers are for the advanced interface. All tags and markers stay one click away under "More".
+const advancedUi = computed(() => settingsStore.advancedUi === '1')
+const SIMPLE_HIDDEN_LIBRARY_KEYS = ['markers']
+function isSimpleHiddenLink(key: string): boolean {
+  return !advancedUi.value && SIMPLE_HIDDEN_LIBRARY_KEYS.includes(key)
+}
+const moreOpen = ref(false)
+
 const LIBRARY_OPEN_STORAGE_KEY = 'mediachips.sidebarLibraryOpen'
 
 function readLibraryOpen(): boolean {
@@ -652,6 +728,9 @@ const {
 const metaCategoryLinks = computed(() =>
   metaVisibleLeaves.value.map((meta) => metaLink(meta)),
 )
+const railMetaCategoryLinks = computed(() => (advancedUi.value ? metaCategoryLinks.value : []))
+const railLibraryLinks = computed(() => libraryLinks.value.filter((link) => !isSimpleHiddenLink(link.key)))
+const simpleMarkersLink = computed(() => libraryLinks.value.find((link) => link.key === 'markers'))
 
 function libraryEditItemsEqual(a: LibraryNavEditItem[], b: LibraryNavEditItem[]): boolean {
   if (a.length !== b.length) return false
@@ -986,6 +1065,15 @@ watch(
   padding: 8px 8px 6px;
   border-bottom: 1px solid var(--sb-border);
   scrollbar-width: thin;
+}
+
+.sidebar-browser__more {
+  flex-shrink: 0;
+  padding: 4px 8px 8px;
+
+  > .sidebar-section {
+    margin-bottom: 4px;
+  }
 }
 
 /* Tags take the remaining height; only the tag tree scrolls, Library stays put */

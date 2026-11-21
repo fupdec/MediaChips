@@ -5,7 +5,7 @@
         <SettingsSearch :items="searchItems" @select="openSearchResult"/>
         <SettingsNav
           v-model="tab"
-          :items="navItems"
+          :items="visibleNavItems"
           class="settings-page-layout__nav"
         />
       </aside>
@@ -257,6 +257,7 @@ import SettingsAppearanceImageViewer
 import SettingsSfwMode
   from "@/components/settings/appearance/SettingsSfwMode.vue"
 import {usePluginsStore} from "@/stores/plugins"
+import {useSettingsStore} from "@/stores/settings"
 import {markerMomentsAutoRefresh, markerMomentsEnabled} from '@/services/markerMomentPreferences'
 import {LOCAL_AI_UI_ENABLED} from "@shared/features"
 
@@ -353,6 +354,15 @@ const pluginNavItems = computed((): SettingsNavItem[] => {
 })
 
 const navItems = computed((): SettingsNavItem[] => [...CORE_SETTINGS_TABS, ...pluginNavItems.value])
+
+// Simple mode shows only the sections needed for everyday use. Every section stays
+// reachable (deep links, search, the "Advanced features" switch), so `navItems` stays complete.
+const settingsStore = useSettingsStore()
+const SIMPLE_SETTINGS_TABS = ['general', 'appearance', 'library', 'connections', 'about']
+const visibleNavItems = computed((): SettingsNavItem[] => {
+  if (settingsStore.advancedUi === '1') return navItems.value
+  return navItems.value.filter(item => SIMPLE_SETTINGS_TABS.includes(item.value) || item.value === tab.value)
+})
 
 const panelsForActiveTab = computed(() => pluginsStore.settingsPanels.filter(panel => settingsPanelTab(panel) === tab.value))
 

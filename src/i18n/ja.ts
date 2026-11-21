@@ -680,6 +680,7 @@ const ja = {
     done_editing_menu: '完了',
     reorder_library_hint: 'ドラッグして並べ替えます。目のアイコンでナビゲーションから非表示にできます。',
     reorder_library_item: 'ドラッグして並べ替え',
+    more: 'その他',
   },
   commandPalette: {
     title: 'コマンドパレット',
@@ -1418,6 +1419,8 @@ const ja = {
   },
   onboarding: {
     title: 'はじめる',
+    simple_mode_title: "シンプル表示",
+    simple_mode_note: "現在はシンプル表示で、基本的な機能だけが表示されています。すべての機能を見るには、設定 → 一般で「高度な機能」をオンにしてください。",
     step_counter: 'ステップ {current}/{total}',
     skip: 'スキップ',
     back: '戻る',
@@ -2102,6 +2105,8 @@ const ja = {
       count_views_hint: 'メディア、タグ、またはカテゴリー ページが開かれるとビューが追加されます',
       startup_health_notifications: 'ライブラリ健全性の自動チェック',
       startup_health_notifications_hint: '起動時とホームウィジェットで、保留中のメンテナンス（フィンガープリント、コーデック、タグ画像アップグレードなど）を通知します。オフにすると手動チェックのみになります。',
+      advanced_ui: '高度な機能',
+      advanced_ui_hint: 'タグカテゴリ、タイムラインのマーカー、タブ、条件付きフィルター、ライブラリのメンテナンスを表示します。通常の使用には不要です。',
       minimize_to_tray: 'システムトレイにアイコンを表示',
       minimize_to_tray_hint: '有効にすると、アプリの実行中に通知領域にアイコンが表示されます。ウィンドウを閉じると、アプリは終了するのではなくトレイに非表示になります。',
       language: '言語',

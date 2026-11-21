@@ -680,6 +680,7 @@ const es = {
     done_editing_menu: 'Hecho',
     reorder_library_hint: 'Arrastra para reordenar. Usa el icono de ojo para ocultar de la navegación.',
     reorder_library_item: 'Arrastra para reordenar',
+    more: 'Más',
   },
   commandPalette: {
     title: 'Paleta de comandos',
@@ -1418,6 +1419,8 @@ const es = {
   },
   onboarding: {
     title: 'Primeros pasos',
+    simple_mode_title: "Vista simplificada",
+    simple_mode_note: "Ahora la aplicación muestra una vista simplificada con lo básico. Para ver todas las funciones, activa «Funciones avanzadas» en Ajustes → General.",
     step_counter: 'Paso {current} de {total}',
     skip: 'Omitir',
     back: 'Atrás',
@@ -2102,6 +2105,8 @@ const es = {
       count_views_hint: 'Las vistas se agregan cuando se abre un medio, una etiqueta o una página de categoría',
       startup_health_notifications: 'Comprobaciones automáticas de salud de la biblioteca',
       startup_health_notifications_hint: 'Al iniciar y en el widget de inicio: alertas de mantenimiento pendiente (huellas, códecs, mejora de imágenes de etiquetas, etc.). Desactívelo para comprobar solo manualmente.',
+      advanced_ui: 'Funciones avanzadas',
+      advanced_ui_hint: 'Mostrar categorías de etiquetas, marcadores en la línea de tiempo, pestañas, filtros con condiciones y mantenimiento de la biblioteca. No son necesarias para el uso diario.',
       minimize_to_tray: 'Mostrar icono en la bandeja del sistema',
       minimize_to_tray_hint: 'Cuando está activado, aparece un icono junto al reloj mientras la aplicación está en ejecución. Al cerrar la ventana, la aplicación se oculta en la bandeja en lugar de salir.',
       language: 'Idioma',

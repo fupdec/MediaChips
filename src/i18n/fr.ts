@@ -680,6 +680,7 @@ const fr = {
     done_editing_menu: 'Terminé',
     reorder_library_hint: 'Faites glisser pour réorganiser. Utilisez l’icône en forme d’œil pour masquer de la navigation.',
     reorder_library_item: 'Faire glisser pour réorganiser',
+    more: 'Plus',
   },
   commandPalette: {
     title: 'Palette de commandes',
@@ -1418,6 +1419,8 @@ const fr = {
   },
   onboarding: {
     title: 'Commencer',
+    simple_mode_title: "Affichage simplifié",
+    simple_mode_note: "L’application utilise actuellement un affichage simplifié avec l’essentiel. Pour voir toutes les fonctions, activez « Fonctions avancées » dans Paramètres → Général.",
     step_counter: 'Étape {current} sur {total}',
     skip: 'Sauter',
     back: 'Retour',
@@ -2102,6 +2105,8 @@ const fr = {
       count_views_hint: 'Les vues sont ajoutées lorsque la page de média, de balise ou de catégorie est ouverte',
       startup_health_notifications: 'Vérifications automatiques de santé de la bibliothèque',
       startup_health_notifications_hint: 'Au démarrage et sur le widget d’accueil : alertes de maintenance en attente (empreintes, codecs, mise à niveau des images de tags, etc.). Désactivez pour vérifier uniquement manuellement.',
+      advanced_ui: 'Fonctions avancées',
+      advanced_ui_hint: 'Afficher les catégories de tags, les repères sur la timeline, les onglets, les filtres avec conditions et la maintenance de la bibliothèque. Inutile pour un usage courant.',
       minimize_to_tray: 'Afficher l\'icône dans la barre d\'état système',
       minimize_to_tray_hint: 'Lorsqu\'elle est activée, une icône apparaît dans la zone de notification pendant l\'exécution de l\'application. La fermeture de la fenêtre masque l\'application dans la barre d\'état au lieu de la quitter.',
       language: 'Langue',

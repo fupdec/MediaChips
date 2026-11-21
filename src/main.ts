@@ -119,14 +119,16 @@ router.isReady().then(async () => {
 
   app.mount('#app')
 
+  // Console helper (all builds): window.__openOnboarding() reopens the welcome dialog.
+  import('@/composable/useOnboarding').then(({openOnboarding}) => {
+    ;(window as Window & {__openOnboarding?: () => void}).__openOnboarding = openOnboarding
+  })
+
   void import('@/services/registerPwa').then(({registerPwa}) => {
     void registerPwa()
   })
 
   if (import.meta.env.DEV) {
-    import('@/composable/useOnboarding').then(({openOnboarding}) => {
-      ;(window as Window & {__openOnboarding?: () => void}).__openOnboarding = openOnboarding
-    })
     import('@/utils/devTestNotifications').then(({fireTestNotifications}) => {
       ;(window as Window & {__testToasts?: () => void}).__testToasts = fireTestNotifications
     })

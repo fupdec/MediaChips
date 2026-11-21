@@ -680,6 +680,7 @@ const de = {
     done_editing_menu: 'Fertig',
     reorder_library_hint: 'Zum Neuanordnen ziehen. Mit dem Auge aus der Navigation ausblenden.',
     reorder_library_item: 'Zum Neuanordnen ziehen',
+    more: 'Mehr',
   },
   commandPalette: {
     title: 'Befehlspalette',
@@ -1418,6 +1419,8 @@ const de = {
   },
   onboarding: {
     title: 'Erste Schritte',
+    simple_mode_title: "Vereinfachte Ansicht",
+    simple_mode_note: "Die App zeigt derzeit eine vereinfachte Ansicht mit den wichtigsten Funktionen. Um alle Funktionen zu sehen, aktivieren Sie „Erweiterte Funktionen“ unter Einstellungen → Allgemein.",
     step_counter: 'Schritt {current} von {total}',
     skip: 'Überspringen',
     back: 'Zurück',
@@ -2102,6 +2105,8 @@ const de = {
       count_views_hint: 'Ansichten werden hinzugefügt, wenn die Medien-, Tag- oder Kategorieseite geöffnet wird',
       startup_health_notifications: 'Automatische Bibliotheks-Gesundheitsprüfung',
       startup_health_notifications_hint: 'Beim Start und im Home-Widget: Hinweise zu ausstehender Wartung (Fingerprints, Codecs, Tag-Bild-Upgrade usw.). Deaktivieren, um nur manuell zu prüfen.',
+      advanced_ui: 'Erweiterte Funktionen',
+      advanced_ui_hint: 'Tag-Kategorien, Zeitleisten-Marker, Tabs, Filter mit Bedingungen und Bibliothekswartung anzeigen. Für den normalen Gebrauch nicht nötig.',
       minimize_to_tray: 'Symbol in der Taskleiste anzeigen',
       minimize_to_tray_hint: 'Wenn diese Option aktiviert ist, wird im Benachrichtigungsbereich ein Symbol angezeigt, während die App ausgeführt wird. Wenn Sie das Fenster schließen, wird die App in der Taskleiste ausgeblendet, anstatt sie zu beenden.',
       language: 'Sprache',

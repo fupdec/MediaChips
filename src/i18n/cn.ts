@@ -680,6 +680,7 @@ const cn = {
     done_editing_menu: '完成',
     reorder_library_hint: '拖动以重新排序。使用眼睛图标可从导航中隐藏。',
     reorder_library_item: '拖动以重新排序',
+    more: '更多',
   },
   commandPalette: {
     title: '命令面板',
@@ -1418,6 +1419,8 @@ const cn = {
   },
   onboarding: {
     title: '入门指南',
+    simple_mode_title: "简化视图",
+    simple_mode_note: "应用目前使用简化视图，只显示基本功能。若要查看全部功能，请在 设置 → 常规 中开启“高级功能”。",
     step_counter: '第 {current} 步，共 {total} 步',
     skip: '跳过',
     back: '上一步',
@@ -2102,6 +2105,8 @@ const cn = {
       count_views_hint: '打开媒体、标签或分类页面时会增加观看次数',
       startup_health_notifications: '自动检查资料库健康状态',
       startup_health_notifications_hint: '启动时和主页小组件：显示待处理维护提醒（指纹、编码、标签图片升级等）。关闭后仅手动检查。',
+      advanced_ui: '高级功能',
+      advanced_ui_hint: '显示标签分类、时间轴标记、标签页、条件筛选和媒体库维护。日常使用无需开启。',
       minimize_to_tray: '在系统托盘显示图标',
       minimize_to_tray_hint: '启用后，应用运行期间会在通知区域显示图标。关闭窗口时应用会隐藏到托盘，而不是退出。',
       language: '语言',

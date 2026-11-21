@@ -136,6 +136,12 @@ export type SettingsState = {
   /** '1' when the browser-layout inspector panel is collapsed. */
   inspectorCollapsed: string
   /**
+   * '1' — full interface (tag categories, markers, tabs, condition filters, maintenance).
+   * '0' — simple interface for everyday use. Existing databases are seeded with '1';
+   * only brand-new databases start with '0' (see api/db/seedDefaults.ts).
+   */
+  advancedUi: string
+  /**
    * '1' — inspector shows the inline edit form.
    * '0' — inspector shows read-only details (classic view).
    */
@@ -327,6 +333,8 @@ export const defaultSettingsState = (): SettingsState => ({
   bottomBar: '0',
   browserLayout: '1',
   inspectorCollapsed: '0',
+  // Frontend fallback is the full interface; the server seeds '0' only for new databases.
+  advancedUi: '1',
   inspectorInlineEdit: '1',
   stickyControlDeck: '1',
   sidebarCollapsed: '0',

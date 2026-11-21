@@ -1245,6 +1245,7 @@ const en = {
     done_editing_menu: 'Done',
     reorder_library_hint: 'Drag to reorder. Use the eye to hide from navigation.',
     reorder_library_item: 'Drag to reorder',
+    more: 'More',
   },
   folders_browser: {
     refresh: 'Refresh',
@@ -2057,6 +2058,8 @@ const en = {
   },
   onboarding: {
     title: 'Welcome',
+    simple_mode_title: "Simplified view",
+    simple_mode_note: "The app is now in simplified view: only the basics are shown, so you can get comfortable first. To see all features, turn on “Advanced features” in Settings → General.",
     step_counter: 'Step {current} of {total}',
     skip: 'Skip',
     back: 'Back',
@@ -2741,6 +2744,8 @@ const en = {
       count_views_hint: 'Views are added when media, tag, or category page is opened',
       startup_health_notifications: 'Automatic library health checks',
       startup_health_notifications_hint: 'On startup and on the home widget: pending maintenance alerts (fingerprints, codecs, tag image upgrade, etc.). Turn off to check only manually.',
+      advanced_ui: 'Advanced features',
+      advanced_ui_hint: 'Show tag categories, timeline markers, tabs, filters with conditions and library maintenance. Not needed for everyday use.',
       minimize_to_tray: 'Show icon in system tray',
       minimize_to_tray_hint: 'When enabled, an icon appears in the notification area (Windows/Linux) or menu bar (macOS) while the app is running. Closing the window hides the app to the tray instead of quitting.',
       language: 'Language',

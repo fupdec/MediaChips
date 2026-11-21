@@ -169,7 +169,11 @@ function seedSettings(sqlite: Database.Database) {
   const timestamp = nowIso()
   const defaults = loadDefaultSettingsList() as Array<{option: string; value: unknown}>
   const seen = new Set<string>()
-  const rows = [...defaults, ...MIGRATION_SETTINGS]
+  // Existing databases keep the full interface; only a brand-new database
+  // (no settings rows yet) starts in the simple mode.
+  const existing = sqlite.prepare('SELECT COUNT(*) as count FROM settings').get() as {count: number}
+  const advancedUiDefault = {option: 'advancedUi', value: Number(existing.count) > 0 ? '1' : '0'}
+  const rows = [advancedUiDefault, ...defaults, ...MIGRATION_SETTINGS]
 
   const insert = sqlite.prepare(`
     INSERT INTO settings (option, value, createdAt, updatedAt)

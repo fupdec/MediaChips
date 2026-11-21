@@ -2,6 +2,12 @@
   <div class="mx-4">
     <SettingsGroupPanel>
       <settings-switch
+        option="advancedUi"
+        :title="t('settings_labels.general.advanced_ui')"
+        :hint="t('settings_labels.general.advanced_ui_hint')"
+      />
+
+      <settings-switch
         option="startupHealthNotifications"
         :title="t('settings_labels.general.startup_health_notifications')"
         :hint="t('settings_labels.general.startup_health_notifications_hint')"

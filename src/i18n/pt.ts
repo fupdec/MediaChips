@@ -680,6 +680,7 @@ const pt = {
     done_editing_menu: 'Concluído',
     reorder_library_hint: 'Arraste para reordenar. Use o ícone de olho para ocultar da navegação.',
     reorder_library_item: 'Arraste para reordenar',
+    more: 'Mais',
   },
   commandPalette: {
     title: 'Paleta de comandos',
@@ -1418,6 +1419,8 @@ const pt = {
   },
   onboarding: {
     title: 'Primeiros passos',
+    simple_mode_title: "Visualização simplificada",
+    simple_mode_note: "O aplicativo está em visualização simplificada, com o essencial. Para ver todas as funções, ative “Recursos avançados” em Configurações → Geral.",
     step_counter: 'Etapa {current} de {total}',
     skip: 'Pular',
     back: 'Voltar',
@@ -2102,6 +2105,8 @@ const pt = {
       count_views_hint: 'As visualizações são adicionadas quando a página de mídia, tag ou categoria é aberta',
       startup_health_notifications: 'Verificações automáticas de saúde da biblioteca',
       startup_health_notifications_hint: 'Na inicialização e no widget da página inicial: alertas de manutenção pendente (impressões digitais, codecs, upgrade de imagens de tags, etc.). Desative para verificar apenas manualmente.',
+      advanced_ui: 'Recursos avançados',
+      advanced_ui_hint: 'Mostrar categorias de tags, marcadores na linha do tempo, abas, filtros com condições e manutenção da biblioteca. Não são necessários para o uso diário.',
       minimize_to_tray: 'Mostrar ícone na bandeja do sistema',
       minimize_to_tray_hint: 'Quando ativado, um ícone aparece na área de notificação enquanto o aplicativo está em execução. Fechar a janela oculta o aplicativo na bandeja em vez de encerrá-lo.',
       language: 'Idioma',

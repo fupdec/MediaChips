@@ -70,6 +70,7 @@
             />
 
             <ToolbarGroupBy
+              v-if="advancedUi"
               compact
               :class="isGroupByOff || smAndDown
                 ? 'items-control-deck__group-by-icon'
@@ -77,6 +78,7 @@
             />
 
             <v-btn
+              v-if="advancedUi"
               @click="toggleCustomization"
               v-tooltip:top="t('appbar.buttons.customize_appearance')"
               color="primary"
@@ -110,7 +112,7 @@
 
         <v-expand-transition>
           <div
-            v-if="toolbarStore.appearance.show"
+            v-if="advancedUi && toolbarStore.appearance.show"
             id="items-control-deck-appearance"
             class="items-control-deck__appearance items-control-deck__section"
           >
@@ -568,7 +570,7 @@
       />
     </div>
 
-    <QuickActionButton v-if="SETTINGS.show_quick_action_button == '1'"/>
+    <QuickActionButton v-if="advancedUi && SETTINGS.show_quick_action_button == '1'"/>
 
     <v-dialog
       v-model="dialogEditingPinnedMeta"
@@ -1152,8 +1154,10 @@ const showAlphabetBar = computed(() => (
   props.items_type === 'tag' && settingsStore.showAlphabetFilter === '1'
 ))
 
+const advancedUi = computed(() => settingsStore.advancedUi === '1')
+
 const showSavedChips = computed(() => (
-  settingsStore.showSavedFilters === '1' && (itemsStore.filters_saved?.length ?? 0) > 0
+  advancedUi.value && settingsStore.showSavedFilters === '1' && (itemsStore.filters_saved?.length ?? 0) > 0
 ))
 
 // "Presets" section of the filters panel can be folded; state is remembered.
