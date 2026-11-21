@@ -20,6 +20,7 @@ import {
   MediaThumbsRequestSchema,
   MediaPathUpdateRequestSchema,
   DeleteEntityOneRequestSchema,
+  MediaDeleteManyRequestSchema,
   MediaTagCountQuerySchema,
   EntityUpdateRequestSchema,
   MediaTrashIdsRequestSchema,
@@ -100,6 +101,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.get('/:id', Media.getOneById)
 
   router.post('/deleteOne', validateBody(DeleteEntityOneRequestSchema), Media.deleteOne)
+  router.post('/deleteMany', validateBody(MediaDeleteManyRequestSchema), Media.deleteMany)
 
   app.use('/api/Media', router)
 }

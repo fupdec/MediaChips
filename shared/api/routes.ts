@@ -59,6 +59,7 @@ export const API_ROUTES = {
   mediaInPlaylistsUpdate: '/api/MediaInPlaylists/update',
   mediaUpdatePath: '/api/Media/updatePath',
   mediaDeleteOne: '/api/Media/deleteOne',
+  mediaDeleteMany: '/api/Media/deleteMany',
   mediaTrashList: '/api/Media/trash',
   mediaTrashRestore: '/api/Media/trash/restore',
   mediaTrashPurge: '/api/Media/trash/purge',

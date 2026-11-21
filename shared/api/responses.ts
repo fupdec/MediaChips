@@ -288,6 +288,23 @@ export interface DeleteEntityOnePayload {
   [key: string]: unknown
 }
 
+export interface DeleteMediaManyPayload {
+  ids: number[]
+  with_file?: boolean
+  /** Skip Trash and hard-delete immediately. */
+  permanent?: boolean
+}
+
+export interface DeleteMediaManyResult {
+  /** Rows deleted or moved to Trash. */
+  deletedIds: number[]
+  /** Ids that no longer exist in the library (nothing left to delete). */
+  missingIds: number[]
+  /** Ids whose permanent delete failed; they are still in the library. */
+  failedIds: number[]
+  softDeleted: boolean
+}
+
 export interface MergeTagsResult {
   survivor: {
     id: number

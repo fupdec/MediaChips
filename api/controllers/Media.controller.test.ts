@@ -331,3 +331,59 @@ describe('Media.controller', () => {
     expect(res.body).toEqual({count: 12})
   })
 })
+
+describe('Media.controller deleteMany', () => {
+  type FakeMediaRow = {id: number; path: string; basename: string; deletedAt: string | null}
+  const rows = new Map<number, FakeMediaRow>()
+  const sqlite = {
+    prepare(sql: string) {
+      if (sql.includes('SELECT')) return {get: (id: number) => rows.get(id)}
+      return {
+        run: (deletedAt: string, _original: string | null, _purge: number, trashPath: string, _updatedAt: string, id: number) => {
+          Object.assign(rows.get(id)!, {deletedAt, path: trashPath})
+        },
+      }
+    },
+    transaction<A extends unknown[], R>(fn: (...args: A) => R) {
+      return (...args: A): R => fn(...args)
+    },
+  }
+  const db = {drizzle: {}, path: '/tmp/db', sqlite} as never
+  const controller = createMediaController(db)
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    rows.clear()
+    deleteMediaGeneratedAssets.mockResolvedValue(undefined)
+    unlinkResolvedPath.mockResolvedValue(true)
+  })
+
+  it('moves ids to Trash by default and de-duplicates them', async () => {
+    rows.set(1, {id: 1, path: '/m/a.jpg', basename: 'a.jpg', deletedAt: null})
+    rows.set(2, {id: 2, path: '/m/b.jpg', basename: 'b.jpg', deletedAt: null})
+    const res = createResponse()
+
+    await controller.deleteMany({body: {ids: [1, '2', 2, 404]}} as ApiRequest, res)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toEqual({deletedIds: [1, 2], missingIds: [404], failedIds: [], softDeleted: true})
+    expect(rows.get(1)?.deletedAt).toBeTruthy()
+    expect(deleteById).not.toHaveBeenCalled()
+    expect(invalidateMediaDerivedCaches).toHaveBeenCalledTimes(1)
+  })
+
+  it('hard-deletes with permanent and keeps going when one item fails', async () => {
+    findById.mockImplementation((id: number) => id === 404 ? null : {id, mediaTypeId: 2, path: `/m/${id}.jpg`})
+    findMediaTypeById.mockReturnValue({type: 'images'})
+    deleteById.mockImplementation((id: number) => {
+      if (id === 6) throw new Error('locked')
+    })
+    const res = createResponse()
+
+    await controller.deleteMany({body: {ids: [5, 6, 7, 404], permanent: true, with_file: true}} as ApiRequest, res)
+
+    expect(res.body).toEqual({deletedIds: [5, 7], missingIds: [404], failedIds: [6], softDeleted: false})
+    expect(unlinkResolvedPath).toHaveBeenCalledWith('/m/5.jpg')
+    expect(invalidateMediaDerivedCaches).toHaveBeenCalledTimes(1)
+  })
+})

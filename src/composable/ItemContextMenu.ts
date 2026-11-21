@@ -1484,6 +1484,118 @@ export default function useItemContextMenu(
     )]
     const hasZipGallery = zipArchiveNames.length > 0
 
+    /**
+     * Select-all style deletes can cover 100k+ media. One request per item is far too slow
+     * and gives no feedback, so ids go to the server in batches (one transaction each),
+     * the list shrinks as batches finish and a progress notification can be stopped.
+     */
+    const runMediaBatchDelete = async ({
+      ids,
+      withFile,
+      permanent,
+    }: {
+      ids: number[]
+      withFile: boolean
+      permanent: boolean
+    }): Promise<void> => {
+      const BATCH_SIZE = 500
+      const total = ids.length
+      let softDeleted = !permanent
+      let cancelled = false
+      let processed = 0
+      let removedCount = 0
+      const failedIds: number[] = []
+
+      // Clear selection up front so the same ids cannot be submitted twice while this runs.
+      itemsStore.selection = []
+      itemsStore.selected_last = null
+      itemsStore.isSelect = false
+
+      const progressTitle = translate(
+        permanent ? 'notifications_text.items_delete_progress' : 'notifications_text.items_trash_progress',
+        {},
+        locale,
+      )
+      const progressId = total > BATCH_SIZE
+        ? notificationsStore.setNotification({
+          type: 'info',
+          icon: 'delete-outline',
+          title: progressTitle,
+          text: `0 / ${total}`,
+          timeout: 0,
+          progressPercent: 0,
+          actions: [
+            {
+              id: 'delete-stop',
+              text: translate('notifications_text.items_delete_stop', {}, locale),
+              close: true,
+              action: () => {
+                cancelled = true
+              },
+            },
+          ],
+        })
+        : null
+
+      for (let start = 0; start < total; start += BATCH_SIZE) {
+        if (cancelled) break
+        const chunk = ids.slice(start, start + BATCH_SIZE)
+        try {
+          const response = await typedApi.deleteMediaMany({
+            ids: chunk,
+            with_file: withFile,
+            permanent,
+          })
+          const data = response.data
+          if (data.softDeleted === false) softDeleted = false
+          const gone = [...(data.deletedIds ?? []), ...(data.missingIds ?? [])]
+          failedIds.push(...(data.failedIds ?? []))
+          removedCount += gone.length
+          if (gone.length) {
+            listSync.removeEntitiesFromState({ids: gone, type})
+          }
+        } catch (e) {
+          // The batch was rejected as a whole (rolled back): keep these items in the list.
+          console.error(e)
+          failedIds.push(...chunk)
+        }
+        processed += chunk.length
+
+        if (progressId != null) {
+          notificationsStore.updateNotification(progressId, {
+            text: `${processed} / ${total}`,
+            progressPercent: Math.round((processed / total) * 100),
+          })
+        }
+      }
+
+      if (progressId != null) notificationsStore.closeNotification(progressId)
+
+      if (cancelled) {
+        notificationsStore.setNotification({
+          type: 'warning',
+          title: translate('notifications_text.items_delete_stopped', {}, locale),
+          text: translate('notifications_text.items_delete_stopped_count', {done: removedCount, total}, locale),
+        })
+      } else if (failedIds.length) {
+        notificationsStore.setNotification({
+          type: 'warning',
+          title: translate('notifications_text.items_delete_failed', {}, locale),
+          text: translate('notifications_text.items_delete_failed_count', {count: failedIds.length}, locale),
+        })
+      } else {
+        notificationsStore.setNotification({
+          type: 'info',
+          title: softDeleted
+            ? translate('notifications_text.items_moved_to_trash', {}, locale)
+            : translate('notifications_text.items_deleted', {}, locale),
+          text: translate('notifications_text.items_delete_summary', {count: removedCount}, locale),
+        })
+      }
+
+      eventBus.emit('update:watcher')
+    }
+
     const runDelete = async ({
       withFile,
       permanent,
@@ -1498,6 +1610,11 @@ export default function useItemContextMenu(
       let ids = [item.id]
       if (isSelectMode()) {
         ids = itemsStore.selection
+      }
+
+      if (type === 'media' && isSelectMode() && !deleteZipGallery) {
+        await runMediaBatchDelete({ids: [...ids], withFile, permanent})
+        return
       }
 
       const deleted_items_names: string[] = []

@@ -96,6 +96,66 @@ export function softDeleteMedia(
   return true
 }
 
+/**
+ * Moves many media rows to Trash in one SQLite transaction (one commit per batch
+ * instead of one per row). Same per-row behaviour as `softDeleteMedia`.
+ * If anything throws, the whole batch is rolled back.
+ */
+export function softDeleteMediaMany(
+  db: ApiDb,
+  mediaIds: number[],
+  options: {purgeFile?: boolean} = {},
+): {deletedIds: number[]; missingIds: number[]} {
+  const select = db.sqlite.prepare(
+    'SELECT id, path, basename, deletedAt FROM media WHERE id = ? LIMIT 1',
+  )
+  const update = db.sqlite.prepare(`
+    UPDATE media
+    SET deletedAt = ?,
+        trashOriginalPath = ?,
+        trashPurgeFile = ?,
+        path = ?,
+        updatedAt = ?
+    WHERE id = ?
+  `)
+  const purgeFile = options.purgeFile ? 1 : 0
+
+  const run = db.sqlite.transaction((ids: number[]) => {
+    const deletedIds: number[] = []
+    const missingIds: number[] = []
+    const deletedAt = nowIso()
+    for (const rawId of ids) {
+      const id = Number(rawId)
+      if (!Number.isFinite(id) || id <= 0) continue
+      const row = select.get(id) as AnyRecord | undefined
+      if (!row) {
+        missingIds.push(id)
+        continue
+      }
+      if (row.deletedAt) {
+        deletedIds.push(id)
+        continue
+      }
+      const originalPath = String(row.path || '')
+      const basename = row.basename == null || row.basename === ''
+        ? originalPath.split(/[\\/]/).pop()
+        : String(row.basename)
+      update.run(
+        deletedAt,
+        originalPath || null,
+        purgeFile,
+        buildTrashPath(id, basename),
+        deletedAt,
+        id,
+      )
+      deletedIds.push(id)
+    }
+    return {deletedIds, missingIds}
+  })
+
+  return run(mediaIds)
+}
+
 export function restoreTrashMedia(db: ApiDb, mediaIds: number[]): number[] {
   const restored: number[] = []
   for (const rawId of mediaIds) {

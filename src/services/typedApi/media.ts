@@ -13,6 +13,8 @@ import type {
   ItemsListRequest,
   MediaListResponseData,
   DeleteEntityOnePayload,
+  DeleteMediaManyPayload,
+  DeleteMediaManyResult,
   EntityUpdatePayload,
   MarkForVideo,
   MediaDuplicateGroupsResult,
@@ -142,6 +144,10 @@ export const mediaApi = {
 
   deleteMediaOne(body: DeleteEntityOnePayload) {
     return apiClient.post(API_ROUTES.mediaDeleteOne, body)
+  },
+
+  deleteMediaMany(body: DeleteMediaManyPayload) {
+    return apiClient.post<DeleteMediaManyResult>(API_ROUTES.mediaDeleteMany, body)
   },
 
   listMediaTrash(params?: {limit?: number}) {

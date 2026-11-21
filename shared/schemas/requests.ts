@@ -207,6 +207,16 @@ export const LibraryResetTagsRequestSchema = z.object({
   permanent: z.boolean().optional(),
 }).passthrough()
 
+/** Upper bound of one batch; the client sends bigger selections in several batches. */
+export const MEDIA_DELETE_MANY_MAX_IDS = 1000
+
+export const MediaDeleteManyRequestSchema = z.object({
+  ids: z.array(z.union([z.number(), z.string()])).min(1).max(MEDIA_DELETE_MANY_MAX_IDS),
+  with_file: z.boolean().optional(),
+  /** Skip Trash and hard-delete immediately. */
+  permanent: z.boolean().optional(),
+}).passthrough()
+
 export const MediaTrashIdsRequestSchema = z.object({
   ids: z.array(z.union([z.number(), z.string()])).min(1),
 }).passthrough()

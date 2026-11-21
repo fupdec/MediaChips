@@ -3,7 +3,7 @@ import type { ApiDb, FilterLike } from '../types/db'
 import { apiErrorMessage, sendControllerError, sendNotFound, sendOk } from '../types/errors'
 import type { ApiRequest, ApiResponse } from '../types/http'
 import { getRequestBody } from '../types/http'
-import type { ItemsListRequest, DeleteEntityOnePayload, EntityUpdatePayload } from '@shared/api/responses'
+import type { ItemsListRequest, DeleteEntityOnePayload, DeleteMediaManyPayload, EntityUpdatePayload } from '@shared/api/responses'
 import type {
   MediaDuplicateGroupsPayload,
   MediaPathUpdatePayload,
@@ -53,6 +53,7 @@ import {
   listTrashMedia,
   restoreTrashMedia,
   softDeleteMedia,
+  softDeleteMediaMany,
 } from '../services/mediaTrash'
 import { MEDIA_TRASH_RETENTION_DAYS } from '../../shared/mediaTrash'
 
@@ -507,6 +508,45 @@ export default function (db: ApiDb) {
     }
   };
 
+  const deleteMany = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<DeleteMediaManyPayload>(req)
+      const ids = [...new Set(
+        (Array.isArray(body.ids) ? body.ids : [])
+          .map((id) => Number(id))
+          .filter((id) => Number.isInteger(id) && id > 0),
+      )]
+      const withFile = Boolean(body.with_file)
+
+      if (!body.permanent) {
+        const {deletedIds, missingIds} = softDeleteMediaMany(db, ids, {purgeFile: withFile})
+        invalidateMediaDerivedCaches()
+        return sendOk(res, {deletedIds, missingIds, failedIds: [], softDeleted: true})
+      }
+
+      const deletedIds: number[] = []
+      const missingIds: number[] = []
+      const failedIds: number[] = []
+      for (const id of ids) {
+        try {
+          const media = mediaRepo.findById(id)
+          if (!media) {
+            missingIds.push(id)
+            continue
+          }
+          deletedIds.push(...await hardDeleteTargets([media as Record<string, unknown>], {id, with_file: withFile}))
+        } catch (error) {
+          console.error(`Failed to delete media ${id}:`, apiErrorMessage(error))
+          failedIds.push(id)
+        }
+      }
+      invalidateMediaDerivedCaches()
+      sendOk(res, {deletedIds, missingIds, failedIds, softDeleted: false})
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while performing query.')
+    }
+  }
+
   const listTrash = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const limitRaw = (req.query as {limit?: string | number} | undefined)?.limit
@@ -583,6 +623,7 @@ export default function (db: ApiDb) {
     updatePath,
     update,
     deleteOne,
+    deleteMany,
     listTrash,
     restoreTrash,
     purgeTrash,
