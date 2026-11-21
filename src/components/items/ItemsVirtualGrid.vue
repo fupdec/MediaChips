@@ -27,6 +27,12 @@
       class="virtual-grid-row"
       :data-row-index="row.index"
     >
+      <div
+        v-for="n in (row.placeholdersBefore || 0)"
+        :key="`before-${n}`"
+        class="virtual-grid-placeholder"
+        aria-hidden="true"
+      />
       <Item
         v-for="(item, idx) in row.items"
         :key="item.id"
@@ -35,8 +41,15 @@
         :meta="meta"
         :media-type="mediaType"
         :reg="reg"
-        :x="row.startIndex + idx"
+        :x="row.startIndex + (row.placeholdersBefore || 0) + idx"
+        :lean="lockRowHeight"
         eager-preview
+      />
+      <div
+        v-for="n in (row.placeholdersAfter || 0)"
+        :key="`after-${n}`"
+        class="virtual-grid-placeholder"
+        aria-hidden="true"
       />
     </div>
 
@@ -61,8 +74,9 @@ import {computed, ref, watch, onBeforeUnmount, type HTMLAttributes} from 'vue'
 import Item from '@/components/items/Item.vue'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useVirtualGridWindow} from '@/composable/useVirtualGridWindow'
+import {useSettingsStore} from '@/stores/settings'
 import {setVisibleItemIds, clearVisibleItemIds} from '@/utils/visibleItemsWindow'
-import {getGridGap, type GridLayoutOptions} from '@/utils/gridLayout'
+import {getLayoutGap, type GridLayoutOptions} from '@/utils/gridLayout'
 import type {MediaType} from '@/types/media'
 import type {MediaItem, Meta} from '@/types/stores'
 
@@ -108,6 +122,15 @@ const props = withDefaults(defineProps<{
 })
 
 const layoutRef = ref<HTMLElement | null>(null)
+const settingsStore = useSettingsStore()
+
+/** Same conditions as the rating/favorite row in Item.vue's description. */
+const showRatingRow = computed(() => {
+  if (settingsStore.ratingAndFavoriteInCard != '1' || settingsStore.advancedUi !== '1') return false
+  return props.itemsType === 'tag'
+    ? Boolean(props.meta?.rating || props.meta?.favorite)
+    : true
+})
 const itemsSource = computed(() => props.items)
 
 const resolvedLayoutOptions = computed<GridLayoutOptions>(() => ({
@@ -122,13 +145,16 @@ const resolvedLayoutOptions = computed<GridLayoutOptions>(() => ({
   ...props.gridLayoutOptions,
 }))
 
-const { gridStyle } = useResponsiveGridLayout(layoutRef, resolvedLayoutOptions)
+const { gridStyle, containerWidth } = useResponsiveGridLayout(layoutRef, resolvedLayoutOptions)
 
-/** Minimalism / chips: fixed stride. Cards + timeline: measure natural height. */
-const lockRowHeight = computed(() => (
-  Boolean(resolvedLayoutOptions.value.imageOnly)
-  || Boolean(props.chipsGrid || resolvedLayoutOptions.value.chipsGrid)
+/** Timeline and compact list rows keep measured heights; every card grid has one fixed stride. */
+const isMeasuredRowGrid = computed(() => Boolean(
+  props.lineGrid || props.listGrid
+  || resolvedLayoutOptions.value.lineGrid || resolvedLayoutOptions.value.listGrid,
 ))
+
+/** Cards, minimalism, chips: fixed stride (equal-height cards, no measuring). */
+const lockRowHeight = computed(() => !isMeasuredRowGrid.value)
 
 const layoutOptions = computed(() => ({
   size: Number(props.size),
@@ -139,6 +165,8 @@ const layoutOptions = computed(() => ({
   listGrid: props.listGrid ?? false,
   chipsGrid: props.chipsGrid ?? false,
   imageOnly: Boolean(resolvedLayoutOptions.value.imageOnly),
+  leanCards: lockRowHeight.value,
+  leanRatingRow: showRatingRow.value,
   // Image cards use a fixed 16:9 estimate so locked row heights stay jump-free.
   imageAspectRatio: props.imageAspectRatio
     ?? resolvedLayoutOptions.value.imageAspectRatio
@@ -169,7 +197,7 @@ const rootStyle = computed(() => ({
 
 const styleForRow = (row: { contentMinHeight?: number }) => {
   if (lockRowHeight.value) {
-    const gapY = getGridGap(props.gapSize).y
+    const gapY = getLayoutGap({...resolvedLayoutOptions.value, containerWidth: containerWidth.value}).y
     const contentHeight = Math.max(1, rowHeight.value - gapY)
     return {
       height: `${contentHeight}px`,
@@ -213,6 +241,28 @@ onBeforeUnmount(() => {
 }
 
 /* Equal-height rules: item.scss (.virtual-grid-row--natural.card-grid). */
+
+/* Slot of a card that is not loaded yet (scrollbar seek / window edge). */
+.virtual-grid-placeholder {
+  flex: 0 0 var(--card-width, 160px);
+  width: var(--card-width, 160px);
+  max-width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 17px;
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  animation: virtual-grid-placeholder-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes virtual-grid-placeholder-pulse {
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .virtual-grid-placeholder {
+    animation: none;
+  }
+}
 
 .virtual-grid-data-end {
   position: absolute;

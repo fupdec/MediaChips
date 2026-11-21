@@ -2,7 +2,7 @@
 
 export const HOVER_PREVIEW_SCROLL_IDLE_MS = 180
 
-export type HoverPreviewPointer = {clientX: number; clientY: number}
+export type HoverPreviewPointer = {clientX: number; clientY: number; hitTarget?: Element | null}
 
 type ScrollIdleListener = (pointer: HoverPreviewPointer | null) => void
 
@@ -23,7 +23,15 @@ const onPointerActivity = (event: Event) => {
 }
 
 function notifyScrollIdleListeners(): void {
-  const pointer = lastPointer
+  // Hit-test once before any listener can mutate preview styles.
+  let pointer = lastPointer
+  if (pointer && typeof document.elementFromPoint === 'function') {
+    try {
+      pointer = {...pointer, hitTarget: document.elementFromPoint(pointer.clientX, pointer.clientY)}
+    } catch {
+      pointer = {...pointer, hitTarget: null}
+    }
+  }
   for (const listener of [...scrollIdleListeners]) {
     try {
       listener(pointer)

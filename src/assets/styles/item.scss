@@ -144,19 +144,8 @@
     }
   }
   &.favorite {
-    &::after {
-      content: "";
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      left: 0;
-      top: 0;
-      // Same radius as .v-card / .item_preview so the 1px pink ring (drawn
-      // outside this box) stays concentric with the poster corners.
-      border-radius: 17px;
-      pointer-events: none;
-      box-shadow: 0px 2px 8px 3px rgba(255, 0, 75, 0.25), 0 0 0 1px #ff004b;
-    }
+    // No pink glow/outline around a favorite card: it is marked only by the
+    // pink dot in the heart's place (see "Favorite dot" below).
     .main-img:before {
       opacity: 1;
     }
@@ -423,6 +412,7 @@
     flex-direction: column;
   }
   .flag-icon {
+    margin-bottom: 0.25em;
     width: 28px;
     height: 20px;
     overflow: hidden;
@@ -972,7 +962,8 @@
       filter: saturate(0.1) opacity(50%);
     }
   }
-  .v-progress-linear {
+  .v-progress-linear,
+  .item-playback-progress {
     flex: 1 0 auto;
     margin-top: -1px;
     position: relative;
@@ -1897,6 +1888,12 @@ body > .video-preview-container.video-preview-container--expanded {
     overflow: hidden;
   }
 
+  // Tag thumbs follow the category's imageAspectRatio (the virtual grid row
+  // height already uses it), instead of the media 16:9.
+  &.item-tag .item_preview {
+    aspect-ratio: var(--tag-preview-aspect, 1);
+  }
+
   .video-preview-host,
   .video-preview-container:not(.video-preview-container--expanded) {
     border-radius: inherit;
@@ -1909,14 +1906,27 @@ body > .video-preview-container.video-preview-container--expanded {
     background-color: transparent !important;
   }
 
+  // Same title look as card descriptions (view 1): description font scale,
+  // weight 600, line-height 1.25. Height comes from getMinimalFilenameHeight().
   .item-minimal-filename {
     flex: 0 0 auto;
-    margin-top: 6px;
+    box-sizing: border-box;
+    // min-height (not height): the wrapper grows with the text instead of
+    // clipping it; --card-description-height is the row-stride estimate.
+    min-height: var(--card-description-height, 28px);
     min-width: 0;
-    max-height: 22px;
-    padding-left: 10px;
-    padding-right: 10px;
+    padding: 0.4em 0.55em 0.35em;
+    font-size: var(--card-description-font-size, 1rem);
     cursor: pointer;
+
+    .item-title {
+      margin: 0;
+      padding-inline: 0.15em;
+      font-weight: 600;
+      line-height: 1.25;
+      min-width: 0;
+      overflow: hidden;
+    }
   }
 
   .item-minimal-filename__text {
@@ -2040,7 +2050,8 @@ body > .video-preview-container.video-preview-container--expanded {
     }
   }
 
-  .v-progress-linear {
+  .v-progress-linear,
+  .item-playback-progress {
     display: none;
   }
 
@@ -2641,7 +2652,7 @@ body > .video-preview-container.video-preview-container--expanded {
 .item__size {
   &-1 {
     &.item {
-      font-size: 0.78rem;
+      font-size: var(--card-font-size, 0.78rem);
       --item-rating-icon: 17px;
       --item-fav-icon: 19px;
       --item-rating-star-gap: 0px;
@@ -2649,7 +2660,7 @@ body > .video-preview-container.video-preview-container--expanded {
   }
   &-2 {
     &.item {
-      font-size: 0.9rem;
+      font-size: var(--card-font-size, 0.9rem);
       --item-rating-icon: 21px;
       --item-fav-icon: 23px;
       --item-rating-star-gap: 0px;
@@ -2657,7 +2668,7 @@ body > .video-preview-container.video-preview-container--expanded {
   }
   &-3 {
     &.item {
-      font-size: 1rem;
+      font-size: var(--card-font-size, 1rem);
       --item-rating-icon: 28px;
       --item-fav-icon: 30px;
       --item-rating-star-gap: 1px;
@@ -2665,7 +2676,7 @@ body > .video-preview-container.video-preview-container--expanded {
   }
   &-4 {
     &.item {
-      font-size: 1.08rem;
+      font-size: var(--card-font-size, 1.08rem);
       --item-rating-icon: 30px;
       --item-fav-icon: 32px;
       --item-rating-star-gap: 1px;
@@ -2673,7 +2684,7 @@ body > .video-preview-container.video-preview-container--expanded {
   }
   &-5 {
     &.item {
-      font-size: 1.16rem;
+      font-size: var(--card-font-size, 1.16rem);
       --item-rating-icon: 32px;
       --item-fav-icon: 34px;
       --item-rating-star-gap: 2px;
@@ -2681,7 +2692,7 @@ body > .video-preview-container.video-preview-container--expanded {
   }
   &-6 {
     &.item {
-      font-size: 1.24rem;
+      font-size: var(--card-font-size, 1.24rem);
       --item-rating-icon: 34px;
       --item-fav-icon: 36px;
       --item-rating-star-gap: 2px;
@@ -2742,6 +2753,65 @@ body > .video-preview-container.video-preview-container--expanded {
 
   .item_wrapper {
     overflow: visible;
+  }
+}
+
+/* Fixed-height cards in locked virtual rows (media and tag cards alike): the
+   row height comes from estimateRowHeight. The preview keeps its size, the
+   description takes what is left and centres its content. Tag cards have no
+   natural-height flex rules of their own (preview grows by default), so the
+   whole column is set here. */
+.virtual-grid-row.card-grid:not(.virtual-grid-row--natural) {
+  align-items: stretch;
+
+  > .item.item-view-1 {
+    height: 100%;
+    align-self: stretch;
+  }
+
+  > .item.item-view-1 .item_wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  > .item.item-view-1 .item_preview {
+    flex: 0 0 auto;
+  }
+
+  // The video progress strip grows (flex: 1 0 auto) in natural cards; here it
+  // would take half of the spare height and push the title out.
+  > .item.item-view-1 .item-playback-progress {
+    flex: 0 0 4px;
+  }
+
+  // The description is a fixed band: its content (rating row, title) is
+  // centred in it instead of hanging from the top padding.
+  > .item.item-view-1 .description {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1 1 0;
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  // Tag titles carry their own vertical padding (~0.6em / 0.4em), which pushed the
+  // text down and out of the fixed band; centring does the spacing here.
+  > .item.item-view-1 .description .item-title {
+    min-width: 0;
+    margin-bottom: 0 !important;
+    padding-block: 0 !important;
+    overflow: hidden;
+  }
+
+  // One-line title with an ellipsis (media cards already do this).
+  > .item.item-view-1 .description .item-title > span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -4323,9 +4393,9 @@ body > .video-preview-container.video-preview-container--expanded {
   // ~8% per step, so title and meta chips looked tiny on big cards. Scale the
   // description (title, synonyms, chips, labels) on its own so preview
   // overlays keep their size. Keep in sync with DESCRIPTION_HEIGHT.
-  &.item__size-4 .description { font-size: 1.26rem; }
-  &.item__size-5 .description { font-size: 1.46rem; }
-  &.item__size-6 .description { font-size: 1.66rem; }
+  &.item__size-4 .description { font-size: var(--card-description-font-size, 1.26rem); }
+  &.item__size-5 .description { font-size: var(--card-description-font-size, 1.46rem); }
+  &.item__size-6 .description { font-size: var(--card-description-font-size, 1.66rem); }
 
   .item-title {
     font-weight: 600;
@@ -4533,12 +4603,12 @@ body > .video-preview-container.video-preview-container--expanded {
   --chip-font: calc(var(--chip-unit) * 0.7 + 3.5px);
   --chip-gap: calc(var(--chip-font) * 0.4);
 
-  &.item__size-1 { --chip-unit: 8px; }
-  &.item__size-2 { --chip-unit: 8.5px; }
-  &.item__size-3 { --chip-unit: 10px; }
-  &.item__size-4 { --chip-unit: 12.5px; }
-  &.item__size-5 { --chip-unit: 16px; }
-  &.item__size-6 { --chip-unit: 22px; }
+  &.item__size-1 { --chip-unit: var(--chip-unit-fluid, 8px); }
+  &.item__size-2 { --chip-unit: var(--chip-unit-fluid, 8.5px); }
+  &.item__size-3 { --chip-unit: var(--chip-unit-fluid, 10px); }
+  &.item__size-4 { --chip-unit: var(--chip-unit-fluid, 12.5px); }
+  &.item__size-5 { --chip-unit: var(--chip-unit-fluid, 16px); }
+  &.item__size-6 { --chip-unit: var(--chip-unit-fluid, 22px); }
 
   // XS…L cards: move the chips a bit further from the card edge.
   &.item__size-1:not(.item-view-5),
@@ -4668,6 +4738,43 @@ body > .video-preview-container.video-preview-container--expanded {
       transform: scale(1.15);
     }
   }
+
+  // Favorite dot: a favorite card has no glow; while the card is idle a small
+  // pink dot sits where the heart is. On hover/focus it becomes the usual
+  // heart again, so the favorite can still be toggled.
+  &:not(.big-preview):not(:hover):not(:focus-within) .item_preview > .fav-btn.item-favorite-native--on {
+    opacity: 1;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+
+    .v-icon {
+      opacity: 0;
+    }
+
+    // Same size and same center line as the resolution dot (top-left): its
+    // center sits 0.7 chip-font from the top/left chip-gap corner, so this one
+    // sits 0.7 chip-font from the top/right corner (button top/right = chip-gap).
+    &::after {
+      content: '';
+      position: absolute;
+      top: calc(var(--chip-font) * 0.7);
+      right: calc(var(--chip-font) * 0.7);
+      width: calc(var(--chip-font) * 0.85);
+      height: calc(var(--chip-font) * 0.85);
+      border-radius: 50%;
+      background: #ff4f81;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+      transform: translate(50%, -50%);
+      pointer-events: none;
+    }
+  }
+
+  // XS: the resolution dot is pulled 0.25 chip-font closer to the corner; do the same.
+  &.item__size-1:not(.item-view-5):not(.big-preview):not(:hover):not(:focus-within) .item_preview > .fav-btn.item-favorite-native--on::after {
+    top: calc(var(--chip-font) * 0.45);
+    right: calc(var(--chip-font) * 0.45);
+  }
 }
 
 .item-media {
@@ -4787,4 +4894,175 @@ body > .video-preview-container.video-preview-container--expanded {
 // Smallest grid size: shrink the resolution label further.
 .item-media.item__size-1:not(.item-view-5) .resolution {
   font-size: calc(var(--chip-font) * 0.9);
+}
+
+/* Static card progress: no transition component or hidden indeterminate tracks. */
+.item-playback-progress {
+  height: 4px;
+  flex: 0 0 4px;
+  background: rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+.v-theme--dark .item-playback-progress {
+  background: rgba(255, 255, 255, 0.24);
+}
+.item-playback-progress__value {
+  height: 100%;
+  background: rgb(var(--v-theme-primary));
+}
+
+// One continuous visual scale for cards. Child spacing uses em units, so it
+// follows these fonts; poster controls keep their own chip-relative sizes.
+.item.item--fluid {
+  --item-rating-icon: var(--card-rating-icon, 28px);
+  --item-fav-icon: var(--card-fav-icon, 30px);
+  --item-rating-star-gap: var(--card-star-gap, 1px);
+
+  .item-title {
+    font-size: calc(var(--card-title-scale, 0.94) * 1em);
+  }
+
+  &.item-view-1 .description {
+    font-size: var(--card-description-font-size, 1rem);
+  }
+
+  &:not(.item-view-5) {
+    --chip-gap: calc(var(--chip-font) * var(--card-chip-inset-factor, 0.65));
+  }
+
+  .tag-thumb-placeholder__initials {
+    font-size: calc(var(--chip-unit) * 5.44);
+    line-height: 1.1;
+  }
+
+  .country {
+    top: var(--chip-gap);
+    left: var(--chip-gap);
+  }
+
+  // The flag library uses a fixed 52×39 sprite. Scale that sprite together
+  // with its clipping box instead of changing background-position offsets.
+  .flag-icon {
+    width: calc(var(--chip-unit) * 2.8);
+    height: calc(var(--chip-unit) * 2);
+    margin-bottom: calc(var(--chip-unit) * 0.4);
+
+    .flag {
+      top: 50%;
+      left: 50%;
+      right: auto;
+      bottom: auto;
+      margin: 0;
+      transform: translate(-50%, -50%) scale(var(--card-flag-scale, 0.5));
+    }
+  }
+
+  .item-menu-btn,
+  .item-select-btn {
+    font-size: inherit;
+    width: 2em;
+    height: 2em;
+
+    .v-icon {
+      font-size: 1.2em !important;
+      width: 1em !important;
+      height: 1em !important;
+    }
+  }
+}
+
+// Typed inherited values interpolate inside the browser, including when a
+// virtual card is remounted into a different row. Layout widths remain exact.
+@property --fluid-flag-scale {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0.5;
+}
+
+@property --fluid-font {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 16px;
+}
+
+@property --fluid-description-font {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 16px;
+}
+
+@property --fluid-rating-icon {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 28px;
+}
+
+@property --fluid-fav-icon {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 30px;
+}
+
+@property --fluid-star-gap {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 1px;
+}
+
+@property --fluid-title-scale {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0.94;
+}
+
+@property --fluid-chip-unit {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 10px;
+}
+
+@property --fluid-chip-inset {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0.65;
+}
+
+.items-page-grid {
+  --fluid-flag-scale: var(--card-flag-scale, 0.5);
+  --fluid-font: var(--card-font-size, 16px);
+  --fluid-description-font: var(--card-description-font-size, 16px);
+  --fluid-rating-icon: var(--card-rating-icon, 28px);
+  --fluid-fav-icon: var(--card-fav-icon, 30px);
+  --fluid-star-gap: var(--card-star-gap, 1px);
+  --fluid-title-scale: var(--card-title-scale, 0.94);
+  --fluid-chip-unit: var(--chip-unit-fluid, 10px);
+  --fluid-chip-inset: var(--card-chip-inset-factor, 0.65);
+  transition:
+    --fluid-flag-scale 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    --fluid-font 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    --fluid-description-font 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    --fluid-rating-icon 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    --fluid-fav-icon 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    --fluid-star-gap 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    --fluid-title-scale 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    --fluid-chip-unit 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    --fluid-chip-inset 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.items-page-grid .item.item--fluid {
+  --card-flag-scale: var(--fluid-flag-scale);
+  --card-font-size: var(--fluid-font);
+  --card-description-font-size: var(--fluid-description-font);
+  --card-rating-icon: var(--fluid-rating-icon);
+  --card-fav-icon: var(--fluid-fav-icon);
+  --card-star-gap: var(--fluid-star-gap);
+  --card-title-scale: var(--fluid-title-scale);
+  --chip-unit-fluid: var(--fluid-chip-unit);
+  --card-chip-inset-factor: var(--fluid-chip-inset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .items-page-grid {
+    transition: none;
+  }
 }

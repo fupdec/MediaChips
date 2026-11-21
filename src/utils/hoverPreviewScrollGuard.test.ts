@@ -89,4 +89,26 @@ describe('hoverPreviewScrollGuard', () => {
 
     expect(onIdle).toHaveBeenCalledWith({clientX: 40, clientY: 80})
   })
+  it('hit-tests once for all cards notified after scrolling', () => {
+    const target = document.createElement('div')
+    const hitTest = vi.fn(() => target)
+    const original = Object.getOwnPropertyDescriptor(document, 'elementFromPoint')
+    Object.defineProperty(document, 'elementFromPoint', {configurable: true, value: hitTest})
+    try {
+      const listeners = Array.from({length: 30}, () => vi.fn())
+      listeners.forEach(listener => onHoverPreviewScrollIdle(listener))
+      installHoverPreviewScrollGuard()
+      window.dispatchEvent(new MouseEvent('mousemove', {clientX: 40, clientY: 80}))
+      noteHoverPreviewScrollActivity(50)
+      vi.advanceTimersByTime(51)
+      expect(hitTest).toHaveBeenCalledTimes(1)
+      for (const listener of listeners) {
+        expect(listener).toHaveBeenCalledWith({clientX: 40, clientY: 80, hitTarget: target})
+      }
+    } finally {
+      if (original) Object.defineProperty(document, 'elementFromPoint', original)
+      else delete (document as unknown as Record<string, unknown>).elementFromPoint
+    }
+  })
+
 })

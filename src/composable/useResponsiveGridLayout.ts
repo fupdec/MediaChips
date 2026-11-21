@@ -19,6 +19,7 @@ export function useResponsiveGridLayout(
     containerWidth: containerWidth.value,
   }))
 
+
   let resizeObserver: ResizeObserver | null = null
 
   const measure = () => {
@@ -27,11 +28,15 @@ export function useResponsiveGridLayout(
 
   const bindObserver = (el: HTMLElement) => {
     unbindObserver()
-    measure()
+    if (typeof ResizeObserver === 'undefined') {
+      measure()
+      return
+    }
 
-    if (typeof ResizeObserver === 'undefined') return
-
-    resizeObserver = new ResizeObserver(measure)
+    resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries.find(entry => entry.target === el)
+      if (entry) containerWidth.value = entry.contentRect.width
+    })
     resizeObserver.observe(el)
   }
 
@@ -44,8 +49,6 @@ export function useResponsiveGridLayout(
     if (el) bindObserver(el)
     else unbindObserver()
   }, { immediate: true })
-
-  watch(layoutOptions, measure, { deep: true })
 
   onBeforeUnmount(unbindObserver)
 

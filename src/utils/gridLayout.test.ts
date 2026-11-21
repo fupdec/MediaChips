@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getCardChipLimit,
+  getCardSizeForWidth,
   averageMeasuredRowStride,
   buildMasonryLayout,
   chunkIntoRows,
@@ -10,7 +11,9 @@ import {
   findVisibleMasonryItems,
   getColumnCount,
   getDistributedCardWidth,
+  getFluidChipUnit,
   getGridLayoutStyle,
+  getLayoutGap,
   getLayoutMetrics,
   getMediaAspectRatio,
   getTargetCardWidth,
@@ -108,7 +111,7 @@ describe('getTargetCardWidth', () => {
 })
 
 describe('getDistributedCardWidth', () => {
-  it('fills the container for a full row', () => {
+  it('keeps the target width and fits complete columns', () => {
     const containerWidth = 1200
     const options = { size: 3, gapSize: 'm' }
     const gap = 20
@@ -116,8 +119,8 @@ describe('getDistributedCardWidth', () => {
     const cols = getColumnCount(containerWidth, target, gap, options)
     const width = getDistributedCardWidth(containerWidth, options)
 
-    expect(width * cols + gap * (cols - 1)).toBeCloseTo(containerWidth)
-    expect(width).toBeGreaterThan(target)
+    expect(width * cols + gap * (cols - 1)).toBeLessThanOrEqual(containerWidth)
+    expect(width).toBe(target)
   })
 
   it('returns target width without container width', () => {
@@ -131,12 +134,12 @@ describe('getDistributedCardWidth', () => {
       const mediaL = getLayoutMetrics(containerWidth, { size: 4, gapSize: 'm' })
       const mediaXl = getLayoutMetrics(containerWidth, { size: 5, gapSize: 'm' })
       expect(mediaXl.cardWidth).toBeGreaterThan(mediaL.cardWidth)
-      expect(mediaXl.columnCount).toBeLessThan(mediaL.columnCount)
+      expect(mediaXl.columnCount).toBeLessThanOrEqual(mediaL.columnCount)
 
       const imageL = getLayoutMetrics(containerWidth, { size: 4, imageGrid: true, gapSize: 'm' })
       const imageXl = getLayoutMetrics(containerWidth, { size: 5, imageGrid: true, gapSize: 'm' })
       expect(imageXl.cardWidth).toBeGreaterThan(imageL.cardWidth)
-      expect(imageXl.columnCount).toBeLessThan(imageL.columnCount)
+      expect(imageXl.columnCount).toBeLessThanOrEqual(imageL.columnCount)
     }
   })
 })
@@ -145,7 +148,7 @@ describe('getGridLayoutStyle', () => {
   it('exposes distributed card width when container width is known', () => {
     const style = getGridLayoutStyle({ size: 3, gapSize: 'm', containerWidth: 1200 })
 
-    expect(style['--card-width']).not.toBe('255px')
+    expect(style['--card-width']).toBe('255px')
     expect(style['--grid-gap-x']).toBe('20px')
     expect(style['--grid-gap-y']).toBe('25px')
   })
@@ -373,5 +376,159 @@ describe('getCardChipLimit', () => {
   it('treats wider-than-16:9 and invalid ratios as 16:9', () => {
     expect(getCardChipLimit(4, 3)).toBe(getCardChipLimit(4, 16 / 9))
     expect(getCardChipLimit(4, 0)).toBe(getCardChipLimit(4, 16 / 9))
+  })
+})
+
+describe('getFluidChipUnit', () => {
+  it('matches the per-size values at the default tier widths', () => {
+    const expected: Array<[number, number]> = [
+      [150, 8], [200, 8.5], [255, 10], [315, 12.5], [405, 16], [520, 22],
+    ]
+    for (const [width, unit] of expected) {
+      expect(getFluidChipUnit(width)).toBe(unit)
+    }
+  })
+
+  it('interpolates between tiers and clamps outside the range', () => {
+    expect(getFluidChipUnit(285)).toBeGreaterThan(10)
+    expect(getFluidChipUnit(285)).toBeLessThan(12.5)
+    expect(getFluidChipUnit(50)).toBe(8)
+    expect(getFluidChipUnit(900)).toBe(22)
+    expect(getFluidChipUnit(Number.NaN)).toBe(8)
+  })
+
+  it('is exposed for card grids only', () => {
+    expect(getGridLayoutStyle({ size: 3 })['--chip-unit-fluid']).toBe('10px')
+    expect(getGridLayoutStyle({ size: 3, containerWidth: 1200, listGrid: true })['--chip-unit-fluid']).toBeUndefined()
+    expect(getGridLayoutStyle({ size: 3, containerWidth: 1200, lineGrid: true })['--chip-unit-fluid']).toBeUndefined()
+    expect(getGridLayoutStyle({ chipsGrid: true })['--chip-unit-fluid']).toBeUndefined()
+  })
+})
+
+describe('getLayoutMetrics single-column growth', () => {
+  it('keeps every size wider than the previous one until the container limit', () => {
+    const types = [{}, { imageGrid: true }, { wideImage: true }]
+
+    for (const type of types) {
+      for (const containerWidth of [640, 800, 1000, 1200, 1600]) {
+        let prevWidth = 0
+        for (let size = 1; size <= 6; size += 1) {
+          const { cardWidth } = getLayoutMetrics(containerWidth, { size, gapSize: 'xs', ...type })
+          expect(cardWidth).toBeLessThanOrEqual(containerWidth)
+          if (cardWidth < containerWidth) expect(cardWidth).toBeGreaterThan(prevWidth)
+          prevWidth = cardWidth
+        }
+      }
+    }
+  })
+
+  it('does not stretch a single column to the full container when a larger size follows', () => {
+    const containerWidth = 600
+    const xl = getLayoutMetrics(containerWidth, { size: 5, gapSize: 'xs' })
+    const xxl = getLayoutMetrics(containerWidth, { size: 6, gapSize: 'xs' })
+
+    expect(xl.columnCount).toBe(1)
+    expect(xl.cardWidth).toBeLessThan(containerWidth)
+    expect(xxl.cardWidth).toBeGreaterThan(xl.cardWidth)
+  })
+})
+
+
+describe('continuous card sizing', () => {
+  it('grows smoothly across column boundaries for each card type', () => {
+    for (const type of [{}, {imageGrid: true}, {wideImage: true}]) {
+      let previous = getLayoutMetrics(1000, {size: 1, ...type})
+      for (let step = 101; step <= 600; step++) {
+        const current = getLayoutMetrics(1000, {size: step / 100, ...type})
+        expect(current.cardWidth).toBeGreaterThan(previous.cardWidth)
+        expect(current.cardWidth - previous.cardWidth).toBeLessThan(1.2)
+        expect(current.columnCount * current.cardWidth + (current.columnCount - 1) * 10).toBeLessThanOrEqual(1000)
+        previous = current
+      }
+    }
+  })
+
+  it('clamps cards to narrow containers', () => {
+    expect(getLayoutMetrics(120, {size: 5.25}).cardWidth).toBe(120)
+  })
+})
+
+
+describe('automatic card gaps', () => {
+  it('keeps gaps compact at fractional sizes and never overflows a row', () => {
+    for (const containerWidth of [120, 600, 628, 1000, 1450]) {
+      for (const size of [1, 2.37, 3, 4.56, 6]) {
+        const options = {size, containerWidth, gapSize: 'auto'}
+        const {columnCount, cardWidth} = getLayoutMetrics(containerWidth, options)
+        const spacing = getLayoutGap(options)
+        expect(spacing.y).toBe(spacing.x)
+        const gap = spacing.x
+        expect(gap).toBeGreaterThanOrEqual(10)
+        expect(gap).toBeLessThanOrEqual(24)
+        expect(columnCount * cardWidth + (columnCount - 1) * gap).toBeCloseTo(containerWidth)
+      }
+    }
+  })
+
+  it('uses the same spacing in CSS and virtual row estimates', () => {
+    for (const size of [1, 2.37, 4.4, 6]) {
+      const options = {size, containerWidth: 1000, gapSize: 'auto'}
+      const spacing = getLayoutGap(options)
+      const style = getGridLayoutStyle(options)
+      expect(style['--grid-gap-y']).toBe(style['--grid-gap-x'])
+      // With no description/progress in minimalism, the stride is exact.
+      expect(estimateRowHeight({...options, imageOnly: true})).toBeCloseTo(
+        getLayoutMetrics(1000, options).cardWidth / (16 / 9) + 28 + spacing.y,
+      )
+    }
+    expect(getLayoutGap({gapSize: 'auto'})).toEqual({x: 10, y: 10})
+  })
+
+  it('fills the former empty right side, including a single column', () => {
+    for (const size of [3, 4.4, 6]) {
+      const options = {size, containerWidth: 628, gapSize: 'auto'}
+      const {columnCount, cardWidth} = getLayoutMetrics(628, options)
+      expect(columnCount * cardWidth + (columnCount - 1) * getLayoutGap(options).x).toBeCloseTo(628)
+    }
+  })
+
+  it('changes card width smoothly while the column count stays the same', () => {
+    const before = getLayoutMetrics(1000, {size: 3.1, gapSize: 'auto'})
+    const after = getLayoutMetrics(1000, {size: 3.11, gapSize: 'auto'})
+    expect(after.columnCount).toBe(before.columnCount)
+    expect(after.cardWidth).toBeGreaterThan(before.cardWidth)
+    expect(after.cardWidth - before.cardWidth).toBeLessThan(1)
+  })
+})
+
+describe('card contents follow actual width', () => {
+  it('uses identical scale for equally wide cards regardless of slider or layout type', () => {
+    const regular = getGridLayoutStyle({size: 2})
+    const wide = getGridLayoutStyle({size: 1, wideImage: true})
+    expect(regular).toEqual(wide)
+
+    const small = getGridLayoutStyle({size: 1})
+    const constrained = getGridLayoutStyle({size: 6, containerWidth: 150})
+    expect(constrained).toEqual(small)
+  })
+
+  it('scales fonts, icons, insets and height estimates continuously across old tiers', () => {
+    const properties = ['--card-font-size', '--card-description-font-size', '--card-rating-icon', '--card-fav-icon', '--card-title-scale', '--card-chip-inset-factor', '--card-description-height']
+    for (const boundary of [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5]) {
+      const before = getGridLayoutStyle({size: boundary - 0.001})
+      const after = getGridLayoutStyle({size: boundary + 0.001})
+      for (const property of properties) {
+        expect(Math.abs(parseFloat(after[property]) - parseFloat(before[property]))).toBeLessThan(0.1)
+      }
+    }
+  })
+
+  it('converts the reference widths and safely clamps visual scale', () => {
+    expect(getCardSizeForWidth(150)).toBe(1)
+    expect(getCardSizeForWidth(255)).toBe(3)
+    expect(getCardSizeForWidth(285)).toBe(3.5)
+    expect(getCardSizeForWidth(100)).toBe(1)
+    expect(getCardSizeForWidth(1000)).toBe(6)
+    expect(getCardSizeForWidth(NaN)).toBe(3)
   })
 })

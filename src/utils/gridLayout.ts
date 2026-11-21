@@ -5,6 +5,55 @@ export const CARD_WIDTH: Record<string, Record<number, number>> = {
   wide: { 1: 200, 2: 255, 3: 315, 4: 395, 5: 485, 6: 600 },
 }
 
+/**
+ * Card width → overlay chip unit (rating / duration / resolution chips).
+ * Points are the old per-size values at the default tier widths, so a card at
+ * exactly a tier width looks as before; in between, the unit follows the real
+ * (stretched) card width instead of jumping per size step. Mirrors the
+ * `.item__size-N` fallbacks in item.scss.
+ */
+const CHIP_UNIT_POINTS: ReadonlyArray<readonly [number, number]> = [
+  [150, 8], [200, 8.5], [255, 10], [315, 12.5], [405, 16], [520, 22],
+]
+
+export function getFluidChipUnit(cardWidth: number): number {
+  const points = CHIP_UNIT_POINTS
+  const first = points[0]
+  const last = points[points.length - 1]
+  if (!Number.isFinite(cardWidth) || cardWidth <= first[0]) return first[1]
+  if (cardWidth >= last[0]) return last[1]
+  for (let i = 1; i < points.length; i += 1) {
+    const [x1, y1] = points[i]
+    if (cardWidth <= x1) {
+      const [x0, y0] = points[i - 1]
+      const unit = y0 + ((cardWidth - x0) / (x1 - x0)) * (y1 - y0)
+      return Math.round(unit * 100) / 100
+    }
+  }
+  return last[1]
+}
+
+/** Fractional sizes retain existing presets while allowing continuous card widths. */
+export function interpolateCardSize(values: Record<number, number>, size = 3): number {
+  const value = Number.isFinite(Number(size)) ? Math.min(6, Math.max(1, Number(size) || 3)) : 3
+  const lower = Math.floor(value)
+  const upper = Math.ceil(value)
+  return values[lower] + (values[upper] - values[lower]) * (value - lower)
+}
+
+/** Inverse of the default width curve: visual scale always follows actual pixels. */
+export function getCardSizeForWidth(cardWidth: number): number {
+  const widths = CARD_WIDTH.default
+  if (!Number.isFinite(cardWidth)) return 3
+  if (cardWidth <= widths[1]) return 1
+  for (let size = 2; size <= 6; size++) {
+    if (cardWidth <= widths[size]) {
+      return size - 1 + (cardWidth - widths[size - 1]) / (widths[size] - widths[size - 1])
+    }
+  }
+  return 6
+}
+
 /** Approximate chip width for virtual row chunking in tag chip view. */
 const CHIP_WIDTH: Record<number, number> = { 1: 80, 2: 100, 3: 120, 4: 150, 5: 180, 6: 220 }
 
@@ -42,6 +91,29 @@ const DESCRIPTION_HEIGHT: Record<number, number> = {
 }
 
 /**
+ * Description block of a lean card (padding + one-line title, plus the
+ * rating/favorite row when it sits in the description; L…XXL scale the description font separately, see item.scss). Rounded up so the content never clips; spare height stays empty.
+ */
+const LEAN_DESCRIPTION_BASE: Record<number, number> = {
+  1: 33,
+  2: 37,
+  3: 42,
+  4: 52,
+  5: 60,
+  6: 68,
+}
+
+/** Rating/favorite row inside the description (icon + margins); only when shown there. */
+const LEAN_RATING_ROW_HEIGHT: Record<number, number> = {
+  1: 21,
+  2: 25,
+  3: 32,
+  4: 34,
+  5: 36,
+  6: 38,
+}
+
+/**
  * Card chips shown before the "+N" toggle, for a 16:9 preview.
  * L…XXL cards are much wider than M, so they hold more chips per line.
  */
@@ -58,15 +130,14 @@ const MIN_CARD_CHIP_LIMIT = 6
  * chips; a 16:9 preview is short and gets the full limit.
  */
 export function getCardChipLimit(size = 3, previewAspect = WIDE_PREVIEW_ASPECT): number {
-  const base = CARD_CHIP_LIMIT[Number(size)] || CARD_CHIP_LIMIT[3]
+  const base = Math.round(interpolateCardSize(CARD_CHIP_LIMIT, size))
   const aspect = Number(previewAspect) > 0 ? Number(previewAspect) : WIDE_PREVIEW_ASPECT
   const factor = Math.min(1, Math.max(0.55, Math.sqrt(aspect / WIDE_PREVIEW_ASPECT)))
   return Math.max(MIN_CARD_CHIP_LIMIT, Math.round(base * factor))
 }
 
 export function getCardDescriptionHeight(size = 3): number {
-  const key = Number(size)
-  return DESCRIPTION_HEIGHT[key] || DESCRIPTION_HEIGHT[3]
+  return interpolateCardSize(DESCRIPTION_HEIGHT, size)
 }
 
 /** Legacy timeline row table (kept for parity with skeleton estimates). */
@@ -75,7 +146,12 @@ export const LINE_ROW_HEIGHT: Record<number, number> = {
 }
 
 /** Filename line under the thumb in minimalism (view 4). */
-const MINIMAL_FILENAME_HEIGHT = 28
+const MINIMAL_TITLE_FONT_REM: Record<number, number> = {1: 0.78, 2: 0.9, 3: 1, 4: 1.26, 5: 1.46, 6: 1.66}
+
+/** Same title scale as card descriptions (`--card-description-font-size`) + line + top inset. */
+export function getMinimalFilenameHeight(size = 3): number {
+  return Math.round(interpolateCardSize(MINIMAL_TITLE_FONT_REM, size) * 16 * 1.95)
+}
 
 /** v-progress-linear under the preview on video/audio cards (outside .description). */
 const CARD_PROGRESS_HEIGHT = 4
@@ -105,7 +181,7 @@ export const VIRTUAL_MASONRY_BUFFER = 600
 
 /** Estimated description block height before natural rows are measured. */
 export function getDescriptionHeight(size = 3): number {
-  return DESCRIPTION_HEIGHT[Number(size)] || DESCRIPTION_HEIGHT[3]
+  return interpolateCardSize(DESCRIPTION_HEIGHT, size)
 }
 
 /** Stride for one virtual row: measured value or estimate. */
@@ -194,6 +270,10 @@ export function getGridGap(gapSize = 'xs'): { x: number; y: number } {
 
 export interface GridLayoutOptions {
   size?: number
+  /** Fixed-height virtual cards show only name + rating/favorite (no meta chips). */
+  leanCards?: boolean
+  /** Lean cards: rating/favorite row is part of the description (not on the preview). */
+  leanRatingRow?: boolean
   lineGrid?: boolean
   listGrid?: boolean
   chipsGrid?: boolean
@@ -213,18 +293,18 @@ export function getTargetCardWidth(options: GridLayoutOptions = {}): number {
   if (options.lineGrid || options.listGrid) return options.containerWidth || 1200
 
   if (options.chipsGrid) {
-    return CHIP_WIDTH[size] || CHIP_WIDTH[3]
+    return interpolateCardSize(CHIP_WIDTH, size)
   }
 
   if (options.imageGrid) {
-    return CARD_WIDTH.image[size] || CARD_WIDTH.image[3]
+    return interpolateCardSize(CARD_WIDTH.image, size)
   }
 
   if (options.wideImage) {
-    return CARD_WIDTH.wide[size] || CARD_WIDTH.wide[3]
+    return interpolateCardSize(CARD_WIDTH.wide, size)
   }
 
-  return CARD_WIDTH.default[size] || CARD_WIDTH.default[3]
+  return interpolateCardSize(CARD_WIDTH.default, size)
 }
 
 export interface LayoutMetrics {
@@ -240,6 +320,15 @@ function getColumnCountFromTarget(
   if (!containerWidth || !targetWidth) return 1
 
   return Math.max(1, Math.floor((containerWidth + gapX) / (targetWidth + gapX)))
+}
+
+/** Compact breathing room shrinks smoothly as the requested cards grow. */
+function getAutoCardGap(containerWidth: number, target: number, columns: number): number {
+  if (columns <= 1) return 10
+  const lower = (containerWidth + 10) / (columns + 1) - 10
+  const upper = (containerWidth + 10) / columns - 10
+  const progress = Math.min(1, Math.max(0, (target - lower) / (upper - lower)))
+  return 24 - 14 * progress
 }
 
 export function getLayoutMetrics(
@@ -264,18 +353,14 @@ export function getLayoutMetrics(
 
   const gap = getGridGap(options.gapSize)
   const target = getTargetCardWidth(options)
-  let columnCount = getColumnCountFromTarget(containerWidth, target, gap.x)
-
-  const size = Number(options.size) || 3
-  if (size > 1) {
-    const prevMetrics = getLayoutMetrics(containerWidth, { ...options, size: size - 1 })
-    if (columnCount >= prevMetrics.columnCount) {
-      columnCount = Math.max(1, prevMetrics.columnCount - 1)
-    }
-  }
-
-  const cardWidth = containerWidth && columnCount > 0
-    ? (containerWidth - gap.x * (columnCount - 1)) / columnCount
+  const columnCount = getColumnCountFromTarget(containerWidth, target, gap.x)
+  const autoGap = getAutoCardGap(containerWidth, target, columnCount)
+  // Automatic grids fill the entire row. Width and gap must use the same
+  // metrics in plain grids, virtual rows, masonry and skeletons.
+  const cardWidth = containerWidth > 0
+    ? options.gapSize === 'auto'
+      ? (containerWidth - autoGap * (columnCount - 1)) / columnCount
+      : Math.min(containerWidth, target)
     : target
 
   return { columnCount, cardWidth }
@@ -295,7 +380,7 @@ export function getColumnCount(
   }).columnCount
 }
 
-/** Card width that fills the row while column count follows the target size. */
+/** Continuous card width, constrained by the available container. */
 export function getDistributedCardWidth(
   containerWidth: number,
   options: GridLayoutOptions = {},
@@ -308,10 +393,10 @@ export function getDistributedCardWidth(
 }
 
 export function getGridLayoutStyle(options: GridLayoutOptions = {}): Record<string, string> {
-  const gap = getGridGap(options.gapSize)
+  const gap = getLayoutGap(options)
   const size = Number(options.size) || 3
   const descriptionHeight = options.imageOnly
-    ? MINIMAL_FILENAME_HEIGHT
+    ? getMinimalFilenameHeight(size)
     : getDescriptionHeight(size)
   const style: Record<string, string> = {
     '--grid-gap-x': `${gap.x}px`,
@@ -329,9 +414,34 @@ export function getGridLayoutStyle(options: GridLayoutOptions = {}): Record<stri
       cardWidth = getTargetCardWidth(options)
     }
     style['--card-width'] = `${cardWidth}px`
+    // Card grids only: line/list rows span the container, so their chips keep
+    // the per-size fallback from item.scss.
+    if (!options.lineGrid && !options.listGrid) {
+      const visualSize = getCardSizeForWidth(cardWidth)
+      style['--chip-unit-fluid'] = `${getFluidChipUnit(cardWidth)}px`
+      style['--card-flag-scale'] = String(getFluidChipUnit(cardWidth) / 20)
+      style['--card-description-height'] = `${options.imageOnly ? getMinimalFilenameHeight(visualSize) : getDescriptionHeight(visualSize)}px`
+      style['--card-rating-icon'] = `${interpolateCardSize({1: 17, 2: 21, 3: 28, 4: 30, 5: 32, 6: 34}, visualSize)}px`
+      style['--card-fav-icon'] = `${interpolateCardSize({1: 19, 2: 23, 3: 30, 4: 32, 5: 34, 6: 36}, visualSize)}px`
+      style['--card-star-gap'] = `${interpolateCardSize({1: 0, 2: 0, 3: 1, 4: 1, 5: 2, 6: 2}, visualSize)}px`
+      style['--card-title-scale'] = `${interpolateCardSize({1: 0.9, 2: 0.92, 3: 0.94, 4: 0.95, 5: 0.96, 6: 0.97}, visualSize)}`
+      style['--card-chip-inset-factor'] = String(interpolateCardSize({1: 0.85, 2: 0.65, 3: 0.65, 4: 0.65, 5: 0.4, 6: 0.4}, visualSize))
+      style['--card-font-size'] = `${interpolateCardSize({1: 0.78, 2: 0.9, 3: 1, 4: 1.08, 5: 1.16, 6: 1.24}, visualSize)}rem`
+      style['--card-description-font-size'] = `${interpolateCardSize({1: 0.78, 2: 0.9, 3: 1, 4: 1.26, 5: 1.46, 6: 1.66}, visualSize)}rem`
+    }
   }
 
   return style
+}
+
+/** Automatic grids fill rows with compact gaps, including the one-column case. */
+export function getLayoutGap(options: GridLayoutOptions = {}): { x: number; y: number } {
+  const gap = getGridGap(options.gapSize)
+  if (options.gapSize !== 'auto' || options.lineGrid || options.listGrid || options.chipsGrid) return gap
+  if (!options.containerWidth) return {x: gap.x, y: gap.x}
+  const {columnCount} = getLayoutMetrics(options.containerWidth, options)
+  const spacing = getAutoCardGap(options.containerWidth, getTargetCardWidth(options), columnCount)
+  return {x: spacing, y: spacing}
 }
 
 export interface GridRow<T> {
@@ -499,8 +609,8 @@ export function chunkIntoRows<T>(items: T[], columnCount: number): GridRow<T>[] 
 }
 
 export function estimateRowHeight(options: GridLayoutOptions = {}): number {
-  const size = Number(options.size) || 3
-  const gap = getGridGap(options.gapSize)
+  const size = Math.round(Number(options.size)) || 3
+  const gap = getLayoutGap(options)
 
   if (options.lineGrid) {
     const story = TIMELINE_STORY_HEIGHT[size] || TIMELINE_STORY_HEIGHT[3]
@@ -526,10 +636,14 @@ export function estimateRowHeight(options: GridLayoutOptions = {}): number {
   const aspect = options.imageAspectRatio && options.imageAspectRatio > 0
     ? options.imageAspectRatio
     : 16 / 9
+  const visualSize = getCardSizeForWidth(cardWidth)
   if (options.imageOnly) {
-    return cardWidth / aspect + MINIMAL_FILENAME_HEIGHT + gap.y
+    return cardWidth / aspect + getMinimalFilenameHeight(visualSize) + gap.y
   }
-  const description = DESCRIPTION_HEIGHT[size] || DESCRIPTION_HEIGHT[3]
+  const description = options.leanCards
+    ? interpolateCardSize(LEAN_DESCRIPTION_BASE, visualSize)
+      + (options.leanRatingRow ? interpolateCardSize(LEAN_RATING_ROW_HEIGHT, visualSize) : 0)
+    : getDescriptionHeight(visualSize)
   // Progress sits outside the clamped description; omit for image media grids.
   const progress = options.imageGrid ? 0 : CARD_PROGRESS_HEIGHT
 

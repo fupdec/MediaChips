@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref, onMounted, onBeforeUnmount, watch, type HTMLAttributes} from 'vue'
+import {computed, ref, onBeforeUnmount, watch, type HTMLAttributes} from 'vue'
 import Item from '@/components/items/Item.vue'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useVirtualMasonryWindow} from '@/composable/useVirtualMasonryWindow'
@@ -59,7 +59,7 @@ import {
   estimateMasonryItemHeight,
   estimateSquareItemHeight,
   getDistributedCardWidth,
-  getGridGap,
+  getLayoutGap,
   getLayoutMetrics,
   getTargetCardWidth,
   packMasonryColumns,
@@ -97,8 +97,6 @@ const props = withDefaults(defineProps<{
 })
 
 const layoutRef = ref<HTMLElement | null>(null)
-const containerWidth = ref(0)
-const columnCount = ref(1)
 const itemsSource = computed(() => props.items)
 const virtualEnabled = computed(() => props.virtual)
 
@@ -110,7 +108,10 @@ const resolvedLayoutOptions = computed<GridLayoutOptions>(() => ({
   ...props.gridLayoutOptions,
 }))
 
-const { gridStyle } = useResponsiveGridLayout(layoutRef, resolvedLayoutOptions)
+const { gridStyle, containerWidth } = useResponsiveGridLayout(layoutRef, resolvedLayoutOptions)
+const columnCount = computed(() => getLayoutMetrics(containerWidth.value, {
+  size: Number(props.size), gapSize: props.gapSize ?? 'xs', imageGrid: true,
+}).columnCount)
 
 const layoutOptions = computed(() => ({
   size: Number(props.size),
@@ -138,7 +139,7 @@ onBeforeUnmount(() => {
   }
 })
 
-const gap = computed(() => getGridGap(props.gapSize ?? 'xs'))
+const gap = computed(() => getLayoutGap({size: Number(props.size), gapSize: props.gapSize, imageGrid: true, containerWidth: containerWidth.value}))
 
 const colWidth = computed(() => {
   const width = containerWidth.value
@@ -183,42 +184,6 @@ const columnStyle = computed(() => ({
   rowGap: `${gap.value.y}px`,
 }))
 
-let resizeObserver: ResizeObserver | null = null
-
-const measureLayout = () => {
-  const layoutEl = layoutRef.value
-  if (!layoutEl) return
-
-  containerWidth.value = layoutEl.clientWidth
-
-  const options = {
-    size: Number(props.size),
-    gapSize: props.gapSize ?? 'xs',
-    imageGrid: true,
-    containerWidth: layoutEl.clientWidth,
-  }
-  const metrics = getLayoutMetrics(layoutEl.clientWidth, options)
-
-  columnCount.value = metrics.columnCount
-}
-
-onMounted(() => {
-  if (props.virtual) return
-
-  measureLayout()
-
-  if (layoutRef.value && typeof ResizeObserver !== 'undefined') {
-    resizeObserver = new ResizeObserver(() => {
-      measureLayout()
-    })
-    resizeObserver.observe(layoutRef.value)
-  }
-})
-
-onBeforeUnmount(() => {
-  resizeObserver?.disconnect()
-  resizeObserver = null
-})
 </script>
 
 <style scoped>

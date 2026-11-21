@@ -40,18 +40,15 @@
 
       <div class="toolbar-appearance__deck-group">
         <span class="toolbar-appearance__deck-label">{{ t('settings_labels.appearance.item_size') }}</span>
-        <div class="toolbar-appearance__deck-track">
-          <button
-            v-for="(label, index) in ['XS', 'S', 'M', 'L', 'XL', 'XXL']"
-            :key="label"
-            type="button"
-            class="toolbar-appearance__deck-opt"
-            :class="{'toolbar-appearance__deck-opt--active': index + 1 === itemsStore.size}"
-            @click="updateSize(index + 1)"
-          >
-            {{ label }}
-          </button>
-        </div>
+        <PillSlider
+          :model-value="itemsStore.size"
+          @update:model-value="updateSize"
+          :min="1"
+          :max="6"
+          :step="isCardGrid ? 0.01 : 1"
+          :aria-label="t('settings_labels.appearance.item_size')"
+          class="toolbar-appearance__size-slider"
+        />
       </div>
 
       <div class="toolbar-appearance__deck-group toolbar-appearance__deck-group--view">
@@ -117,17 +114,14 @@
             <div class="toolbar-appearance__label">
               {{ t('settings_labels.appearance.item_size') }}
             </div>
-            <v-chip-group column class="toolbar-appearance__chips">
-              <v-chip
-                v-for="(label, index) in ['XS', 'S', 'M', 'L', 'XL', 'XXL']"
-                :key="label"
-                @click="updateSize(index + 1)"
-                :variant="index + 1 === itemsStore.size ? 'flat' : 'outlined'"
-                base-color="primary"
-              >
-                <span>{{ label }}</span>
-              </v-chip>
-            </v-chip-group>
+            <PillSlider
+              :model-value="itemsStore.size"
+              @update:model-value="updateSize"
+              :min="1"
+              :max="6"
+              :step="isCardGrid ? 0.01 : 1"
+              :aria-label="t('settings_labels.appearance.item_size')"
+            />
           </section>
         </v-col>
 
@@ -182,6 +176,7 @@ import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 
 import DialogHeader from '@/components/elements/DialogHeader.vue'
+import PillSlider from '@/components/ui/PillSlider.vue'
 import ItemsView from '@/components/app/appbar/elements/ItemsView.vue'
 import ToolbarGroupBy from '@/components/app/toolbar/ToolbarGroupBy.vue'
 import SettingsMediaTypeAddedMeta from '@/components/settings/SettingsMediaTypeAddedMeta.vue'
@@ -221,6 +216,8 @@ const updateLimit = (val: number) => {
   pageCommands.setLimit(val)
 }
 
+const isCardGrid = computed(() => ![2, 5].includes(Number(itemsStore.view)))
+
 const updateSize = (val: number) => {
   itemsStore.updateState({key: 'size', value: val})
 }
@@ -241,6 +238,12 @@ const closePinnedMetaDialog = () => {
 
 <style scoped lang="scss">
 .toolbar-appearance {
+  // The pill itself lives in PillSlider; here only the width (190px track + 2*16 padding).
+  &__size-slider {
+    width: 222px;
+    flex: 0 0 auto;
+  }
+
   &__label {
     margin-bottom: 10px;
     padding-inline: 2px;
@@ -285,9 +288,9 @@ const closePinnedMetaDialog = () => {
   &__deck {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-end;
+    align-items: stretch;
     gap: 12px 14px;
-    padding: 10px 14px;
+    padding: 12px 14px;
     background: rgba(var(--v-theme-primary), 0.03);
     position: relative;
   }
@@ -296,7 +299,8 @@ const closePinnedMetaDialog = () => {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 4px;
+    justify-content: flex-end;
+    gap: 6px;
     min-width: 0;
 
     & + & {
@@ -306,6 +310,24 @@ const closePinnedMetaDialog = () => {
 
     &--view {
       min-width: 0;
+
+      // Same border strength as the other pills in the row.
+      :deep(.items-view-track) {
+        border-color: rgba(var(--v-theme-primary), 0.22);
+      }
+
+      :deep(.items-view-opt) {
+        min-width: 28px;
+        justify-content: center;
+        padding: 0 10px;
+      }
+    }
+
+    // No label above: button sits on the same 32px baseline as the pills.
+    &--edit-pinned :deep(.v-btn) {
+      height: 32px;
+      padding: 0 14px;
+      border-radius: 999px;
     }
   }
 
@@ -335,7 +357,7 @@ const closePinnedMetaDialog = () => {
     margin: 0;
     min-width: 28px;
     height: 26px;
-    padding: 0 8px;
+    padding: 0 10px;
     border-radius: 999px;
     background: transparent;
     color: rgba(var(--v-theme-primary), 0.72);

@@ -98,27 +98,6 @@ const {t} = useI18n()
     :title="t('settings_labels.appearance.group_layout')"
     :spaced="false"
   >
-    <div class="d-flex align-center flex-wrap mb-4">
-      <div class="text-body-1 text-high-emphasis mb-2 mr-4">
-        <v-icon start>mdi-view-agenda</v-icon>
-        {{ t('settings_labels.appearance.gap_size_between_items') }}
-      </div>
-
-      <SettingsSegmentedControl
-        v-model="SETTINGS.gapSize"
-        @update:model-value="setOption($event, 'gapSize')"
-        class="mb-2"
-        :label="t('settings_labels.appearance.gap_size_between_items')"
-        :items="[
-          {value: 'xs', title: 'XS'},
-          {value: 's', title: 'S'},
-          {value: 'm', title: 'M'},
-          {value: 'l', title: 'L'},
-          {value: 'xl', title: 'XL'},
-        ]"
-      />
-    </div>
-
     <div class="d-flex align-center flex-wrap">
       <div class="text-body-1 text-high-emphasis mb-2 mr-4">
         <v-icon start>mdi-page-next</v-icon>

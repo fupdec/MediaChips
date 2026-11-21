@@ -140,6 +140,16 @@ describe('isPreviewPointerStillOver', () => {
     expect(preview.matches).toHaveBeenCalledWith(':hover')
   })
 
+  it('uses the shared hit target without forcing another style or hit-test pass', () => {
+    const preview = document.createElement('div')
+    const child = document.createElement('span')
+    preview.append(child)
+    const matches = vi.spyOn(preview, 'matches')
+    expect(isPreviewPointerStillOver(preview, {clientX: 1, clientY: 2, hitTarget: child})).toBe(true)
+    expect(isPreviewPointerStillOver(preview, {clientX: 1, clientY: 2, hitTarget: null})).toBe(false)
+    expect(matches).not.toHaveBeenCalled()
+  })
+
   it('falls back to elementFromPoint when :hover is stale', () => {
     const child = document.createElement('div')
     const preview = document.createElement('div')

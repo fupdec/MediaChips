@@ -288,7 +288,7 @@
       v-if="loader.is_busy && !ITEMS.itemsOnPage.length"
       class="items-page-grid"
       :size="ITEMS.size"
-      :gap-size="SETTINGS.gapSize"
+      gap-size="auto"
       :view="ITEMS.view"
       :items-type="listItemType"
       :media-type="mediaType"
@@ -311,23 +311,23 @@
     <ItemsMasonryGrid
       v-if="pageInitialized && ITEMS.itemsOnPage.length && (isMasonryGrid || isSquaresGrid)"
       :key="`masonry-${itemsRenderKey}`"
-      :items="ITEMS.itemsOnPage"
+      :items="renderedItems"
       :items-type="listItemType"
       :meta="meta"
       :media-type="mediaType"
       :reg="reg"
       :size="ITEMS.size"
       :view="ITEMS.view"
-      :gap-size="SETTINGS.gapSize"
+      gap-size="auto"
       :grid-classes="itemsGridClasses"
       :grid-layout-options="itemsGridLayoutOptions"
-      :virtual="useVirtualMasonry"
       :square-items="isSquaresGrid"
       class="items-page-grid"
     />
 
     <ItemsVirtualGrid
-      v-else-if="pageInitialized && ITEMS.itemsOnPage.length && useVirtualGrid"
+      v-else-if="useVirtualGrid"
+      ref="virtualGridRef"
       :key="`virtual-${itemsRenderKey}`"
       :items="ITEMS.itemsOnPage"
       :items-type="listItemType"
@@ -336,7 +336,7 @@
       :reg="reg"
       :size="ITEMS.size"
       :view="ITEMS.view"
-      :gap-size="SETTINGS.gapSize"
+      gap-size="auto"
       :grid-classes="itemsGridClasses"
       :grid-layout-options="itemsGridLayoutOptions"
       :image-grid="isImageGrid"
@@ -345,7 +345,7 @@
       :list-grid="isListGrid"
       :chips-grid="isChipsGrid"
       :image-aspect-ratio="virtualCardAspectRatio"
-      :window-start="infiniteWindowStart"
+      :window-start="virtualWindowStart"
       :total-count="virtualTotalCount"
       class="items-page-grid"
     >
@@ -357,9 +357,10 @@
         >
           <div
             class="infinite-loader-slot"
-            :class="{ 'infinite-loader-slot--active': showInfiniteLoader }"
+            :class="{'infinite-loader-slot--active': showInfiniteLoader}"
           >
             <v-progress-circular
+              v-if="showInfiniteLoader"
               indeterminate
               size="28"
               width="3"
@@ -373,7 +374,7 @@
           />
         </div>
         <div
-          v-else-if="infiniteScrollReachedEnd"
+          v-else-if="infiniteScrollReachedEnd && mainScrollOverflowing"
           class="scroll-top-after-items"
         >
           <v-btn
@@ -427,7 +428,7 @@
       </template>
       <template v-else>
         <Item
-          v-for="(i, x) in ITEMS.itemsOnPage"
+          v-for="(i, x) in renderedItems"
           v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType, itemsRenderKey, ITEMS.thumbRefreshKeys[i.id]]"
           :key="String(i.id)"
           :type="listItemType"
@@ -441,7 +442,7 @@
     </div>
 
     <div
-      v-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd && !useVirtualGrid && mainScrollOverflowing"
+      v-if="!loader.is_busy && pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollReachedEnd && !isRenderingCards && !useVirtualGrid && mainScrollOverflowing"
       class="scroll-top-after-items"
     >
       <v-btn
@@ -544,18 +545,19 @@
       </div>
     </div>
 
-    <!-- Plain grid only — virtual grid hosts the sentinel at the data-window end. -->
+    <!-- Load the next batch when the end of the rendered list approaches. -->
     <div
-      v-if="pageInitialized && ITEMS.itemsOnPage.length && infiniteScrollHasMore && !useVirtualGrid"
+      v-if="pageInitialized && ITEMS.itemsOnPage.length && !useVirtualGrid && (infiniteScrollHasMore || isRenderingCards)"
       class="infinite-loader-full-height"
-      :aria-busy="showInfiniteLoader"
+      :aria-busy="showInfiniteLoader || isRenderingCards"
     >
       <!-- Fixed-height slot: keep height stable; show spinner while loading or queued. -->
       <div
         class="infinite-loader-slot"
-        :class="{ 'infinite-loader-slot--active': showInfiniteLoader }"
+        :class="{ 'infinite-loader-slot--active': showInfiniteLoader || isRenderingCards }"
       >
         <v-progress-circular
+          v-if="showInfiniteLoader || isRenderingCards"
           indeterminate
           size="28"
           width="3"
@@ -564,7 +566,8 @@
       </div>
 
       <div
-        v-intersect="infiniteIntersectOptions"
+        v-if="!isRenderingCards"
+        v-intersect="progressiveInfiniteIntersectOptions"
         class="infinite-scroll-sentinel"
         aria-hidden="true"
       />
@@ -622,8 +625,9 @@ import type {Meta} from '@/types/stores'
 // Компоненты
 import Item from '@/components/items/Item.vue'
 import ItemsBrowseSkeleton from '@/components/items/ItemsBrowseSkeleton.vue'
-import ItemsVirtualGrid from '@/components/items/ItemsVirtualGrid.vue'
 import ItemsMasonryGrid from '@/components/items/ItemsMasonryGrid.vue'
+import ItemsVirtualGrid from '@/components/items/ItemsVirtualGrid.vue'
+import {useInfiniteWindowSeek} from '@/composable/useInfiniteWindowSeek'
 import Filters from '@/components/app/Filters.vue'
 import SavedFilters from '@/components/elements/FiltersSaved.vue'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
@@ -649,10 +653,10 @@ import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {useItemsFiltersController} from '@/composable/itemsFiltersController'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
 import {useStickyControlDeck} from '@/composable/useStickyControlDeck'
+import {useProgressiveItems} from '@/composable/useProgressiveItems'
 import {useMainScrollOverflow} from '@/composable/useMainScrollOverflow'
 import {remountPageTagLayoutItems} from '@/composable/pageTagLayoutRemount'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
-import {shouldUseVirtualGrid, shouldUseVirtualMasonry} from '@/utils/gridLayout'
 import {isImageOnlyItemsView} from '@/utils/itemsView'
 import {clearVisibleItemIds} from '@/utils/visibleItemsWindow'
 import {resetVisibilityObserver} from '@/utils/sharedVisibilityObserver'
@@ -749,6 +753,7 @@ const {
   isLoadingMore,
   infiniteLoadPending,
   infiniteWindowStart,
+  jumpInfiniteWindow,
   infiniteScrollExhausted,
   is_infinite_scroll,
   showPagination,
@@ -772,6 +777,7 @@ const {
   mediaType,
   container,
   updatePageSetting,
+  keepFullInfiniteWindow: () => useVirtualGrid.value,
 })
 
 const showInfiniteLoader = computed(() => isLoadingMore.value || infiniteLoadPending.value)
@@ -779,14 +785,46 @@ const infiniteScrollHasMore = computed(() => (
   is_infinite_scroll.value
   && itemsStore.totalFiltered > 0
   && !infiniteScrollExhausted.value
-  && itemsStore.itemsOnPage.length < itemsStore.totalFiltered
+  && infiniteWindowStart.value + itemsStore.itemsOnPage.length < itemsStore.totalFiltered
 ))
 
 const infiniteScrollReachedEnd = computed(() => (
   is_infinite_scroll.value
   && itemsStore.totalFiltered > 0
-  && (infiniteScrollExhausted.value || itemsStore.itemsOnPage.length >= itemsStore.totalFiltered)
+  && (
+    infiniteScrollExhausted.value
+    || infiniteWindowStart.value + itemsStore.itemsOnPage.length >= itemsStore.totalFiltered
+  )
 ))
+
+/**
+ * Virtual scroll (Settings → Appearance). Card grids only: masonry/squares have
+ * their own path and grouped sections stay fully rendered.
+ */
+const useVirtualGrid = computed(() => (
+  Number(settingsStore.virtualImageGrid) === 1
+  && pageInitialized.value
+  && itemsStore.itemsOnPage.length > 0
+  && !isMasonryGrid.value
+  && !isSquaresGrid.value
+  && !groupedSections.value
+))
+/** Absolute index of the first loaded card (only infinite scroll shifts it). */
+const virtualWindowStart = computed(() => (
+  is_infinite_scroll.value ? Math.max(0, infiniteWindowStart.value) : 0
+))
+/**
+ * Scrollbar extent = the whole filtered list (fixed row height makes it exact).
+ * Infinite scroll: rows outside the loaded window are placeholders until a
+ * seek (useInfiniteWindowSeek) or the end sentinel loads them.
+ */
+const virtualTotalCount = computed(() => {
+  const loadedEnd = virtualWindowStart.value + itemsStore.itemsOnPage.length
+  if (!is_infinite_scroll.value) return loadedEnd
+  return Math.max(loadedEnd, Number(itemsStore.totalFiltered) || 0)
+})
+
+const virtualGridRef = ref<InstanceType<typeof ItemsVirtualGrid> | null>(null)
 
 const init = () => runInit({
   disposeListFetching,
@@ -886,30 +924,22 @@ const virtualCardAspectRatio = computed(() => {
 const listItemType = computed((): ItemsPageType =>
   props.items_type === 'tag' ? 'tag' : 'media',
 )
-const useVirtualGrid = computed(() =>
-  isGroupByOff.value
-  && !isMasonryGrid.value
-  && !isSquaresGrid.value
-  && !isChipsGrid.value
-  && shouldUseVirtualGrid(
-    ITEMS.value.itemsOnPage.length,
-    is_infinite_scroll.value,
-    listItemType.value,
-    {enabled: SETTINGS.value.virtualImageGrid !== '0'},
-  ),
+
+const {renderedItems, isRendering: isRenderingCards} = useProgressiveItems(
+  computed(() => pageInitialized.value ? ITEMS.value.itemsOnPage : []),
+  itemsRenderKey,
+  computed(() => props.items_type === 'media'),
 )
-const useVirtualMasonry = computed(() =>
-  (isMasonryGrid.value || isSquaresGrid.value)
-  && shouldUseVirtualMasonry(
-    ITEMS.value.itemsOnPage.length,
-    is_infinite_scroll.value,
-    listItemType.value,
-    {
-      enabled: SETTINGS.value.virtualImageGrid !== '0',
-      items: ITEMS.value.itemsOnPage,
-    },
-  ),
-)
+
+const progressiveInfiniteIntersectOptions = computed(() => ({
+  ...infiniteIntersectOptions.value,
+  handler: (visible: boolean) => {
+    infiniteIntersectOptions.value.handler(visible && !isRenderingCards.value)
+  },
+}))
+watch(isRenderingCards, (pending) => {
+  if (pending) infiniteIntersectOptions.value.handler(false)
+}, {immediate: true, flush: 'sync'})
 
 const groupedSections = computed(() => {
   if (isMasonryGrid.value || isSquaresGrid.value) return null
@@ -944,7 +974,7 @@ const groupedSections = computed(() => {
   const serverGroups = ITEMS.value.groups || []
   if (serverGroups.length) {
     const itemsByKey = new Map<string, MediaItem[]>()
-    for (const item of ITEMS.value.itemsOnPage) {
+    for (const item of renderedItems.value) {
       const {key} = getGroupKeyAndLabel(item, groupBy, ITEMS.value.sortBy, options)
       const list = itemsByKey.get(key) || []
       list.push(item)
@@ -969,7 +999,7 @@ const groupedSections = computed(() => {
 
   // Fallback when server groups are missing or keys don't match page items.
   const fallback = buildItemGroups(
-    ITEMS.value.itemsOnPage,
+    renderedItems.value,
     groupBy,
     ITEMS.value.sortBy,
     options,
@@ -1057,9 +1087,22 @@ onBeforeUnmount(() => {
   resetVisibilityObserver()
   void flushPageSettings()
 })
+/* After pageInitialized / groupedSections: the watcher reads useVirtualGrid at setup. */
+useInfiniteWindowSeek({
+  gridRef: virtualGridRef,
+  enabled: () => useVirtualGrid.value && is_infinite_scroll.value,
+  getWindow: () => ({
+    start: virtualWindowStart.value,
+    loaded: itemsStore.itemsOnPage.length,
+    total: virtualTotalCount.value,
+  }),
+  isBusy: () => loader.value.is_busy || isLoadingMore.value,
+  jump: jumpInfiniteWindow,
+})
+
 const itemsGridClasses = computed(() => [
-  `item__size-${ITEMS.value.size}`,
-  `gap-size-${SETTINGS.value.gapSize}`,
+  `item__size-${[1, 3, 4, 6].includes(Number(ITEMS.value.view)) ? 3 : Math.round(ITEMS.value.size)}`,
+  'gap-size-xs',
   {'card-grid': ITEMS.value.view == 1 || ITEMS.value.view == 4},
   {'chips-grid': isChipsGrid.value},
   {'line-grid': isLineGrid.value},
@@ -1070,7 +1113,7 @@ const itemsGridClasses = computed(() => [
 ])
 const itemsGridLayoutOptions = computed(() => ({
   size: ITEMS.value.size,
-  gapSize: SETTINGS.value.gapSize,
+  gapSize: 'auto',
   imageGrid: isImageGrid.value || isMasonryGrid.value || isSquaresGrid.value,
   wideImage: isWideImage.value,
   lineGrid: isLineGrid.value,
@@ -1083,19 +1126,6 @@ const { gridStyle: itemsGridStyle } = useResponsiveGridLayout(
   itemsGridRef,
   itemsGridLayoutOptions,
 )
-
-/** Scrollbar extent for the virtual grid.
- * - Paginated: this page only (never the whole library — that looked like a
- *   broken infinite list when limit was 50 and virtualization kicked in).
- * - Infinite: full filtered count so the thumb can seek across the library.
- */
-const virtualTotalCount = computed(() => {
-  const loaded = ITEMS.value.itemsOnPage.length
-  const start = Math.max(0, infiniteWindowStart.value)
-  if (!is_infinite_scroll.value) return loaded
-  const filtered = Math.max(0, Number(ITEMS.value.totalFiltered) || 0)
-  return Math.max(filtered, start + loaded, loaded)
-})
 
 const reg = computed(() => registrationStore.reg)
 const ENV = computed(() => ITEMS.value.environment)

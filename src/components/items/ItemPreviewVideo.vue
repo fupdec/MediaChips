@@ -8,6 +8,7 @@
       aria-hidden="true"
     >
       <v-img
+        :transition="false"
         v-if="showThumbImage"
         :key="thumbDisplayKey"
         :src="thumb || undefined"
@@ -52,6 +53,7 @@
         </div>
       </div>
       <v-img
+        :transition="false"
         v-else-if="showThumbImage"
         :key="thumbDisplayKey"
         :aspect-ratio="gridBigPreview.isVisual.value ? undefined : 16 / 9"
@@ -477,9 +479,18 @@ const {
   },
 })
 
-/** Mount VImg only in-viewport — keeps card shell size, drops decoded bitmaps offscreen. */
+/**
+ * EXPERIMENT: mount VImg when the card first enters the viewport and keep it —
+ * unmounting on every exit caused DOM remove/insert churn (style recalcs) while
+ * scrolling. Trade-off: decoded bitmaps stay in memory. Revert by dropping
+ * `thumbEverShown` from `showThumbImage`.
+ */
+const thumbEverShown = ref(props.previewActive)
+watch(() => props.previewActive, (active) => {
+  if (active) thumbEverShown.value = true
+})
 const isThumbMissing = computed(() => Boolean(thumb.value?.includes('unavailable.png')))
-const showThumbImage = computed(() => props.previewActive && Boolean(thumb.value) && !isThumbMissing.value)
+const showThumbImage = computed(() => (props.previewActive || thumbEverShown.value) && Boolean(thumb.value) && !isThumbMissing.value)
 
 const previewRef = ref<ComponentPublicInstance | null>(null)
 const cardAnchorRef = ref<HTMLElement | null>(null)

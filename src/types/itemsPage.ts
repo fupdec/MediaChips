@@ -51,6 +51,8 @@ export interface UseItemsPageOptions {
   mediaType: Ref<MediaType | null>
   container: Ref<HTMLElement | null>
   updatePageSetting: (data: PageSettingData) => Promise<void>
+  /** True while a virtual grid renders the list: keep the whole loaded window (no head trim). */
+  keepFullInfiniteWindow?: () => boolean
 }
 
 export interface UseItemsPageInitOptions {

@@ -103,7 +103,8 @@ export function restorePreviewLayout(el: HTMLElement): void {
     node.style.removeProperty('z-index')
   })
 
-  void el.offsetHeight
+  // Let the browser batch style restoration across cards; no animation restart
+  // requires a synchronous layout flush here.
 }
 
 export function applyBigPreviewMetrics(

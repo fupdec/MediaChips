@@ -1,4 +1,4 @@
-import { ref, onMounted, onBeforeUnmount, watch, nextTick, type Ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, type Ref } from 'vue'
 import { observeVisibility, unobserveVisibility } from '@/utils/sharedVisibilityObserver'
 
 const DEFAULT_ROOT_MARGIN = '200px 0px'
@@ -42,26 +42,8 @@ export function useLazyInView(
     observeVisibility(el, handleVisibility, rootMargin)
   }
 
-  const checkInitialVisibility = () => {
-    const el = getElement()
-    const root = document.querySelector('.main-scroll')
-    if (!el) return
-
-    const rect = el.getBoundingClientRect()
-    const rootRect = root?.getBoundingClientRect() ?? {
-      top: 0,
-      bottom: window.innerHeight,
-    }
-
-    if (rect.bottom > rootRect.top && rect.top < rootRect.bottom) {
-      isInView.value = true
-      wasInView.value = true
-    }
-  }
-
   onMounted(() => {
     observe()
-    nextTick(checkInitialVisibility)
   })
   onBeforeUnmount(unobserve)
 

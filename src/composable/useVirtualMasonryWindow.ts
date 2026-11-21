@@ -14,6 +14,7 @@ import {
   estimateSquareItemHeight,
   findVisibleMasonryItems,
   getGridGap,
+  getLayoutGap,
   getLayoutMetrics,
   getLayoutTopInScroll,
   type MasonryItemPosition,
@@ -56,7 +57,7 @@ export function useVirtualMasonryWindow(
     if (!layoutEl) return
 
     const options = getLayoutOptions()
-    const nextGap = getGridGap(options.gapSize)
+    const nextGap = getLayoutGap(options)
     const metrics = getLayoutMetrics(layoutEl.clientWidth, options)
 
     columnCount.value = metrics.columnCount
@@ -65,6 +66,7 @@ export function useVirtualMasonryWindow(
   }
 
   const rebuildLayout = () => {
+    if (!virtualEnabled.value) return
     measureLayout()
 
     const items = itemsSource.value || []
@@ -123,6 +125,7 @@ export function useVirtualMasonryWindow(
 
   const bind = () => {
     unbind()
+    if (!virtualEnabled.value) return
     scrollEl = getMainScrollEl() as HTMLElement | null
     scrollEl?.addEventListener('scroll', onScroll, { passive: true })
 
@@ -141,6 +144,7 @@ export function useVirtualMasonryWindow(
   let bindAttempts = 0
 
   const tryBind = () => {
+    if (!virtualEnabled.value) return
     bind()
     if (!scrollEl && bindAttempts < 20) {
       bindAttempts += 1
@@ -177,8 +181,9 @@ export function useVirtualMasonryWindow(
     updateWindow()
   }, { deep: true })
 
-  watch(virtualEnabled, () => {
-    updateWindow()
+  watch(virtualEnabled, (enabled) => {
+    if (enabled) nextTick(tryBind)
+    else unbind()
   })
 
   const itemStyle = (position: MasonryItemPosition<MediaItem>) => {

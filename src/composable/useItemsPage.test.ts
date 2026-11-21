@@ -15,7 +15,7 @@ describe('useItemsPage helpers', () => {
   })
 
   it('keeps infinite page size aligned with shared pagination', () => {
-    expect(INFINITE_PAGE_SIZE).toBe(60)
+    expect(INFINITE_PAGE_SIZE).toBe(24)
     expect(INFINITE_LOAD_COOLDOWN_MS).toBe(200)
     expect(INFINITE_SHORT_VIEWPORT_FILL_MAX).toBe(3)
   })

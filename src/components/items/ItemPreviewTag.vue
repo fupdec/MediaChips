@@ -56,7 +56,7 @@
           <div
             v-for="i in countries"
             :key="i"
-            class="flag-icon mb-1"
+            class="flag-icon"
           >
             <country-flag
               :country="getFlag(i)"

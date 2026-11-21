@@ -1,10 +1,10 @@
-import { ref, watch, onMounted, onBeforeUnmount, nextTick, type Ref, type ComputedRef } from 'vue'
+import { ref, shallowRef, watch, onMounted, onBeforeUnmount, nextTick, type Ref, type ComputedRef } from 'vue'
 import { getMainScrollEl } from '@/utils/mainScroll'
 import {
   averageMeasuredRowStride,
   estimateRowHeight,
   findVariableRowAtOffset,
-  getGridGap,
+  getLayoutGap,
   getLayoutMetrics,
   getLayoutTopInScroll,
   getVariableGridHeight,
@@ -21,6 +21,10 @@ interface LayoutOptions {
   listGrid?: boolean
   chipsGrid: boolean
   imageOnly?: boolean
+  /** Lean fixed-height cards (name + rating only) — smaller description estimate. */
+  leanCards?: boolean
+  /** Lean cards: rating/favorite row sits in the description (adds its height). */
+  leanRatingRow?: boolean
   imageAspectRatio?: number
   lockRowHeight?: boolean
   /** When set, used instead of media-card estimateRowHeight (e.g. folder tiles). */
@@ -37,6 +41,10 @@ export interface VirtualGridRow<T> {
   items: T[]
   /** Prior measured content height — keeps remounts from collapsing then growing. */
   contentMinHeight?: number
+  /** Not-yet-loaded slots before the first loaded item (virtual window edge / seek). */
+  placeholdersBefore?: number
+  /** Not-yet-loaded slots after the last loaded item. */
+  placeholdersAfter?: number
 }
 
 export function useVirtualGridWindow<T>(
@@ -54,7 +62,27 @@ export function useVirtualGridWindow<T>(
   const dataStartTop = ref(0)
   const dataEndTop = ref(0)
   const totalGridHeight = ref(0)
-  const visibleRows = ref<VirtualGridRow<T>[]>([])
+  const visibleRows = shallowRef<VirtualGridRow<T>[]>([])
+
+  // Preserve row and item-array identity while the viewport stays in the same rows.
+  const publishRows = (rows: VirtualGridRow<T>[]) => {
+    const previous = new Map(visibleRows.value.map(row => [row.index, row]))
+    const next = rows.map(row => {
+      const old = previous.get(row.index)
+      return old
+        && old.startIndex === row.startIndex
+        && old.contentMinHeight === row.contentMinHeight
+        && old.placeholdersBefore === row.placeholdersBefore
+        && old.placeholdersAfter === row.placeholdersAfter
+        && old.items.length === row.items.length
+        && old.items.every((item, index) => item === row.items[index])
+        ? old : row
+    })
+    if (next.length !== visibleRows.value.length
+      || next.some((row, index) => row !== visibleRows.value[index])) {
+      visibleRows.value = next
+    }
+  }
   let lastWindowStart = -1
   let lastLoadedEnd = 0
 
@@ -80,6 +108,8 @@ export function useVirtualGridWindow<T>(
     listGrid: Boolean(layoutOptions.value.listGrid),
     chipsGrid: layoutOptions.value.chipsGrid,
     imageOnly: Boolean(layoutOptions.value.imageOnly),
+    leanCards: Boolean(layoutOptions.value.leanCards),
+    leanRatingRow: Boolean(layoutOptions.value.leanRatingRow),
     imageAspectRatio: layoutOptions.value.imageAspectRatio,
     containerWidth: layoutRef.value?.clientWidth || 0,
     columnCount: columnCount.value,
@@ -148,20 +178,22 @@ export function useVirtualGridWindow<T>(
     gapY: number,
   ): VirtualGridRow<T> => {
     const startIndex = rowIndex * cols
-    const rowItems: T[] = []
-    for (let col = 0; col < cols; col += 1) {
-      const absoluteIndex = startIndex + col
-      if (absoluteIndex >= totalCount) break
-      const localIndex = absoluteIndex - windowStart
-      if (localIndex >= 0 && localIndex < items.length) {
-        rowItems.push(items[localIndex])
-      }
-    }
+    const rowEnd = Math.min(startIndex + cols, totalCount)
+    const loadedFrom = Math.max(startIndex, windowStart)
+    const loadedTo = Math.min(rowEnd, windowStart + items.length)
+    const hasLoaded = loadedTo > loadedFrom
+    const rowItems: T[] = hasLoaded
+      ? items.slice(loadedFrom - windowStart, loadedTo - windowStart)
+      : []
+    const before = hasLoaded ? loadedFrom - startIndex : Math.max(0, rowEnd - startIndex)
+    const after = hasLoaded ? rowEnd - loadedTo : 0
     const known = measuredStrides.get(rowIndex)
     return {
       index: rowIndex,
       startIndex,
       items: rowItems,
+      placeholdersBefore: before > 0 ? before : undefined,
+      placeholdersAfter: after > 0 ? after : undefined,
       contentMinHeight: known != null && known > gapY
         ? Math.round(known - gapY)
         : undefined,
@@ -183,12 +215,23 @@ export function useVirtualGridWindow<T>(
     })
   }
 
+  const observedRows = new Set<Element>()
+
   const observeVisibleRows = () => {
     if (isLocked() || !rowResizeObserver || !layoutRef.value) return
-    rowResizeObserver.disconnect()
-    layoutRef.value.querySelectorAll('.virtual-grid-row').forEach((el) => {
-      rowResizeObserver?.observe(el)
-    })
+    const current = new Set(layoutRef.value.querySelectorAll('.virtual-grid-row'))
+    for (const el of observedRows) {
+      if (!current.has(el)) {
+        rowResizeObserver.unobserve(el)
+        observedRows.delete(el)
+      }
+    }
+    for (const el of current) {
+      if (!observedRows.has(el)) {
+        rowResizeObserver.observe(el)
+        observedRows.add(el)
+      }
+    }
   }
 
   const measureLayout = () => {
@@ -200,6 +243,9 @@ export function useVirtualGridWindow<T>(
     const nextCols = metrics.columnCount
     const nextSignature = [
       nextCols,
+      options.containerWidth,
+      options.imageAspectRatio,
+      options.wideImage ? 1 : 0,
       options.size,
       options.gapSize,
       options.imageOnly ? 1 : 0,
@@ -207,6 +253,8 @@ export function useVirtualGridWindow<T>(
       options.listGrid ? 1 : 0,
       options.chipsGrid ? 1 : 0,
       options.imageGrid ? 1 : 0,
+      options.leanCards ? 1 : 0,
+      options.leanRatingRow ? 1 : 0,
       isLocked() ? 1 : 0,
       layoutOptions.value.rowHeightOverride ?? 0,
     ].join(':')
@@ -247,7 +295,7 @@ export function useVirtualGridWindow<T>(
     const rowEls = layoutEl.querySelectorAll('.virtual-grid-row')
     if (!rowEls.length) return
 
-    const gapY = getGridGap(layoutOptions.value.gapSize).y
+    const gapY = getLayoutGap(getOptions()).y
 
     let changed = false
     rowEls.forEach((node) => {
@@ -290,14 +338,14 @@ export function useVirtualGridWindow<T>(
       dataEndRow,
     } = extent
     const rh = Math.max(rowHeight.value, 1)
-    const gapY = getGridGap(layoutOptions.value.gapSize).y
+    const gapY = getLayoutGap(getOptions()).y
     const gridHeight = totalRows * rh
     totalGridHeight.value = gridHeight
     dataStartTop.value = dataStartRow * rh
     dataEndTop.value = dataEndRow * rh
 
     if (!totalRows) {
-      visibleRows.value = []
+      publishRows([])
       topSpacer.value = 0
       bottomSpacer.value = 0
       dataStartTop.value = 0
@@ -310,7 +358,7 @@ export function useVirtualGridWindow<T>(
       for (let rowIndex = dataStartRow; rowIndex < dataEndRow; rowIndex += 1) {
         rows.push(buildRow(rowIndex, cols, items, windowStart, totalCount, gapY))
       }
-      visibleRows.value = rows
+      publishRows(rows)
       topSpacer.value = dataStartRow * rh
       bottomSpacer.value = Math.max(0, gridHeight - topSpacer.value - rows.length * rh)
       return
@@ -326,7 +374,7 @@ export function useVirtualGridWindow<T>(
     const visibleGridEnd = Math.min(gridHeight, scrollTop + viewportHeight - layoutTop)
 
     if (visibleGridEnd <= visibleGridStart) {
-      visibleRows.value = []
+      publishRows([])
       topSpacer.value = 0
       bottomSpacer.value = gridHeight
       return
@@ -334,10 +382,10 @@ export function useVirtualGridWindow<T>(
 
     let start = Math.floor(visibleGridStart / rh) - VIRTUAL_ROW_BUFFER
     let end = Math.ceil(visibleGridEnd / rh) + VIRTUAL_ROW_BUFFER
+    // Rows outside the loaded window are mounted too: fixed height + placeholder
+    // slots, so a scrollbar seek shows an even grid until the window arrives.
     start = Math.max(0, start)
     end = Math.min(totalRows, end)
-    start = Math.max(start, dataStartRow)
-    end = Math.min(end, dataEndRow)
 
     if (end <= start) {
       if (
@@ -351,13 +399,13 @@ export function useVirtualGridWindow<T>(
         for (let rowIndex = dataStartRow; rowIndex < keepEnd; rowIndex += 1) {
           rows.push(buildRow(rowIndex, cols, items, windowStart, totalCount, gapY))
         }
-        visibleRows.value = rows
+        publishRows(rows)
         topSpacer.value = dataStartTop.value
         bottomSpacer.value = Math.max(0, gridHeight - keepEnd * rh)
         return
       }
 
-      visibleRows.value = []
+      publishRows([])
       if (visibleGridStart >= dataEndTop.value) {
         topSpacer.value = dataEndTop.value
         bottomSpacer.value = Math.max(0, gridHeight - dataEndTop.value)
@@ -375,7 +423,7 @@ export function useVirtualGridWindow<T>(
 
     topSpacer.value = start * rh
     bottomSpacer.value = Math.max(0, gridHeight - topSpacer.value - rows.length * rh)
-    visibleRows.value = rows
+    publishRows(rows)
 
     if (scheduleMeasure) {
       // Locked mode never measures variable heights.
@@ -396,14 +444,14 @@ export function useVirtualGridWindow<T>(
       dataEndRow,
     } = extent
     const estimated = phantomStride()
-    const gapY = getGridGap(layoutOptions.value.gapSize).y
+    const gapY = getLayoutGap(getOptions()).y
     const gridHeight = getVariableGridHeight(totalRows, measuredStrides, estimated)
     totalGridHeight.value = gridHeight
     dataStartTop.value = getVariableRowOffset(dataStartRow, measuredStrides, estimated)
     dataEndTop.value = getVariableRowOffset(dataEndRow, measuredStrides, estimated)
 
     if (!totalRows) {
-      visibleRows.value = []
+      publishRows([])
       topSpacer.value = 0
       bottomSpacer.value = 0
       dataStartTop.value = 0
@@ -416,7 +464,7 @@ export function useVirtualGridWindow<T>(
       for (let rowIndex = dataStartRow; rowIndex < dataEndRow; rowIndex += 1) {
         rows.push(buildRow(rowIndex, cols, items, windowStart, totalCount, gapY))
       }
-      visibleRows.value = rows
+      publishRows(rows)
       topSpacer.value = dataStartTop.value
       bottomSpacer.value = Math.max(0, gridHeight - dataEndTop.value)
       if (scheduleMeasure) scheduleMeasureVisibleRows()
@@ -433,7 +481,7 @@ export function useVirtualGridWindow<T>(
     const visibleGridEnd = Math.min(gridHeight, scrollTop + viewportHeight - layoutTop)
 
     if (visibleGridEnd <= visibleGridStart) {
-      visibleRows.value = []
+      publishRows([])
       topSpacer.value = 0
       bottomSpacer.value = gridHeight
       return
@@ -481,7 +529,7 @@ export function useVirtualGridWindow<T>(
         for (let rowIndex = dataStartRow; rowIndex < keepEnd; rowIndex += 1) {
           rows.push(buildRow(rowIndex, cols, items, windowStart, totalCount, gapY))
         }
-        visibleRows.value = rows
+        publishRows(rows)
         topSpacer.value = dataStartTop.value
         bottomSpacer.value = Math.max(
           0,
@@ -490,7 +538,7 @@ export function useVirtualGridWindow<T>(
         return
       }
 
-      visibleRows.value = []
+      publishRows([])
       if (visibleGridStart >= dataEndTop.value) {
         topSpacer.value = dataEndTop.value
         bottomSpacer.value = Math.max(0, gridHeight - dataEndTop.value)
@@ -514,7 +562,7 @@ export function useVirtualGridWindow<T>(
       0,
       gridHeight - getVariableRowOffset(end, measuredStrides, estimated),
     )
-    visibleRows.value = rows
+    publishRows(rows)
 
     if (scheduleMeasure) scheduleMeasureVisibleRows()
     else nextTick(observeVisibleRows)
@@ -542,9 +590,12 @@ export function useVirtualGridWindow<T>(
       scheduleMeasureVisibleRows()
     }, SCROLL_IDLE_MEASURE_MS)
 
-    if (scrollRaf) cancelAnimationFrame(scrollRaf)
+    if (scrollRaf != null) return
     // Window only: measuring mid-fling fights the compositor and causes jumps.
-    scrollRaf = requestAnimationFrame(() => updateWindow(false))
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = null
+      updateWindow(false)
+    })
   }
 
   const bind = () => {
@@ -553,12 +604,23 @@ export function useVirtualGridWindow<T>(
     scrollEl?.addEventListener('scroll', onScroll, { passive: true })
 
     if (layoutRef.value && typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(() => {
+      let lastWidth = layoutRef.value.clientWidth
+      resizeObserver = new ResizeObserver((entries) => {
+        // The control deck moves the grid without changing its width.
+        if (entries.some(entry => entry.target !== layoutRef.value)) {
+          updateWindow(false)
+        }
+        const width = layoutRef.value?.clientWidth ?? 0
+        if (width === lastWidth) return
+        lastWidth = width
         measureLayout()
         updateWindow(false)
         scheduleMeasureVisibleRows()
       })
       resizeObserver.observe(layoutRef.value)
+      const deck = layoutRef.value.closest('.items-layout-container')
+        ?.querySelector('#items-control-deck')
+      if (deck) resizeObserver.observe(deck)
 
       rowResizeObserver = new ResizeObserver(() => {
         // Ignore transient resizes while the user is actively scrolling.
@@ -599,6 +661,7 @@ export function useVirtualGridWindow<T>(
       rowResizeObserver.disconnect()
       rowResizeObserver = null
     }
+    observedRows.clear()
 
     if (scrollRaf) cancelAnimationFrame(scrollRaf)
     if (measureRaf) cancelAnimationFrame(measureRaf)

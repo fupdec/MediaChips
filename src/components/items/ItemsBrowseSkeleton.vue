@@ -115,8 +115,6 @@ import {computed, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useResponsiveGridLayout} from '@/composable/useResponsiveGridLayout'
 import {
-  getCardDescriptionHeight,
-  getGridGap,
   getLayoutMetrics,
   type GridLayoutOptions,
 } from '@/utils/gridLayout'
@@ -291,9 +289,9 @@ const containerStyle = computed(() => ({
   '--chip-avatar-size': `${chipAvatar.value}px`,
   '--chip-height': `${chipHeight.value}px`,
   '--timeline-height': `${timelineHeight.value}px`,
-  '--card-body-min': `${getCardDescriptionHeight(sizeNumber.value)}px`,
-  '--sk-gap-y': `${getGridGap(layoutOptions.value.gapSize).y}px`,
-  '--sk-gap-x': `${getGridGap(layoutOptions.value.gapSize).x}px`,
+  '--card-body-min': gridStyle.value['--card-description-height'],
+  '--sk-gap-y': gridStyle.value['--grid-gap-y'],
+  '--sk-gap-x': gridStyle.value['--grid-gap-x'],
 }))
 </script>
 

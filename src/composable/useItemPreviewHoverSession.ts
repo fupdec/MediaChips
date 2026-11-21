@@ -114,6 +114,10 @@ export function isPreviewPointerStillOver(
   pointer?: HoverPreviewPointer | null,
 ): boolean {
   if (!preview) return false
+  if (pointer && 'hitTarget' in pointer) {
+    const top = pointer.hitTarget
+    return Boolean(top && (top === preview || preview.contains(top)))
+  }
   try {
     if (preview.matches(':hover')) return true
   } catch {

@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest'
+import {describe, expect, it, vi} from 'vitest'
 import {
   applyBigPreviewMetrics,
   canOpenBigPreview,
@@ -107,7 +107,9 @@ describe('restorePreviewLayout', () => {
     thumb.style.opacity = '0.5'
     el.appendChild(thumb)
 
+    const layoutRead = vi.spyOn(el, 'offsetHeight', 'get')
     restorePreviewLayout(el)
+    expect(layoutRead).not.toHaveBeenCalled()
 
     expect(el.style.position).toBe('')
     expect(el.style.top).toBe('')

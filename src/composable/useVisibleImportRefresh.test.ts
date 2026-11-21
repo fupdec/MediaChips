@@ -5,6 +5,7 @@ import {useAppStore} from '@/stores/app'
 import {notifyMediaAdded, onMediaAdded} from './mediaAddedSync'
 import {useVisibleImportRefresh} from './useVisibleImportRefresh'
 import type {MediaItem} from '@/types/stores'
+import {INFINITE_SCROLL_PAGE_SIZE} from '@shared/listPagination'
 
 const post = vi.hoisted(() => vi.fn())
 vi.mock('@/services/typedApi', () => ({typedApi: {postItemsList: post}}))
@@ -82,7 +83,7 @@ describe('visible import refresh', () => {
     await flush()
     expect(apply).toHaveBeenCalledOnce()
     expect(scroll.scrollTop).toBe(150)
-    expect(post.mock.calls[0][1]).toMatchObject({page: 1, limit: 60, sortBy: 'id', includeNavigation: false})
+    expect(post.mock.calls[0][1]).toMatchObject({page: 1, limit: INFINITE_SCROLL_PAGE_SIZE, sortBy: 'id', includeNavigation: false})
   })
   it('leaves the grid untouched when the inserted item is in an overscan row', async () => {
     const {apply, scroll, updateTotals} = setup()
@@ -124,7 +125,7 @@ describe('visible import refresh', () => {
     post.mockResolvedValue({data: {items: [item(1), item(9), item(2)]}})
     notifyMediaAdded([9])
     await flush()
-    expect(post.mock.calls[0][1].page).toBe(3)
+    expect(post.mock.calls[0][1].page).toBe(Math.floor(120 / INFINITE_SCROLL_PAGE_SIZE) + 1)
     expect(apply.mock.calls[0][1]).toBe(120)
   })
   it('preserves the current page for a paginated grid', async () => {

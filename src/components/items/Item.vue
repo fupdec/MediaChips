@@ -14,12 +14,13 @@
       {'big-preview': big_preview},
       {'item-media': type === 'media'},
       {'item-tag': type === 'tag'},
+      {'item--fluid': isFluidCard},
       {'item--selecting': itemsStore.isSelect},
       {'item--inspector-focused': isInspectorFocused},
       {'item--keyboard-cursor': isKeyboardCursor},
       {'item--context-target': is_context_target},
       {'item--tag-drop-target': isTagDropTarget},
-      `item__size-${itemsStore.size}`,
+      `item__size-${isFluidCard ? 3 : Math.round(itemsStore.size)}`,
       `item-view-${itemsStore.view}`,
     ]"
     class="item"
@@ -129,11 +130,17 @@
         />
       </div>
 
-      <v-progress-linear
+      <div
         v-if="!isImageOnlyView && type === 'media' && (isVideoMedia || isAudioMedia) && item.duration"
-        :model-value="(Number(item.time || 0) / Number(item.duration)) * 100"
-        color="primary"
-      />
+        class="item-playback-progress"
+        role="progressbar"
+        :aria-label="cardTitle"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        :aria-valuenow="playbackPercent"
+      >
+        <div v-if="playbackPercent > 0" class="item-playback-progress__value" :style="{width: `${playbackPercent}%`}"/>
+      </div>
 
       <div
         v-if="!isImageOnlyView && !(type === 'media' && isImageMedia && (itemsStore.view == 3 || itemsStore.view == 6))"
@@ -216,12 +223,14 @@
 
       <div
         v-if="isImageOnlyView"
-        class="item-minimal-filename text-caption"
+        class="item-minimal-filename"
         :title="minimalFilename"
         @click.stop="handleCardActivate"
         @dblclick.stop="editItem"
       >
-        <span class="item-minimal-filename__text">{{ minimalFilename }}</span>
+        <div class="item-title">
+          <span class="item-minimal-filename__text">{{ minimalFilename }}</span>
+        </div>
       </div>
     </v-card>
 
@@ -347,12 +356,15 @@ const props = withDefaults(defineProps<{
   eagerPreview?: boolean
   /** Prefer filesystem basename over library title (folder browse). */
   preferFilename?: boolean
+  /** Virtual fixed-height cards: only name, rating and favorite (predictable height). */
+  lean?: boolean
 }>(), {
   reg: true,
   x: 0,
   type: 'media',
   eagerPreview: false,
   preferFilename: false,
+  lean: false,
 })
 
 const emit = defineEmits<{
@@ -447,6 +459,9 @@ const isSquaresGrid = computed(() =>
   && Number(itemsStore.view) === 6
 )
 
+// Card grids use one stable structural class; all dimensions come from width.
+const isFluidCard = computed(() => [1, 3, 4, 6].includes(Number(itemsStore.view)))
+
 const showCardView = computed(() => {
   const view = Number(itemsStore.view)
   if (view === 1 || isImageOnlyView.value) return true
@@ -471,6 +486,12 @@ const minimalFilename = computed(() => {
     return mediaItem.value.name || ''
   }
   return props.item.name || ''
+})
+
+const playbackPercent = computed(() => {
+  const duration = Number(mediaItem.value?.duration) || 0
+  const time = Number(props.item.time) || 0
+  return duration > 0 ? Math.min(100, Math.max(0, time / duration * 100)) : 0
 })
 
 const cardTitle = computed(() =>
@@ -640,6 +661,83 @@ const onTagCardDragStart = (event: DragEvent) => {
     return
   }
   writeSessionFocusTagsDrag(event, [tag])
+  setTagCardDragImage(event)
+}
+
+/**
+ * Native drag image of the live card was unreliable (fixed row stride in the virtual
+ * grid, stuck ripple, neighbouring card bleeding in). Build a clean standalone ghost.
+ */
+const setTagCardDragImage = (event: DragEvent) => {
+  const transfer = event.dataTransfer
+  const card = itemRootRef.value?.querySelector<HTMLElement>('.item_wrapper')
+  if (!transfer?.setDragImage || !card) return
+
+  // Ripple is started by mousedown on the description and never released by a drag.
+  card.querySelectorAll('.v-ripple__container').forEach((node) => node.remove())
+
+  const rect = card.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) return
+  const preview = card.querySelector<HTMLElement>('.item_preview')
+  const previewRect = preview?.getBoundingClientRect()
+  const previewImg = preview?.querySelector<HTMLImageElement>('img')
+  const cardStyle = window.getComputedStyle(card)
+
+  const ghost = document.createElement('div')
+  Object.assign(ghost.style, {
+    position: 'fixed',
+    top: '-10000px',
+    left: '-10000px',
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    overflow: 'hidden',
+    borderRadius: '17px',
+    background: cardStyle.backgroundColor || '#fff',
+    boxSizing: 'border-box',
+    pointerEvents: 'none',
+    font: cardStyle.font,
+    color: cardStyle.color,
+  } as Partial<CSSStyleDeclaration>)
+
+  const mediaHeight = previewRect ? Math.min(previewRect.height, rect.height) : rect.height * 0.8
+  const media = document.createElement('div')
+  Object.assign(media.style, {
+    width: '100%',
+    height: `${mediaHeight}px`,
+    background: '#7878782b',
+    overflow: 'hidden',
+  } as Partial<CSSStyleDeclaration>)
+  const src = previewImg?.currentSrc || previewImg?.src
+  if (src) {
+    const img = document.createElement('img')
+    img.src = src
+    Object.assign(img.style, {
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+      display: 'block',
+    } as Partial<CSSStyleDeclaration>)
+    media.appendChild(img)
+  }
+  ghost.appendChild(media)
+
+  const title = document.createElement('div')
+  title.textContent = String(props.item.name || '')
+  Object.assign(title.style, {
+    padding: '0.5em 0.7em',
+    fontWeight: '700',
+    fontSize: '1.1em',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  } as Partial<CSSStyleDeclaration>)
+  ghost.appendChild(title)
+
+  document.body.appendChild(ghost)
+  const offsetX = Math.min(Math.max(event.clientX - rect.left, 0), rect.width)
+  const offsetY = Math.min(Math.max(event.clientY - rect.top, 0), rect.height)
+  transfer.setDragImage(ghost, offsetX, offsetY)
+  setTimeout(() => ghost.remove(), 0)
 }
 
 const onCardDragStart = (event: DragEvent) => {
@@ -832,7 +930,7 @@ const is_favorite_active = computed(() => {
 })
 
 const getChipSize = computed(() => {
-  switch (itemsStore.size) {
+  switch (Math.round(itemsStore.size)) {
     case 1:
       return 'x-small'
     case 2:

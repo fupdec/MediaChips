@@ -1,77 +1,54 @@
 import {onMounted, onUnmounted, ref, watch, type WatchSource} from 'vue'
-import {getMainScrollEl, isElementVerticallyScrollable} from '@/utils/mainScroll'
+import {getMainScrollEl} from '@/utils/mainScroll'
 
 interface UseMainScrollOverflowOptions {
-  /** Re-measure when these reactive sources change (e.g. item count). */
   watchSources?: WatchSource[]
 }
 
+/** Compare observer-supplied sizes; never force layout by reading scrollHeight. */
 export function useMainScrollOverflow(options: UseMainScrollOverflowOptions = {}) {
   const mainScrollOverflowing = ref(false)
-  let resizeObservers: ResizeObserver[] = []
-  let rafId: number | null = null
-
-  function measure(): void {
-    mainScrollOverflowing.value = isElementVerticallyScrollable(getMainScrollEl())
-  }
-
-  function scheduleMeasure(): void {
-    if (rafId != null) cancelAnimationFrame(rafId)
-    rafId = requestAnimationFrame(() => {
-      rafId = null
-      measure()
-    })
-  }
+  let observer: ResizeObserver | null = null
+  let scrollEl: Element | null = null
+  let inner: Element | null = null
+  let viewportHeight: number | null = null
+  let contentHeight: number | null = null
 
   function setupObservers(): void {
-    teardownObservers()
+    const nextScroll = getMainScrollEl()
+    const nextInner = nextScroll?.querySelector('.main-scroll-inner') ?? null
+    if (observer && nextScroll === scrollEl && nextInner === inner) return
+    observer?.disconnect()
+    observer = null
+    scrollEl = nextScroll
+    inner = nextInner
+    viewportHeight = contentHeight = null
+    mainScrollOverflowing.value = false
+    if (!scrollEl || !inner || typeof ResizeObserver === 'undefined') return
 
-    const scrollEl = getMainScrollEl()
-    if (!scrollEl) {
-      mainScrollOverflowing.value = false
-      return
-    }
-
-    const onResize = (): void => scheduleMeasure()
-    const scrollObserver = new ResizeObserver(onResize)
-    scrollObserver.observe(scrollEl)
-    resizeObservers.push(scrollObserver)
-
-    const inner = scrollEl.querySelector('.main-scroll-inner')
-    if (inner instanceof Element) {
-      const innerObserver = new ResizeObserver(onResize)
-      innerObserver.observe(inner)
-      resizeObservers.push(innerObserver)
-    }
-
-    scheduleMeasure()
+    observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === scrollEl) viewportHeight = entry.contentRect.height
+        if (entry.target === inner) {
+          contentHeight = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height
+        }
+      }
+      if (viewportHeight != null && contentHeight != null) {
+        mainScrollOverflowing.value = contentHeight > viewportHeight + 1
+      }
+    })
+    observer.observe(scrollEl)
+    observer.observe(inner, {box: 'border-box'})
   }
 
-  function teardownObservers(): void {
-    resizeObservers.forEach(observer => observer.disconnect())
-    resizeObservers = []
-    if (rafId != null) {
-      cancelAnimationFrame(rafId)
-      rafId = null
-    }
-  }
-
-  onMounted(() => {
-    setupObservers()
-    window.addEventListener('resize', scheduleMeasure, {passive: true})
-  })
-
-  onUnmounted(() => {
-    teardownObservers()
-    window.removeEventListener('resize', scheduleMeasure)
-  })
-
+  onMounted(setupObservers)
+  onUnmounted(() => observer?.disconnect())
   if (options.watchSources?.length) {
-    watch(options.watchSources, () => scheduleMeasure(), {flush: 'post'})
+    // Rebind if a route replaced the scroll surface; sizes arrive asynchronously.
+    watch(options.watchSources, setupObservers, {flush: 'post'})
   }
-
   return {
     mainScrollOverflowing,
-    remeasureMainScrollOverflow: scheduleMeasure,
+    remeasureMainScrollOverflow: setupObservers,
   }
 }
