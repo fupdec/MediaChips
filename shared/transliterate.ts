@@ -36,3 +36,39 @@ export function getTagFirstLetter(name: string): string | null {
   if (/[a-zA-Z]/.test(firstChar)) return firstChar.toUpperCase()
   return null
 }
+
+/** Catch-all alphabet entry for names starting with a digit, a symbol or a script without its own letters here. */
+export const TAG_LETTER_OTHER = '#'
+
+/**
+ * Alphabet key of a name: its real first letter, uppercased.
+ * Latin and Greek lose diacritics (É, Ö, Ñ become E, O, N); Cyrillic keeps every letter as is (Ё, Й stay).
+ * Digits, symbols and other scripts (Han, Kana, Hangul, …) share the `#` entry.
+ */
+export function getTagLetterKey(name: string | null | undefined): string {
+  const first = Array.from(String(name ?? '').trim())[0]
+  if (!first) return TAG_LETTER_OTHER
+
+  if (/\p{Script=Cyrillic}/u.test(first)) {
+    return first.toLocaleUpperCase('ru')
+  }
+
+  if (/[\p{Script=Latin}\p{Script=Greek}]/u.test(first)) {
+    const base = first.normalize('NFD').replace(/\p{M}/gu, '')
+    const letter = base.charAt(0)
+    if (/\p{L}/u.test(letter)) return letter.toLocaleUpperCase('en')
+  }
+
+  return TAG_LETTER_OTHER
+}
+
+/** Sort key for the alphabet strip: Latin, then Greek, then Cyrillic, `#` last. */
+export function compareTagLetterKeys(a: string, b: string): number {
+  const rank = (letter: string) => {
+    if (letter === TAG_LETTER_OTHER) return 3
+    if (/\p{Script=Latin}/u.test(letter)) return 0
+    if (/\p{Script=Greek}/u.test(letter)) return 1
+    return 2
+  }
+  return rank(a) - rank(b) || a.localeCompare(b)
+}

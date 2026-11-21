@@ -2,9 +2,21 @@
 export const TAG_COLOR_FILTER_NONE = 'none'
 
 const HEX_COLOR_RE = /^#[0-9a-f]{3,8}$/
-const HUE_STEP = 30
-const GRAY_SATURATION = 0.16
-const DARK_LIGHTNESS = 0.42
+/** Below this saturation / beyond these lightness bounds a color has no usable hue. */
+const MIN_SATURATION = 0.15
+const MIN_LIGHTNESS = 0.08
+const MAX_LIGHTNESS = 0.93
+
+/** Rainbow swatches in display order (red → violet). Every tag color snaps to the nearest hue. */
+export const TAG_RAINBOW_COLORS = [
+  '#e53935', // red
+  '#fb8c00', // orange
+  '#fdd835', // yellow
+  '#43a047', // green
+  '#00acc1', // cyan
+  '#2962ff', // blue
+  '#8e24aa', // violet
+] as const
 
 type Rgb = {r: number; g: number; b: number}
 type Hsl = {h: number; s: number; l: number}
@@ -66,41 +78,17 @@ function rgbToHsl({r, g, b}: Rgb): Hsl {
   return {h, s, l}
 }
 
-function hue2rgb(p: number, q: number, t: number): number {
-  let tt = t
-  if (tt < 0) tt += 1
-  if (tt > 1) tt -= 1
-  if (tt < 1 / 6) return p + (q - p) * 6 * tt
-  if (tt < 1 / 2) return q
-  if (tt < 2 / 3) return p + (q - p) * (2 / 3 - tt) * 6
-  return p
-}
+const RAINBOW_HUES = TAG_RAINBOW_COLORS.map((hex) => rgbToHsl(parseTagColorRgb(hex)!).h)
 
-function hslToRgb({h, s, l}: Hsl): Rgb {
-  const sat = Math.min(1, Math.max(0, s))
-  const light = Math.min(1, Math.max(0, l))
-  if (sat === 0) {
-    const v = Math.round(light * 255)
-    return {r: v, g: v, b: v}
-  }
-  const q = light < 0.5 ? light * (1 + sat) : light + sat - light * sat
-  const p = 2 * light - q
-  const hk = (h % 360) / 360
-  return {
-    r: Math.round(hue2rgb(p, q, hk + 1 / 3) * 255),
-    g: Math.round(hue2rgb(p, q, hk) * 255),
-    b: Math.round(hue2rgb(p, q, hk - 1 / 3) * 255),
-  }
-}
-
-function rgbToHex({r, g, b}: Rgb): string {
-  const hex = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0')
-  return `#${hex(r)}${hex(g)}${hex(b)}`
+function hueDistance(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360
+  return d > 180 ? 360 - d : d
 }
 
 /**
- * Snap a tag color to a coarse hue/lightness bucket so similar shades share one swatch.
- * Returns `null` for empty / invalid / no-color values.
+ * Snap a tag color to the nearest of the rainbow colors by hue (very coarse on purpose).
+ * Returns `null` for empty / invalid / no-color values and for colors without a hue
+ * (grays, near-black, near-white).
  */
 export function approximateTagColor(value: unknown): string | null {
   const normalized = normalizeTagColorFilter(value)
@@ -108,35 +96,18 @@ export function approximateTagColor(value: unknown): string | null {
   const rgb = parseTagColorRgb(normalized)
   if (!rgb) return null
   const {h, s, l} = rgbToHsl(rgb)
+  if (s < MIN_SATURATION || l <= MIN_LIGHTNESS || l >= MAX_LIGHTNESS) return null
 
-  if (l <= 0.08) return '#2a2a2a'
-  if (l >= 0.93) return '#f2f2f2'
-  if (s < GRAY_SATURATION) {
-    if (l <= 0.18) return '#2a2a2a'
-    if (l < 0.45) return '#6e6e6e'
-    if (l < 0.72) return '#a8a8a8'
-    return '#d4d4d4'
+  let best = 0
+  for (let i = 1; i < RAINBOW_HUES.length; i++) {
+    if (hueDistance(h, RAINBOW_HUES[i]) < hueDistance(h, RAINBOW_HUES[best])) best = i
   }
-
-  const hue = Math.round(h / HUE_STEP) * HUE_STEP % 360
-  const light = l < DARK_LIGHTNESS ? 0.32 : 0.58
-  const sat = s < 0.45 ? 0.52 : 0.72
-  return rgbToHex(hslToRgb({h: hue, s: sat, l: light}))
+  return TAG_RAINBOW_COLORS[best]
 }
 
-/** Rainbow order for swatches: chromatic by hue, then grayscale. */
+/** Rainbow order for swatches. */
 export function compareTagColorSwatches(a: string, b: string): number {
-  const pa = parseTagColorRgb(a)
-  const pb = parseTagColorRgb(b)
-  if (!pa && !pb) return a.localeCompare(b)
-  if (!pa) return 1
-  if (!pb) return -1
-  const ha = rgbToHsl(pa)
-  const hb = rgbToHsl(pb)
-  const aGray = ha.s < GRAY_SATURATION
-  const bGray = hb.s < GRAY_SATURATION
-  if (aGray !== bGray) return aGray ? 1 : -1
-  if (aGray) return ha.l - hb.l
-  if (ha.h !== hb.h) return ha.h - hb.h
-  return ha.l - hb.l
+  const ia = (TAG_RAINBOW_COLORS as readonly string[]).indexOf(a)
+  const ib = (TAG_RAINBOW_COLORS as readonly string[]).indexOf(b)
+  return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib)
 }

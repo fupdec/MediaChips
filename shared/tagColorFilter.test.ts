@@ -4,6 +4,7 @@ import {
   compareTagColorSwatches,
   normalizeTagColorFilter,
   TAG_COLOR_FILTER_NONE,
+  TAG_RAINBOW_COLORS,
 } from './tagColorFilter'
 
 describe('normalizeTagColorFilter', () => {
@@ -28,28 +29,36 @@ describe('normalizeTagColorFilter', () => {
 describe('approximateTagColor', () => {
   it('collapses nearby reds into one bucket', () => {
     const a = approximateTagColor('#ff0000')
-    const b = approximateTagColor('#ee1111')
-    const c = approximateTagColor('#dd2222')
     expect(a).toBeTruthy()
-    expect(a).toBe(b)
-    expect(a).toBe(c)
+    expect(approximateTagColor('#ee1111')).toBe(a)
+    expect(approximateTagColor('#dd2222')).toBe(a)
+    expect(approximateTagColor('#ff5252')).toBe(a)
+  })
+
+  it('snaps to rainbow colors only', () => {
+    for (const hex of ['#ff0000', '#ffa500', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff', '#ff69b4', '#009688', '#81d4fa']) {
+      expect(TAG_RAINBOW_COLORS).toContain(approximateTagColor(hex))
+    }
   })
 
   it('keeps red and blue in different buckets', () => {
     expect(approximateTagColor('#ff0000')).not.toBe(approximateTagColor('#0000ff'))
   })
 
-  it('keeps navy and sky blue apart by lightness', () => {
-    const navy = approximateTagColor('#0d47a1')
-    const sky = approximateTagColor('#81d4fa')
-    expect(navy).toBeTruthy()
-    expect(sky).toBeTruthy()
-    expect(navy).not.toBe(sky)
+  it('merges navy and sky blue into nearby rainbow buckets by hue, not lightness', () => {
+    expect(approximateTagColor('#0d47a1')).toBe(approximateTagColor('#2962ff'))
   })
 
-  it('maps near-white and gray separately from chromatic colors', () => {
-    expect(approximateTagColor('#fafafa')).toBe('#f2f2f2')
-    expect(approximateTagColor('#777777')).not.toBe(approximateTagColor('#ff0000'))
+  it('is idempotent for the swatches themselves', () => {
+    for (const color of TAG_RAINBOW_COLORS) {
+      expect(approximateTagColor(color)).toBe(color)
+    }
+  })
+
+  it('returns null for colors without a hue', () => {
+    expect(approximateTagColor('#fafafa')).toBeNull()
+    expect(approximateTagColor('#777777')).toBeNull()
+    expect(approximateTagColor('#000000')).toBeNull()
   })
 
   it('returns null for empty values', () => {
@@ -60,9 +69,8 @@ describe('approximateTagColor', () => {
 })
 
 describe('compareTagColorSwatches', () => {
-  it('orders chromatic colors before grayscale', () => {
-    const red = approximateTagColor('#ff0000')!
-    const gray = approximateTagColor('#777777')!
-    expect(compareTagColorSwatches(red, gray)).toBeLessThan(0)
+  it('orders swatches red to violet', () => {
+    const shuffled = [...TAG_RAINBOW_COLORS].reverse()
+    expect(shuffled.sort(compareTagColorSwatches)).toEqual([...TAG_RAINBOW_COLORS])
   })
 })

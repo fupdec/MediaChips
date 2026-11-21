@@ -37,7 +37,7 @@ import {
   type ItemsGroupSummary,
 } from '../../shared/itemsGroupBy'
 import {
-  getTagFirstLetter,
+  getTagLetterKey,
 } from '../../shared/transliterate'
 import {
   approximateTagColor,
@@ -562,10 +562,11 @@ async function loadTagItems(db: ApiDb, options: TagLoadOptions) {
   }
 
   const namePrefix = (typeof options.namePrefix === 'string'
-    ? options.namePrefix.trim().toUpperCase()
+    ? options.namePrefix.trim()
     : '') || null
 
-  if (namePrefix && namePrefix.length === 1 && /^[A-Z]$/.test(namePrefix)) {
+  // One alphabet entry: a real first letter (diacritics merged for Latin/Greek) or `#` for everything else.
+  if (namePrefix && Array.from(namePrefix).length === 1) {
     const allRows = await queryAllAsync<{id: number; name: string | null}>(db,
       `SELECT id, name FROM tags WHERE metaId = :metaId`,
       {metaId: options.metaId},
@@ -573,8 +574,7 @@ async function loadTagItems(db: ApiDb, options: TagLoadOptions) {
 
     const prefixMatchedIds: number[] = []
     for (const row of allRows) {
-      const letter = getTagFirstLetter(String(row.name ?? ''))
-      if (letter === namePrefix) {
+      if (getTagLetterKey(String(row.name ?? '')) === namePrefix) {
         prefixMatchedIds.push(Number(row.id))
       }
     }
