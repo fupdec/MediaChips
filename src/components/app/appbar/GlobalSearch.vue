@@ -168,8 +168,8 @@ let pendingNavigation: (() => void) | null = null
 const RESULT_LIMIT = 50
 const SEMANTIC_RESULT_LIMIT = 500
 const GROUP_PREVIEW_LIMIT = 20
-const ROW_HEIGHT = 30
-const RESULTS_MAX_HEIGHT = 480
+const ROW_HEIGHT = 36
+const RESULTS_MAX_HEIGHT = 570
 const HIGHLIGHT_CACHE_MAX = 512
 
 const highlightCache = new Map<string, string>()
@@ -1620,7 +1620,8 @@ function getNameHighlighted(text: string) {
 <template>
   <v-dialog
     v-model="dialog"
-    max-width="720"
+    max-width="936"
+    class="global-search-dialog"
     @after-leave="onDialogClose"
   >
     <template #activator="{ props: activatorProps }">
@@ -1634,7 +1635,7 @@ function getNameHighlighted(text: string) {
     </template>
 
     <v-card class="global-search" rounded="xl">
-      <div class="global-search__header pa-4 pb-2">
+      <div class="global-search__header pa-4 pb-3">
         <div class="d-flex align-center justify-space-between mb-3">
           <div class="d-flex align-center ga-3 min-w-0">
             <div class="text-h6 text-truncate">{{ headerTitle }}</div>
@@ -1992,6 +1993,7 @@ function getNameHighlighted(text: string) {
               v-if="row.kind === 'section'"
               class="global-search__section"
               :class="`global-search__section--${row.section}`"
+              @mouseenter="selectedIndex = -1"
             >
               <div class="global-search__category">
                 <v-icon
@@ -2022,6 +2024,7 @@ function getNameHighlighted(text: string) {
             <div
               v-else-if="row.kind === 'header'"
               class="global-search__group-header"
+              @mouseenter="selectedIndex = -1"
               @click="openGroup(row.group)"
             >
               <div class="global-search__category global-search__category--clickable">
@@ -2144,8 +2147,10 @@ function getNameHighlighted(text: string) {
           <v-hotkey keys="esc" variant="flat"/>
           <span class="ml-1">{{ t('commandPalette.footer_close') }}</span>
           <v-spacer/>
-          <v-hotkey keys="up" variant="flat"/>
-          <v-hotkey keys="down" variant="flat" class="ml-2"/>
+          <span class="d-inline-flex align-center ga-1">
+            <v-hotkey keys="up" variant="flat"/>
+            <v-hotkey keys="down" variant="flat"/>
+          </span>
           <span class="ml-1">{{ t('commandPalette.footer_nav') }}</span>
           <v-spacer/>
           <v-hotkey keys="enter" variant="flat"/>
@@ -2158,8 +2163,10 @@ function getNameHighlighted(text: string) {
           <v-hotkey keys="esc" variant="flat"/>
           <span class="ml-1">{{ t('globalSearch.hintEsc') }}</span>
           <v-spacer/>
-          <v-hotkey keys="up" variant="flat"/>
-          <v-hotkey keys="down" variant="flat" class="ml-2"/>
+          <span class="d-inline-flex align-center ga-1">
+            <v-hotkey keys="up" variant="flat"/>
+            <v-hotkey keys="down" variant="flat"/>
+          </span>
           <span class="ml-1">{{ t('globalSearch.hintArrows') }}</span>
           <v-spacer/>
           <v-hotkey keys="enter" variant="flat"/>
@@ -2283,6 +2290,7 @@ function getNameHighlighted(text: string) {
 .global-search__input-semantic {
   border-radius: 999px !important;
   flex: 0 0 auto;
+  height: 30px !important;
 }
 
 .global-search__examples {
@@ -2306,7 +2314,7 @@ function getNameHighlighted(text: string) {
   align-items: center;
   gap: 8px;
   min-height: 40px;
-  padding: 6px 8px 6px 12px;
+  padding: 4px 8px 4px 12px;
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-radius: 999px;
   background: transparent;
@@ -2375,10 +2383,10 @@ function getNameHighlighted(text: string) {
 
 .global-search__section,
 .global-search__group-header {
-  height: 30px;
+  height: 36px;
   display: flex;
-  align-items: center;
-  padding: 0 4px;
+  align-items: stretch;
+  padding: 0;
   background: transparent;
 }
 
@@ -2387,43 +2395,52 @@ function getNameHighlighted(text: string) {
 }
 
 .global-search__category {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
-  height: 26px;
-  margin: 0 4px;
-  padding: 0 8px;
-  border-radius: 6px;
-  background: rgba(var(--v-theme-primary), 0.08);
-  border: 1px solid rgba(var(--v-theme-primary), 0.16);
+  height: 100%;
+  margin: 0;
+  padding: 0 16px 0 18px;
+  background: linear-gradient(90deg, rgba(var(--v-theme-primary), 0.14), rgba(var(--v-theme-primary), 0.03) 70%, transparent);
+  border-bottom: 1px solid rgba(var(--v-theme-primary), 0.14);
   user-select: none;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease;
+}
+
+.global-search__category::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: rgb(var(--v-theme-primary));
+  border-radius: 0 3px 3px 0;
 }
 
 .global-search__category--clickable:hover {
-  background: rgba(var(--v-theme-primary), 0.14);
-  border-color: rgba(var(--v-theme-primary), 0.28);
+  background: linear-gradient(90deg, rgba(var(--v-theme-primary), 0.22), rgba(var(--v-theme-primary), 0.06) 70%, transparent);
 }
 
 .global-search__category-icon {
   color: rgb(var(--v-theme-primary));
-  opacity: 0.9;
 }
 
 .global-search__category-title {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(var(--v-theme-on-surface), 0.78);
+  color: rgba(var(--v-theme-on-surface), 0.87);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .global-search__item {
-  height: 30px;
+  height: 36px;
   font-size: 0.75rem;
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -2442,7 +2459,7 @@ function getNameHighlighted(text: string) {
 }
 
 .global-search__show-more {
-  height: 30px;
+  height: 36px;
   font-size: 0.75rem;
   cursor: pointer;
   color: rgb(var(--v-theme-primary));
@@ -2517,4 +2534,17 @@ function getNameHighlighted(text: string) {
 <style scoped>
 .global-search__setting-copy { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .global-search__setting mark, .global-search__documentation mark { color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .16); border-radius: 3px; font-weight: 600; }
+</style>
+
+<style>
+/* Диалог прижат к верху экрана: поле ввода не прыгает при появлении результатов */
+.v-overlay.global-search-dialog {
+  align-items: flex-start;
+}
+
+.v-overlay.global-search-dialog > .v-overlay__content {
+  margin-top: 8vh;
+  margin-bottom: 0;
+  max-height: calc(100% - 8vh - 16px);
+}
 </style>
