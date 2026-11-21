@@ -1,12 +1,12 @@
 const pl = {
   settingsLayout: {
     maintenance_media_data: 'Dane multimediów',
-    maintenance_duplicates: 'Odciski plików i duplikaty',
+    maintenance_duplicates: 'Wyszukiwanie duplikatów',
     maintenance_recognition: 'Wyszukiwanie i rozpoznawanie',
     maintenance_cleanup: 'Czyszczenie i resetowanie',
     show_history_button: 'Pokaż historię zmian na górnym pasku',
     show_history_button_hint: 'Dodaje przycisk historii obok Pomocy. Historia jest zawsze dostępna w sekcji Dane i kopie zapasowe.',
-    transcode_cache: 'Pamięć podręczna transkodowania',
+    transcode_cache: 'Pamięć podręczna odtwarzania',
     google_drive: 'Google Drive',
     general: 'Ogólne',
     general_hint: 'Język, działanie aplikacji, dostęp i bezpieczeństwo',

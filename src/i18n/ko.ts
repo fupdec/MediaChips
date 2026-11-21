@@ -1,12 +1,12 @@
 const ko = {
   settingsLayout: {
     maintenance_media_data: '미디어 데이터',
-    maintenance_duplicates: '지문 및 중복 파일',
+    maintenance_duplicates: '중복 파일 검색',
     maintenance_recognition: '검색 및 인식',
     maintenance_cleanup: '정리 및 초기화',
     show_history_button: '상단 바에 변경 내역 표시',
     show_history_button_hint: '도움말 옆에 내역 버튼을 추가합니다. 내역은 데이터 및 백업에서 항상 볼 수 있습니다.',
-    transcode_cache: '트랜스코드 캐시',
+    transcode_cache: '재생 캐시',
     google_drive: 'Google Drive',
     general: '일반',
     general_hint: '언어, 앱 동작, 접근 및 보안',

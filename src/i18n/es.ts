@@ -98,7 +98,7 @@ const es = {
   settingsLayout: {
     show_history_button: "Mostrar historial de cambios en la barra superior",
     show_history_button_hint: "Añade un botón de historial junto a Ayuda. El historial sigue disponible en Datos y copias de seguridad.",
-    transcode_cache: "Caché de transcodificación",
+    transcode_cache: "Caché de reproducción",
     google_drive: 'Google Drive',
     "general": "General",
     "general_hint": "Idioma, comportamiento, acceso y seguridad",
@@ -128,7 +128,7 @@ const es = {
     "search_empty": "No se encontraron ajustes. Pruebe otra palabra.",
     "open_settings": "Abrir ajustes",
   maintenance_media_data: "Datos multimedia",
-  maintenance_duplicates: "Huellas de archivos y duplicados",
+  maintenance_duplicates: "Búsqueda de duplicados",
   maintenance_recognition: "Búsqueda y reconocimiento",
   maintenance_cleanup: "Limpieza y restablecimiento",
 },

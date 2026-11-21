@@ -1,12 +1,12 @@
 const it = {
   settingsLayout: {
     maintenance_media_data: 'Dati multimediali',
-    maintenance_duplicates: 'Impronte e duplicati',
+    maintenance_duplicates: 'Ricerca duplicati',
     maintenance_recognition: 'Ricerca e riconoscimento',
     maintenance_cleanup: 'Pulizia e ripristino',
     show_history_button: 'Mostra la cronologia delle modifiche nella barra superiore',
     show_history_button_hint: 'Aggiunge un pulsante cronologia accanto alla Guida. La cronologia è sempre disponibile in Dati e backup.',
-    transcode_cache: 'Cache di transcodifica',
+    transcode_cache: 'Cache di riproduzione',
     google_drive: 'Google Drive',
     general: 'Generale',
     general_hint: 'Lingua, comportamento dell\'app, accesso e sicurezza',

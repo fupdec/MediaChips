@@ -110,7 +110,7 @@
           </div>
         </div>
 
-        <v-expand-transition>
+        <!-- No expand-transition: panels in the control deck open instantly. -->
           <div
             v-if="advancedUi && toolbarStore.appearance.show"
             id="items-control-deck-appearance"
@@ -130,7 +130,6 @@
             </div>
             <ToolbarAppearance embedded/>
           </div>
-        </v-expand-transition>
 
         <div
           id="items-filters-top-host"
@@ -179,6 +178,7 @@
         <v-menu
           location="bottom end"
           :close-on-content-click="false"
+          :transition="false"
         >
           <template #activator="{props: menuProps}">
             <v-btn

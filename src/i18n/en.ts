@@ -64,13 +64,13 @@ const en = {
   },
   settingsLayout: {
     maintenance_media_data: "Media data",
-    maintenance_duplicates: "Fingerprints & duplicates",
+    maintenance_duplicates: "Duplicate search",
     maintenance_recognition: "Search & recognition",
     maintenance_cleanup: "Cleanup & reset",
 
     show_history_button: "Show change history in the top bar",
     show_history_button_hint: "Adds a history button next to Help. History is always available in Data & backups.",
-    transcode_cache: "Transcode cache",
+    transcode_cache: "Playback cache",
     google_drive: 'Google Drive',
     "general": "General",
     "general_hint": "Language, app behavior, access and security",

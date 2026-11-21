@@ -1,12 +1,12 @@
 const tr = {
   settingsLayout: {
     maintenance_media_data: 'Medya verileri',
-    maintenance_duplicates: 'Parmak izleri ve kopyalar',
+    maintenance_duplicates: 'Kopya arama',
     maintenance_recognition: 'Arama ve tanıma',
     maintenance_cleanup: 'Temizlik ve sıfırlama',
     show_history_button: 'Değişiklik geçmişini üst çubukta göster',
     show_history_button_hint: 'Yardım\'ın yanına bir geçmiş düğmesi ekler. Geçmiş her zaman Veri ve yedekler bölümünde bulunur.',
-    transcode_cache: 'Kod dönüştürme önbelleği',
+    transcode_cache: 'Oynatma önbelleği',
     google_drive: 'Google Drive',
     general: 'Genel',
     general_hint: 'Dil, uygulama davranışı, erişim ve güvenlik',

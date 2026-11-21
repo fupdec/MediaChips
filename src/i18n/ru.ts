@@ -64,13 +64,13 @@ const ru = {
   },
   settingsLayout: {
     maintenance_media_data: "Данные медиа",
-    maintenance_duplicates: "Отпечатки и дубликаты",
+    maintenance_duplicates: "Поиск дубликатов",
     maintenance_recognition: "Поиск и распознавание",
     maintenance_cleanup: "Очистка и сброс",
 
     show_history_button: "Показывать историю правок на верхней панели",
     show_history_button_hint: "Добавляет кнопку истории рядом со справкой. История всегда доступна в разделе «Данные и резервные копии».",
-    transcode_cache: "Кеш перекодирования",
+    transcode_cache: "Кеш для воспроизведения",
     google_drive: 'Google Drive',
     "general": "Основные",
     "general_hint": "Язык, поведение приложения, доступ и безопасность",

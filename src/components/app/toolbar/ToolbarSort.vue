@@ -4,6 +4,7 @@
     v-model="menuOpen"
     :close-on-content-click="false"
     location="bottom"
+    :transition="false"
   >
     <template #activator="{ props: activatorProps }">
       <v-btn

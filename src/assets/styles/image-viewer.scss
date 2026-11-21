@@ -317,6 +317,12 @@
     backdrop-filter: blur(18px) saturate(1.35);
     -webkit-backdrop-filter: blur(18px) saturate(1.35);
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+
+    /* Info line only (no filmstrip): hug the content instead of stretching full width. */
+    &--info:not(&--filmstrip) {
+      width: fit-content;
+      margin-inline: auto;
+    }
   }
 
   &__section {

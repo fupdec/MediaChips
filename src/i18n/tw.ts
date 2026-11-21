@@ -1,12 +1,12 @@
 const tw = {
   settingsLayout: {
     maintenance_media_data: '媒體資料',
-    maintenance_duplicates: '指紋與重複項目',
+    maintenance_duplicates: '尋找重複項目',
     maintenance_recognition: '搜尋與辨識',
     maintenance_cleanup: '清理與重設',
     show_history_button: '在頂部列顯示變更記錄',
     show_history_button_hint: '在說明旁新增記錄按鈕。記錄一律可在「資料與備份」中查看。',
-    transcode_cache: '轉碼快取',
+    transcode_cache: '播放快取',
     google_drive: 'Google 雲端硬碟',
     general: '一般',
     general_hint: '語言、應用程式行為、存取與安全性',
