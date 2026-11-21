@@ -1,13 +1,19 @@
 <template>
   <div class="meta-field-toggle-list">
     <div class="meta-field-toggle-list__toolbar">
-      <div class="text-body-2 font-weight-medium">
+      <v-chip
+        variant="tonal"
+        color="primary"
+        size="small"
+        prepend-icon="mdi-check-circle-outline"
+        class="meta-field-toggle-list__count-chip font-weight-medium"
+      >
         {{ t('meta.settings.fields_enabled_count', {enabled: rows.length, total: totalCount}) }}
-      </div>
+      </v-chip>
       <v-spacer/>
       <v-btn
         size="small"
-        variant="tonal"
+        variant="flat"
         color="primary"
         rounded="lg"
         prepend-icon="mdi-plus"
@@ -84,7 +90,7 @@
     </section>
 
     <section class="meta-field-toggle-list__section">
-      <div class="d-flex align-center ga-3 flex-wrap mb-2">
+      <div class="d-flex align-center ga-3 flex-wrap mb-4">
         <div class="meta-field-toggle-list__section-title mb-0">
           {{ t('meta.settings.fields_available_title') }}
         </div>

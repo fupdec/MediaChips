@@ -6,8 +6,12 @@
       :name="anchorName"
       :subtitle="anchorSubtitle"
       :type-label="anchorTypeLabel"
-      class="meta-assignment-panel__anchor mb-4"
-    />
+      class="meta-assignment-panel__anchor mb-2"
+    >
+      <template v-if="$slots['anchor-actions']" #actions>
+        <slot name="anchor-actions"/>
+      </template>
+    </MetaAssignmentAnchor>
 
     <v-alert
       v-if="showWarning"
