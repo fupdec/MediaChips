@@ -125,12 +125,13 @@
     </div>
 
     <v-alert
-      v-if="error"
+      v-if="error && !(mode === 'filter' && !ready && error === notReadyText)"
       type="error"
       variant="tonal"
       density="compact"
       rounded="lg"
       class="mb-2 text-caption"
+      :class="{'mt-2': mode === 'filter'}"
     >
       {{ error }}
     </v-alert>
@@ -845,18 +846,35 @@ watch(
 .local-ai-assist__bar {
   margin-bottom: 8px;
 }
+/* Filter mode: goal field + run button + help link share one line; the hint wraps onto its own line below. */
 .local-ai-assist__bar--filter {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
   min-width: 0;
   margin-bottom: 0;
+}
+.local-ai-assist__bar--filter .local-ai-assist__actions {
+  display: contents !important;
+}
+.local-ai-assist__bar--filter .local-ai-assist__hint {
+  flex: 1 1 100%;
+  order: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  white-space: normal;
+}
+.local-ai-assist__bar--filter .local-ai-assist__hint .local-ai-assist__settings-btn {
+  margin-inline-start: 0;
 }
 .local-ai-assist__examples {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 8px 0 0;
+  margin: 10px 0 0;
 }
 .local-ai-assist__example {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
@@ -893,16 +911,16 @@ watch(
   color: rgb(var(--v-theme-warning));
 }
 .local-ai-assist__goal {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 1 1 240px;
+  min-width: 200px;
 }
 .local-ai-assist__goal :deep(.v-field) {
   --v-input-control-height: 28px;
-  border-radius: 999px !important;
+  border-radius: 8px !important;
   font-size: 0.75rem;
 }
 .local-ai-assist__goal :deep(.v-field__outline) {
-  --v-field-border-radius: 999px;
+  --v-field-border-radius: 8px;
 }
 .local-ai-assist__goal :deep(.v-field__input) {
   min-height: 28px !important;
@@ -932,6 +950,7 @@ watch(
   white-space: nowrap;
 }
 .local-ai-assist__run {
+  border-radius: 8px !important;
   text-transform: none;
   letter-spacing: normal;
   font-weight: 400;
