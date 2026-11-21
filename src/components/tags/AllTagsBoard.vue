@@ -1,6 +1,23 @@
 <template>
   <div class="all-tags-board">
     <aside class="all-tags-board__categories">
+      <div class="all-tags-board__section-label">
+        <span>{{ t('settings_labels.library.tag_categories') }}</span>
+        <span class="all-tags-board__total">{{ categoryRows.length }}</span>
+        <div class="d-flex align-center ga-1">
+          <v-btn
+            :aria-label="t('all_tags.add_category')"
+            v-tooltip:top="t('all_tags.add_category')"
+            icon
+            size="small"
+            variant="tonal"
+            color="primary"
+            @click="openCreateCategory"
+          >
+            <v-icon>mdi-plus</v-icon>
+          </v-btn>
+        </div>
+      </div>
       <div class="all-tags-board__pane-header">
         <v-text-field
           v-model="categorySearch"
@@ -13,28 +30,6 @@
           clearable
           class="flex-grow-1"
         />
-        <v-btn
-          v-tooltip:top="categoriesEditMode
-            ? t('all_tags.done_editing_categories')
-            : t('all_tags.edit_categories')"
-          icon
-          size="small"
-          :variant="categoriesEditMode ? 'flat' : 'tonal'"
-          :color="categoriesEditMode ? 'primary' : undefined"
-          @click="categoriesEditMode = !categoriesEditMode"
-        >
-          <v-icon>{{ categoriesEditMode ? 'mdi-check' : 'mdi-pencil-outline' }}</v-icon>
-        </v-btn>
-        <v-btn
-          v-tooltip:top="t('all_tags.add_category')"
-          icon
-          size="small"
-          variant="tonal"
-          color="primary"
-          @click="openCreateCategory"
-        >
-          <v-icon>mdi-plus</v-icon>
-        </v-btn>
       </div>
 
       <div
@@ -69,14 +64,6 @@
         ref="categoryListRef"
         class="all-tags-board__category-list"
       >
-        <div
-          v-if="categoriesEditMode && !categorySearch.trim()"
-          class="text-caption text-medium-emphasis mb-2 px-1"
-        >
-          <v-icon size="14" start>mdi-drag</v-icon>
-          {{ t('all_tags.reorder_categories_hint') }}
-        </div>
-
         <Draggable
           v-model="categoryRows"
           item-key="id"
@@ -84,24 +71,28 @@
           :animation="200"
           ghost-class="all-tags-board__category-ghost"
           class="all-tags-board__category-scroll"
-          :disabled="!categoriesEditMode || Boolean(categorySearch.trim())"
+          :disabled="Boolean(categorySearch.trim())"
           @start="categoryDragging = true"
           @end="onCategoryReorderEnd"
         >
           <template #item="{element: category}">
             <div
               v-show="categoryMatchesSearch(category)"
+              role="button"
+              tabindex="0"
+              :aria-pressed="selectedMetaId === category.id"
+              @keydown.enter.prevent="selectCategory(category.id)"
+              @keydown.space.prevent="selectCategory(category.id)"
               class="all-tags-board__category"
               :class="{
                 'all-tags-board__category--active': selectedMetaId === category.id,
                 'all-tags-board__category--drop': dropTargetMetaId === category.id,
                 'all-tags-board__category--hidden': category.hidden,
-                'all-tags-board__category--editing': categoriesEditMode,
                 'all-tags-board__category--group': isCategoryGroup(category),
               }"
               :style="{paddingInlineStart: `${categoryTreeDepth(category) * 16}px`}"
               :data-meta-id="category.id"
-              :draggable="!categoriesEditMode && !categorySearch.trim()"
+              :draggable="!categorySearch.trim()"
               @click="selectCategory(category.id)"
               @dragstart="onCategoryItemDragStart(category, $event)"
               @dragend="onCategoryItemDragEnd"
@@ -111,7 +102,6 @@
             >
               <div class="all-tags-board__category-row">
                 <v-icon
-                  v-if="categoriesEditMode"
                   size="16"
                   class="all-tags-board__category-drag text-medium-emphasis"
                   :class="{'all-tags-board__category-drag--disabled': Boolean(categorySearch.trim())}"
@@ -121,14 +111,13 @@
                 </v-icon>
                 <v-icon size="20" class="all-tags-board__category-icon flex-shrink-0">mdi-{{ category.icon || 'tag' }}</v-icon>
                 <div class="all-tags-board__category-main">
-                  <span class="text-body-2 font-weight-medium text-truncate">
+                  <span class="all-tags-board__category-name text-body-2 font-weight-medium text-truncate">
                     {{ category.name }}
                   </span>
                   <span
-                    v-if="!categoriesEditMode"
                     class="all-tags-board__category-count text-caption text-medium-emphasis"
                   >
-                    ({{ tagCountByMetaId[category.id] || 0 }})
+                    {{ tagCountByMetaId[category.id] || 0 }}
                   </span>
                   <v-icon
                     v-if="defaultCategoryId === category.id"
@@ -141,7 +130,6 @@
                   </v-icon>
                 </div>
                 <div
-                  v-if="categoriesEditMode"
                   class="all-tags-board__category-actions"
                   @click.stop
                 >
@@ -165,14 +153,6 @@
           </template>
         </Draggable>
 
-        <button
-          type="button"
-          class="all-tags-board__add-category"
-          @click="openCreateCategory"
-        >
-          <v-icon size="16" start>mdi-plus</v-icon>
-          {{ t('all_tags.add_category') }}
-        </button>
       </div>
     </aside>
 
@@ -180,9 +160,11 @@
       <template v-if="selectedCategory">
         <div class="all-tags-board__pane-header">
           <div class="all-tags-board__tags-title">
-            <v-icon size="22" start>mdi-{{ selectedCategory.icon || 'tag' }}</v-icon>
-            <span class="text-h6">{{ selectedCategory.name }}</span>
-            <span class="text-caption text-medium-emphasis ml-2">
+            <div class="all-tags-board__title-icon">
+              <v-icon size="23">mdi-{{ selectedCategory.icon || 'tag' }}</v-icon>
+            </div>
+            <span class="all-tags-board__title-name">{{ selectedCategory.name }}</span>
+            <span class="all-tags-board__title-count">
               {{ t('all_tags.tags_count', {count: filteredTags.length}) }}
             </span>
           </div>
@@ -230,25 +212,25 @@
           />
         </div>
 
-        <div
-          v-if="selectedIds.length"
-          class="all-tags-board__selection d-flex align-center ga-2 px-1 mb-2"
-        >
-          <span class="text-caption">
-            {{ t('all_tags.selected_count', {count: selectedIds.length}) }}
-          </span>
-          <v-btn
-            size="x-small"
-            variant="text"
-            @click="clearSelection"
-          >
-            {{ t('all_tags.clear_selection') }}
-          </v-btn>
-        </div>
+        <div class="all-tags-board__list-toolbar">
+          <div v-if="selectedIds.length" class="all-tags-board__selection" role="status">
+            <v-icon size="17" color="primary">mdi-checkbox-marked-circle-outline</v-icon>
+            <span class="text-caption font-weight-medium">
+              {{ t('all_tags.selected_count', {count: selectedIds.length}) }}
+            </span>
+            <v-btn
+              size="x-small"
+              variant="text"
+              @click="clearSelection"
+            >
+              {{ t('all_tags.clear_selection') }}
+            </v-btn>
+          </div>
 
-        <div class="text-caption text-medium-emphasis mb-2 px-1">
-          <v-icon size="14" start>mdi-drag</v-icon>
-          {{ t('all_tags.drag_hint') }}
+          <div v-else class="all-tags-board__list-hint">
+            <v-icon size="16">mdi-cursor-move</v-icon>
+            <span>{{ t('all_tags.drag_hint') }}</span>
+          </div>
         </div>
 
         <div
@@ -303,7 +285,11 @@
                 @dragstart="onTagDragStart(tag, $event)"
                 @dragend="onTagDragEnd"
               >
+                <v-icon size="16" class="all-tags-board__drag-handle text-medium-emphasis">
+                  mdi-drag-vertical
+                </v-icon>
                 <v-checkbox-btn
+                  :aria-label="tag.name"
                   :model-value="selectedIds.includes(tag.id)"
                   density="compact"
                   color="primary"
@@ -322,16 +308,15 @@
                   </div>
                 </div>
                 <v-btn
+                  class="all-tags-board__tag-edit"
                   icon
                   size="x-small"
                   variant="text"
+                  :aria-label="t('context_menu.edit_tag') + ': ' + tag.name"
                   @click.stop="editTag(tag)"
                 >
                   <v-icon size="16">mdi-pencil-outline</v-icon>
                 </v-btn>
-                <v-icon size="16" class="all-tags-board__drag-handle text-medium-emphasis">
-                  mdi-drag-vertical
-                </v-icon>
               </div>
             </template>
           </v-virtual-scroll>
@@ -406,7 +391,6 @@ const dropTargetMetaId = ref<number | null>(null)
 const draggingTagIds = ref<number[]>([])
 const draggingMetaId = ref<number | null>(null)
 const categoryDragging = ref(false)
-const categoriesEditMode = ref(false)
 const categoryRows = ref<Meta[]>([])
 const togglingHiddenId = ref<number | null>(null)
 const categoryListRef = ref<HTMLElement | null>(null)
@@ -618,7 +602,10 @@ function onTagDragEnd() {
 }
 
 function onCategoryItemDragStart(category: Meta, event: DragEvent) {
-  if (categoriesEditMode.value || categorySearch.value.trim()) {
+  // Sortable owns drags from the reorder handle.
+  // Cancelling this native event also cancels Sortable's drag.
+  if ((event.target as Element | null)?.closest('.all-tags-board__category-drag')) return
+  if (categorySearch.value.trim()) {
     event.preventDefault()
     return
   }
@@ -636,6 +623,7 @@ function onCategoryItemDragEnd() {
 }
 
 function onCategoryDragOver(category: Meta, event: DragEvent) {
+  if (categoryDragging.value) return
   if (draggingMetaId.value != null) {
     if (
       canReparentCategory(
@@ -681,6 +669,7 @@ function resolveTagsByIds(ids: number[]): Tag[] {
 }
 
 function onDropToCategory(category: Meta) {
+  if (categoryDragging.value) return
   if (draggingMetaId.value != null) {
     const source = categoryRows.value.find((item) => Number(item.id) === draggingMetaId.value)
     draggingMetaId.value = null
@@ -787,20 +776,52 @@ async function onMetaDeleted() {
 <style scoped lang="scss">
 .all-tags-board {
   display: grid;
-  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
-  gap: 16px;
-  min-height: calc(100vh - 160px);
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: 0;
+  height: calc(100dvh - 220px);
+  min-height: 480px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgb(var(--v-theme-surface));
 }
 
 .all-tags-board__categories,
 .all-tags-board__tags {
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  border-radius: 16px;
-  background: rgb(var(--v-theme-surface));
-  padding: 12px;
-  min-height: 420px;
+  padding: 20px;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.all-tags-board__categories {
+  background: rgba(var(--v-theme-on-surface), 0.018);
+  border-inline-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  padding: 20px 12px 12px;
+}
+
+.all-tags-board__section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 12px;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 650;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.all-tags-board__total {
+  font-variant-numeric: tabular-nums;
+  margin-inline-end: auto;
+}
+
+.all-tags-board__hint {
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-on-surface), 0.035);
 }
 
 .all-tags-board__pane-header {
@@ -817,6 +838,96 @@ async function onMetaDeleted() {
   flex: 1;
 }
 
+.all-tags-board__title-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.07);
+  margin-inline-end: 12px;
+}
+
+.all-tags-board__title-name {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.35px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.all-tags-board__title-count {
+  margin-inline-start: 10px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(var(--v-theme-on-surface), 0.045);
+  color: rgba(var(--v-theme-on-surface), 0.55);
+  font-size: 11px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.all-tags-board__list-toolbar {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  margin: -4px 0 10px;
+  padding: 0 8px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.07);
+}
+
+.all-tags-board__selection,
+.all-tags-board__list-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.all-tags-board__selection {
+  width: 100%;
+  color: rgb(var(--v-theme-primary));
+
+  .v-btn { margin-inline-start: auto; }
+}
+
+.all-tags-board__list-hint {
+  padding: 6px 0;
+  color: rgba(var(--v-theme-on-surface), 0.5);
+
+  .v-icon { flex-shrink: 0; }
+}
+
+.all-tags-board__tag-edit {
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
+}
+
+.all-tags-board__tag-main > .text-caption {
+  font-size: 11px !important;
+  opacity: 0.8;
+  line-height: 1.5;
+}
+
+.all-tags-board :deep(.v-field) {
+  font-size: 13px;
+  background: rgba(var(--v-theme-on-surface), 0.018);
+  --v-field-border-opacity: 0.18;
+}
+
+.all-tags-board :deep(.v-field--focused) {
+  --v-field-border-opacity: 1;
+}
+
+.all-tags-board__category-scroll,
+.all-tags-board__virtual-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--v-theme-on-surface), 0.16) transparent;
+}
+
 .all-tags-board__category-list {
   flex: 1;
   min-height: 0;
@@ -831,27 +942,6 @@ async function onMetaDeleted() {
   overflow: auto;
 }
 
-.all-tags-board__add-category {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 100%;
-  margin-top: 8px;
-  padding: 8px 12px;
-  border: 1px dashed rgba(var(--v-theme-primary), 0.45);
-  border-radius: 12px;
-  background: rgba(var(--v-theme-primary), 0.06);
-  color: rgb(var(--v-theme-primary));
-  cursor: pointer;
-  font-size: 0.8125rem;
-  font-weight: 500;
-
-  &:hover {
-    background: rgba(var(--v-theme-primary), 0.12);
-  }
-}
-
 .all-tags-board__tag-list {
   flex: 1;
   min-height: 0;
@@ -864,20 +954,18 @@ async function onMetaDeleted() {
 
 .all-tags-board__category {
   height: 44px;
+  margin-bottom: 4px;
   border-radius: 12px;
   transition: background-color 0.15s ease, outline-color 0.15s ease, opacity 0.15s ease;
-  cursor: pointer;
-
-  &:not(.all-tags-board__category--editing) {
-    cursor: grab;
-  }
+  cursor: grab;
 
   &:hover {
     background: rgba(var(--v-theme-on-surface), 0.04);
   }
 
   &--active {
-    background: rgba(var(--v-theme-primary), 0.1);
+    background: rgba(var(--v-theme-primary), 0.12);
+    color: rgb(var(--v-theme-primary));
   }
 
   &--drop {
@@ -886,7 +974,12 @@ async function onMetaDeleted() {
   }
 
   &--hidden {
-    opacity: 0.55;
+    opacity: 0.7;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: -2px;
   }
 }
 
@@ -929,7 +1022,13 @@ async function onMetaDeleted() {
   gap: 8px;
 }
 
+.all-tags-board__category-name { flex: 1; }
+
 .all-tags-board__category-count {
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: rgba(var(--v-theme-on-surface), 0.05);
+  font-variant-numeric: tabular-nums;
   flex-shrink: 0;
   white-space: nowrap;
 }
@@ -941,8 +1040,8 @@ async function onMetaDeleted() {
   opacity: 0.7;
 }
 
-.all-tags-board__category--editing:hover .all-tags-board__category-actions,
-.all-tags-board__category--editing.all-tags-board__category--active .all-tags-board__category-actions {
+.all-tags-board__category:hover .all-tags-board__category-actions,
+.all-tags-board__category--active .all-tags-board__category-actions {
   opacity: 1;
 }
 
@@ -950,9 +1049,12 @@ async function onMetaDeleted() {
   display: flex;
   align-items: center;
   gap: 4px;
-  height: 52px;
+  height: 48px;
+  margin-bottom: 4px;
   padding: 0 10px;
-  border-radius: 12px;
+  border-radius: 8px;
+  border: 0;
+  transition: background-color 0.15s ease;
   cursor: grab;
   user-select: none;
 
@@ -961,8 +1063,13 @@ async function onMetaDeleted() {
   }
 
   &--selected {
-    background: rgba(var(--v-theme-primary), 0.12);
+    background: rgba(var(--v-theme-primary), 0.065);
+
+    &:hover { background: rgba(var(--v-theme-primary), 0.1); }
   }
+
+  &:hover .all-tags-board__tag-edit,
+  &:focus-within .all-tags-board__tag-edit { opacity: 1; }
 }
 
 .all-tags-board__tag-check {
@@ -987,6 +1094,8 @@ async function onMetaDeleted() {
 }
 
 .all-tags-board__drag-handle {
+  opacity: 0.35;
+  margin-inline-end: 2px;
   flex: 0 0 auto;
   cursor: grab;
 }
@@ -1002,6 +1111,16 @@ async function onMetaDeleted() {
 @media (max-width: 960px) {
   .all-tags-board {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+  .all-tags-board__categories {
+    max-height: 320px;
+    border-inline-end: 0;
+    border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  }
+  .all-tags-board__tags {
+    height: 560px;
   }
 }
 </style>

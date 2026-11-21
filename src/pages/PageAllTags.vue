@@ -1,9 +1,12 @@
 <template>
   <v-container class="all-tags-page">
-    <div class="text-md-h2 d-flex align-center my-6 ga-4">
-      <div class="d-flex align-center">
-        <v-icon size="42" start>mdi-tag-multiple-outline</v-icon>
-        {{ t('navigation.all_tags') }}
+    <div class="all-tags-page__header">
+      <div class="all-tags-page__heading">
+        <div class="all-tags-page__icon"><v-icon size="26">mdi-tag-multiple-outline</v-icon></div>
+        <div>
+          <h1>{{ t('navigation.all_tags') }}</h1>
+          <div class="all-tags-page__summary">{{ t('all_tags.tags_count', {count: appStore.tags.length}) }}</div>
+        </div>
       </div>
 
       <v-spacer />
@@ -47,6 +50,50 @@ const openCategoryMerge = () => {
 
 <style scoped lang="scss">
 .all-tags-page {
-  max-width: 1400px;
+  max-width: 1600px;
+  padding: 28px 28px 20px;
+}
+
+.all-tags-page__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.all-tags-page__heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  h1 {
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 650;
+    letter-spacing: -0.8px;
+  }
+}
+
+.all-tags-page__icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.09);
+}
+
+.all-tags-page__summary {
+  margin-top: 5px;
+  font-size: 13px;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+@media (max-width: 600px) {
+  .all-tags-page { padding: 20px 12px; }
+  .all-tags-page__header { gap: 12px; }
+  .all-tags-page__heading h1 { font-size: 26px; }
 }
 </style>
