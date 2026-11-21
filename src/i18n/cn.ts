@@ -5053,6 +5053,7 @@ const cn = {
     cancel: "取消",
   },
   folders_browser: {
+    network_connections: '网络连接',
     roots: "图书馆文件夹",
     forward: "前进",
     empty_library: "库中还没有媒体。 添加文件以浏览文件夹 。",

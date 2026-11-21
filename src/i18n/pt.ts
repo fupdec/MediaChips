@@ -5053,6 +5053,7 @@ const pt = {
     cancel: "Cancelar",
   },
   folders_browser: {
+    network_connections: 'Conexões de rede',
     roots: "Pastas de bibliotecas",
     forward: "Avançar",
     empty_library: "Ainda não há mídia na biblioteca. Adicione arquivos para navegar por pasta.",

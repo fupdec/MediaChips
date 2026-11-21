@@ -5053,6 +5053,7 @@ const ja = {
     cancel: "キャンセル",
   },
   folders_browser: {
+    network_connections: 'ネットワーク接続',
     roots: "ライブラリフォルダ",
     forward: "フォワード",
     empty_library: "ライブラリのメディアはまだありません。フォルダで参照するファイルを追加します。",

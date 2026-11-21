@@ -5053,6 +5053,7 @@ const de = {
     cancel: "Abbrechen",
   },
   folders_browser: {
+    network_connections: 'Netzwerkverbindungen',
     roots: "Bibliotheksordner",
     forward: "Vorwärts",
     empty_library: "Noch kein Medium in der Bibliothek. Dateien hinzufügen, um nach Ordnern zu suchen.",

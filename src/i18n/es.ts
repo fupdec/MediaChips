@@ -5053,6 +5053,7 @@ const es = {
     cancel: "Cancelar",
   },
   folders_browser: {
+    network_connections: 'Conexiones de red',
     roots: "Carpetas de biblioteca",
     forward: "Adelante.",
     empty_library: "Aún no hay medios en la biblioteca. Añadir archivos para buscar por carpeta.",

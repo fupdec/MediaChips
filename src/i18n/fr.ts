@@ -5053,6 +5053,7 @@ const fr = {
     cancel: "Annuler",
   },
   folders_browser: {
+    network_connections: 'Connexions réseau',
     roots: "Dossiers de bibliothèque",
     forward: "En avant",
     empty_library: "Aucun média dans la bibliothèque. Ajoutez des fichiers à parcourir par dossier.",
