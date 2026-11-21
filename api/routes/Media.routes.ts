@@ -49,6 +49,20 @@ export default function registerRoutes(app: Express, db: ApiDb) {
 
   router.get('/numberOfMediaWithTag', validateQuery(MediaTagCountQuerySchema), Media.numberOfMediaWithTag)
 
+  // Grid availability needs paths only, without per-card copy metadata queries.
+  router.post('/copy-paths', validateBody(z.object({
+    ids: z.array(z.number().int().positive()).min(1).max(100),
+  })), (req, res) => {
+    const ids = [...new Set(req.body.ids as number[])]
+    const rows = db.sqlite.prepare(
+      `SELECT mediaId, path FROM verifiedMediaCopies WHERE mediaId IN (${ids.map(() => '?').join(',')})`,
+    ).all(...ids) as {mediaId: number; path: string}[]
+    const paths: Record<string, string[]> = Object.fromEntries(ids.map(id => [id, []]))
+    for (const row of rows) paths[row.mediaId].push(row.path)
+    res.setHeader('Cache-Control', 'no-store')
+    res.json({paths})
+  })
+
   router.post('/items', validateBody(ItemsListRequestSchema), Media.getAll)
   router.post('/folderBrowse', validateBody(MediaFolderBrowseRequestSchema), Media.folderBrowse)
   router.post('/ids', validateBody(MediaIdsRequestSchema), Media.getFilteredIds)

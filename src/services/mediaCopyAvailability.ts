@@ -1,4 +1,6 @@
 import {mediaCopiesApi} from '@/services/typedApi/mediaCopies'
+import {queueMediaCopyPaths} from './mediaCopyPaths'
+import {isRemoteMediaPath} from '@shared/remoteMedia'
 import {checkFileExists} from '@/services/fileService'
 
 /**
@@ -32,6 +34,15 @@ export async function isMediaFileAvailable(
 ): Promise<boolean> {
   if (!media) return false
   if (media.path && await checkExists(media.path)) return true
-  if (!media.hasCopies) return false
-  return hasUsableMediaCopy(Number(media.id), checkExists)
+  if (!media.hasCopies || !(Number(media.id) > 0)) return false
+  try {
+    const paths = await queueMediaCopyPaths(Number(media.id))
+    if (paths.some(path => isRemoteMediaPath(path))) return true
+    for (const path of paths) {
+      if (path && await checkExists(path)) return true
+    }
+  } catch {
+    // A failed check must not claim that the file is available.
+  }
+  return false
 }
