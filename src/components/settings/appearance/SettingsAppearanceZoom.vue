@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import PillSlider from '@/components/ui/PillSlider.vue'
 import {useI18n} from 'vue-i18n'
 import {useAppZoom} from '@/composable/useAppZoom'
 import {MAX_ZOOM, MIN_ZOOM} from '@/utils/appZoom'
@@ -29,13 +30,12 @@ const zoomPercent = computed(() => Math.round(zoom.value * 100))
           <v-icon>mdi-minus</v-icon>
         </v-btn>
 
-        <v-slider
+        <PillSlider
           :model-value="zoomPercent"
           :min="Math.round(MIN_ZOOM * 100)"
           :max="Math.round(MAX_ZOOM * 100)"
           :step="5"
           class="mx-2 app-zoom-slider"
-          hide-details
           @update:model-value="value => setZoom(value / 100)"
         />
 
@@ -80,8 +80,8 @@ const zoomPercent = computed(() => Math.round(zoom.value * 100))
 
 <style lang="scss" scoped>
 .app-zoom-slider {
-  max-width: 280px;
-  min-width: 180px;
+  max-width: 312px;
+  min-width: 212px;
 }
 
 .app-zoom__footer {

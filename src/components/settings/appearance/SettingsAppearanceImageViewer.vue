@@ -4,6 +4,7 @@ import {useI18n} from 'vue-i18n'
 import {useSettingsStore} from '@/stores/settings'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import PillSlider from '@/components/ui/PillSlider.vue'
 import {setOption} from '@/services/settingsService'
 
 const settingsStore = useSettingsStore()
@@ -44,16 +45,12 @@ const onSlideshowIntervalChange = (val: number | number[]) => {
       <div class="text-caption text-medium-emphasis mb-2">
         {{ t('settings_labels.appearance.slideshow_interval_hint') }}
       </div>
-      <v-slider
+      <PillSlider
         :model-value="slideshowIntervalSeconds"
         @update:model-value="onSlideshowIntervalChange"
         min="1"
         max="30"
         step="1"
-        track-size="7"
-        density="compact"
-        color="primary"
-        hide-details
         thumb-label
       />
     </div>

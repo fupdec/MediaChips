@@ -337,7 +337,7 @@
                 {{ t(preset.labelKey) }}
               </v-btn>
             </div>
-            <v-slider
+            <PillSlider
               v-model="detectMinScore"
               :min="0.5"
               :max="0.75"
@@ -350,7 +350,7 @@
               <template #thumb-label="{ modelValue }">
                 {{ asPercent(modelValue) }}
               </template>
-            </v-slider>
+            </PillSlider>
           </div>
 
           <div class="face-advanced__group">
@@ -360,7 +360,7 @@
             <div class="face-advanced__hint">
               {{ t('settings_labels.database.face_match_confidence_hint') }}
             </div>
-            <v-slider
+            <PillSlider
               v-model="minConfidence"
               :min="0.3"
               :max="0.9"
@@ -373,7 +373,7 @@
               <template #thumb-label="{ modelValue }">
                 {{ asPercent(modelValue) }}
               </template>
-            </v-slider>
+            </PillSlider>
           </div>
 
           <div class="face-advanced__group">
@@ -383,7 +383,7 @@
             <div class="face-advanced__hint">
               {{ t('settings_labels.database.face_detect_frames_hint') }}
             </div>
-            <v-slider
+            <PillSlider
               v-model="framesPerVideo"
               :min="1"
               :max="99"
@@ -402,7 +402,7 @@
             <div class="face-advanced__hint">
               {{ t('settings_labels.database.face_match_candidates_hint') }}
             </div>
-            <v-slider
+            <PillSlider
               v-model="candidateLimit"
               :min="3"
               :max="20"
@@ -487,6 +487,7 @@
 
 <script setup lang="ts">
 import ModelDownloadMenu from '@/components/ui/ModelDownloadMenu.vue'
+import PillSlider from '@/components/ui/PillSlider.vue'
 import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useAppStore} from '@/stores/app'

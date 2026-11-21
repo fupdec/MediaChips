@@ -111,16 +111,12 @@
                 {{ previewDelayMs }} ms
               </span>
             </div>
-            <v-slider
+            <PillSlider
               :model-value="Number(SETTINGS.delayVideoPreview)"
               @update:model-value="(val) => setOption(String(val), 'delayVideoPreview')"
               min="0"
               max="2000"
               step="100"
-              track-size="7"
-              density="compact"
-              color="primary"
-              hide-details
               class="video-preview-settings__slider-control"
             />
           </div>
@@ -140,16 +136,13 @@
                 {{ bigPreviewDelayMs }} ms
               </span>
             </div>
-            <v-slider
+            <PillSlider
               :model-value="Number(SETTINGS.big_video_preview_delay)"
               @update:model-value="(val) => setOption(String(val), 'big_video_preview_delay')"
               min="0"
               max="9999"
               step="100"
-              track-size="7"
-              density="compact"
               :color="bigPreviewDelayMs < 1000 ? 'warning' : 'primary'"
-              hide-details
               class="video-preview-settings__slider-control"
             />
           </div>
@@ -187,6 +180,7 @@ import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useSettingsStore} from '@/stores/settings'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
+import PillSlider from '@/components/ui/PillSlider.vue'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
 import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
 import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
