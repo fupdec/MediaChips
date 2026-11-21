@@ -7,80 +7,55 @@
       v-if="useTopPanel"
       class="filters-top"
     >
-      <v-expand-transition>
+      <!-- No fade: Vue's leave hook forces a reflow and the 200ms opacity animation repaints every card each frame. -->
         <div
-          v-if="showTopShell"
+          v-show="showTopShell"
           class="filters-top__shell"
           :class="{
             'filters-top__shell--panel': isPanelView,
-            'filters-top__shell--full': filtersViewMode === 'full',
+            'filters-top__shell--full': isPanelView,
             'filters-top__shell--simple': !isPanelView,
+            'filters-top__shell--float': isPanelView,
           }"
         >
-          <div class="filters-top__chrome">
+          <div
+            class="filters-top__chrome"
+            :class="{'filters-top__chrome--panel': isPanelView}"
+          >
             <div class="filters-top__chrome-start">
-              <v-icon size="18">mdi-filter</v-icon>
-              <span class="filters-top__chrome-title">{{ t('filters.title') }}</span>
-
-              <SettingsSegmentedControl
-                :model-value="filtersViewMode"
-                class="filters-top__mode-segmented"
-                @update:model-value="setFiltersViewMode"
-                :label="t('filters.simple')"
-                :items="[
-                  {value: 'simple', title: t('filters.simple'), disabled: !showTopChips && isPanelView, tooltip: !showTopChips && isPanelView ? t('filters.simple_empty_hint') : t('filters.simple_hint')},
-                  {value: 'full', title: t('filters.full'), tooltip: t('filters.edit_mode_hint')},
-                ]"
-                compact
-              />
-
-              <SettingsSegmentedControl
-                v-if="isPanelView && conditionsCount >= 2"
-                :disabled="activeConditionsCount < 2"
-                :model-value="filtersJoin"
-                class="filters-top__join-segmented"
-                @update:model-value="onFiltersJoinChange"
-                :label="t('filters.join_and')"
-                :items="[
-                  {value: 'and', title: t('filters.join_and'), tooltip: t('filters.join_and_hint')},
-                  {value: 'or', title: t('filters.join_or'), tooltip: t('filters.join_or_hint')},
-                ]"
-                compact
-              />
-
-              <slot name="quick-settings"/>
+              <template v-if="!isPanelView">
+                <span class="filters-top__chrome-title">{{ t('filters.active_title') }}</span>
+                <FiltersChips
+                  :filters="ITEMS.filters"
+                  class="filters-top__chips"
+                />
+              </template>
             </div>
 
             <div class="filters-top__chrome-end">
               <v-btn
-                v-if="showTopChips || (isPanelView && activeConditionsCount > 0)"
-                class="filters-top__chrome-btn filters-top__chrome-btn--text"
+                class="filters-top__chrome-more"
+                icon
+                size="x-small"
                 variant="text"
-                size="small"
-                density="compact"
                 color="primary"
-                @click="handleDeactivateAllFilters"
+                :aria-label="t('common.more')"
+                @click="openChromeMenu"
               >
-                {{ t('filters.deactivate_all_filters') }}
+                <v-icon size="18">mdi-dots-horizontal</v-icon>
               </v-btn>
 
               <v-btn
-                v-if="isPanelView"
-                :color="is_filters_changed ? 'success' : 'primary'"
-                class="filters-top__chrome-btn"
-                rounded="xl"
-                variant="flat"
-                size="small"
-                density="compact"
-                @click="apply"
+                v-if="!isPanelView"
+                class="filters-top__chrome-edit"
+                icon
+                size="x-small"
+                variant="text"
+                color="primary"
+                :aria-label="t('common.edit')"
+                @click="filtersStore.visible = true"
               >
-                <v-icon
-                  start
-                  size="16"
-                >
-                  mdi-check
-                </v-icon>
-                {{ t('common.apply') }}
+                <v-icon size="18">mdi-pencil-outline</v-icon>
               </v-btn>
 
               <v-btn
@@ -89,34 +64,26 @@
                 variant="text"
                 icon
                 size="x-small"
-                density="compact"
+                color="primary"
                 :aria-label="t('appbar.buttons.hide_filters')"
                 @click="closeTopFilters"
               >
-                <v-icon size="16">mdi-close</v-icon>
+                <v-icon size="18">mdi-close</v-icon>
               </v-btn>
             </div>
           </div>
 
+          <div class="filters-top__cols">
           <div
-            v-if="filtersVisible && $slots.quick"
+            v-if="isPanelView && $slots.quick"
             class="filters-top__quick"
           >
             <slot name="quick"/>
           </div>
 
-          <v-expand-transition>
-            <div
-              v-if="!isPanelView"
-              class="filters-top__brief"
-            >
-              <FiltersChips
-                :filters="ITEMS.filters"
-                class="filters-top__chips"
-              />
-            </div>
-          </v-expand-transition>
+          <div class="filters-top__main">
 
+          <!-- No expand-transition: animating height re-lays out and repaints the whole card grid below every frame. -->
           <div
             class="filters-top__panel-slot"
             :class="{'filters-top__panel-slot--open': isPanelView}"
@@ -124,10 +91,10 @@
             <div class="filters-top__panel-slot-inner">
               <div class="filters-top__panel">
                 <FiltersPanel
+                  v-if="topPanelMounted"
                   variant="top"
                   hide-header
                   v-bind="panelBindings"
-                  @update:edit-mode="editMode = $event"
                   @update:filters="filters = $event"
                   @close="closeTopFilters"
                   @apply="apply"
@@ -141,15 +108,84 @@
                   @set-value="setValue"
                   @set-active="setActive"
                   @remove="remove"
+                  @duplicate="duplicate"
                   @remove-all="removeAll"
                   @pick-date="pickDate"
                   @valid="validate"
-                />
+                >
+                  <template #conditions-head>
+                    <div
+                      v-if="conditionsCount >= 2"
+                      class="filters-top__match"
+                    >
+                      <span>{{ t('filters.match_prefix') }}</span>
+                      <v-menu
+                        location="bottom start"
+                        :transition="false"
+                        content-class="filters-top__match-menu"
+                        :disabled="activeConditionsCount < 2"
+                      >
+                        <template #activator="{props: menuProps}">
+                          <button
+                            v-bind="menuProps"
+                            type="button"
+                            class="filters-top__match-pill"
+                            :disabled="activeConditionsCount < 2"
+                            :title="filtersJoin === 'or' ? t('filters.join_or_hint') : t('filters.join_and_hint')"
+                          >
+                            {{ filtersJoin === 'or' ? t('filters.match_any') : t('filters.match_all') }}
+                            <v-icon size="14">mdi-unfold-more-horizontal</v-icon>
+                          </button>
+                        </template>
+                        <v-list density="compact">
+                          <v-list-item
+                            :active="filtersJoin === 'and'"
+                            :title="t('filters.match_all')"
+                            @click="onFiltersJoinChange('and')"
+                          />
+                          <v-list-item
+                            :active="filtersJoin === 'or'"
+                            :title="t('filters.match_any')"
+                            @click="onFiltersJoinChange('or')"
+                          />
+                        </v-list>
+                      </v-menu>
+                      <span>{{ t('filters.match_suffix') }}</span>
+                    </div>
+                    <div
+                      v-else-if="filters.length > 0"
+                      class="filters-top__match"
+                    >
+                      <span>{{ t('filters.match_single') }}</span>
+                    </div>
+                  </template>
+                </FiltersPanel>
               </div>
             </div>
           </div>
+
+          <div
+            v-if="isPanelView && is_filters_changed"
+            class="filters-top__footer"
+          >
+            <span class="filters-top__pending">
+              {{ t('filters.changes_not_applied', {count: filtersChangeCount}, filtersChangeCount) }}
+            </span>
+
+            <v-spacer/>
+
+            <v-btn
+              color="success"
+              variant="flat"
+              prepend-icon="mdi-check"
+              @click="apply"
+            >
+              {{ t('common.apply') }}
+            </v-btn>
+          </div>
+          </div>
+          </div>
         </div>
-      </v-expand-transition>
     </div>
 
     <v-navigation-drawer
@@ -172,7 +208,6 @@
         <FiltersPanel
           variant="drawer"
           v-bind="panelBindings"
-          @update:edit-mode="editMode = $event"
           @update:filters="filters = $event"
           @close="filtersStore.visible = false"
           @apply="apply"
@@ -186,6 +221,7 @@
           @set-value="setValue"
           @set-active="setActive"
           @remove="remove"
+          @duplicate="duplicate"
           @remove-all="removeAll"
           @pick-date="pickDate"
           @valid="validate"
@@ -221,8 +257,7 @@
 </template>
 
 <script setup lang="ts">
-import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.vue'
-import {ref, computed, watch, onMounted, onUnmounted} from 'vue'
+import {ref, computed, watch, onMounted, onUnmounted, provide} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useDisplay} from 'vuetify'
 import dayjs from 'dayjs'
@@ -240,6 +275,10 @@ import {
   getListCond,
 } from '@/services/formatUtils'
 import {useAppStore} from '@/stores/app'
+import {useContextMenu} from '@/stores/contextMenu'
+import {useSettingsStore} from '@/stores/settings'
+import {setOption} from '@/services/settingsService'
+import type {ContextMenuEntry} from '@/types/stores'
 import {useItemsStore} from '@/stores/items'
 import type { FilterObject, FilterListParam } from '@/types/common'
 import type { SavedFilter } from '@/types/stores'
@@ -251,6 +290,9 @@ import {
 } from '@/utils/mediaType'
 import {sanitizeFiltersForMediaType} from '@/utils/mediaSortFilter'
 import {registerItemsFiltersController} from '@/composable/itemsFiltersController'
+import {FILTER_ROW_COUNTS_KEY, useFilterRowCounts} from '@/composable/useFilterRowCounts'
+import {FILTER_ROW_BASELINE_KEY, buildFilterBaselines} from '@/composable/filterRowBaseline'
+import type {FilterRowCountsContext} from '@/composable/useFilterRowCounts'
 import FiltersPanel from '@/components/app/FiltersPanel.vue'
 import FiltersChips from '@/components/elements/FiltersChips.vue'
 
@@ -272,14 +314,23 @@ import DialogFiltersSaved from '@/components/dialogs/filters/DialogFiltersSaved.
  */
 
 // Props
-const props = defineProps({
-  isReady: Boolean
-})
+interface QuickToggle {
+  option: 'showAlphabetFilter' | 'showColorFilter' | 'showSavedFilters'
+  title: string
+}
+
+const props = defineProps<{
+  isReady?: boolean
+  /** Quick-filter strips the page lets the user show or hide. */
+  quickToggles?: QuickToggle[]
+}>()
 
 // Stores
 const appStore = useAppStore()
 const filtersStore = appStore.filters
 const itemsStore = useItemsStore()
+const contextMenuStore = useContextMenu()
+const settingsStore = useSettingsStore()
 const pageCommands = useItemsPageCommands()
 const {t} = useI18n()
 const {width} = useDisplay()
@@ -363,7 +414,6 @@ const datePicker = ref<{
 })
 const dialogSaved = ref(false)
 const filtersPreviousState = ref<FilterObject[]>([])
-const editMode = ref(false)
 
 const dragOptions = {
   animation: 200,
@@ -390,23 +440,13 @@ const showTopChips = computed(() => {
 
 const showTopShell = computed(() => filtersVisible.value || showTopChips.value)
 
-// Two modes: 'simple' = active filters as chips, 'full' = the editing panel.
-const topFiltersMode = ref<'simple' | 'full'>('simple')
-
-const isPanelView = computed(() => topFiltersMode.value === 'full')
-const filtersViewMode = computed(() => topFiltersMode.value)
-
-const setFiltersViewMode = (mode: unknown) => {
-  if (mode !== 'simple' && mode !== 'full') return
-  topFiltersMode.value = mode
-  if (mode === 'simple') {
-    filtersStore.visible = false
-    editMode.value = false
-    return
-  }
-  filtersStore.visible = true
-  editMode.value = mode === 'full'
-}
+// The panel is always in editing mode; while it is closed, active filters show as chips.
+const isPanelView = computed(() => filtersVisible.value)
+// Mount the editor on first use, then retain inputs and menus across toggles.
+const topPanelMounted = ref(false)
+watch(isPanelView, (open) => {
+  if (open) topPanelMounted.value = true
+}, {immediate: true})
 
 const filtersJoin = computed(() => itemsStore.filtersJoin === 'or' ? 'or' : 'and')
 
@@ -426,7 +466,7 @@ const onFiltersJoinChange = (value: unknown) => {
 }
 
 const panelBindings = computed(() => ({
-  editMode: editMode.value,
+  editMode: true,
   filters: filters.value,
   listBy: listBy.value,
   isReady: props.isReady,
@@ -444,9 +484,39 @@ const currentMediaType = computed(() =>
   getCurrentMediaType(appStore.mediaTypes, ENV.value.media_type_id)
 )
 
+// Live "matches on its own" counts per condition; only the media and tag pages have a list endpoint.
+const rowCountsContext = computed<FilterRowCountsContext | null>(() => {
+  if (ITEMS.value.type === 'tag' && ENV.value.meta_id != null) {
+    return {url: '/api/tag/items/', metaId: ENV.value.meta_id}
+  }
+  if (ITEMS.value.type === 'media' && ENV.value.media_type_id != null) {
+    return {url: '/api/media/items', mediaTypeId: ENV.value.media_type_id}
+  }
+  return null
+})
+const filterRowCounts = useFilterRowCounts(filters, rowCountsContext, computed(() => Boolean(filtersStore.visible)))
+provide(FILTER_ROW_COUNTS_KEY, filterRowCounts)
+provide(FILTER_ROW_BASELINE_KEY, computed(() => buildFilterBaselines(filtersPreviousState.value)))
+
 const is_filters_changed = computed(() =>
   !filtersEqual(filtersPreviousState.value, filters.value),
 )
+
+/** Rows added, edited or removed since the filters were last applied. */
+const filtersChangeCount = computed(() => {
+  const keyOf = (filter: FilterObject) => String(filter.id ?? filter.clientKey)
+  const previous = new Map(filtersPreviousState.value.map((filter) => [keyOf(filter), filter]))
+  let count = 0
+  for (const filter of filters.value) {
+    const before = previous.get(keyOf(filter))
+    if (!before || JSON.stringify(before) !== JSON.stringify(filter)) count += 1
+  }
+  const current = new Set(filters.value.map(keyOf))
+  for (const key of previous.keys()) {
+    if (!current.has(key)) count += 1
+  }
+  return Math.max(count, 1)
+})
 
 const hasSavableFilters = computed(() =>
   filters.value.some((filter) => !filter.removed && !filter.lock),
@@ -550,13 +620,15 @@ const init = () => {
     }
   })
   filters.value = nextFilters
+  sortByActivity()
   filtersPreviousState.value = cloneFilters(filters.value)
 }
 
-const add = (params: FilterListParam[]) => {
+const add = (params: Array<FilterListParam & {cond?: string}>) => {
   for (const i of params) {
     const conditions = getListCond(i.type ?? null)
-    const cond = conditions?.[0]?.cond ?? null
+    // A preset may ask for a specific condition (e.g. "under folder"); otherwise the first one fits.
+    const cond = conditions.find((option) => option.cond === i.cond)?.cond ?? conditions?.[0]?.cond ?? null
     const filter_obj = getFilterObject({
       param: String(i.param),
       type: i.type ?? null,
@@ -565,7 +637,6 @@ const add = (params: FilterListParam[]) => {
     })
     filters.value.push(filter_obj)
   }
-  editMode.value = true
 }
 
 const pickBestTagMatch = (
@@ -684,10 +755,7 @@ const applyAiFilters = async (payload: Record<string, unknown>) => {
     added += 1
   }
   if (!added) return 0
-  editMode.value = true
-  if (!isPanelView.value) {
-    setFiltersViewMode('full')
-  }
+  filtersStore.visible = true
   return added
 }
 
@@ -744,12 +812,31 @@ const setValue = (value: unknown, index: number) => {
   filters.value[index].val = value
 }
 
+// Turned-on conditions first, turned-off ones below; order inside each group is kept.
+const sortByActivity = () => {
+  filters.value = [...filters.value].sort((a, b) => Number(!a.active) - Number(!b.active))
+  reindexFilterOrder()
+}
+
 const setActive = (value: boolean, index: number) => {
   filters.value[index].active = value
+  sortByActivity()
 }
 
 const remove = (index: number) => {
   filters.value[index].removed = !filters.value[index].removed
+  updKey.value += Date.now()
+}
+
+const duplicate = (index: number) => {
+  const source = filters.value[index]
+  if (!source || source.lock) return
+  const copy = cloneFilters([source])[0]
+  copy.id = null
+  copy.clientKey = Math.random().toString(16).slice(2)
+  copy.removed = false
+  filters.value.splice(index + 1, 0, copy)
+  reindexFilterOrder()
   updKey.value += Date.now()
 }
 
@@ -936,6 +1023,52 @@ const handleDeactivateAllFilters = () => {
   void apply()
 }
 
+/** The "⋯" menu uses the app's context menu so it looks and behaves like every other one. */
+const openChromeMenu = (event: MouseEvent) => {
+  const target = event.currentTarget as HTMLElement | null
+  const rect = target?.getBoundingClientRect()
+  const content: ContextMenuEntry[] = [
+    {
+      name: t('filters.manage_saved_views'),
+      type: 'item',
+      icon: 'content-save-outline',
+      action: () => { dialogSaved.value = true },
+    },
+  ]
+
+  const toggles = props.quickToggles ?? []
+  if (toggles.length) {
+    content.push({type: 'divider'})
+    for (const toggle of toggles) {
+      const on = settingsStore[toggle.option] === '1'
+      content.push({
+        name: toggle.title,
+        type: 'item',
+        icon: on ? 'checkbox-marked-outline' : 'checkbox-blank-outline',
+        action: () => { void setOption(on ? '0' : '1', toggle.option) },
+      })
+    }
+  }
+
+  content.push(
+    {type: 'divider'},
+    {
+      name: t('filters.clear_all_filters'),
+      type: 'item',
+      icon: 'filter-off-outline',
+      color: 'red',
+      disabled: !showTopChips.value && activeConditionsCount.value === 0,
+      action: () => handleDeactivateAllFilters(),
+    },
+  )
+
+  contextMenuStore.showContextMenu({
+    content,
+    x: rect ? rect.right : event.clientX,
+    y: rect ? rect.bottom + 4 : event.clientY,
+  })
+}
+
 const closeTopFilters = () => {
   filtersStore.visible = false
 }
@@ -974,23 +1107,6 @@ watch(currentMediaType, () => {
   if (props.isReady && ITEMS.value.type === 'media') init()
 })
 
-watch(() => filters.value.length, (length) => {
-  if (length < 1) editMode.value = false
-})
-
-watch(filtersVisible, (visible) => {
-  if (!visible) {
-    editMode.value = false
-    if (topFiltersMode.value !== 'simple') {
-      topFiltersMode.value = 'simple'
-    }
-    return
-  }
-  if (topFiltersMode.value === 'simple') {
-    topFiltersMode.value = 'full'
-    editMode.value = true
-  }
-})
 </script>
 
 <style lang="scss">
@@ -1014,18 +1130,152 @@ watch(filtersVisible, (visible) => {
 .items-control-deck--browser .filters-top__shell {
   border: 0;
   border-radius: 0;
-  background: transparent;
+  /* Same tint as the appearance block above (ToolbarAppearance__deck). */
+  background: rgba(var(--v-theme-primary), 0.03);
   border-top: 1px solid rgba(var(--v-theme-primary), 0.18);
 }
 
+.filters-top__cols {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.filters-top__main {
+  flex: 1 1 460px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.filters-top__footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+  min-height: 60px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  border-top: 1px solid rgba(var(--v-theme-primary), 0.16);
+  background: rgba(var(--v-theme-surface), 0.75);
+}
+
+.filters-top__pending {
+  font-size: 0.8125rem;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+// Presets live in their own column on the left, set apart by a divider.
 .filters-top__quick {
+  // Grows with the panel on wide screens: 300px minimum, a fifth of the width, 480px at most.
+  flex: 0 0 clamp(300px, 20%, 480px);
+  max-width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 0 12px;
+  gap: 14px;
+  min-width: 0;
+  padding: 12px 16px 16px;
+  border-right: 1px solid rgba(var(--v-theme-primary), 0.14);
+}
 
-  > .editing-group-header {
-    align-self: stretch;
+@media (max-width: 860px) {
+  .filters-top__quick {
+    flex: 1 1 100%;
+    border-right: 0;
+    border-bottom: 1px solid rgba(var(--v-theme-primary), 0.14);
+  }
+
+  // Narrow: the presets block is the first thing under the floating menu / close buttons, so it stops short of them.
+  .filters-top__shell--float .filters-top__quick {
+    padding-right: 88px;
+  }
+}
+
+// Open panel: the quick strip shares the top line with the menu and close buttons.
+// Closed: label and active-filter chips share one line with the menu button.
+// The label has a fixed width so the chips always start on a whole pixel (crisp edges).
+.filters-top__chrome:not(.filters-top__chrome--panel) {
+  align-items: flex-start;
+  padding: 9px 12px 9px 16px;
+
+  .filters-top__chrome-start {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 30px;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .filters-top__chrome-title {
+    flex: 0 0 8.5rem;
+    width: 8.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 30px;
+  }
+
+  .filters-top__chips {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .filters-top__chips .filter-chip.v-chip {
+    flex: 0 0 auto;
+    height: 30px;
+  }
+
+  .filters-top__chrome-end {
+    height: 30px;
+  }
+}
+
+// Open panel without quick filters: the menu and close buttons float in the corner instead of taking a row.
+.filters-top__shell--float {
+  position: relative;
+
+  .filters-top__chrome.filters-top__chrome--panel {
+    position: absolute;
+    top: 6px;
+    right: 12px;
+    z-index: 2;
+    padding: 0;
+  }
+
+  .filters-top__chrome-start {
+    display: none;
+  }
+
+  // Keep rows clear of the floating menu / close buttons in the corner.
+  .filters-top__panel.filters-top__panel {
+    padding-top: 10px;
+  }
+
+  // The heading line never runs under the menu / close buttons: it stops short and ends with an ellipsis.
+  .filters-top__match {
+    padding-right: 88px;
+  }
+}
+
+.filters-top__chrome.filters-top__chrome--panel {
+  align-items: flex-start;
+  padding: 10px 12px 8px 16px;
+
+  .filters-top__chrome-start,
+  .filters-top__chrome-end {
+    height: auto;
+    min-height: 28px;
+    align-items: flex-start;
+  }
+
+  .filters-top__chrome-start {
+    flex: 1 1 auto;
+  }
+
+  .filters-top__chrome-end {
+    gap: 4px;
+    margin-top: 2px;
   }
 }
 
@@ -1039,10 +1289,7 @@ watch(filtersVisible, (visible) => {
   justify-content: space-between;
   gap: 8px;
   flex-wrap: nowrap;
-  padding: 0 12px;
-  height: 44px;
-  min-height: 44px;
-  max-height: 44px;
+  padding: 12px 16px 10px;
   box-sizing: border-box;
 }
 
@@ -1050,28 +1297,29 @@ watch(filtersVisible, (visible) => {
 .filters-top__chrome-end {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
-  height: 28px;
+  height: 32px;
 }
 
 .filters-top__chrome-end {
+  gap: 4px;
   margin-left: auto;
   flex-shrink: 0;
 }
 
 .filters-top__chrome-title {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.2;
   white-space: nowrap;
+  color: rgba(var(--v-theme-on-surface), 0.6);
 }
 
 .filters-top__chrome-btn {
-  height: 28px !important;
-  min-height: 28px !important;
-  max-height: 28px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
   font-size: 0.75rem !important;
   text-transform: none;
   letter-spacing: normal;
@@ -1081,26 +1329,14 @@ watch(filtersVisible, (visible) => {
   }
 }
 
-.filters-top__chrome-close {
-  width: 24px !important;
-  height: 24px !important;
-  min-width: 24px !important;
-  min-height: 24px !important;
-  padding: 0 !important;
-}
 
-.filters-top__brief {
-  padding: 2px 10px 10px;
-}
 
 .filters-top__panel-slot {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.28s cubic-bezier(0.33, 1, 0.68, 1);
+  display: none;
 }
 
 .filters-top__panel-slot--open {
-  grid-template-rows: 1fr;
+  display: block;
 }
 
 .filters-top__panel-slot-inner {
@@ -1109,7 +1345,7 @@ watch(filtersVisible, (visible) => {
 }
 
 .items-control-deck--browser .filters-top__panel {
-  padding: 0 14px 8px;
+  padding: 0 16px 16px;
   max-height: none;
 }
 
@@ -1194,9 +1430,68 @@ watch(filtersVisible, (visible) => {
     padding: 16px 0 16px 16px;
   }
 }
-.filters-top__mode-segmented,
-.filters-top__join-segmented {
-  align-self: center;
-  flex-shrink: 0;
+.filters-top__match {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 8px 2px;
+  // Same height with or without the all / any pill (30px) so the rows below never shift.
+  min-height: 38px;
+  min-width: 0;
+  font-size: 0.875rem;
+
+  > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  > .filters-top__match-pill,
+  > .v-menu {
+    flex: 0 0 auto;
+  }
 }
+
+// Small all / any menu: two short one-line options; the hints live on the pill's tooltip.
+.filters-top__match-menu {
+  .v-list {
+    padding: 4px;
+  }
+
+  .v-overlay__content {
+    min-width: 0 !important;
+  }
+
+  .v-list-item {
+    min-height: 28px;
+    padding-inline: 10px;
+    border-radius: 8px;
+  }
+
+  .v-list-item-title {
+    font-size: 0.8125rem;
+  }
+}
+
+.filters-top__match-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 8px 0 12px;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 500;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.1);
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+}
+
 </style>

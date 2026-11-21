@@ -314,7 +314,6 @@ const getValForTypeNumber = (parameter: string | number | null, number: unknown)
   margin: 0;
   padding-inline: 9px;
   border: 1px solid rgba(var(--v-theme-primary), 0.16);
-  border-radius: 9px;
   font-size: 12px;
   letter-spacing: 0;
   transition: border-color 150ms ease, box-shadow 150ms ease;

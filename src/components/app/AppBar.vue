@@ -34,8 +34,6 @@
         <TagsAdd v-if="itemsStore.type == 'tag'"/>
         <TagsAdd v-else :button="false"/>
 
-        <ItemsFilter v-if="itemsStore.type"/>
-
         <AppBarButton
           :disabled="itemsStore.itemsOnPage.length == 0 && itemsStore.entities.length == 0"
           :action="() => itemsStore.toggleSelectMode()"
@@ -256,7 +254,6 @@ import type { TabLike } from '@/types/common'
 
 /* Components */
 const ItemsSelection = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsSelection.vue'))
-const ItemsFilter = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsFilter.vue'))
 const TagsAdd = defineAsyncComponent(() => import('@/components/app/appbar/elements/TagsAdd.vue'))
 const appShell = useAppShell()
 const ItemsEditMeta = defineAsyncComponent(() => import('@/components/app/appbar/elements/ItemsEditMeta.vue'))

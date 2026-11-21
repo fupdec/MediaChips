@@ -49,7 +49,7 @@
         </v-switch>
 
         <SettingsSegmentedControl
-          v-if="conditionsCount >= 2"
+          v-if="advancedUi && conditionsCount >= 2"
           :disabled="activeConditionsCount < 2"
           :model-value="filtersJoin"
           @update:model-value="onFiltersJoinChange"
@@ -99,88 +99,6 @@
       class="filters-panel__toolbar"
       :class="{'filters-panel__toolbar--deck': variant === 'top'}"
     >
-      <!-- Top panel: collapsible section header, toolbar actions sit to the right of the title -->
-      <EditingSectionHeader
-        v-if="variant === 'top'"
-        v-model:collapsed="conditionsCollapsed"
-        class="filters-panel__section-head"
-        icon="mdi-filter-variant"
-        :title="t('filters.quick_conditions')"
-        collapsible
-      >
-        <template
-          v-if="!conditionsCollapsed && (editMode || filters.length === 0)"
-          #actions
-        >
-          <div class="filters-panel__head-actions">
-            <v-btn
-              v-if="canToggleAiSection"
-              :variant="showAiBlock ? 'tonal' : 'outlined'"
-              rounded="xl"
-              size="small"
-              color="primary"
-              class="filters-panel__toolbar-btn"
-              :aria-label="showAiBlock ? t('filters.ai_hide') : t('filters.ai_show')"
-              :title="showAiBlock ? t('filters.ai_hide') : t('filters.ai_show')"
-              @click="toggleAiBlock"
-            >
-              <v-icon
-                start
-                size="small"
-              >
-                mdi-creation
-              </v-icon>
-              {{ t('filters.ai_short') }}
-            </v-btn>
-
-            <v-btn
-              v-if="editMode"
-              variant="tonal"
-              rounded="xl"
-              size="small"
-              color="primary"
-              class="filters-panel__toolbar-btn"
-              @click="emit('open-saved')"
-            >
-              <v-icon
-                start
-                size="small"
-              >
-                mdi-content-save
-              </v-icon>
-              {{ t('filters.saved_short') }}
-            </v-btn>
-
-            <FiltersAdd
-              v-if="isReady && (editMode || filters.length === 0)"
-              class="filters-panel__add"
-              hide-floating-label
-              :params="listBy"
-              @add="emit('add', $event)"
-            />
-
-            <v-btn
-              v-if="editMode && showRemoveAll"
-              variant="tonal"
-              rounded="xl"
-              size="small"
-              color="error"
-              class="filters-panel__toolbar-btn"
-              :aria-label="t('filters.remove_all')"
-              :title="t('filters.remove_all')"
-              @click="emit('remove-all')"
-            >
-              <v-icon
-                start
-                size="small"
-              >
-                mdi-filter-off
-              </v-icon>
-              {{ t('filters.remove_all') }}
-            </v-btn>
-          </div>
-        </template>
-      </EditingSectionHeader>
 
       <!-- Drawer / classic stacked toolbar -->
       <template v-if="variant !== 'top'">
@@ -272,27 +190,21 @@
         />
       </template>
 
-      <div
-        v-if="showAiSection"
-        v-show="!listHidden"
-        class="filters-panel__ai-section"
-      >
-        <LocalAiAssistPanel
-          :key="props.assistActive ? 'filter-ai-open' : 'filter-ai-idle'"
-          mode="filter"
-          :prompt="filterAiPrompt"
-          :context="filterAiContext"
-          :active="props.assistActive"
-          :can-undo="canUndoAiFilters"
-          @apply="emit('apply-ai-filters', $event)"
-          @undo="emit('undo-ai-filters')"
-        />
-      </div>
     </div>
 
     <div
+      v-if="$slots['conditions-head']"
+      class="filters-panel__match"
+    >
+      <slot name="conditions-head"/>
+    </div>
+
+    <div
+      class="filters-panel__body"
+      :class="{'filters-panel__body--empty': variant === 'top' && isEmpty}"
+    >
+    <div
       v-if="isReady"
-      v-show="!listHidden"
       class="filters-list"
     >
       <Draggable
@@ -316,6 +228,7 @@
             @set-value="emit('set-value', $event, i)"
             @set-active="emit('set-active', $event, i)"
             @remove="emit('remove', i)"
+            @duplicate="emit('duplicate', i)"
             @pick-date="emit('pick-date', i)"
             @valid="emit('valid', $event)"
           />
@@ -334,10 +247,22 @@
           @set-value="emit('set-value', $event, i)"
           @set-active="emit('set-active', $event, i)"
           @remove="emit('remove', i)"
+          @duplicate="emit('duplicate', i)"
           @pick-date="emit('pick-date', i)"
           @valid="emit('valid', $event)"
         />
       </template>
+
+      <div
+        v-else-if="variant === 'top'"
+        class="filters-panel__empty"
+      >
+        <span class="filters-panel__empty-tile">
+          <v-icon size="22">mdi-filter-variant</v-icon>
+        </span>
+        <div class="filters-panel__empty-title">{{ t('filters.empty_title') }}</div>
+        <div class="filters-panel__empty-hint">{{ t('filters.empty_hint') }}</div>
+      </div>
 
       <div
         v-else
@@ -353,6 +278,77 @@
         <div>{{ t('filters.no_filters') }}</div>
       </div>
     </div>
+
+    <div
+      v-if="variant === 'top' && isReady"
+      class="filters-panel__bottom"
+      :class="{'filters-panel__bottom--empty': isEmpty}"
+    >
+      <FiltersAdd
+        v-if="addOpen"
+        class="filters-panel__add"
+        hide-floating-label
+        auto-open
+        :params="listBy"
+        @add="onAddFilter"
+        @close="addOpen = false"
+      />
+      <v-btn
+        v-else
+        :variant="isEmpty ? 'flat' : 'text'"
+        color="primary"
+        :size="isEmpty ? 'default' : 'small'"
+        prepend-icon="mdi-plus"
+        class="filters-panel__link-btn"
+        @click="addOpen = true"
+      >
+        {{ t('filters.add_filter') }}
+      </v-btn>
+
+      <v-btn
+        v-if="canToggleAiSection"
+        variant="text"
+        :color="showAiBlock ? 'primary' : undefined"
+        :size="isEmpty ? 'default' : 'small'"
+        prepend-icon="mdi-creation"
+        class="filters-panel__link-btn"
+        :aria-pressed="showAiBlock"
+        @click="toggleAiBlock"
+      >
+        {{ t('filters.describe_with_ai') }}
+      </v-btn>
+
+      <v-spacer/>
+
+      <v-btn
+        v-if="showRemoveAll"
+        variant="text"
+        color="error"
+        size="small"
+        prepend-icon="mdi-filter-off"
+        class="filters-panel__link-btn"
+        @click="emit('remove-all')"
+      >
+        {{ t('filters.remove_all') }}
+      </v-btn>
+    </div>
+    </div>
+
+    <div
+      v-if="showAiSection"
+      class="filters-panel__ai-section"
+    >
+      <LocalAiAssistPanel
+        :key="props.assistActive ? 'filter-ai-open' : 'filter-ai-idle'"
+        mode="filter"
+        :prompt="filterAiPrompt"
+        :context="filterAiContext"
+        :active="props.assistActive"
+        :can-undo="canUndoAiFilters"
+        @apply="emit('apply-ai-filters', $event)"
+        @undo="emit('undo-ai-filters')"
+      />
+    </div>
   </div>
 </template>
 
@@ -362,12 +358,13 @@ import {computed, defineAsyncComponent, ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import FilterRow from '@/components/app/FilterRow.vue'
 import FiltersAdd from '@/components/dialogs/filters/FiltersAdd.vue'
-import EditingSectionHeader from '@/components/items/EditingSectionHeader.vue'
-import {useCollapsedSection} from '@/composable/useCollapsedSection'
 import LocalAiAssistPanel from '@/components/regex/LocalAiAssistPanel.vue'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 import {useItemsStore} from '@/stores/items'
+import {useSettingsStore} from '@/stores/settings'
 import type {FilterObject, FilterListParam} from '@/types/common'
+
+const advancedUi = computed(() => useSettingsStore().advancedUi === '1')
 
 const Draggable = defineAsyncComponent(() => import('vuedraggable'))
 
@@ -382,7 +379,7 @@ function readShowAiBlock (): boolean {
   } catch {
     /* ignore */
   }
-  return true
+  return false
 }
 
 const props = withDefaults(defineProps<{
@@ -423,6 +420,7 @@ const emit = defineEmits([
   'set-value',
   'set-active',
   'remove',
+  'duplicate',
   'remove-all',
   'pick-date',
   'valid',
@@ -430,10 +428,6 @@ const emit = defineEmits([
 
 const {t} = useI18n()
 const itemsStore = useItemsStore()
-
-// "Field conditions" section can be folded (top panel only); state is remembered.
-const conditionsCollapsed = useCollapsedSection('conditions')
-const listHidden = computed(() => props.variant === 'top' && conditionsCollapsed.value)
 
 const filtersJoin = computed(() => itemsStore.filtersJoin === 'or' ? 'or' : 'and')
 
@@ -453,6 +447,13 @@ const onFiltersJoinChange = (value: unknown) => {
 }
 
 const showAiBlock = ref(readShowAiBlock())
+const addOpen = ref(false)
+const isEmpty = computed(() => props.filters.length === 0)
+
+const onAddFilter = (params: unknown) => {
+  emit('add', params)
+  addOpen.value = false
+}
 
 const canToggleAiSection = computed(() =>
   LOCAL_AI_UI_ENABLED && (props.variant !== 'top' || props.editMode || props.filters.length === 0),
@@ -564,6 +565,36 @@ function dragItemKey(filter: FilterObject) {
   }
 }
 
+// Dropdown of the catalog (source / availability) filters: compact rows, small checkboxes.
+.filter-catalog-menu {
+  .v-list {
+    padding: 4px;
+  }
+
+  .v-list-item {
+    min-height: 32px;
+    padding-inline: 8px;
+    border-radius: 8px;
+    --v-list-prepend-gap: 8px;
+  }
+
+  .v-list-item-title {
+    font-size: 0.8125rem;
+    line-height: 1.25;
+  }
+
+  .v-list-item__prepend > .v-icon,
+  .v-list-item__prepend .v-selection-control .v-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .v-selection-control {
+    --v-selection-control-size: 24px;
+  }
+}
+
 .filters-edit-switch {
   transform: scale(0.82);
   transform-origin: left center;
@@ -591,6 +622,74 @@ function dragItemKey(filter: FilterObject) {
 
 .filters-panel--top {
   padding: 0 !important;
+  grid-template-rows: none;
+  grid-auto-rows: auto;
+
+  // Empty state: one centered card with the two ways to start.
+  .filters-panel__body--empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 24px;
+    text-align: center;
+  }
+
+  .filters-panel__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .filters-panel__empty-tile {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    color: rgb(var(--v-theme-primary));
+    background: rgba(var(--v-theme-primary), 0.14);
+  }
+
+  .filters-panel__empty-title {
+    font-size: 1.0625rem;
+    font-weight: 600;
+  }
+
+  .filters-panel__empty-hint {
+    max-width: 420px;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: rgba(var(--v-theme-on-surface), 0.6);
+  }
+
+  .filters-panel__bottom--empty {
+    justify-content: center;
+    padding-top: 16px;
+  }
+
+  .filters-panel__bottom {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    padding: 10px 0 0;
+    min-width: 0;
+    min-height: 42px;
+  }
+
+  .filters-panel__link-btn {
+    height: 32px !important;
+    border-radius: 8px !important;
+    font-size: 0.8125rem;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  .filters-panel__ai-section {
+    margin-top: 10px;
+    margin-bottom: 0;
+  }
 
   .filters-panel__header {
     padding: 0 0 8px;
@@ -612,7 +711,7 @@ function dragItemKey(filter: FilterObject) {
   .filters-panel__toolbar .filters-panel__section-head {
     flex-wrap: wrap;
     row-gap: 4px;
-    padding: 8px 4px 6px;
+    padding: 10px 0 12px;
   }
 
   .filters-panel__head-actions {
@@ -625,7 +724,7 @@ function dragItemKey(filter: FilterObject) {
   .filters-panel__toolbar-btn {
     flex: 0 0 auto;
     max-width: 220px;
-    height: 28px !important;
+    height: 32px !important;
     font-size: 0.75rem;
     text-transform: none;
     letter-spacing: normal;
@@ -646,15 +745,19 @@ function dragItemKey(filter: FilterObject) {
       min-width: 0;
     }
 
+    :deep(.v-btn) {
+      border-radius: 8px !important;
+    }
+
     :deep(.v-field) {
-      --v-input-control-height: 28px;
-      border-radius: 999px !important;
+      --v-input-control-height: 32px;
+      border-radius: 8px !important;
       font-size: 0.75rem;
     }
 
     :deep(.v-field__input) {
-      min-height: 28px !important;
-      max-height: 28px !important;
+      min-height: 32px !important;
+      max-height: 32px !important;
       padding-top: 0 !important;
       padding-bottom: 0 !important;
       padding-inline: 10px 8px !important;
@@ -704,10 +807,10 @@ function dragItemKey(filter: FilterObject) {
     }
 
     :deep(.v-input__append .v-btn) {
-      width: 28px !important;
-      height: 28px !important;
-      min-width: 28px !important;
-      min-height: 28px !important;
+      width: 32px !important;
+      height: 32px !important;
+      min-width: 32px !important;
+      min-height: 32px !important;
       padding: 0 !important;
     }
 
@@ -740,10 +843,11 @@ function dragItemKey(filter: FilterObject) {
 
   .filters-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    // Wide panels: as many columns as fit (each at least 560px), so rows don't stretch across a huge monitor.
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 560px), 1fr));
     gap: 6px;
     padding: 0;
-    max-height: min(28vh, 240px);
+    max-height: min(40vh, 360px);
     overflow-y: auto;
     align-content: start;
     align-items: start;
@@ -756,15 +860,18 @@ function dragItemKey(filter: FilterObject) {
 
   .filters-draggable {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    // Wide panels: as many columns as fit (each at least 560px), so rows don't stretch across a huge monitor.
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 560px), 1fr));
     gap: 6px;
     align-content: start;
     align-items: start;
+    justify-items: start;
   }
 
   .filter-form {
     min-width: 0;
     width: 100%;
+    max-width: none;
     height: auto;
     display: flex;
   }
@@ -774,25 +881,48 @@ function dragItemKey(filter: FilterObject) {
     width: 100%;
     max-width: none;
     height: auto;
-    min-height: 36px;
-    border-radius: 16px !important;
-    padding: 4px 8px 4px 6px !important;
+    min-height: 38px;
+    border-radius: 10px !important;
+    padding: 3px 8px 3px 12px !important;
     box-sizing: border-box;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
     justify-content: flex-start;
-    gap: 4px;
-    background: rgba(var(--v-theme-primary), 0.04) !important;
-    border: 1px solid transparent;
+    gap: 10px;
+    background: rgb(var(--v-theme-surface)) !important;
+    border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+    box-shadow: 0 1px 2px rgba(var(--v-theme-on-surface), 0.04);
 
-    &.active {
-      background: rgba(var(--v-theme-primary), 0.08) !important;
+    &.active:focus-within {
       border-color: rgba(var(--v-theme-primary), 0.45);
     }
 
-    // Same footprint for cards with a value row so neighbors match.
+    // A row marked for removal keeps its red edge (also while focused) and the same corners as the others.
+    &.removed,
+    &.removed:focus-within {
+      border-style: solid;
+      border-color: rgba(245, 82, 82, 0.6);
+    }
+
+    // Fields are quiet tinted pills instead of outlined boxes.
+    .v-field--variant-outlined {
+      border-radius: 8px;
+      background: rgba(var(--v-theme-on-surface), 0.06);
+
+      .v-field__outline {
+        --v-field-border-opacity: 0;
+      }
+
+      &.v-field--focused .v-field__outline {
+        --v-field-border-opacity: 0.8;
+        color: rgb(var(--v-theme-primary));
+      }
+    }
+
+    // Rows keep one height: the value sits in the same line as the name.
     &:has(.filter__body) {
-      min-height: 70px;
+      min-height: 38px;
     }
   }
 
@@ -811,6 +941,7 @@ function dragItemKey(filter: FilterObject) {
       height: 24px !important;
       min-width: 24px !important;
       padding: 0 !important;
+      border-radius: 8px !important;
 
       .v-icon {
         font-size: 16px !important;
@@ -859,22 +990,25 @@ function dragItemKey(filter: FilterObject) {
     opacity: 0.7;
   }
 
-  // Inactive cards are muted so the state reads at a glance.
-  .filter-form .filter:not(.active) .filter__title {
-    opacity: 0.65;
+  // Conditions saved as turned off are muted; clicking the row turns them on.
+  .filter-form .filter.filter--muted {
+    background: transparent !important;
+    border-style: dashed;
+    border-color: rgba(var(--v-theme-on-surface), 0.2);
+
+    .filter__title_content {
+      opacity: 0.55;
+    }
   }
 
+  // One fixed width for symbol and word conditions, so every value field starts on the same line.
   .filter__cond {
-    max-width: 52px;
-    min-width: 44px;
+    flex: 0 0 76px;
+    width: 76px;
+    max-width: 76px;
+    min-width: 76px;
     margin: 0 !important;
     padding: 0 !important;
-
-    // Condition shown as words (includes / excludes / under folder …) needs more room than a symbol.
-    &.filter__cond--text {
-      max-width: 76px;
-      min-width: 60px;
-    }
 
     .v-field {
       --v-input-control-height: 28px;
@@ -884,43 +1018,40 @@ function dragItemKey(filter: FilterObject) {
       min-height: 28px !important;
       padding-top: 0 !important;
       padding-bottom: 0 !important;
+      padding-inline: 8px 0 !important;
       font-size: 0.75rem;
     }
-  }
 
-  .filter__cond {
-    .v-field__outline {
-      --v-field-border-opacity: 0.6;
-      color: rgb(var(--v-theme-primary));
+    // The closed select shows as much of the condition text as fits, cut off cleanly, no ellipsis.
+    .v-select__selection {
+      min-width: 0;
+      max-width: 100%;
+      margin-inline-end: 0;
     }
 
-    .v-field:hover .v-field__outline {
-      --v-field-border-opacity: 0.87;
-    }
-
-    .v-field.v-field--focused .v-field__outline {
-      --v-field-border-opacity: 1;
+    .v-field__append-inner {
+      padding-inline-start: 0 !important;
     }
   }
 
-  .filter__switch {
-    transform: scale(0.72);
-    transform-origin: center right;
-    margin: 0 !important;
-    padding: 0 !important;
-
-    .v-selection-control {
-      min-height: 28px;
-    }
+  // Unit hint after a number ("5.16 MB") matches the value's size instead of the default field text.
+  .filter-form .v-text-field__suffix {
+    min-height: 28px;
+    padding-top: 0;
+    padding-bottom: 0;
+    align-items: center;
+    font-size: 0.75rem;
+    opacity: 0.7;
   }
 
   .filter__body {
     display: flex;
     align-items: center;
-    flex: 0 0 auto;
-    width: 100%;
-    min-height: 30px;
-    padding: 1px 0 !important;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    min-height: 28px;
+    padding: 0 !important;
     margin: 0 !important;
     overflow: visible;
 
@@ -1114,6 +1245,137 @@ function dragItemKey(filter: FilterObject) {
   .filter__actions {
     gap: 2px;
     align-items: center;
+  }
+
+  // Quick actions (invert / duplicate / clear) sit right after the value and show on hover.
+  // A turned-off row has no value field to fill the line, so its controls are pushed to the right edge.
+  .filter-form .filter.filter--muted .filter__row-actions {
+    margin-left: auto;
+  }
+
+  // Items this condition matches on its own, so the narrowest one stands out.
+  .filter-form .filter .filter__count {
+    flex: 0 0 auto;
+    min-width: 40px;
+    text-align: right;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: rgba(var(--v-theme-on-surface), 0.6);
+
+    &--zero {
+      color: rgb(var(--v-theme-error));
+    }
+  }
+
+  .filter-form .filter .filter__restore {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+  }
+
+  .filter-form .filter .filter__row-actions {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 2px;
+  }
+
+  .filter__row-actions .v-btn.filter__row-action {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    padding: 0 !important;
+    border-radius: 8px !important;
+  }
+
+  // Conditions as table rows: [switch] [icon + name] [condition] [value ...] [grip] [x].
+  // The header wrappers dissolve so their children become items of the row.
+  .filter-form .filter {
+    .filter__header,
+    .filter__title_block,
+    .filter__actions {
+      display: contents !important;
+    }
+
+    .filter__title_content {
+      order: 1;
+      flex: 0 1 150px;
+      min-width: 110px;
+    }
+
+    .filter__cond {
+      order: 2;
+      flex: 0 0 auto;
+    }
+
+    .filter__body {
+      order: 3;
+      flex: 1 1 auto;
+    }
+
+    .filter__restore {
+      order: 3;
+    }
+
+    .filter__count {
+      order: 4;
+    }
+
+    .filter__row-actions {
+      order: 5;
+    }
+
+    // Grip sits at the left edge of the row, tucked into its padding.
+    .drag-handle {
+      order: 0;
+      width: 8px !important;
+      min-width: 8px !important;
+      margin-inline: -10px -2px;
+      overflow: visible;
+
+      .v-icon {
+        font-size: 14px !important;
+        width: 14px !important;
+        flex: 0 0 14px;
+      }
+    }
+
+    .filter__title_block > .v-btn:not(.drag-handle) {
+      order: 8;
+    }
+
+    .filter__title_block > .filter__toggle {
+      order: 7;
+    }
+  }
+
+  // A condition that is turned off keeps its eye button visible so it can be turned back on.
+  .filter-form .filter.filter--muted .filter__title_block > .filter__toggle {
+    opacity: 1 !important;
+  }
+
+  // Remove / drag controls show on hover or keyboard focus (always on touch screens).
+  @media (hover: hover) {
+    .filter-form .filter:not(.removed) .drag-handle,
+    .filter-form .filter:not(.removed) .filter__row-actions,
+    .filter-form .filter:not(.removed) .filter__title_block > .v-btn:not(.drag-handle) {
+      opacity: 0;
+      transition: opacity 0.12s ease;
+    }
+
+    // The grip stays faintly visible so the row reads as draggable, and lights up on hover.
+    .filter-form .filter:not(.removed) .drag-handle {
+      opacity: 0.25;
+    }
+
+    .filter-form .filter:hover .drag-handle,
+    .filter-form .filter:hover .filter__row-actions,
+    .filter-form .filter:hover .filter__title_block > .v-btn:not(.drag-handle),
+    .filter-form .filter:focus-within .drag-handle,
+    .filter-form .filter:focus-within .filter__row-actions,
+    .filter-form .filter:focus-within .filter__title_block > .v-btn:not(.drag-handle) {
+      opacity: 1;
+    }
   }
 
   .overline {

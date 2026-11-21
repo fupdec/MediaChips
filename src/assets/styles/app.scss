@@ -536,51 +536,51 @@ html.dev-text-selection body * {
 }
 
 .filters-add-menu {
+  min-width: 260px;
+  border-radius: 14px !important;
+
+  .v-list {
+    padding: 4px;
+    background: transparent;
+  }
+
   .filters-add-menu__category {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 2px 8px;
-    padding: 4px 8px;
-    border-radius: 6px;
-    background: rgba(var(--v-theme-primary), 0.08);
-    border: 1px solid rgba(var(--v-theme-primary), 0.16);
+    padding: 10px 10px 4px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(var(--v-theme-on-surface), 0.5);
     pointer-events: none;
     user-select: none;
   }
 
-  .filters-add-menu__category-icon {
-    color: rgb(var(--v-theme-primary));
-    opacity: 0.9;
-  }
-
-  .filters-add-menu__category-title {
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: rgba(var(--v-theme-on-surface), 0.78);
-  }
-
   .filters-add-item {
-    min-height: 52px !important;
-    padding-block: 6px;
+    min-height: 34px !important;
+    padding: 0 10px !important;
+    margin-bottom: 1px;
+    border-radius: 8px;
+    background: transparent !important;
 
-    .v-list-item__prepend > .v-icon {
-      opacity: 0.75;
+    .v-list-item__spacer {
+      width: 10px !important;
     }
 
-    .v-list-item-subtitle {
-      opacity: 1;
+    .v-list-item__append {
+      margin-inline-start: 12px;
+    }
+
+    .v-list-item__prepend > .v-icon {
+      margin-inline-end: 0;
+      opacity: 0.7;
     }
   }
 
   .filters-add-item__title {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     font-weight: 400;
-    line-height: 1.3;
+    line-height: 1.2;
     color: rgb(var(--v-theme-on-surface));
-    letter-spacing: 0.01em;
 
     b {
       color: rgb(var(--v-theme-primary));
@@ -588,15 +588,8 @@ html.dev-text-selection body * {
     }
   }
 
-  .filters-add-item__subtitle {
-    font-size: 0.75rem;
-    line-height: 1.2;
-    color: rgba(var(--v-theme-on-surface), 0.5);
-    margin-top: 2px;
-
-    .v-icon {
-      opacity: 0.65;
-    }
+  .filters-add-item__type {
+    opacity: 0.4;
   }
 }
 
@@ -861,7 +854,7 @@ html.dev-text-selection body * {
       position: absolute;
       width: 100%;
       height: 100%;
-      border-radius: 16px;
+      border-radius: inherit;
       left: 0;
       top: 0;
       background-color: #f55252;

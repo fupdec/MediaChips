@@ -1,5 +1,6 @@
 <template>
-  <div v-if="savedFilters.length" :key="route.fullPath + 'sf'" class="sf-chips d-flex flex-wrap">
+  <div v-if="savedFilters.length" :key="route.fullPath + 'sf'" class="sf-chips d-flex flex-wrap align-center">
+    <span v-if="label" class="sf-chips__label">{{ label }}</span>
     <v-chip
       v-for="sf in savedFilters"
       :key="sf.id"
@@ -88,6 +89,8 @@ import type { SavedFilter, ContextMenuEntry } from '@/types/stores'
 const DialogIcons = defineAsyncComponent(() => import('@/components/dialogs/DialogIcons.vue'))
 
 const DEFAULT_ICON = 'bookmark'
+
+defineProps<{label?: string}>()
 
 const route = useRoute()
 const {t} = useI18n()
@@ -212,6 +215,13 @@ const showContextMenu = (event: MouseEvent, savedFilter: SavedFilter) => {
 </script>
 
 <style lang="scss" scoped>
+.sf-chips__label {
+  margin-inline: 4px 4px;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
 .sf-chips {
   margin-bottom: 16px;
 

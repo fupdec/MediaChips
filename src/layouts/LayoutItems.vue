@@ -125,7 +125,7 @@
                 color="primary"
                 :aria-label="t('common.close')"
               >
-                <v-icon size="16">mdi-close</v-icon>
+                <v-icon size="18">mdi-close</v-icon>
               </v-btn>
             </div>
             <ToolbarAppearance embedded/>
@@ -173,113 +173,79 @@
     </div>
 
     <!-- Filters: top panel in the control deck; quick filters render inside it -->
-    <Filters v-if="pageInitialized" :isReady="isFiltersReady">
-      <template #quick-settings>
-        <v-menu
-          location="bottom end"
-          :close-on-content-click="false"
-          :transition="false"
-        >
-          <template #activator="{props: menuProps}">
-            <v-btn
-              v-bind="menuProps"
-              icon
-              size="x-small"
-              variant="text"
-              color="primary"
-              :aria-label="t('filters.quick_settings')"
-              v-tooltip:top="t('filters.quick_settings')"
-            >
-              <v-icon size="16">mdi-tune-variant</v-icon>
-            </v-btn>
-          </template>
-          <v-card
-            rounded="xl"
-            class="items-quick-menu"
-          >
-            <div class="items-quick-menu-title">{{ t('filters.quick_settings') }}</div>
-            <SettingsSwitch
-              v-if="items_type === 'tag'"
-              option="showAlphabetFilter"
-              :title="t('settings_labels.appearance.alphabet_filter')"
-              density="compact"
-            />
-            <SettingsSwitch
-              v-if="items_type === 'tag' && meta?.color"
-              option="showColorFilter"
-              :title="t('settings_labels.appearance.color_filter')"
-              density="compact"
-            />
-            <SettingsSwitch
-              option="showSavedFilters"
-              :title="t('settings_labels.appearance.saved_filters')"
-              density="compact"
-            />
-          </v-card>
-        </v-menu>
-      </template>
-
+    <Filters
+      v-if="pageInitialized"
+      :isReady="isFiltersReady"
+      :quick-toggles="quickToggles"
+    >
       <template
         v-if="!quickAllHidden"
         #quick
       >
-        <EditingSectionHeader
-          v-model:collapsed="presetsCollapsed"
-          icon="mdi-lightning-bolt-outline"
-          :title="t('filters.quick_presets')"
-          collapsible
+        <SavedFilters
+          v-if="showSavedChips"
+          :label="t('filters.saved_short')"
         />
-        <div v-show="!presetsCollapsed" class="items-quick-body">
+        <div
+          v-if="showAlphabetBar || showColorFilterBar"
+          class="items-quick-row"
+        >
           <div
-            v-if="showAlphabetBar || showColorFilterBar"
-            class="items-quick-row"
+            v-if="showAlphabetBar"
+            class="items-alphabet"
           >
-            <div
-              v-if="showAlphabetBar"
-              class="items-alphabet"
+            <button
+              v-for="letter in visibleAlphabetLetters"
+              :key="letter"
+              type="button"
+              class="items-alphabet__btn"
+              :class="{
+                'items-alphabet__btn--active': letterFilter === letter,
+              }"
+              @click="toggleLetterFilter(letter)"
             >
-              <button
-                v-for="letter in alphabetLetters"
-                :key="letter"
-                type="button"
-                class="items-alphabet__btn"
-                :class="{
-                  'items-alphabet__btn--active': letterFilter === letter,
-                }"
-                @click="toggleLetterFilter(letter)"
-              >
-                {{ letter }}
-              </button>
-            </div>
-
-            <div
-              v-if="showColorFilterBar"
-              class="items-color-filter"
+              {{ letter }}
+            </button>
+            <button
+              v-if="alphabetHiddenCount"
+              type="button"
+              class="items-alphabet__btn items-alphabet__btn--more"
+              :aria-expanded="alphabetExpanded ? 'true' : 'false'"
+              @click="alphabetExpanded = !alphabetExpanded"
             >
-              <button
-                type="button"
-                class="items-color-filter__swatch items-color-filter__swatch--none"
-                :class="{'items-color-filter__swatch--active': colorFilter === TAG_COLOR_FILTER_NONE}"
-                :aria-pressed="colorFilter === TAG_COLOR_FILTER_NONE ? 'true' : 'false'"
-                :aria-label="t('items.color_filter_none')"
-                v-tooltip:top="t('items.color_filter_none')"
-                @click="toggleColorFilter(TAG_COLOR_FILTER_NONE)"
-              />
-              <button
-                v-for="color in categoryTagColors"
-                :key="color"
-                type="button"
-                class="items-color-filter__swatch"
-                :class="{'items-color-filter__swatch--active': colorFilter === color}"
-                :style="{backgroundColor: color}"
-                :aria-pressed="colorFilter === color ? 'true' : 'false'"
-                :aria-label="color"
-                v-tooltip:top="color"
-                @click="toggleColorFilter(color)"
-              />
-            </div>
+              <template v-if="alphabetExpanded">
+                <v-icon size="16">mdi-chevron-up</v-icon>
+              </template>
+              <template v-else>+{{ alphabetHiddenCount }}</template>
+            </button>
           </div>
-          <SavedFilters v-if="showSavedChips"/>
+
+          <div
+            v-if="showColorFilterBar"
+            class="items-color-filter"
+          >
+            <button
+              type="button"
+              class="items-color-filter__swatch items-color-filter__swatch--none"
+              :class="{'items-color-filter__swatch--active': colorFilter === TAG_COLOR_FILTER_NONE}"
+              :aria-pressed="colorFilter === TAG_COLOR_FILTER_NONE ? 'true' : 'false'"
+              :aria-label="t('items.color_filter_none')"
+              v-tooltip:top="t('items.color_filter_none')"
+              @click="toggleColorFilter(TAG_COLOR_FILTER_NONE)"
+            />
+            <button
+              v-for="color in categoryTagColors"
+              :key="color"
+              type="button"
+              class="items-color-filter__swatch"
+              :class="{'items-color-filter__swatch--active': colorFilter === color}"
+              :style="{backgroundColor: color}"
+              :aria-pressed="colorFilter === color ? 'true' : 'false'"
+              :aria-label="color"
+              v-tooltip:top="color"
+              @click="toggleColorFilter(color)"
+            />
+          </div>
         </div>
       </template>
     </Filters>
@@ -630,9 +596,6 @@ import ItemsVirtualGrid from '@/components/items/ItemsVirtualGrid.vue'
 import {useInfiniteWindowSeek} from '@/composable/useInfiniteWindowSeek'
 import Filters from '@/components/app/Filters.vue'
 import SavedFilters from '@/components/elements/FiltersSaved.vue'
-import SettingsSwitch from '@/components/ui/SettingsSwitch.vue'
-import EditingSectionHeader from '@/components/items/EditingSectionHeader.vue'
-import {useCollapsedSection} from '@/composable/useCollapsedSection'
 import ItemsPaginationBar from '@/components/elements/ItemsPaginationBar.vue'
 import QuickActionButton from '@/components/app/QuickActionButton.vue'
 import ToolbarSort from '@/components/app/toolbar/ToolbarSort.vue'
@@ -668,7 +631,7 @@ import {
   type ItemsGroupSection,
 } from '@/utils/itemsGroupBy'
 import {getFilterObject} from '@/services/formatUtils'
-import {getTagFirstLetter} from '@shared/transliterate'
+import {compareTagLetterKeys, getTagLetterKey, TAG_LETTER_OTHER} from '@shared/transliterate'
 import {
   approximateTagColor,
   compareTagColorSwatches,
@@ -1130,7 +1093,36 @@ const { gridStyle: itemsGridStyle } = useResponsiveGridLayout(
 const reg = computed(() => registrationStore.reg)
 const ENV = computed(() => ITEMS.value.environment)
 
-const alphabetLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+// Real first letters of this category's tags (Latin diacritics merged, `#` for digits, symbols and other scripts).
+const alphabetLetters = computed(() => {
+  const metaId = Number(props.metaId)
+  if (!Number.isFinite(metaId) || metaId <= 0) return [] as string[]
+  const letters = new Set<string>()
+  for (const tag of appStore.tags) {
+    if (Number(tag.metaId) !== metaId) continue
+    letters.add(getTagLetterKey(String(tag.name ?? '')))
+  }
+  return [...letters].sort(compareTagLetterKeys)
+})
+
+// A long strip folds to a few rows; `#` always stays visible.
+const ALPHABET_FOLDED_LIMIT = 27
+const alphabetExpanded = ref(false)
+const alphabetHiddenCount = computed(() => {
+  const all = alphabetLetters.value
+  return all.length > ALPHABET_FOLDED_LIMIT + 3 ? all.length - ALPHABET_FOLDED_LIMIT : 0
+})
+const visibleAlphabetLetters = computed(() => {
+  const all = alphabetLetters.value
+  if (!alphabetHiddenCount.value || alphabetExpanded.value) return all
+  const head = all.filter((letter) => letter !== TAG_LETTER_OTHER).slice(0, ALPHABET_FOLDED_LIMIT)
+  if (letterFilter.value && !head.includes(letterFilter.value) && all.includes(letterFilter.value)) {
+    head.push(letterFilter.value)
+  }
+  return all.includes(TAG_LETTER_OTHER) && !head.includes(TAG_LETTER_OTHER)
+    ? [...head, TAG_LETTER_OTHER]
+    : head
+})
 
 function toggleLetterFilter(letter: string): void {
   if (letterFilter.value === letter) {
@@ -1181,8 +1173,22 @@ const showColorFilterBar = computed(() => (
 ))
 
 const showAlphabetBar = computed(() => (
-  props.items_type === 'tag' && settingsStore.showAlphabetFilter === '1'
+  props.items_type === 'tag'
+  && settingsStore.showAlphabetFilter === '1'
+  && alphabetLetters.value.length > 0
 ))
+
+const quickToggles = computed(() => {
+  const toggles: Array<{option: 'showAlphabetFilter' | 'showColorFilter' | 'showSavedFilters', title: string}> = []
+  if (props.items_type === 'tag') {
+    toggles.push({option: 'showAlphabetFilter', title: t('settings_labels.appearance.alphabet_filter')})
+    if (meta.value?.color) {
+      toggles.push({option: 'showColorFilter', title: t('settings_labels.appearance.color_filter')})
+    }
+  }
+  toggles.push({option: 'showSavedFilters', title: t('settings_labels.appearance.saved_filters')})
+  return toggles
+})
 
 const advancedUi = computed(() => settingsStore.advancedUi === '1')
 
@@ -1191,7 +1197,6 @@ const showSavedChips = computed(() => (
 ))
 
 // "Presets" section of the filters panel can be folded; state is remembered.
-const presetsCollapsed = useCollapsedSection('presets')
 
 const quickAllHidden = computed(() => (
   !showAlphabetBar.value && !showColorFilterBar.value && !showSavedChips.value
@@ -1527,39 +1532,28 @@ defineEmits<{
   }
 }
 
-/* ── Quick filters inside the filters panel, grouped by type ── */
-.filters-top__quick .editing-group-header {
-  padding: 8px 4px 6px;
-}
-
-// Wrapper only exists to fold the presets; it must not change the layout.
-.filters-top__quick .items-quick-body {
-  display: contents;
-}
-
+/* ── Quick filters strip above the conditions: alphabet / colors, then saved views ── */
 .filters-top__quick .items-quick-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: 12px;
+}
+
+.filters-top__quick .items-alphabet,
+.filters-top__quick .items-color-filter {
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: 14px;
+}
+
+.filters-top__quick .items-color-filter {
+  gap: 8px;
+  padding: 10px 12px;
 }
 
 .filters-top__quick .sf-chips.d-flex {
-  margin: 2px -4px -4px;
-}
-
-.items-quick-menu {
-  min-width: 280px;
-  padding: 8px 16px 12px;
-}
-
-.items-quick-menu-title {
-  padding: 4px 0 4px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(var(--v-theme-on-surface), 0.6);
+  margin: 0 -4px;
 }
 
 /* Active quick filters shown under the deck while the panel is closed */

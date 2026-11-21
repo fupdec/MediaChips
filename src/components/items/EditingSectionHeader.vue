@@ -28,6 +28,9 @@
       class="editing-group-header__count"
       :class="{'editing-group-header__count--done': filled === total}"
     >{{ filled }}/{{ total }}</span>
+    <span v-if="$slots.lead" class="editing-group-header__lead" @click.stop>
+      <slot name="lead" />
+    </span>
     <span class="editing-group-header__line" aria-hidden="true" />
     <span v-if="$slots.actions" class="editing-group-header__actions" @click.stop>
       <slot name="actions" />
@@ -127,6 +130,11 @@ function toggle() {
 
   // Keeps slotted actions as direct flex items of the header (layout of existing usages unchanged).
   &__actions {
+    display: contents;
+  }
+
+  // Controls placed right after the title (before the divider line); clicks must not fold the section.
+  &__lead {
     display: contents;
   }
 }

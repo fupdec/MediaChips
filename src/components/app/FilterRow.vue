@@ -12,8 +12,9 @@
 
     <v-card
       class="rounded-xl filter"
-      :class="{ active: active, removed: removed, disabled: isDisabled }"
+      :class="{ active: active, removed: removed, disabled: isDisabled, 'filter--muted': !active && !removed }"
       :disabled="isDisabled"
+      v-on="isMuted ? {click: activateMuted} : {}"
       :variant="active ? 'text' : 'flat'"
       :elevation="active ? undefined : 0"
     >
@@ -31,12 +32,26 @@
           >
             <v-icon v-if="removed"
               size="20"
-              color="error">mdi-close-circle
+              color="error">mdi-restore
             </v-icon>
             <v-icon v-else
               size="20"
               color="grey">mdi-close
             </v-icon>
+          </v-btn>
+
+          <v-btn
+            v-if="editable"
+            class="filter__toggle flex-shrink-0"
+            icon
+            size="x-small"
+            variant="text"
+            :disabled="isDisabled"
+            :title="active ? t('filters.turn_off_hint') : t('filters.turn_on_hint')"
+            :aria-pressed="active"
+            @click.stop="setActiveValue(!active)"
+          >
+            <v-icon size="18">{{ active ? 'mdi-eye-outline' : 'mdi-eye-off-outline' }}</v-icon>
           </v-btn>
 
           <v-btn
@@ -54,7 +69,7 @@
           <div
             class="d-flex align-center min-width-0 filter__title_content"
             :class="{ 'pl-3': !editable }"
-            @click="toggleActiveByTitle"
+            :title="!active && !removed ? t('filters.turn_on_hint') : undefined"
           >
             <v-icon size="small" class="flex-shrink-0 filter__icon">mdi-{{ icon }}</v-icon>
             <div class="text-body-2 font-weight-regular filter__title" :title="title">{{ title }}</div>
@@ -81,7 +96,7 @@
             }"
           >
             <template v-slot:selection="{ item }">
-              <span v-if="condAsText" class="filter__cond-text">{{ shortConditionText(item.raw.text) }}</span>
+              <span v-if="condAsText" class="filter__cond-text">{{ getConditionText(item.raw.text) }}</span>
               <v-icon v-else :icon="`mdi-${item.raw.icon}`"
                 size="small"></v-icon>
             </template>
@@ -97,17 +112,6 @@
               </v-list-item>
             </template>
           </v-select>
-
-          <v-switch
-            :model-value="active"
-            @update:model-value="setActiveValue"
-            :disabled="isDisabled"
-            color="success"
-            density="compact"
-            hide-details
-            inset
-            class="filter__switch"
-          />
         </div>
       </div>
 
@@ -116,10 +120,12 @@
           v-if="isCatalogFilter"
           :model-value="filterValArray"
           :items="catalogOptions"
-          :label="title"
+          :placeholder="title"
           :disabled="is_locked"
           :hint="parameter === 'availability' ? t('sources.catalog.observation_hint') : undefined"
           :persistent-hint="parameter === 'availability'"
+          :menu-props="{contentClass: 'filter-catalog-menu', maxHeight: 320}"
+          hide-details
           class="ma-1 pt-0"
           density="compact"
           variant="outlined"
@@ -198,22 +204,12 @@
             :disabled="is_locked || !is_value_required"
             control-variant="split"
             class="filter__number-input"
+            :suffix="numberHintLabel || undefined"
             hide-details
             density="compact"
             variant="outlined"
             rounded
           />
-          <v-chip
-            v-if="numberHintLabel"
-            size="small"
-            rounded="pill"
-            variant="tonal"
-            color="primary"
-            label
-            class="filter__hint-chip"
-          >
-            {{ numberHintLabel }}
-          </v-chip>
         </div>
 
         <v-rating
@@ -304,6 +300,37 @@
           />
         </div>
       </div>
+
+      <span
+        v-if="editable && !isDisabled && !removed && isModified"
+        class="filter__restore"
+      >
+        <EditingFieldRestoreBtn inline @click="restoreBaseline" />
+      </span>
+
+      <span
+        v-if="rowCount && active && !removed"
+        class="filter__count"
+        :class="{'filter__count--zero': rowCount.matched === 0}"
+        :title="t('filters.row_count_hint', {matched: rowCount.matched.toLocaleString(), total: rowCount.total.toLocaleString()})"
+      >{{ rowCount.matched.toLocaleString() }}</span>
+
+      <div
+        v-if="editable && !isDisabled && !removed"
+        class="filter__row-actions"
+      >
+        <v-btn
+          class="filter__row-action"
+          icon
+          size="x-small"
+          variant="text"
+          :title="t('common.more')"
+          :aria-label="t('common.more')"
+          @click.stop="openRowMenu"
+        >
+          <v-icon size="16">mdi-dots-horizontal</v-icon>
+        </v-btn>
+      </div>
     </v-card>
 
     <DialogBrowseFolder
@@ -326,7 +353,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, watch} from 'vue'
+import {ref, computed, inject, onMounted, watch} from 'vue'
 import type { PropType } from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
@@ -346,6 +373,11 @@ import DialogBrowseFolder from '@/components/dialogs/DialogBrowseFolder.vue'
 import DialogRegexBuilder from '@/components/dialogs/DialogRegexBuilder.vue'
 import {validateRegexPattern} from '@shared/pathParser/regexMeta'
 import {useCatalogSources} from '@/composable/useCatalogSources'
+import {FILTER_ROW_COUNTS_KEY, filterRowKey} from '@/composable/useFilterRowCounts'
+import {FILTER_ROW_BASELINE_KEY, isFilterRowModified} from '@/composable/filterRowBaseline'
+import EditingFieldRestoreBtn from '@/components/items/EditingFieldRestoreBtn.vue'
+import {useContextMenu} from '@/stores/contextMenu'
+import type {ContextMenuEntry} from '@/types/stores'
 // Props
 const props = defineProps({
   filter: {
@@ -373,8 +405,25 @@ const emit = defineEmits([
   'remove',
   'pickDate',
   'setActive',
+  'duplicate',
   'valid'
 ])
+
+// Per-row match counts are provided by the filters host; rows rendered elsewhere simply show none.
+const rowCounts = inject(FILTER_ROW_COUNTS_KEY, null)
+const rowCount = computed(() => rowCounts?.value[filterRowKey(props.filter)] ?? null)
+
+// Saved state of this row: when the user edits it, an undo button offers the previous value.
+const rowBaselines = inject(FILTER_ROW_BASELINE_KEY, null)
+const baseline = computed(() => rowBaselines?.value[filterRowKey(props.filter)])
+const isModified = computed(() => isFilterRowModified(props.filter, baseline.value))
+
+const restoreBaseline = () => {
+  const saved = baseline.value
+  if (!saved) return
+  if ((modelFilter.value.cond ?? null) !== saved.cond) emit('setCondition', saved.cond)
+  emit('setValue', JSON.parse(JSON.stringify(saved.val ?? null)))
+}
 
 // Reactive state
 const form = ref<VForm | null>(null)
@@ -387,6 +436,7 @@ const regexDialog = ref(false)
 
 // Stores and composables
 const {t, locale} = useI18n()
+const contextMenuStore = useContextMenu()
 
 // Computed properties
 const modelFilter = computed(() => props.filter)
@@ -504,6 +554,73 @@ const setCondition = (val: string | null) => {
   emit('setCondition', val)
 }
 
+// Opposite condition for the quick "invert" action; conditions without a clean opposite have none.
+const CONDITION_INVERSE: Record<string, string> = {
+  '=': '!==',
+  '!==': '=',
+  '>': '<=',
+  '<=': '>',
+  '<': '>=',
+  '>=': '<',
+  'like': 'not like',
+  'not like': 'like',
+  'in': 'not in',
+  'not in': 'in',
+  'in all': 'not in all',
+  'not in all': 'in all',
+  'is null': 'not null',
+  'not null': 'is null',
+}
+
+const inverseCondition = computed(() => {
+  const cond = condition.value
+  if (!cond) return null
+  const inverse = modelFilter.value.type === 'boolean'
+    ? ({'=': '!=', '!=': '='} as Record<string, string>)[cond]
+    : CONDITION_INVERSE[cond]
+  if (!inverse) return null
+  return conditionOptions.value.some(option => option.cond === inverse) ? inverse : null
+})
+
+const invertCondition = () => {
+  if (inverseCondition.value) emit('setCondition', inverseCondition.value)
+}
+
+/** The "⋯" menu uses the app's context menu so it looks and behaves like every other one. */
+const openRowMenu = (event: MouseEvent) => {
+  const rect = (event.currentTarget as HTMLElement | null)?.getBoundingClientRect()
+  const content: ContextMenuEntry[] = []
+  if (inverseCondition.value) {
+    content.push({name: t('filters.invert_hint'), type: 'item', icon: 'swap-horizontal', action: invertCondition})
+  }
+  content.push({name: t('filters.duplicate_hint'), type: 'item', icon: 'content-copy', action: () => emit('duplicate')})
+  if (hasValue.value) {
+    content.push(
+      {type: 'divider'},
+      {name: t('filters.clear_value_hint'), type: 'item', icon: 'eraser', action: clearValue},
+    )
+  }
+  contextMenuStore.showContextMenu({
+    content,
+    x: rect ? rect.right : event.clientX,
+    y: rect ? rect.bottom + 4 : event.clientY,
+  })
+}
+
+const hasValue = computed(() => {
+  if (!is_value_required.value) return false
+  const val = modelFilter.value.val
+  if (Array.isArray(val)) return val.length > 0
+  return val != null && val !== ''
+})
+
+const clearValue = () => {
+  const val = modelFilter.value.val
+  if (Array.isArray(val)) emit('setValue', [])
+  else if (typeof val === 'string') emit('setValue', '')
+  else emit('setValue', null)
+}
+
 const openFolderDialog = () => {
   if (is_locked.value) return
   folderDialog.value = true
@@ -556,10 +673,15 @@ const setActiveValue = async (value: boolean | null) => {
   }
 }
 
-// Clicking the title toggles the condition, same as the switch.
-const toggleActiveByTitle = () => {
-  if (isDisabled.value) return
-  setActiveValue(!active.value)
+// Only a turned-off row reacts to a click (it turns on); other rows are not clickable at all.
+const isMuted = computed(() => !active.value && !removed.value && !isDisabled.value)
+
+// A condition saved as turned off shows as a muted row; a click on it turns it on.
+// New conditions are always active, and the only way to drop one is to remove it.
+const activateMuted = (event: MouseEvent) => {
+  if (active.value || removed.value || isDisabled.value) return
+  if ((event.target as HTMLElement | null)?.closest('button')) return
+  setActiveValue(true)
 }
 
 const getConditionTitle = (type: string | null, condition: string | null) => {
@@ -567,10 +689,6 @@ const getConditionTitle = (type: string | null, condition: string | null) => {
   const item = conditions.find(i => i.cond == condition)
   return item ? getConditionText(item.text) : ''
 }
-
-// Compact label for the closed select: first 3 characters (full text stays in the list and tooltip).
-const shortConditionText = (conditionText?: string) =>
-  Array.from(getConditionText(conditionText)).slice(0, 3).join('')
 
 const getConditionText = (conditionText?: string) => {
   const key = conditionText?.replaceAll(' ', '_')
@@ -598,15 +716,16 @@ defineExpose({
   font-weight: 400;
 }
 
-.filter__title_content {
+.filter--muted {
   cursor: pointer;
 }
 
 .filter__cond-text {
-  display: inline-block;
-  max-width: 96px;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
   font-size: 0.75rem;
   line-height: 1.2;
@@ -627,5 +746,18 @@ defineExpose({
 
 .filter__hint-chip {
   flex: 0 0 auto;
+}
+
+/* Quick actions only exist in the top panel layout (FiltersPanel shows them). */
+.filter__row-actions {
+  display: none;
+}
+
+.filter__count {
+  display: none;
+}
+
+.filter__restore {
+  display: none;
 }
 </style>
