@@ -762,6 +762,7 @@ const en = {
     openProcessInNotifications: 'You can view details in the notifications list',
     activeProcessesCount: 'Active processes: {count}. Details are in the notifications list',
     activeProcessesTitle: 'Active processes: {count}',
+    activeProcessesMore: 'and {count} more',
     openNotificationsList: 'Open list',
   },
   systemBar: {
@@ -4919,6 +4920,16 @@ const en = {
       shortcuts_title: 'Keyboard shortcuts',
       shortcuts_close: 'Close',
     },
+  },
+  background_tasks: {
+    remoteFingerprint: 'Fingerprinting cloud and NAS files',
+    cloudMetadata: 'Reading cloud file metadata',
+    nasAssets: 'Preparing NAS previews and metadata',
+    sourceCatalog: 'Updating source catalog',
+    offlineCopy: 'Saving offline copy',
+    copyDiscovery: 'Searching for file copies',
+    subtitle_count: 'Processed: {processed}',
+    subtitle_total: '{processed} of {total}',
   },
   notifications_text: {
     server_error_logs: 'Server error. Check the server logs.',

@@ -4282,6 +4282,16 @@ const ja = {
       shortcuts_close: '閉じる',
     },
   },
+  background_tasks: {
+    remoteFingerprint: 'クラウドとNASファイルのフィンガープリントを計算中',
+    cloudMetadata: 'クラウドファイルのメタデータを読み取り中',
+    nasAssets: 'NASのプレビューとメタデータを準備中',
+    sourceCatalog: 'ソースカタログを更新中',
+    offlineCopy: 'オフラインコピーを保存中',
+    copyDiscovery: 'ファイルのコピーを検索中',
+    subtitle_count: '処理済み: {processed}',
+    subtitle_total: '{total} 件中 {processed} 件',
+  },
   notifications_text: {
     items_delete_progress: '削除中…',
     items_trash_progress: 'ゴミ箱に移動中…',

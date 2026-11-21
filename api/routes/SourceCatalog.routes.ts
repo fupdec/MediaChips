@@ -3,6 +3,7 @@ import {z} from 'zod'
 import type {ApiDb} from '../types/db'
 import {CatalogRootInputSchema, OfflineLimitSchema} from '../../shared/sourceCatalog'
 import {createSourceCatalogService} from '../services/mediaSources/catalogService'
+import {registerBackgroundTaskProvider} from '../services/backgroundTasks'
 
 export default function registerSourceCatalog(app: Express, db: ApiDb, service = createSourceCatalogService(db)) {
   const router = express.Router()
@@ -32,5 +33,6 @@ export default function registerSourceCatalog(app: Express, db: ApiDb, service =
   app.use('/api/source-catalog', router)
   const timer = setInterval(() => { try { service.tick() } catch { /* Database can be closing or switching. */ } }, 30_000)
   timer.unref()
-  app.once('source-catalog:dispose', () => { clearInterval(timer); service.dispose() })
+  const unregisterTasks = registerBackgroundTaskProvider(() => service.backgroundTasks())
+  app.once('source-catalog:dispose', () => { clearInterval(timer); unregisterTasks(); service.dispose() })
 }

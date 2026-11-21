@@ -13,6 +13,7 @@ import {sourceOperation} from '../mediaSources/cancellation'
 import {createConcurrencyQueue} from '../concurrencyQueue'
 import {fillCloudMediaMetadata, readCloudMediaMetadata} from '../cloudAccounts/libraryMetadata'
 import {invalidateMediaDerivedCaches} from '../mediaCacheInvalidation'
+import {trackBackgroundWork} from '../backgroundTasks'
 import {createNasMediaInput} from './mediaInput'
 import {probeNasMedia, createNasThumbnail} from './mediaProbe'
 import {nasAssetsStatePath, nasThumbnailPath, nasThumbnailVersion, readNasAssetsState, type NasAssetsState} from './mediaAssetsState'
@@ -58,7 +59,7 @@ export function createNasMediaAssetsService(db: ApiDb, options: {
         || latest.location.resourceKey !== resolved.location.resourceKey || latest.location.version !== resolved.location.version
         || latest.connection.config !== resolved.connection.config || latest.connection.credentialRef !== resolved.connection.credentialRef) throw sourceError('source_changed')
     }
-    const promise = queue.enqueue(async () => {
+    const promise = queue.enqueue(() => trackBackgroundWork('nasAssets', async () => {
       assertCurrent()
       const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(100_000)])
       const open = (active: AbortSignal) => (options.open || openSource)(current, resolved.connection.id, active)
@@ -118,7 +119,7 @@ export function createNasMediaAssetsService(db: ApiDb, options: {
         assertCurrent(); await fs.rename(temporary, marker)
       } finally { await fs.rm(temporary, {force: true}) }
       return changed
-    }, {signal: controller.signal}).catch(err => {
+    }), {signal: controller.signal}).catch(err => {
       if (failed.size >= 5000) failed.delete(failed.keys().next().value!)
       failed.set(key, now() + RETRY_MS)
       throw err

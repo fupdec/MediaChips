@@ -762,6 +762,7 @@ const ru = {
     openProcessInNotifications: 'Подробности можно посмотреть в списке уведомлений',
     activeProcessesCount: 'Активных процессов: {count}. Подробности в списке уведомлений',
     activeProcessesTitle: 'Активных процессов: {count}',
+    activeProcessesMore: 'и ещё {count}',
     openNotificationsList: 'Открыть список',
   },
   systemBar: {
@@ -4919,6 +4920,16 @@ const ru = {
       shortcuts_title: 'Горячие клавиши',
       shortcuts_close: 'Закрыть',
     },
+  },
+  background_tasks: {
+    remoteFingerprint: 'Отпечатки файлов в облаке и на NAS',
+    cloudMetadata: 'Метаданные облачных файлов',
+    nasAssets: 'Превью и метаданные файлов NAS',
+    sourceCatalog: 'Обновление каталога источника',
+    offlineCopy: 'Сохранение офлайн-копии',
+    copyDiscovery: 'Поиск копий файлов',
+    subtitle_count: 'Обработано: {processed}',
+    subtitle_total: '{processed} из {total}',
   },
   notifications_text: {
     server_error_logs: 'Ошибка сервера. Проверьте логи сервера.',

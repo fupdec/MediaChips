@@ -4282,6 +4282,16 @@ const es = {
       shortcuts_close: 'Cerrar',
     },
   },
+  background_tasks: {
+    remoteFingerprint: 'Calculando huellas de archivos en la nube y NAS',
+    cloudMetadata: 'Leyendo metadatos de archivos en la nube',
+    nasAssets: 'Preparando vistas previas y metadatos de NAS',
+    sourceCatalog: 'Actualizando el catálogo de la fuente',
+    offlineCopy: 'Guardando copia sin conexión',
+    copyDiscovery: 'Buscando copias de archivos',
+    subtitle_count: 'Procesados: {processed}',
+    subtitle_total: '{processed} de {total}',
+  },
   notifications_text: {
     items_delete_progress: 'Eliminando…',
     items_trash_progress: 'Moviendo a la papelera…',

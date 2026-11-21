@@ -43,6 +43,7 @@ import registerCloudDrive from '../../api/routes/CloudDrive.routes'
 import registerSourceCatalog from '../../api/routes/SourceCatalog.routes'
 import registerCopyDiscovery from '../../api/routes/CopyDiscovery.routes'
 import registerDuplicatesOnAdd from '../../api/routes/DuplicatesOnAdd.routes'
+import registerBackgroundTasks from '../../api/routes/BackgroundTasks.routes'
 import registerOriginalOperations from '../../api/routes/OriginalOperations.routes'
 import registerNas from '../../api/routes/Nas.routes'
 import { isSfwBuild } from '../../shared/buildFlags'
@@ -77,6 +78,7 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     { routeFile: 'SourceCatalog.routes', register: registerSourceCatalog },
     { routeFile: 'CopyDiscovery.routes', register: registerCopyDiscovery },
     { routeFile: 'OriginalOperations.routes', register: registerOriginalOperations },
+    { routeFile: 'BackgroundTasks.routes', register: registerBackgroundTasks },
   ]
 
   // Task.routes pulls faces/ffmpeg controllers; load only when routes are registered

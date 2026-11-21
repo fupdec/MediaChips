@@ -5,6 +5,7 @@ import {backfillMediaFingerprint} from './mediaFingerprintBackfill'
 import {onLibraryRestoreStart, runLibraryBackgroundTask} from './libraryMaintenance'
 import {readDuplicatePolicy} from './duplicateSimilarity'
 import {DEFAULT_SIZE_CANDIDATE_MIN_BYTES} from '../../shared/duplicateSimilarity'
+import {trackBackgroundWork} from './backgroundTasks'
 
 export const REMOTE_OSHASH_SETTING = 'remoteOshashBackground'
 const BATCH = 4
@@ -50,7 +51,7 @@ export function createRemoteFingerprintBackground(db: ApiDb, options: {
           if (!enabled()) return
           let seen = attempted.get(current.sqlite)
           if (!seen) { seen = new Set(); attempted.set(current.sqlite, seen) }
-          const hash = async (row: Parameters<typeof backfillMediaFingerprint>[1]) => {
+          const hash = (row: Parameters<typeof backfillMediaFingerprint>[1]) => trackBackgroundWork('remoteFingerprint', async () => {
             await (options.backfill || backfillMediaFingerprint)(current, row, {
               signal: controller.signal,
               assertCurrent: () => {
@@ -59,7 +60,7 @@ export function createRemoteFingerprintBackground(db: ApiDb, options: {
               },
             })
             pinned.assertCurrent()
-          }
+          })
           let processed = 0
           const minBytes = readDuplicatePolicy(current).sizeCandidateMinBytes ?? DEFAULT_SIZE_CANDIDATE_MIN_BYTES
           if (minBytes > 0) {

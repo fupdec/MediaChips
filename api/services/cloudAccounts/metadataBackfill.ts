@@ -10,6 +10,7 @@ import {sourceOperation} from '../mediaSources/cancellation'
 import {createConcurrencyQueue} from '../concurrencyQueue'
 import {invalidateMediaDerivedCaches} from '../mediaCacheInvalidation'
 import {fillCloudMediaMetadata} from './libraryMetadata'
+import {trackBackgroundWork} from '../backgroundTasks'
 
 export const isCloudMetadataPath = (path: unknown) => isCloudMediaPath(path) || isDriveMediaPath(path) || isNasMediaPath(path)
 export const CLOUD_METADATA_RETRY_MS = 15 * 60_000
@@ -44,7 +45,7 @@ export async function refreshCloudMediaMetadata(db: ApiDb, mediaId: number, opti
   const previous = state.pending.get(identity)
   if (previous) { const changed = await previous; assertCurrent(); return changed }
   if ((state.attempted.get(identity) ?? -Infinity) + CLOUD_METADATA_RETRY_MS > now()) return false
-  const promise = queue.enqueue(async () => {
+  const promise = queue.enqueue(() => trackBackgroundWork('cloudMetadata', async () => {
     assertCurrent()
     const signal = AbortSignal.any([options.signal || new AbortController().signal, AbortSignal.timeout(30_000)])
     const adapter = await sourceOperation(() => (options.open || openSource)(current, resolved.connection.id, signal), signal)
@@ -58,7 +59,7 @@ export async function refreshCloudMediaMetadata(db: ApiDb, mediaId: number, opti
       if (changed) invalidateMediaDerivedCaches()
       return changed
     } finally { adapter.close() }
-  }, {signal: options.signal}).finally(() => {
+  }), {signal: options.signal}).finally(() => {
     state!.pending.delete(identity)
     if (state!.attempted.size >= 5000) state!.attempted.delete(state!.attempted.keys().next().value!)
     state!.attempted.set(identity, now())

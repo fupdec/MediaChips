@@ -11,7 +11,7 @@
         @pointerdown="onSwipePointerDown"
       >
         <v-btn color="secondary" class="task-summary__icon" variant="tonal" icon>
-          <v-icon>mdi-progress-clock</v-icon>
+          <v-icon :icon="`mdi-${taskSummaryItem.icon}`"></v-icon>
         </v-btn>
 
         <div class="task-summary__body">
@@ -95,6 +95,7 @@ interface TaskSummaryItem extends PoolItemBase {
   kind: 'task-summary'
   title: string
   text: string
+  icon: string
 }
 
 interface NotificationPoolItem extends PoolItemBase {
@@ -147,15 +148,35 @@ const summaryTasks = computed(() => tasks.value.filter(task =>
   !(tasksStore.mediaAdding.dialogProcess && task.id === tasksStore.mediaAdding.notificationTaskId),
 ))
 
+const SUMMARY_NAMED_TASKS = 3
+
+/** Names the process (not just "a process") so the toast says what is actually running. */
 const taskSummaryItem = computed((): TaskSummaryItem | null => {
   if (!taskSummaryVisible.value || summaryTasks.value.length === 0) return null
+  const list = summaryTasks.value
+  if (list.length === 1) {
+    const [task] = list
+    return {
+      kind: 'task-summary',
+      key: 'task-summary',
+      title: task.title || t('appbar.processStarted'),
+      text: task.subtitle
+        ? `${t('appbar.processStarted')} · ${task.subtitle}`
+        : t('appbar.processStarted'),
+      icon: task.icon || 'progress-clock',
+    }
+  }
+  const names = list.map(task => task.title).filter((name): name is string => Boolean(name))
+  const shown = names.slice(0, SUMMARY_NAMED_TASKS)
+  const more = list.length - shown.length
   return {
     kind: 'task-summary',
     key: 'task-summary',
-    title: t('appbar.processStarted'),
-    text: summaryTasks.value.length === 1
-      ? t('appbar.openProcessInNotifications')
-      : t('appbar.activeProcessesCount', {count: summaryTasks.value.length}),
+    title: t('appbar.activeProcessesTitle', {count: list.length}),
+    text: shown.length
+      ? [...shown, ...(more > 0 ? [t('appbar.activeProcessesMore', {count: more})] : [])].join(' · ')
+      : t('appbar.activeProcessesCount', {count: list.length}),
+    icon: 'progress-clock',
   }
 })
 

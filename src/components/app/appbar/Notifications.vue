@@ -243,6 +243,7 @@ import type { TaskItem } from '@/types/stores'
 
 import {copyDiscoveryApi} from '@/services/typedApi/copyDiscovery'
 import {useDuplicatesOnAddEvents} from '@/composable/useDuplicatesOnAddEvents'
+import {useBackgroundTasksSync} from '@/composable/useBackgroundTasksSync'
 import {useAppStore} from '@/stores/app'
 import type {CopyDiscoveryJob} from '@shared/copyDiscovery'
 
@@ -267,6 +268,7 @@ const menuRef = ref<{ updateLocation?: () => void } | null>(null)
 
 const {t} = useI18n()
 const duplicateCheck = useDuplicatesOnAddEvents()
+useBackgroundTasksSync()
 const duplicatesSettings = {name: 'Settings', query: {tab: 'maintenance', section: 'copy_discovery'}}
 
 // Computed свойства

@@ -4,6 +4,7 @@ import type {ApiDb} from '../types/db'
 import {CopyDiscoveryInputSchema} from '../../shared/copyDiscovery'
 import {createCopyDiscoveryService} from '../services/mediaSources/copyDiscovery'
 import {createCopyDiscoveryAutomation} from '../services/mediaSources/copyDiscoveryAutomation'
+import {registerBackgroundTaskProvider} from '../services/backgroundTasks'
 
 export default function registerCopyDiscovery(app: Express, db: ApiDb, service = createCopyDiscoveryService(db)) {
   const router = express.Router()
@@ -33,5 +34,6 @@ export default function registerCopyDiscovery(app: Express, db: ApiDb, service =
     void service.tick().catch(() => {})
   }, 1000)
   timer.unref()
-  app.once('copy-discovery:dispose', () => { clearInterval(timer); automation.dispose(); service.dispose() })
+  const unregisterTasks = registerBackgroundTaskProvider(() => service.backgroundTasks())
+  app.once('copy-discovery:dispose', () => { clearInterval(timer); unregisterTasks(); automation.dispose(); service.dispose() })
 }

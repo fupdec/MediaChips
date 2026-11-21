@@ -18,6 +18,7 @@ import {offlineDirectory, offlineLimit, offlineUsage, saveOfflineFile, removeOff
 import type {SourceReadAdapter} from './adapter'
 import {requestAutomaticCopyDiscovery} from './copyDiscoveryTriggers'
 import {sourceOperationLocks} from './operationLocks'
+import type {BackgroundTaskProviderItem} from '../backgroundTasks'
 
 const errorCodes = new Set(['library_changed', 'auth_required', 'credentials_required', 'connection_not_found', 'source_version_changed',
   'offline_limit_exceeded', 'offline_disk_full', 'offline_download_failed', 'media_type_unavailable', 'catalog_too_large', 'invalid_inventory', 'invalid_pagination', 'source_changed'])
@@ -126,6 +127,22 @@ export function createSourceCatalogService(db: ApiDb, options: {open?: typeof op
     },
     refresh,
     jobs() { return [...jobs.values()].filter(entry => entry.identity === pinSourceDb(db).db.sqlite).map(entry => ({...entry.job})) },
+    /** Running catalog refreshes and offline copies, for the Tasks panel. */
+    backgroundTasks(): BackgroundTaskProviderItem[] {
+      const current = pinSourceDb(db).db
+      const items: BackgroundTaskProviderItem[] = []
+      for (const {job, identity} of jobs.values()) {
+        if (identity !== current.sqlite || job.state !== 'running') continue
+        if (job.kind === 'offline') {
+          const row = current.sqlite.prepare('SELECT filesize FROM media WHERE id = ?').get(Number(job.targetId)) as {filesize?: number | null} | undefined
+          const size = Number(row?.filesize)
+          items.push({id: `offlineCopy:${job.id}`, kind: 'offlineCopy', processed: job.processed, total: size > 0 ? size : null, unit: 'bytes'})
+        } else {
+          items.push({id: `sourceCatalog:${job.id}`, kind: 'sourceCatalog', processed: job.processed, total: null, unit: 'items'})
+        }
+      }
+      return items
+    },
     job(id: string) {
       const entry = jobs.get(id)
       if (!entry || entry.identity !== pinSourceDb(db).db.sqlite) throw sourceError('job_not_found', 404)

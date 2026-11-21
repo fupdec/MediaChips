@@ -4,6 +4,7 @@ import path from 'path'
 import {randomUUID} from 'crypto'
 import {and, eq} from 'drizzle-orm'
 import type {ApiDb} from '../../types/db'
+import type {BackgroundTaskProviderItem} from '../backgroundTasks'
 import {verifiedMediaCopies} from '../../db/schema/mediaCopies'
 import {CopyDiscoveryInputSchema, type CopyDiscoveryInput, type CopyDiscoveryJob, type CopyDiscoveryItem, type CopyDiscoveryItemState, type CopyDiscoveryTrigger} from '../../../shared/copyDiscovery'
 import {mediaFileKind, mediaFileContentType} from '../../../shared/mediaFormats'
@@ -321,6 +322,21 @@ export function createCopyDiscoveryService(db: ApiDb, options: {
       return merged
     },
     jobs() { const current = pinSourceDb(db).db; return (current.sqlite.prepare('SELECT id FROM copyDiscoveryJobs ORDER BY rowid DESC LIMIT 20').all() as {id: string}[]).map(row => view(current, row.id)) },
+    /** Jobs doing work right now, for the Tasks panel. Counts only; never loads items. */
+    backgroundTasks(): BackgroundTaskProviderItem[] {
+      const current = pinSourceDb(db).db
+      const rows = current.sqlite.prepare(`SELECT j.id AS id,
+          (SELECT COUNT(*) FROM copyDiscoveryItems i WHERE i.jobId = j.id) AS total,
+          (SELECT COUNT(*) FROM copyDiscoveryItems i WHERE i.jobId = j.id AND i.state NOT IN ('candidate','checking')) AS done
+        FROM copyDiscoveryJobs j WHERE j.state IN ('discovering','verifying') ORDER BY j.rowid`).all() as {id: string; total: number; done: number}[]
+      return rows.map(row => ({
+        id: `copyDiscovery:${row.id}`,
+        kind: 'copyDiscovery' as const,
+        processed: row.done,
+        total: row.total > 0 ? row.total : null,
+        unit: 'items' as const,
+      }))
+    },
     activity() {
       const current = pinSourceDb(db).db
       return current.sqlite.prepare(`SELECT id, state FROM copyDiscoveryJobs

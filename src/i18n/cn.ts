@@ -4282,6 +4282,16 @@ const cn = {
       shortcuts_close: '关闭',
     },
   },
+  background_tasks: {
+    remoteFingerprint: '正在计算云端和 NAS 文件的指纹',
+    cloudMetadata: '正在读取云端文件元数据',
+    nasAssets: '正在准备 NAS 预览和元数据',
+    sourceCatalog: '正在更新来源目录',
+    offlineCopy: '正在保存离线副本',
+    copyDiscovery: '正在搜索文件副本',
+    subtitle_count: '已处理：{processed}',
+    subtitle_total: '{processed} / {total}',
+  },
   notifications_text: {
     items_delete_progress: '正在删除…',
     items_trash_progress: '正在移至回收站…',
