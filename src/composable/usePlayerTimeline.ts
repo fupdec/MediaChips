@@ -101,10 +101,18 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
   const timelineLoading = computed(() => (
     showTranscodeTimeline.value
     && (player.value.webVideoLoading || player.value.isLiveStreamSeeking || player.value.isStreamWaiting)
+  ) || (
+    // A card played through a verified copy (NAS / cloud) keeps its original path, so it is not a "web video"
+    // for the timeline, yet it is fetched over the network on the first load too.
+    player.value.usesCopySource && player.value.webVideoLoading
   ))
 
   const timelineTrackStyle = computed(() => {
-    if (!showTranscodeTimeline.value) return undefined
+    if (!showTranscodeTimeline.value) {
+      return timelineLoading.value
+        ? {'--timeline-progress': `${timelineDisplay.value.progress}%`}
+        : undefined
+    }
 
     return {
       '--timeline-buffer': `${timelineDisplay.value.buffer}%`,
