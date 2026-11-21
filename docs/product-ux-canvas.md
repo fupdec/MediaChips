@@ -8,22 +8,24 @@
 
 ## Status vs master
 
+Updated 2026-11-22 against the code and the CHANGELOG (most of this shipped in 1.9.0).
+
 | Idea | Status | Notes |
 |------|--------|-------|
-| Library setup wizard | Partial | Phased health guide + ETA exists; raw Database backfills still listed |
-| New media Inbox | Done (v1) | Home widget + triage queue (untagged + unrated); palette action |
+| Library setup wizard | Done | Prepare library with phased steps and per-step ETA; Database settings regrouped into Essential / Search & AI / Experts |
+| New media Inbox | Done | Home widget, sidebar entry, triage queue (untagged + unrated), watched-folder losses; palette action |
 | Command palette (⌘K) | Done | Global search commands mode |
-| Inline edit in Inspector | Partial | Edit still opens dialogs |
-| Empty states → CTAs | Done (v1) | Media/tags/playlists/markers + Home Similar/Spotlight/Calendar + Inbox empty → one primary next step |
-| Saved views (filter+sort+group+card) | Partial | Saved filters only |
-| Created-at calendar | Partial | Sort/filter/group by `mediaCreatedAt`; no calendar UI |
-| Review / keyboard tagging | Missing | — |
-| Home Similar + Continue | Partial | Continue exists; Similar is menu/CLIP wall only |
-| Auto-collections | Partial | Group-by + smart playlists; no auto entities |
-| Trash / soft-delete 30d | Missing | Hard delete |
-| Session focus tag workspace | Missing | — |
-| Settings Essential / Search & AI / Experts | Partial | Health groups exist; jargon still visible |
-| `mediaCreatedAt` pipeline | Done | Extract + sort + filter + backfill |
+| Inline edit in Inspector | Done | Rating, favorite, tags and pinned metadata; view/edit toggle, auto-save on item switch. Thumbs and scrapers still use the full editor |
+| Empty states → CTAs | Done | Media/tags/playlists/markers + Home Similar/Spotlight/Calendar + Inbox empty → one primary next step |
+| Saved views (filter+sort+group+card) | Done | Store filters, sort, group-by, card size and the AND/OR join; chips live in the filters panel under Presets |
+| Created-at calendar | Partial | `WidgetCreatedCalendar` on Home; no calendar/timeline view inside the media list |
+| Review / keyboard tagging | Done | Fullscreen Review mode: digits rate, F favorite, Q–O pinned tags, arrows/HJKL move; Inbox handoff (D = done & next) |
+| Home Similar + Continue | Done | CLIP-neighbor widget with Continue exclusions and a context-menu entry |
+| Auto-collections | Partial | Group-by + smart playlists; no auto entities from path / date / duration |
+| Trash / soft-delete 30d | Done | Media, tags, markers, playlists and saved views; permanent delete is an explicit choice in the confirm dialog |
+| Session focus tag workspace | Done | Pin a tag/performer, browse with or without it, apply to the selection |
+| Settings Essential / Search & AI / Experts | Done | Jargon is mostly hidden behind the wizard; re-check wording per release |
+| `mediaCreatedAt` pipeline | Done | Extract + sort + filter + group + backfill |
 
 ## Simplify
 
@@ -69,11 +71,14 @@ New visual layer — calendar/timeline, not just another sort key.
 
 ## Top-5 (in order)
 
-1. **Library setup wizard** — collapse Database backfills
-2. **New media Inbox** — watch folders already exist; add the ritual
-3. **Review / keyboard tagging** — chips as a fast cataloging tool
-4. **Created-at calendar** — natural next step after `mediaCreatedAt`
-5. **Command palette + empty-state CTAs** — cheap discovery for built features
+Items 1, 2, 3 and 5 are shipped (see the status table). What is left:
+
+1. ~~Library setup wizard~~ — done
+2. ~~New media Inbox~~ — done
+3. ~~Review / keyboard tagging~~ — done
+4. **Created-at calendar** — extend the Home widget into a calendar/timeline view in the media list
+5. ~~Command palette + empty-state CTAs~~ — done
+6. **Auto-collections** — from path / date / duration, without manual smart-playlist setup
 
 ## Do not add now
 
