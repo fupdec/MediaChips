@@ -924,7 +924,10 @@ $player-track-inactive-thickness: 4px;
     // Pin the seek track so its centre sits exactly --player-timeline-track-offset
     // from the bottom (pt-4 = 16px above a 32px control => centre is 16px up from
     // the slider's top edge); mark dots use the same offset, so they stay centred.
-    &:not(.timeline--studio):not(.timeline--trim) > .timeline-slider.v-slider.v-input--horizontal {
+    // Pinned in every mode: when the slider was in flow, studio/trim sat the track
+    // 4px lower than the normal mode. The mode heights below keep the rest of the
+    // layout exactly where the in-flow slider used to put it.
+    > .timeline-slider.v-slider.v-input--horizontal {
       position: absolute;
       left: 0;
       right: 0;
@@ -932,6 +935,7 @@ $player-track-inactive-thickness: 4px;
     }
     &.timeline--studio {
       padding-top: 8px;
+      min-height: 56px;
 
       .preview {
         z-index: 2;
@@ -939,6 +943,7 @@ $player-track-inactive-thickness: 4px;
     }
     &.timeline--trim {
       padding-top: 16px;
+      min-height: 64px;
 
       .preview {
         z-index: 2;
@@ -2883,11 +2888,10 @@ $player-track-inactive-thickness: 4px;
     .btn-edit-video {
       display: none;
     }
+    // Keep the button row height as is: a smaller bottom padding here moved
+    // the timeline track down on narrow windows.
     .controls {
       padding: 0 10px !important;
-      .buttons {
-        padding-bottom: 10px !important;
-      }
     }
   }
 }

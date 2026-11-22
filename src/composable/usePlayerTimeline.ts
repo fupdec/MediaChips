@@ -105,6 +105,10 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
     // A card played through a verified copy (NAS / cloud) keeps its original path, so it is not a "web video"
     // for the timeline, yet it is fetched over the network on the first load too.
     player.value.usesCopySource && (player.value.webVideoLoading || player.value.isStreamWaiting)
+  ) || (
+    // Any other source: only while playback is really stopped for lack of the next piece
+    // (a 'waiting' stall) or a seek into unbuffered data is pending - never while the user paused.
+    player.value.isStreamWaiting && (!player.value.paused || Boolean(player.value.player?.seeking))
   ))
 
   const timelineTrackStyle = computed(() => {

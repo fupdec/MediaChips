@@ -100,6 +100,19 @@ export async function seekDirectPlaybackTo(
   if (videoEl.readyState < HTMLMediaElement.HAVE_METADATA) {
     await waitForMediaEvent(videoEl, 'loadedmetadata', 8000, signal)
     if (isCancelled?.() || signal?.aborted || videoEl.error) return
+    if (videoEl.readyState < HTMLMediaElement.HAVE_METADATA) {
+      // A slow remote source (Drive/NAS) can take longer than the wait. Do not give up and
+      // play from the start: apply the saved position as soon as the metadata arrives.
+      const applyLate = () => {
+        if (isCancelled?.() || signal?.aborted || videoEl.error) return
+        const duration = Number(videoEl.duration)
+        const late = Number.isFinite(duration) && duration > 0 ? Math.min(target, Math.max(0, duration - 0.05)) : target
+        if (Math.abs((videoEl.currentTime || 0) - late) > 0.12) videoEl.currentTime = late
+      }
+      videoEl.addEventListener('loadedmetadata', applyLate, {once: true})
+      signal?.addEventListener('abort', () => videoEl.removeEventListener('loadedmetadata', applyLate), {once: true})
+      return
+    }
   }
   const fileDuration = Number(videoEl.duration)
   if (Number.isFinite(fileDuration) && fileDuration > 0) {

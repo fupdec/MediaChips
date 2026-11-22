@@ -102,6 +102,9 @@ export async function attachWebVideo(
         transferIds.set(video, id)
         url.searchParams.set('playbackTransfer', id)
       }
+      // Media fragment = the browser's own start position: applied as soon as the metadata
+      // arrives, with no timeout to miss on a slow Drive/NAS stream.
+      if (startTime > 0 && Number.isFinite(startTime)) url.hash = `t=${Math.floor(startTime * 1000) / 1000}`
       video.src = url.href
     }
     return

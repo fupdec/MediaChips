@@ -218,8 +218,9 @@ export function resolvePlaybackStartTime(input: {
     !input.playingClip
     && input.restorePlaybackTime
     && input.metaTime != null
-    && input.metadataDuration != null
-    && !(input.metadataDuration - input.metaTime < 5)
+    && input.metaTime > 0
+    // Unknown duration (e.g. a remote file without stored metadata) must not drop the saved position.
+    && !(input.metadataDuration != null && input.metadataDuration - input.metaTime < 5)
   ) {
     return input.metaTime
   }

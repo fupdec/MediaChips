@@ -421,9 +421,11 @@ export const useItemsStore = defineStore('items', {
         video: targetVideo,
         videos: playlistVideos,
         // Explicit seek (semantic scene / marker) wins over item.segmentStart.
+        // No explicit start -> leave it undefined so the player restores the saved position.
+        // A default 0 here counts as an explicit "from the beginning" and defeats the restore.
         time: explicitTime != null
           ? explicitTime
-          : (getSegmentStart(targetVideo) ?? 0),
+          : getSegmentStart(targetVideo),
       };
 
       if (

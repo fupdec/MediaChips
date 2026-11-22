@@ -325,7 +325,7 @@ const showTranscodeSpinner = computed(() => !player.value.playbackError && (
 
 const remoteDownloadSpeed = useRemotePlaybackSpeed(
   computed(() => player.value.player),
-  computed(() => player.value.active && player.value.isWebVideo),
+  computed(() => player.value.active && (player.value.isWebVideo || player.value.usesCopySource)),
 )
 const remoteDownloadSpeedText = computed(() => {
   const speed = remoteDownloadSpeed.value

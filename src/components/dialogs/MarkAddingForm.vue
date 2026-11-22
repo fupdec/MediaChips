@@ -701,6 +701,8 @@ watch(
 /* ---------- header ---------- */
 
 .mark-menu__top {
+  // The global `header { -webkit-app-region: drag }` would make Electron swallow clicks on the type tabs.
+  -webkit-app-region: no-drag;
   display: flex;
   align-items: center;
   gap: 6px;

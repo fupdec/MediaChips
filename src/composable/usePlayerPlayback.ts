@@ -270,10 +270,26 @@ export function usePlayerPlayback({
     // A verified-copy stream (NAS/cloud) keeps its original path, so it is not a
     // "web video", but it stalls on the network just the same and needs the spinner.
     const isCopyStream = () => playerStore.usesCopySource && !playerStore.isWebVideo
+    // True while the element has no data for the current position, i.e. playback
+    // really cannot continue until the next piece arrives.
+    const hasDataAhead = () => {
+      const video = playerStore.player
+      return Boolean(video && !video.seeking && video.readyState >= 3)
+    }
+    const isTimeBuffered = () => {
+      const video = playerStore.player
+      if (!video) return false
+      for (let i = 0; i < video.buffered.length; i += 1) {
+        if (video.currentTime >= video.buffered.start(i) && video.currentTime < video.buffered.end(i) - 0.05) return true
+      }
+      return false
+    }
     playerStore.player.addEventListener('seeking', () => {
-      if (isCopyStream()) playerStore.isStreamWaiting = true
+      // A seek inside already buffered data finishes at once - no loading state for it.
+      const needsData = !isTimeBuffered()
+      if (isCopyStream() && needsData) playerStore.isStreamWaiting = true
       if (playerStore.isWebVideo) {
-        playerStore.isStreamWaiting = true
+        if (needsData) playerStore.isStreamWaiting = true
         playerStore.webVideoFrameReady = false
         return
       }
@@ -281,16 +297,15 @@ export function usePlayerPlayback({
     })
     playerStore.player.addEventListener('seeked', () => {
       liveSession.clearDirectSeekStallWatch()
-      if (isCopyStream()) playerStore.isStreamWaiting = false
+      // Still no data after the seek: keep the loading state until 'canplay'.
+      if (hasDataAhead()) playerStore.isStreamWaiting = false
       if (playerStore.isWebVideo) {
-        playerStore.isStreamWaiting = false
         playerStore.webVideoFrameReady = Boolean(playerStore.player && playerStore.player.readyState >= 2)
       }
     })
     const onWebFrameReady = () => {
-      if (isCopyStream()) playerStore.isStreamWaiting = false
+      if (hasDataAhead()) playerStore.isStreamWaiting = false
       if (!playerStore.isWebVideo) return
-      playerStore.isStreamWaiting = false
       playerStore.webVideoFrameReady = Boolean(playerStore.player && playerStore.player.readyState >= 2 && !playerStore.player.seeking)
     }
     playerStore.player.addEventListener('loadeddata', onWebFrameReady)
@@ -300,8 +315,9 @@ export function usePlayerPlayback({
         && playerStore.player?.paused) playerStore.paused = true
     })
     playerStore.player.addEventListener('waiting', () => {
-      if (isCopyStream()) playerStore.isStreamWaiting = true
-      if (playerStore.isWebVideo) { playerStore.isStreamWaiting = true; return }
+      // 'waiting' fires only when playback stopped for lack of the next data.
+      playerStore.isStreamWaiting = true
+      if (playerStore.isWebVideo) return
       if (!playerStore.usesLiveTranscode) {
         // The watchdog only accepts suspect codec/container plans. Normal
         // buffering on slow disks or NAS must not promote a healthy original.
@@ -309,14 +325,15 @@ export function usePlayerPlayback({
         if (currentTime > 2) {
           liveSession.armDirectSeekStallWatch()
         }
-        return
       }
-      playerStore.isStreamWaiting = true
+    })
+    playerStore.player.addEventListener('canplaythrough', () => {
+      if (hasDataAhead()) playerStore.isStreamWaiting = false
     })
     playerStore.player.addEventListener('playing', () => {
       void ensureOpeningThumb()
       liveSession.clearDirectSeekStallWatch()
-      if (isCopyStream()) playerStore.isStreamWaiting = false
+      playerStore.isStreamWaiting = false
       if (playerStore.isWebVideo) {
         onWebFrameReady()
         if (!playerStore.webVideoLoading) playerStore.paused = false
