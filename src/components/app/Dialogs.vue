@@ -233,6 +233,7 @@ import {useI18n} from 'vue-i18n'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {useAppHotkeys} from '@/composable/useAppHotkeys'
 import {useBrowserLayoutHotkeys} from '@/composable/useBrowserLayoutHotkeys'
+import {useItemsSelectionScope} from '@/composable/useItemsSelectionScope'
 import {useItemsSelectionHotkeys} from '@/composable/useItemsSelectionHotkeys'
 import useItemContextMenu from '@/composable/ItemContextMenu'
 import {registerAppShellHandler} from '@/composable/appShell'
@@ -397,13 +398,11 @@ const itemsStore = useItemsStore()
 const pluginsStore = usePluginsStore()
 const {t} = useI18n()
 const { showShortcuts: showKeyboardShortcuts, openPlayerDocs: openPlayerHotkeyDocs } = useAppHotkeys()
+useItemsSelectionScope()
 useBrowserLayoutHotkeys()
 
 function exitSelectMode() {
-  itemsStore.isSelect = false
-  itemsStore.selection = []
-  itemsStore.selected_last = null
-  itemsStore.selectionAnchor = null
+  itemsStore.clearSelection()
 }
 
 function onPlaylistAdded() {
@@ -431,19 +430,11 @@ function openDeleteFromHotkey() {
   deleteItem()
 }
 
-function selectVisibleFromHotkey() {
-  itemsStore.selection = itemsStore.itemsOnPage.map((item) => item.id)
-  if (itemsStore.selection.length) {
-    itemsStore.selected_last = itemsStore.selection[itemsStore.selection.length - 1] ?? null
-  }
-  itemsStore.selectionAnchor = null
-}
 
 useItemsSelectionHotkeys({
   onExitSelect: exitSelectMode,
   onBulkEdit: openBulkEditFromHotkey,
   onDelete: openDeleteFromHotkey,
-  onSelectVisible: selectVisibleFromHotkey,
 })
 
 const addMediaDialogOpen = ref(false)

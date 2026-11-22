@@ -81,20 +81,17 @@ async function registerHeavyRoutes() {
 
   // Serve home/tag thumbs ASAP — UI requests /api/get-file right after shell reveal.
   // Register get-file BEFORE static/SPA so ?url= is not stripped by history fallback.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createFileResolver } = require('./server/fileResolver') as typeof import('./server/fileResolver')
   const fileResolver = createFileResolver({config, databasesPath})
   resolveFilePath = fileResolver.resolveFilePath
   const {getStreamContentType} = fileResolver
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { registerGetFileRoutes } = require('./server/getFileRoutes') as typeof import('./server/getFileRoutes')
   registerGetFileRoutes({app, db, resolveFilePath, trustedRoots: [databasesPath]})
   setupStaticApp(app)
   logStartup(`get-file+static ready (${Date.now() - heavyStartedAt}ms)`)
   await yieldEventLoop()
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { registerApiRoutes } = require('./server/registerRoutes') as typeof import('./server/registerRoutes')
   const routeLoadErrors = await registerApiRoutes(app, db, {
     afterRoute: async (routeFile) => {
@@ -106,7 +103,6 @@ async function registerHeavyRoutes() {
   })
   logStartup(`api routes registered (${Date.now() - heavyStartedAt}ms)`)
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createTranscodeManager } = require('../api/services/transcode/transcodeService') as typeof import('../api/services/transcode/transcodeService')
   const transcodeManager = createTranscodeManager({
     databasesPath,
@@ -114,11 +110,8 @@ async function registerHeavyRoutes() {
     getActiveDbId: () => config.databases.find((entry: ServerDatabaseEntry) => entry.active)?.id || null,
   }) as unknown as TranscodeManager
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createDatabaseManager } = require('./server/databaseManager') as typeof import('./server/databaseManager')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { initDatabaseManager } = require('./server/databaseRegistry') as typeof import('./server/databaseRegistry')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { invalidateMediaDerivedCaches } = require('../api/services/mediaCacheInvalidation') as typeof import('../api/services/mediaCacheInvalidation')
 
   const databaseManager = createDatabaseManager({
@@ -138,7 +131,6 @@ async function registerHeavyRoutes() {
   })
   initDatabaseManager(databaseManager)
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { registerBuiltinRoutes } = require('./server/builtinRoutes') as typeof import('./server/builtinRoutes')
   registerBuiltinRoutes({
     app,
@@ -158,7 +150,6 @@ async function registerHeavyRoutes() {
     if (!listener) {
       throw new Error('HTTP listener missing when registering WebSockets')
     }
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const registerWebSockets = require('./tasks/websockets').default as typeof import('./tasks/websockets').default
     // Pass the live server — expressWs(app) without it orphans WS on a dead http.Server.
     registerWebSockets(app, db, listener)
@@ -173,7 +164,6 @@ async function rebindWebSocketsAfterListenerRestart(): Promise<void> {
   const listener = getListener()
   if (!listener) return
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const {attachWebSocketsToServer} = require('./tasks/websockets') as typeof import('./tasks/websockets')
     attachWebSocketsToServer(app, listener)
   } catch (err: unknown) {

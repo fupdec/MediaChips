@@ -886,7 +886,7 @@ export function useItemsPage({
     itemsStore.updateState({key: 'isFiltersLoaded', value: true})
   }
 
-  let scrollTopToListStart: () => void = () => {
+  const scrollTopToListStart: () => void = () => {
     scrollMainTo({top: 0, behavior: 'smooth'})
   }
 

@@ -252,7 +252,7 @@
 
         <div
           v-if="filter.type === 'array' && /\d/.test(paramAsString) && condition !== 'is null' && condition !== 'not null'"
-          class="pa-1"
+          class="pa-1 filter__value-wrap"
         >
           <MetaInputArray
             @update:model-value="setValue"
@@ -271,7 +271,7 @@
         </div>
 
         <div v-if="parameter === 'country'"
-          class="pa-1">
+          class="pa-1 filter__value-wrap">
           <MetaInputCountry
             @update:model-value="setValue"
             :model-value="filterValArray"
@@ -284,7 +284,7 @@
         </div>
 
         <div v-if="parameter === 'ext'"
-          class="pa-1">
+          class="pa-1 filter__value-wrap">
           <v-autocomplete
             @update:model-value="setValue"
             :model-value="filterValArray"
@@ -729,6 +729,12 @@ defineExpose({
   white-space: nowrap;
   font-size: 0.75rem;
   line-height: 1.2;
+}
+
+.filter__value-wrap {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
 }
 
 .filter__number {

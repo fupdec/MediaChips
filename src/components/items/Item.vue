@@ -287,6 +287,7 @@
 <script setup lang="ts">
 import {ref, computed, watch, onMounted, onBeforeUnmount} from 'vue'
 import {useI18n} from 'vue-i18n'
+import {toggleMixedGridSelection} from '@/composable/mixedGridSelection'
 import {useRoute} from 'vue-router'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
@@ -980,13 +981,13 @@ const editItem = () => {
 
 const handleCardActivate = (e?: MouseEvent) => {
   if (itemsStore.isSelect) {
-    itemsStore.toggleSelect(e ?? null, props.item)
+    toggleSelect(e ?? null)
     return
   }
 
   if (inspectorClickMode.value) {
     if (e && (e.ctrlKey || e.metaKey || e.shiftKey)) {
-      itemsStore.toggleSelect(e, props.item)
+      toggleSelect(e)
       return
     }
     itemsStore.focusForInspector(props.item)
@@ -1018,8 +1019,9 @@ const showContextMenu = (e: MouseEvent) => {
   })
 }
 
-const toggleSelect = (e: MouseEvent) => {
-  itemsStore.toggleSelect(e, props.item)
+const toggleSelect = (e: MouseEvent | null) => {
+  if (route.path === '/folders') toggleMixedGridSelection({kind: 'media', id: props.item.id}, e)
+  else itemsStore.toggleSelect(e, props.item)
 }
 
 watch(isInView, (visible) => {

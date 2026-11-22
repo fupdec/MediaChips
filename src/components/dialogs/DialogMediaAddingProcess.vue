@@ -256,9 +256,21 @@
           </v-tabs-window-item>
 
           <v-tabs-window-item v-if="task.remoteImport" value="skipped">
-            <div class="text-body-2 text-medium-emphasis">
+            <div class="text-body-2 text-medium-emphasis mb-2">
               {{ task.remoteImport.skipped ? t('media.adding.skipped_count', {count: task.remoteImport.skipped}) : t('common.no_results') }}
             </div>
+            <v-card v-if="task.remoteImport.skippedPaths.length" variant="outlined" class="pa-2">
+              <v-virtual-scroll
+                :height="Math.min(task.remoteImport.skippedPaths.length, 10) * 20"
+                :items="task.remoteImport.skippedPaths"
+                class="virtual-scroller"
+                item-height="20"
+              >
+                <template v-slot:default="{ item, index }">
+                  <div class="text-caption selectable px-2" :class="{'process-file-row--striped': index % 2 === 1}">{{ item }}</div>
+                </template>
+              </v-virtual-scroll>
+            </v-card>
           </v-tabs-window-item>
 
           <v-tabs-window-item value="errors">

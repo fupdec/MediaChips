@@ -14,6 +14,7 @@ type Snapshot = {
   total: number
   found: number
   skipped: number
+  skippedPaths?: string[]
   inLibrary: number
   remaining: number
   errors: Array<{path: string; message: string}>
@@ -40,7 +41,7 @@ export function useRemoteMediaAddingProcess(t: Translate) {
     resetMediaAddingRun(tasks.mediaAdding)
     const state = reactive<RemoteMediaAddingProcess>({
       source: options.source, phase: options.phase || 'scanning', stopping: false,
-      skipped: 0, inLibrary: 0, remaining: 0, stop, retry: null,
+      skipped: 0, skippedPaths: [], inLibrary: 0, remaining: 0, stop, retry: null,
     })
     tasks.mediaAdding.remoteImport = state
     const ownsRun = () => tasks.mediaAdding.remoteImport === state
@@ -67,6 +68,7 @@ export function useRemoteMediaAddingProcess(t: Translate) {
       task.current = snapshot.processed
       task.total = snapshot.scanning ? snapshot.found : snapshot.total
       state.skipped = snapshot.skipped
+      state.skippedPaths = (snapshot.skippedPaths || []).map(options.readablePath)
       state.inLibrary = Math.max(snapshot.inLibrary, existing.size)
       state.remaining = snapshot.remaining
       if (snapshot.scanning) state.phase = 'scanning'

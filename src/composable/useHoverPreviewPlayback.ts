@@ -408,7 +408,7 @@ export function useHoverPreviewPlayback(options: HoverPreviewPlaybackOptions) {
     return result === 'positioned'
   }
 
-  let hoverSeekCoalescer = createHoverSeekCoalescer({
+  const hoverSeekCoalescer = createHoverSeekCoalescer({
     resolveTime: (clientX) => getPreviewTimeFromPointer(clientX),
     sync: (targetTime) => syncPreviewVideoPosition(targetTime, {allowLiveChunkSwitch: false}),
     delayMs: 220,

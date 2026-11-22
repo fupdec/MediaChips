@@ -19,6 +19,7 @@ export interface RemoteMediaAddingProcess {
   phase: 'scanning' | 'importing' | 'tagging' | 'resolving'
   stopping: boolean
   skipped: number
+  skippedPaths: string[]
   inLibrary: number
   remaining: number
   stop: () => void

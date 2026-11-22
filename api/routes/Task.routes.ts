@@ -59,7 +59,6 @@ type TaskHandlers = Record<string, RequestHandler | undefined>
 
 function loadTaskHandlers(db: ApiDb): TaskHandlers {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const createTaskController = require('../controllers/Task.controller').default as (
       database: ApiDb,
     ) => TaskHandlers
@@ -69,7 +68,6 @@ function loadTaskHandlers(db: ApiDb): TaskHandlers {
       'Task.controller unavailable, using video core fallback:',
       apiErrorStack(err) || apiErrorMessage(err),
     )
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const createTaskVideoCoreController = require('../controllers/taskVideoCore.controller').default as (
       database: ApiDb,
     ) => TaskHandlers
@@ -79,7 +77,6 @@ function loadTaskHandlers(db: ApiDb): TaskHandlers {
 
 function loadMigrateHandlers(db: ApiDb): TaskHandlers | null {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const createTasksMigrateFromLowDbController = require(
       '../controllers/tasks/TasksMigrateFromLowDb.controller',
     ).default as (database: ApiDb) => TaskHandlers

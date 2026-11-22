@@ -79,7 +79,7 @@
         'folder-pending-tile__select-overlay--on': selected,
         'folder-pending-tile__select-overlay--list': list,
       }"
-      @click.stop="emit('toggle-select', entry)"
+      @click.stop="emit('toggle-select', entry, $event)"
     >
       <button
         type="button"
@@ -128,7 +128,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   contextmenu: [event: MouseEvent, entry: FsBrowseEntry]
-  'toggle-select': [entry: FsBrowseEntry]
+  'toggle-select': [entry: FsBrowseEntry, event: MouseEvent]
   add: [entry: FsBrowseEntry]
   focus: [entry: FsBrowseEntry]
   'tag-drop': [entry: FsBrowseEntry, payload: MediaTagDragPayload, mode: 'copy' | 'move']
@@ -148,9 +148,9 @@ function formatSize(bytes: number): string {
   return getReadableFileSize(bytes)
 }
 
-function onClick() {
-  if (props.selectMode) {
-    emit('toggle-select', props.entry)
+function onClick(event: MouseEvent) {
+  if (props.selectMode || event.ctrlKey || event.metaKey || event.shiftKey) {
+    emit('toggle-select', props.entry, event)
     return
   }
   emit('focus', props.entry)

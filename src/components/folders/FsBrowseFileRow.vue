@@ -65,7 +65,7 @@
         'fs-browse-file-row__select-overlay--on': selected,
         'fs-browse-file-row__select-overlay--list': list || selectMode,
       }"
-      @click.stop="emit('toggle-select', entry)"
+      @click.stop="emit('toggle-select', entry, $event)"
     >
       <button
         type="button"
@@ -103,7 +103,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   contextmenu: [event: MouseEvent, entry: FsBrowseEntry]
-  'toggle-select': [entry: FsBrowseEntry]
+  'toggle-select': [entry: FsBrowseEntry, event: MouseEvent]
 }>()
 
 function formatSize(bytes: number): string {
@@ -120,9 +120,9 @@ function formatMtime(mtimeMs: number): string {
   })
 }
 
-function onClick() {
-  if (props.selectMode) {
-    emit('toggle-select', props.entry)
+function onClick(event: MouseEvent) {
+  if (props.selectMode || event.ctrlKey || event.metaKey || event.shiftKey) {
+    emit('toggle-select', props.entry, event)
   }
 }
 </script>

@@ -1,3 +1,4 @@
+import {clearMixedSelectionAnchor, extendMixedGridSelection, selectAllMixedGridEntries, toggleMixedGridSelection} from '@/composable/mixedGridSelection'
 import {onBeforeUnmount, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
 import {useAppStore} from '@/stores/app'
@@ -119,6 +120,12 @@ export function findGridElement(cursor: GridNavCursor): HTMLElement | null {
 export function applyMixedGridRange(fromEl: HTMLElement, toEl: HTMLElement, visible: HTMLElement[]) {
   const itemsStore = useItemsStore()
   const fsSelection = useFsBrowseSelection()
+  if (fsSelection.gridEntries.length) {
+    const from = cursorFromGridElement(fromEl)
+    const to = cursorFromGridElement(toEl)
+    if (from && to) extendMixedGridSelection(from, to)
+    return
+  }
   const fromIndex = visible.indexOf(fromEl)
   const toIndex = visible.indexOf(toEl)
   if (fromIndex < 0 || toIndex < 0) return
@@ -147,6 +154,7 @@ let mixedGridAnchor: GridNavCursor | null = null
 
 export function clearMixedGridAnchor() {
   mixedGridAnchor = null
+  clearMixedSelectionAnchor()
 }
 
 /**
@@ -371,18 +379,7 @@ export function useBrowserLayoutHotkeys() {
   }
 
   function selectRangeOnPage(fromId: number, toId: number) {
-    const page = itemsStore.itemsOnPage
-    const fromIndex = page.findIndex((item) => Number(item.id) === fromId)
-    const toIndex = page.findIndex((item) => Number(item.id) === toId)
-    if (fromIndex < 0 || toIndex < 0) {
-      itemsStore.selection = [toId]
-      itemsStore.selected_last = toId
-      return
-    }
-    const start = Math.min(fromIndex, toIndex)
-    const end = Math.max(fromIndex, toIndex)
-    itemsStore.selection = page.slice(start, end + 1).map((item) => item.id)
-    itemsStore.selected_last = toId
+    itemsStore.selectRange(fromId, toId)
   }
 
   function resolveNeighborId(fromId: number, direction: BrowserNavDirection): number | null {
@@ -439,22 +436,7 @@ export function useBrowserLayoutHotkeys() {
   }
 
   function toggleFsCursor(cursor: Extract<GridNavCursor, {kind: 'folder' | 'pending'}>) {
-    const name = pathBasename(cursor.path)
-    if (cursor.kind === 'folder') {
-      fsSelection.toggleFolder({path: cursor.path, name, mediaCount: 0})
-      return
-    }
-    fsSelection.toggleFsFile({
-      path: cursor.path,
-      name,
-      isDirectory: false,
-      size: null,
-      mtimeMs: null,
-      extension: null,
-      inLibrary: false,
-      addable: true,
-      mediaId: null,
-    })
+    toggleMixedGridSelection(cursor)
   }
 
   /** Enter select mode and extend a range with Shift+arrows from the focused card. */
@@ -467,25 +449,8 @@ export function useBrowserLayoutHotkeys() {
     const page = itemsStore.itemsOnPage
     if (!page.length) return
 
-    let current = focusedId()
-    if (current == null) {
-      current = Number(page[0].id)
-      itemsStore.selectionAnchor = current
-      itemsStore.isSelect = true
-      itemsStore.selection = [current]
-      itemsStore.selected_last = current
-      return
-    }
-
-    if (!itemsStore.isSelect) {
-      itemsStore.isSelect = true
-      if (!itemsStore.selection.includes(current)) {
-        itemsStore.selection = [current]
-      }
-      itemsStore.selectionAnchor = current
-    } else if (itemsStore.selectionAnchor == null) {
-      itemsStore.selectionAnchor = current
-    }
+    const current = focusedId() ?? Number(page[0].id)
+    if (itemsStore.selectionAnchor == null) itemsStore.selectionAnchor = current
 
     const nextId = resolveNeighborId(current, direction)
     if (nextId == null) return
@@ -559,15 +524,8 @@ export function useBrowserLayoutHotkeys() {
       id = Number(page[0].id)
     }
 
-    if (!itemsStore.isSelect) {
-      itemsStore.isSelect = true
-      itemsStore.selection = [id]
-      itemsStore.selected_last = id
-      itemsStore.selectionAnchor = id
-      requestAnimationFrame(() => {
-        const el = findItemElementById(id!)
-        if (el) scrollItemIntoView(el)
-      })
+    if (isFoldersRoute(router.currentRoute.value.path)) {
+      toggleMixedGridSelection({kind: 'media', id})
       return
     }
 
@@ -658,11 +616,21 @@ export function useBrowserLayoutHotkeys() {
   }
 
   function onKeyDown(event: KeyboardEvent) {
+    if (event.defaultPrevented) return
     if (!browserLayoutActive.value) return
     if (playerStore.active) return
     if (contextMenuStore.show) return
     if (isBlockingOverlayOpen()) return
     if (isTypingTarget(event.target)) return
+
+    if (!event.defaultPrevented && !itemsStore.isSelect
+      && isItemsGridRoute(router.currentRoute.value.path)
+      && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.code === 'KeyA') {
+      event.preventDefault()
+      if (isFoldersRoute(router.currentRoute.value.path)) selectAllMixedGridEntries()
+      else itemsStore.selectAllOnPage()
+      return
+    }
 
     const isArrow = event.code === 'ArrowLeft'
       || event.code === 'ArrowRight'
@@ -691,10 +659,6 @@ export function useBrowserLayoutHotkeys() {
         const page = itemsStore.itemsOnPage
         if (!page.length) return
         const current = focusedId() ?? Number(page[0].id)
-        if (!itemsStore.isSelect) {
-          itemsStore.isSelect = true
-          itemsStore.selection = [current]
-        }
         if (itemsStore.selectionAnchor == null) itemsStore.selectionAnchor = current
         const targetId = event.code === 'Home'
           ? Number(page[0].id)

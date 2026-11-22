@@ -1,3 +1,4 @@
+import {getMediaSelectionStats} from '../services/mediaSelectionStats'
 import {createRequestAbortSignal} from '../services/requestAbortSignal'
 import type { ApiDb, FilterLike } from '../types/db'
 import { apiErrorMessage, sendControllerError, sendNotFound, sendOk } from '../types/errors'
@@ -381,6 +382,31 @@ export default function (db: ApiDb) {
     sendOk(res, {progress: id ? readDuplicateSearchProgress(id) : null})
   }
 
+  const getSelectionStats = async function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = req.body as {ids?: number[]; filter?: ItemsListRequest}
+      if (body.filter) {
+        // Resolve the filter scope on the server so the browser never holds every ID.
+        const f = body.filter
+        const result = await loadFilteredMediaIds(db, {
+          mediaTypeId: f.mediaTypeId,
+          filters: f.filters as unknown as FilterLike[] | undefined,
+          filtersJoin: f.filtersJoin === 'or' ? 'or' : 'and',
+          sortBy: f.sortBy,
+          direction: f.direction,
+          find_duplicates: f.find_duplicates,
+          duplicates_by: f.duplicates_by || 'filesize',
+          skipTotals: true,
+        })
+        sendOk(res, getMediaSelectionStats(db, result.ids || []))
+        return
+      }
+      sendOk(res, getMediaSelectionStats(db, body.ids || []))
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while calculating selection size.')
+    }
+  }
+
   const getBasicsByIds = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const ids = Array.isArray(req.body.ids) ? req.body.ids.filter(Boolean) : []
@@ -662,6 +688,7 @@ export default function (db: ApiDb) {
     folderBrowse,
     getFilteredIds,
     getBasicsByIds,
+    getSelectionStats,
     getThumbs,
     getStats,
     similarByVisual,

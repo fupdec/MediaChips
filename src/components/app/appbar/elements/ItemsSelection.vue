@@ -98,6 +98,11 @@
 
 <script setup lang="ts">
 import {computed, defineAsyncComponent, ref} from 'vue'
+import {useFsBrowseSelection} from '@/stores/fsBrowseSelection'
+import {useRoute} from 'vue-router'
+import {selectAllMixedGridEntries} from '@/composable/mixedGridSelection'
+import {useSelectionFilesize} from '@/composable/useSelectionFilesize'
+import {resolveSelectedMediaItems} from '@/utils/resolveSelection'
 import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
 import {useAppStore} from '@/stores/app'
@@ -117,6 +122,8 @@ const DialogOriginalOperations = defineAsyncComponent(() => import('@/components
 const moreMenuOpen = ref(false)
 const metadataTransferOpen = ref(false)
 const originalsOpen = ref(false)
+const fsSelection = useFsBrowseSelection()
+const route = useRoute()
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const dialogsStore = useDialogsStore()
@@ -144,24 +151,13 @@ function resolveRepresentativeItem(): MediaItem | Tag {
   return (itemsStore.entities[0] ?? {id: 0, name: ''}) as MediaItem | Tag
 }
 
-const filesizes = computed(() => {
-  if (itemsStore.type !== 'media') return ''
-
-  if (itemsStore.isAllFilteredSelected) {
-    return getReadableFileSize(itemsStore.totalFilesize)
-  }
-
-  const selectedFiles = itemsStore.entities.filter((i) =>
-    itemsStore.selection.includes(i.id),
-  )
-
-  const sum = selectedFiles.reduce((a, b) => a + Number(b.filesize || 0), 0)
-
-  return getReadableFileSize(sum)
-})
+const {filesize, loading: sizeLoading} = useSelectionFilesize()
+const filesizes = computed(() => filesize.value == null
+  ? (sizeLoading.value ? '…' : '—')
+  : getReadableFileSize(filesize.value))
 
 const selectedText = computed(() => {
-  const selection = itemsStore.selection.length
+  const selection = itemsStore.selection.length + (route.path === '/folders' ? fsSelection.selectedCount : 0)
 
   if (!selection) {
     return t('appbar.buttons.Please_select_items')
@@ -169,7 +165,7 @@ const selectedText = computed(() => {
 
   let text = `${selection} ${t('appbar.buttons.selected')}`
 
-  if (itemsStore.type === 'media') {
+  if (itemsStore.type === 'media' && !(route.path === '/folders' && fsSelection.selectedCount)) {
     text += `, ${filesizes.value}`
   }
 
@@ -177,10 +173,7 @@ const selectedText = computed(() => {
 })
 
 function toggleSelect() {
-  itemsStore.isSelect = !itemsStore.isSelect
-  itemsStore.selection = []
-  itemsStore.selected_last = null
-  itemsStore.selectionAnchor = null
+  itemsStore.toggleSelectMode()
 }
 
 function openBulkEdit() {
@@ -198,19 +191,23 @@ function applyFocusToSelection() {
   void applyFocusTagToMediaIds([...itemsStore.selection])
 }
 
-function runFromMoreMenu(action: () => void) {
+function runFromMoreMenu(action: () => void | Promise<void>) {
   moreMenuOpen.value = false
   action()
 }
 
-function openMediaMerge() {
+async function openMediaMerge() {
   if (itemsStore.type !== 'media' || itemsStore.selection.length < 2) return
-  const selectedMedia = itemsStore.selection
-    .map((id) => itemsStore.entities.find((entry) => Number(entry.id) === Number(id)))
-    .filter((item): item is MediaItem => Boolean(item))
-  if (selectedMedia.length < 2) return
-  dialogsStore.openMediaMerge(selectedMedia)
-  itemsStore.isSelect = false
+  const ids = [...itemsStore.selection]
+  try {
+    const selectedMedia = await resolveSelectedMediaItems(ids)
+    if (selectedMedia.length !== new Set(ids).size) throw new Error('Some selected media are unavailable')
+    dialogsStore.openMediaMerge(selectedMedia)
+    itemsStore.isSelect = false
+  } catch (error) {
+    console.error('Failed loading media for merge', error)
+    setNotification({type: 'error', title: t('media.dialogs.merge_media_failed')})
+  }
 }
 
 function openDelete() {
@@ -323,14 +320,12 @@ function openPlaylistDelete() {
 }
 
 function selectVisible() {
-  itemsStore.selection = itemsStore.itemsOnPage.map((i) => i.id)
-  if (itemsStore.selection.length) {
-    itemsStore.selected_last = itemsStore.selection[itemsStore.selection.length - 1] ?? null
-  }
-  itemsStore.selectionAnchor = null
+  if (route.path === '/folders') selectAllMixedGridEntries()
+  else itemsStore.selectAllOnPage()
 }
 
 async function selectAll() {
-  await itemsStore.selectAllFiltered()
+  if (route.path === '/folders') selectAllMixedGridEntries()
+  else await itemsStore.selectAllFiltered()
 }
 </script>

@@ -1,12 +1,10 @@
 import {recommendedThemePalettes, type RecommendedPaletteId} from '@shared/recommendedThemePalettes'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 import {
-  APP_MENU_GAP_SIZE_LABELS,
   APP_MENU_LOCALE_NATIVE_NAMES,
   APP_MENU_LOCALES,
 } from '@shared/electron/appMenuI18n'
 import {
-  APP_MENU_GAP_SIZES,
   APP_MENU_THEMES,
   type AppMenuSettingAction,
 } from '@shared/electron/appMenuState'
@@ -80,12 +78,6 @@ const THEME_ITEMS: SystemMenuItemConfig[] = APP_MENU_THEMES.map((mode) => ({
       ? 'mdi-weather-night'
       : 'mdi-weather-sunny',
   labelKey: `systemBar.theme_${mode}`,
-  checkable: true,
-}))
-
-const GAP_ITEMS: SystemMenuItemConfig[] = APP_MENU_GAP_SIZES.map((size) => ({
-  action: `setGapSize:${size}`,
-  label: APP_MENU_GAP_SIZE_LABELS[size],
   checkable: true,
 }))
 
@@ -198,11 +190,6 @@ export const SYSTEM_MENUS: SystemMenuConfig[] = [
         hotkey: 'I',
       },
       {divider: true},
-      {
-        icon: 'mdi-view-agenda-outline',
-        labelKey: 'systemBar.gap_size',
-        submenu: GAP_ITEMS,
-      },
       {
         icon: 'mdi-play-circle-outline',
         labelKey: 'systemBar.playback',

@@ -48,6 +48,8 @@ export type MediaFolderBrowseRequest = {
   mediaTypeId?: number | null
 }
 
+export type MediaSelectionStats = {count: number; filesize: number; missing: number; unknownSize: number}
+
 export const mediaApi = {
   getCloudMediaMetadata(ids: number[], config?: AxiosRequestConfig) {
     return apiClient.post<{items: CloudMediaMetadataSnapshot[]}>('/api/cloud-accounts/metadata/snapshot', {ids}, config)
@@ -179,6 +181,15 @@ export const mediaApi = {
 
   purgeExpiredMediaTrash() {
     return apiClient.post<{deletedIds: number[]}>(API_ROUTES.mediaTrashPurgeExpired, {})
+  },
+
+  getMediaSelectionStats(ids: number[], config?: AxiosRequestConfig) {
+    return apiClient.post<MediaSelectionStats>('/api/Media/selection-stats', {ids}, config)
+  },
+
+  /** Count and size of everything a filter matches, computed on the server. */
+  getMediaFilterSelectionStats(filter: Record<string, unknown>, config?: AxiosRequestConfig) {
+    return apiClient.post<MediaSelectionStats>('/api/Media/selection-stats', {filter}, config)
   },
 
   getMediaBasics(body: { ids: number[] }) {

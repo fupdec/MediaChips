@@ -67,6 +67,10 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/items', validateBody(ItemsListRequestSchema), Media.getAll)
   router.post('/folderBrowse', validateBody(MediaFolderBrowseRequestSchema), Media.folderBrowse)
   router.post('/ids', validateBody(MediaIdsRequestSchema), Media.getFilteredIds)
+  router.post('/selection-stats', validateBody(z.union([
+    z.object({ids: z.array(z.number().int().positive()).max(5000)}),
+    z.object({filter: MediaIdsRequestSchema}),
+  ])), Media.getSelectionStats)
   router.post('/basics', validateBody(MediaBasicsRequestSchema), Media.getBasicsByIds)
   router.post('/thumbs', validateBody(MediaThumbsRequestSchema), Media.getThumbs)
   router.post('/similarByVisual', validateBody(MediaSimilarByVisualRequestSchema), Media.similarByVisual)

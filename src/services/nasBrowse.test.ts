@@ -123,7 +123,7 @@ describe('NAS folder selection', () => {
     await expandNasSelection({paths: ['/video', '/video/1.mp4'], directories: new Set(['/video']),
       load: async () => directory([entry('/video/1.mp4'), entry('/video/old.mp4', false, true), entry('/video/skip', true), unsupported]),
       isExcluded: path => path.includes('skip'), shouldStop: () => false, onFolderError: vi.fn(), onProgress})
-    expect(onProgress).toHaveBeenLastCalledWith({found: 1, inLibrary: 1, skipped: 2})
+    expect(onProgress).toHaveBeenLastCalledWith({found: 1, inLibrary: 1, skipped: 2, skippedPaths: ['/video/skip', '/video/notes.txt']})
   })
   it('stops after an in-flight listing without expanding or importing its late files', async () => {
     let stop = false

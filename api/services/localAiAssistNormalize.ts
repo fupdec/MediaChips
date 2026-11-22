@@ -382,7 +382,7 @@ function normalizeFilterRows(
 
     const type = String(field.type || row.type || 'string')
     const allowed = conditionsByType[type] || FILTER_CONDITIONS_BY_TYPE[type] || []
-    let cond = normalizeConditionToken(row.cond)
+    const cond = normalizeConditionToken(row.cond)
 
     if (type === 'boolean') {
       const repaired = normalizeBooleanFilter(cond, row.val)

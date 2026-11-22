@@ -13,7 +13,7 @@ const {
   ensureMediaMetadata,
   fileExists,
   resolveExistingPath,
-  statSync,
+  stat,
 } = vi.hoisted(() => ({
   findMediaById: vi.fn(),
   findByIds: vi.fn(),
@@ -23,18 +23,18 @@ const {
   ensureMediaMetadata: vi.fn(),
   fileExists: vi.fn(),
   resolveExistingPath: vi.fn(),
-  statSync: vi.fn(),
+  stat: vi.fn(),
 }))
 
-vi.mock('fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs')>()
+vi.mock('fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs/promises')>()
   return {
     ...actual,
     default: {
       ...actual,
-      statSync,
+      stat,
     },
-    statSync,
+    stat,
   }
 })
 
@@ -143,7 +143,7 @@ describe('TasksMedia.controller updateMediaInfo', () => {
     fileExists.mockResolvedValue(true)
     resolveExistingPath.mockResolvedValue('/available/video.mp4')
     refreshMediaInfo.mockResolvedValue(undefined)
-    statSync.mockReturnValue({size: 1234})
+    stat.mockResolvedValue({size: 1234})
 
     const req = {body: {id: 22810}} as ApiRequest
     const res = createResponse()
@@ -173,7 +173,7 @@ describe('TasksMedia.controller ensureMediaMetadataBulk', () => {
     ))
     fileExists.mockResolvedValue(true)
     resolveExistingPath.mockImplementation(async (p: string) => p)
-    statSync.mockReturnValue({size: 99})
+    stat.mockResolvedValue({size: 99})
     ensureMediaMetadata.mockImplementation(async (media: {id: number}) => ({
       id: media.id,
       width: 100,

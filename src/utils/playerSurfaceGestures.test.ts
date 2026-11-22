@@ -122,7 +122,7 @@ describe('createPlayerSurfaceGestureHandlers', () => {
     vi.useFakeTimers()
     const actions: string[] = []
     const surface = makeSurface()
-    let t = 5_000
+    const t = 5_000
     const handlers = createPlayerSurfaceGestureHandlers({
       seekStepSeconds: 10,
       getSurfaceEl: () => surface,

@@ -377,7 +377,7 @@ const onVisibilityChange = (show: boolean) => {
 
 const save = async () => {
   const items_type = itemsStore.type
-  const selected_items_ids = itemsStore.selection
+  const selected_items_ids = [...itemsStore.selection]
 
   if (!selected_items_ids.length || saving.value) return
 

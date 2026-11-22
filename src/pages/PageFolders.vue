@@ -2592,6 +2592,16 @@ async function deleteFolderWithConfirm(folderPath: string) {
 }
 
 watch(
+  () => JSON.stringify([searchQuery.value.trim(), tagFilterId.value, presenceFilter.value, showHidden.value]),
+  () => {
+    itemsStore.clearSelection()
+    fsSelection.clearSelection()
+    clearFocus()
+  },
+  {flush: 'sync'},
+)
+
+watch(
   () => [pathFromQuery.value, mediaTypeId.value, appStore.is_app_ready, presenceFilter.value] as const,
   () => {
     writeFoldersPageState({presenceFilter: presenceFilter.value})

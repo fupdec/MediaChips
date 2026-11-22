@@ -301,7 +301,7 @@ async function getImage() {
     return
   }
 
-  let thumbUrl = resolveMediaThumbDisplayUrl(appStore.mediaPath, mediaTypeFolder, currentMedia.id)
+  const thumbUrl = resolveMediaThumbDisplayUrl(appStore.mediaPath, mediaTypeFolder, currentMedia.id)
   thumb.value = thumbUrl
   cropperOps.value = {aspectRatio: 16 / 9}
 }

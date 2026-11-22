@@ -112,6 +112,7 @@ export function useItemsPageEvents({
 
   const handleSetItemsFilters = async (event: SetItemsFiltersEvent) => {
     const val = event
+    itemsStore.clearSelection()
     itemsStore.updateState({key: 'page', value: 1})
     await updatePageSetting({
       page: 1,
@@ -421,8 +422,7 @@ export function useItemsPageEvents({
   }
 
   onMounted(async () => {
-    itemsStore.updateState({key: 'isSelect', value: false})
-    itemsStore.updateState({key: 'selection', value: []})
+    itemsStore.clearSelection()
 
     if (ITEMS.value.limit === 101) {
       itemsStore.updateState({key: 'page', value: 1})

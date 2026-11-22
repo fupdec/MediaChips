@@ -34,6 +34,7 @@ import {detectAppPlatform} from '@/composable/useAppPlatform'
 import {copyToClipboard} from '@/utils/copyToClipboard'
 import {parseFilePath} from '@/services/pathTagParser'
 import translate, {type Locale} from '@/utils/translate'
+import {resolveSelectedTags} from '@/utils/resolveSelectedTags'
 import {resolveSelectedMediaItems} from '@/utils/resolveSelection'
 import {useScraperStore} from '@mediachips/plugin-adult/stores/scraper'
 import {useAutoScrapeBatch} from '@mediachips/plugin-adult/composables/useAutoScrapeBatch'
@@ -228,9 +229,7 @@ export default function useItemContextMenu(
           icon: 'bullseye',
           disabled: itemsStore.selection.length === 0,
           action: () => {
-            const selected = itemsStore.selection
-              .map((id) => itemsStore.entities.find((entry) => Number(entry.id) === Number(id)))
-              .filter((entry): entry is Tag => Boolean(entry))
+            const selected = resolveSelectedTags([...itemsStore.selection])
             addTagsToTray(selected.map((entry) => ({
               tagId: Number(entry.id),
               metaId: Number(entry.metaId || meta.id),
@@ -883,20 +882,19 @@ export default function useItemContextMenu(
     itemsStore.isSelect = false
   }
 
-  const openMediaMerge = (): void => {
+  const openMediaMerge = async (): Promise<void> => {
     if (type !== 'media') return
-
-    const selectedMedia = itemsStore.selection
-      .map((id) => {
-        const fromPage = itemsStore.getItemById(id)
-        return fromPage && isMediaPageItem(fromPage, 'media') ? fromPage : null
-      })
-      .filter((item): item is MediaItem => Boolean(item))
-
-    if (selectedMedia.length < 2) return
-
-    dialogsStore.openMediaMerge(selectedMedia)
-    itemsStore.isSelect = false
+    const ids = [...itemsStore.selection]
+    try {
+      const selectedMedia = await resolveSelectedMediaItems(ids)
+      if (selectedMedia.length !== new Set(ids).size) throw new Error('Some selected media are unavailable')
+      if (selectedMedia.length < 2) return
+      dialogsStore.openMediaMerge(selectedMedia)
+      itemsStore.isSelect = false
+    } catch (error) {
+      console.error('Failed loading media for merge', error)
+      setNotification({type: 'error', title: translate('media.dialogs.merge_media_failed', {}, settingsStore.locale as Locale)})
+    }
   }
 
   const resolveTagsForMove = (): Tag[] => {
@@ -1450,18 +1448,17 @@ export default function useItemContextMenu(
 
   const resolveSelectedMedia = resolveSelectedMediaItems
 
-  const resolveItemById = (id: number): MediaItem | Tag | null => {
-    if (Number(id) === Number(item.id)) return item
-    const fromPage = itemsStore.entities.find((entry) => Number(entry.id) === Number(id))
-    if (fromPage) return fromPage
-    if (type === 'tag') {
-      return store.tags.find((tag) => Number(tag.id) === Number(id)) ?? null
-    }
-    return null
-  }
-
   const deleteItem = (): void => {
     const locale = settingsStore.locale as Locale
+    const selectedIds = isSelectMode() ? [...itemsStore.selection] : [item.id]
+    const bulkSelection = isSelectMode()
+    const itemsById = new Map<number, MediaItem | Tag>()
+    if (type === 'tag') {
+      for (const tag of store.tags) itemsById.set(tag.id, tag)
+    }
+    for (const entry of itemsStore.entities) itemsById.set(entry.id, entry)
+    itemsById.set(Number(item.id), item as MediaItem | Tag)
+    const resolveItemById = (id: number) => itemsById.get(id) ?? null
 
     const previewCandidates: Array<MediaItem | Tag> = []
     if (isSelectMode()) {
@@ -1570,6 +1567,9 @@ export default function useItemContextMenu(
       }
 
       if (progressId != null) notificationsStore.closeNotification(progressId)
+      itemsStore.selection = [...new Set([...failedIds, ...ids.slice(processed)])]
+      itemsStore.selectionAnchor = null
+      itemsStore.isSelect = itemsStore.selection.length > 0
 
       if (cancelled) {
         notificationsStore.setNotification({
@@ -1607,12 +1607,9 @@ export default function useItemContextMenu(
       deleteZipGallery: boolean
       deleteZipFile: boolean
     }): Promise<void> => {
-      let ids = [item.id]
-      if (isSelectMode()) {
-        ids = itemsStore.selection
-      }
+      const ids = selectedIds
 
-      if (type === 'media' && isSelectMode() && !deleteZipGallery) {
+      if (type === 'media' && bulkSelection && !deleteZipGallery) {
         await runMediaBatchDelete({ids: [...ids], withFile, permanent})
         return
       }
@@ -1621,15 +1618,13 @@ export default function useItemContextMenu(
       const deletedIds = new Set<number>()
       const handledZipArchives = new Set<string>()
       let softDeleted = !permanent && (type === 'media' || type === 'tag')
-      const itemsToDelete = type === 'media' && isSelectMode()
+      const itemsToDelete = type === 'media' && bulkSelection
         ? await resolveSelectedMedia(ids)
         : ids
           .map((id) => resolveItemById(id))
           .filter((entry): entry is MediaItem | Tag => Boolean(entry))
 
       for (const found of itemsToDelete) {
-        deleted_items_names.push(String(found.name ?? ''))
-
         const itemData: DeleteItemPayload = {
           with_file: withFile,
           permanent,
@@ -1647,7 +1642,6 @@ export default function useItemContextMenu(
           const zipPath = getZipArchivePath(found.path)
           if (deleteZipGallery && zipPath) {
             if (handledZipArchives.has(zipPath)) continue
-            handledZipArchives.add(zipPath)
             itemData.delete_zip_gallery = true
             itemData.delete_zip_file = deleteZipFile
             itemData.with_file = false
@@ -1657,6 +1651,11 @@ export default function useItemContextMenu(
 
         try {
           const response = await typedApi.deleteEntityOne(type, itemData)
+          deleted_items_names.push(String(found.name ?? ''))
+          if (deleteZipGallery && isMediaPageItem(found, type)) {
+            const zipPath = getZipArchivePath(found.path)
+            if (zipPath) handledZipArchives.add(zipPath)
+          }
           const responseData = response.data as {deletedIds?: number[]; softDeleted?: boolean} | undefined
           if (responseData?.softDeleted === false || permanent || deleteZipGallery) softDeleted = false
           if (type !== 'media' && type !== 'tag') softDeleted = false
@@ -1668,24 +1667,29 @@ export default function useItemContextMenu(
           }
         } catch (e) {
           console.error(e)
-          deletedIds.add(found.id)
         }
       }
 
-      const removedIds = deletedIds.size ? [...deletedIds] : ids
+      const removedIds = [...deletedIds]
+      const remainingIds = ids.filter(id => !deletedIds.has(id))
 
-      itemsStore.selection = []
+      itemsStore.selection = remainingIds
       itemsStore.selected_last = null
-      itemsStore.isSelect = false
+      itemsStore.selectionAnchor = null
+      itemsStore.isSelect = remainingIds.length > 0
 
       {
         const locale = settingsStore.locale as Locale
         notificationsStore.setNotification({
-          type: 'info',
-          title: softDeleted
-            ? translate('notifications_text.items_moved_to_trash', {}, locale)
-            : translate('notifications_text.items_deleted', {}, locale),
-          text: deleted_items_names.join(', '),
+          type: remainingIds.length ? 'warning' : 'info',
+          title: remainingIds.length
+            ? translate('notifications_text.items_delete_failed', {}, locale)
+            : softDeleted
+              ? translate('notifications_text.items_moved_to_trash', {}, locale)
+              : translate('notifications_text.items_deleted', {}, locale),
+          text: remainingIds.length
+            ? translate('notifications_text.items_delete_failed_count', {count: remainingIds.length}, locale)
+            : deleted_items_names.join(', '),
         })
       }
 
@@ -1708,16 +1712,10 @@ export default function useItemContextMenu(
     const previewNames = previewCandidates
       .map((entry) => String(entry.name ?? '').trim())
       .filter(Boolean)
+    const previewCount = bulkSelection ? selectedIds.length : previewNames.length
     const previewLabel = previewNames.length
-      ? previewNames.length > 5
-        ? `${previewNames.slice(0, 5).join(', ')}… (${previewNames.length})`
-        : `${previewNames.join(', ')}${previewNames.length > 1 ? ` (${previewNames.length})` : ''}`
-      : isSelectMode()
-        ? String(itemsStore.selection.length)
-        : ''
-    dialogsStore.confirm.checkBox = false
-    dialogsStore.confirm.checkBox2 = false
-    dialogsStore.confirm.checkBox2RequiresPrimary = false
+      ? `${previewNames.slice(0, 5).join(', ')}${previewCount > Math.min(previewNames.length, 5) ? '…' : ''}${previewCount > 1 ? ` (${previewCount})` : ''}`
+      : bulkSelection ? String(previewCount) : ''
 
     if (hasZipGallery) {
       dialogsStore.confirm.text = translate(
@@ -1753,11 +1751,14 @@ export default function useItemContextMenu(
         ? false
         : type === 'media' && Boolean(dialogsStore.confirm.checkBox2)
 
-      void runDelete({
+      return runDelete({
         withFile,
         permanent,
         deleteZipGallery,
         deleteZipFile,
+      }).catch(error => {
+        console.error('Failed deleting selection', error)
+        setNotification({type: 'error', title: translate('notifications_text.items_delete_failed', {}, locale)})
       })
     }
     dialogsStore.confirm.show = true

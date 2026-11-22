@@ -39,7 +39,7 @@
           :selected="isFolderSelected(entry.folder.path)"
           @open="emit('open-folder', $event)"
           @contextmenu="(event, path) => emit('folder-contextmenu', event, path)"
-          @toggle-select="emit('toggle-folder-select', $event)"
+          @toggle-select="(folder, event) => toggleMixedGridSelection({kind: 'folder', path: folder.path}, event)"
         />
         <div
           v-else-if="entry.kind === 'fs-file'"
@@ -58,7 +58,7 @@
             :focused="isPendingFocused(entry.entry.path)"
             :ingesting="isIngesting(entry.entry.path)"
             @contextmenu="(event, e) => emit('fsfile-contextmenu', event, e)"
-            @toggle-select="emit('toggle-fsfile-select', $event)"
+            @toggle-select="(entry, event) => toggleMixedGridSelection({kind: 'pending', path: entry.path}, event)"
             @add="emit('add-fsfile', $event)"
             @focus="emit('focus-fsfile', $event)"
             @tag-drop="(entry, payload, mode) => emit('tag-drop', entry, payload, mode)"
@@ -74,7 +74,7 @@
           <button
             type="button"
             class="folder-missing-row"
-            @click="onMediaClick(entry.item)"
+            @click="onMediaClick(entry.item, $event)"
           >
             <v-icon size="18" color="error" icon="mdi-file-alert-outline"/>
             <span class="folder-missing-row__name">{{ mediaTitle(entry.item) }}</span>
@@ -109,7 +109,7 @@
             v-else-if="isIcons"
             type="button"
             class="folder-browse-tile folder-browse-tile--icons"
-            @click="onMediaClick(entry.item)"
+            @click="onMediaClick(entry.item, $event)"
             :data-item-id="entry.item.id"
           >
             <div
@@ -148,7 +148,7 @@
             v-else
             type="button"
             class="folder-browse-tile folder-browse-tile--list"
-            @click="onMediaClick(entry.item)"
+            @click="onMediaClick(entry.item, $event)"
             :data-item-id="entry.item.id"
           >
             <div class="folder-browse-tile__preview">
@@ -217,6 +217,8 @@
 </template>
 
 <script setup lang="ts">
+import {toggleMixedGridSelection, type MixedGridEntry} from '@/composable/mixedGridSelection'
+import {useFsBrowseSelection} from '@/stores/fsBrowseSelection'
 import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import path from 'path-browserify'
 import {useI18n} from 'vue-i18n'
@@ -362,6 +364,16 @@ const entriesSource = computed((): FolderBrowseEntry[] => {
   }))
   return [...folders, ...media, ...fsFiles, ...missing]
 })
+
+const fsSelection = useFsBrowseSelection()
+watch(entriesSource, entries => {
+  fsSelection.gridEntries = entries.map((entry): MixedGridEntry => {
+    if (entry.kind === 'folder') return {kind: 'folder', path: entry.folder.path, name: entry.folder.name}
+    if (entry.kind === 'fs-file') return {kind: 'fs-file', path: entry.entry.path, name: entry.entry.name}
+    return {kind: 'media', id: entry.item.id}
+  })
+}, {immediate: true, flush: 'sync'})
+onBeforeUnmount(() => { fsSelection.gridEntries = [] })
 
 const sizeNumber = computed(() => {
   const size = Number(props.size)
@@ -583,9 +595,9 @@ function isFsFileSelected(entryPath: string) {
   return (props.selectedFsFilePaths || new Set()).has(entryPath)
 }
 
-function onMediaClick(item: MediaItem) {
-  if (props.selectMode) {
-    itemsStore.toggleSelect(null, item)
+function onMediaClick(item: MediaItem, event: MouseEvent) {
+  if (props.selectMode || event.ctrlKey || event.metaKey || event.shiftKey) {
+    toggleMixedGridSelection({kind: 'media', id: item.id}, event)
     return
   }
   setFocus({kind: 'media', id: Number(item.id)})
@@ -599,7 +611,7 @@ function onMediaCellContextMenu(event: MouseEvent, item: MediaItem) {
 }
 
 function toggleSelect(item: MediaItem, event: MouseEvent) {
-  itemsStore.toggleSelect(event, item)
+  toggleMixedGridSelection({kind: 'media', id: item.id}, event)
 }
 </script>
 

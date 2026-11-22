@@ -16,7 +16,7 @@ export function approxAspectRatioParts(
   let bestD = 1
   let bestError = Math.abs(ratio - 1)
 
-  let a0 = Math.floor(ratio)
+  const a0 = Math.floor(ratio)
   let n0 = 1
   let d0 = 0
   let n1 = a0

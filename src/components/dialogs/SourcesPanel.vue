@@ -6,7 +6,7 @@
         :label="t('sources.provider')"
         :disabled="busy"
         :items="[
-          {value: 'cloud', title: tr('Облако', 'Cloud'), icon: 'mdi-cloud-outline'},
+          {value: 'cloud', title: t('remote_sources_ui.cloud'), icon: 'mdi-cloud-outline'},
           {value: 'nas', title: t('nas.title'), icon: 'mdi-server-network-outline'},
           ...(mediaServersAvailable ? [{value: 'media-servers', title: t('sources.media_servers.title'), icon: 'mdi-server'}] : []),
         ]"
@@ -16,11 +16,11 @@
     </Teleport>
     <div :id="embedded ? undefined : 'settings-google-drive'" v-show="provider === 'cloud'">
     <div class="sources-panel__cloud-picker source-connection-panel">
-      <v-select :model-value="selectedAccount" :items="cloudAccounts" :placeholder="tr('Новый аккаунт', 'New account')" :aria-label="tr('Облачный аккаунт', 'Cloud account')" :disabled="busy" variant="outlined" rounded="lg" density="compact" hide-details @update:model-value="selectAccount">
+      <v-select :model-value="selectedAccount" :items="cloudAccounts" :placeholder="t('remote_sources_ui.new_account')" :aria-label="t('remote_sources_ui.cloud_account')" :disabled="busy" variant="outlined" rounded="lg" density="compact" hide-details @update:model-value="selectAccount">
         <template #selection="{item}">
           <v-icon :icon="item.raw.icon" size="20" class="mr-2" />
           <span class="text-truncate">{{ item.title }}</span>
-          <span class="sources-panel__account-status" :class="{'sources-panel__account-status--connected': item.raw.connected}"><span class="sources-panel__status-light" aria-hidden="true" />{{ item.raw.connected ? tr('Подключён', 'Connected') : tr('Не подключён', 'Disconnected') }}</span>
+          <span class="sources-panel__account-status" :class="{'sources-panel__account-status--connected': item.raw.connected}"><span class="sources-panel__status-light" aria-hidden="true" />{{ item.raw.connected ? t('remote_sources_ui.connected') : t('remote_sources_ui.disconnected') }}</span>
         </template>
         <template #item="{props: itemProps, item}">
           <v-list-item v-bind="itemProps" :subtitle="item.raw.subtitle">
@@ -29,13 +29,13 @@
         </template>
       </v-select>
       <div class="nas-sources__connection-actions">
-        <v-btn size="small" variant="tonal" color="primary" rounded="lg" class="connection-action--primary" icon="mdi-plus" :disabled="busy" :aria-label="tr('Добавить аккаунт', 'Add account')" v-tooltip:top="tr('Добавить аккаунт', 'Add account')" @click="addAccount" />
+        <v-btn size="small" variant="tonal" color="primary" rounded="lg" class="connection-action--primary" icon="mdi-plus" :disabled="busy" :aria-label="t('remote_sources_ui.add_account')" v-tooltip:top="t('remote_sources_ui.add_account')" @click="addAccount" />
         <div v-show="driveSelected" ref="accountActions" class="sources-panel__account-actions" />
         <template v-if="!driveSelected">
-          <v-btn v-if="cloud?.account" size="small" variant="text" rounded="lg" icon="mdi-key-outline" :disabled="busy" :aria-label="tr('Настроить аккаунт', 'Configure account')" v-tooltip:top="tr('Настроить аккаунт', 'Configure account')" @click="cloud?.editAccount()" />
-          <v-btn v-if="cloud?.account" size="small" variant="text" rounded="lg" icon="mdi-login" :disabled="busy" :aria-label="tr('Подключить / сменить вход', 'Connect / sign in again')" v-tooltip:top="tr('Подключить / сменить вход', 'Connect / sign in again')" @click="cloud?.connect()" />
-          <v-btn size="small" variant="text" rounded="lg" icon="mdi-refresh" :disabled="busy" :aria-label="tr('Обновить', 'Refresh')" v-tooltip:top="tr('Обновить', 'Refresh')" @click="cloud?.refresh()" />
-          <v-btn v-if="cloud?.account?.authenticated" size="small" variant="text" rounded="lg" class="connection-action--disconnect" icon="mdi-link-off" :disabled="busy" :aria-label="tr('Отключить', 'Disconnect')" v-tooltip:top="tr('Отключить', 'Disconnect')" @click="cloud?.logout()" />
+          <v-btn v-if="cloud?.account" size="small" variant="text" rounded="lg" icon="mdi-key-outline" :disabled="busy" :aria-label="t('remote_sources_ui.configure_account')" v-tooltip:top="t('remote_sources_ui.configure_account')" @click="cloud?.editAccount()" />
+          <v-btn v-if="cloud?.account" size="small" variant="text" rounded="lg" icon="mdi-login" :disabled="busy" :aria-label="t('remote_sources_ui.connect_sign_in_again')" v-tooltip:top="t('remote_sources_ui.connect_sign_in_again')" @click="cloud?.connect()" />
+          <v-btn size="small" variant="text" rounded="lg" icon="mdi-refresh" :disabled="busy" :aria-label="t('remote_sources_ui.refresh')" v-tooltip:top="t('remote_sources_ui.refresh')" @click="cloud?.refresh()" />
+          <v-btn v-if="cloud?.account?.authenticated" size="small" variant="text" rounded="lg" class="connection-action--disconnect" icon="mdi-link-off" :disabled="busy" :aria-label="t('remote_sources_ui.disconnect')" v-tooltip:top="t('remote_sources_ui.disconnect')" @click="cloud?.logout()" />
           <v-btn v-if="cloud?.account" size="small" variant="text" rounded="lg" icon="mdi-delete-outline" :disabled="busy"
                  :aria-label="t('sources.remove_connection')" v-tooltip:top="t('sources.remove_connection')" @click="cloud?.removeAccount()" />
         </template>
@@ -76,8 +76,7 @@ import SettingsSegmentedControl from '@/components/ui/SettingsSegmentedControl.v
 import {defaultRemoteImportOptions, type RemoteImportOptions} from '@/services/remoteImportOptions'
 defineProps<{embedded?: boolean; extensions?: string; providerTabsTarget?: HTMLElement}>()
 const importOptions = defineModel<RemoteImportOptions>('importOptions', {default: defaultRemoteImportOptions})
-const {t, locale} = useI18n()
-const tr = (ru: string, en: string) => locale.value.startsWith('ru') ? ru : en
+const {t} = useI18n()
 const emit = defineEmits<{started: []}>()
 const mediaServersAvailable = !isSfwBuild()
 const {tab: provider, restore: restoreProviderTab} = useRememberedTab<'drive' | 'nas' | 'cloud' | 'media-servers'>(
@@ -113,11 +112,11 @@ const serviceStyle = (service: string) => service === 'dropbox' ? {icon: 'mdi-dr
   : {icon: 'mdi-google-drive', color: '#34a853', title: 'Google Drive'}
 const cloudAccounts = computed(() => [
   {value: 'drive', title: 'Google Drive', connected: !!drive.value?.status?.authenticated, icon: 'mdi-google-drive', color: '#34a853',
-    subtitle: tr('Основное подключение', 'Main connection') + ' · ' + tr(drive.value?.status?.authenticated ? 'Подключён' : 'Не подключён', drive.value?.status?.authenticated ? 'Connected' : 'Disconnected')},
+    subtitle: t('remote_sources_ui.main_connection') + ' · ' + t(drive.value?.status?.authenticated ? 'remote_sources_ui.connected' : 'remote_sources_ui.disconnected')},
   ...(cloud.value?.accounts || []).map(account => ({value: account.id, title: account.name, connected: account.authenticated,
     ...{icon: serviceStyle(account.provider).icon, color: serviceStyle(account.provider).color},
-    subtitle: serviceStyle(account.provider).title + ' · ' + tr(account.authenticated ? 'Подключён' : 'Не подключён', account.authenticated ? 'Connected' : 'Disconnected')
-      + (account.provider === 'gdrive' ? ' · ' + tr('Только чтение', 'Read-only') : '')})),
+    subtitle: serviceStyle(account.provider).title + ' · ' + t(account.authenticated ? 'remote_sources_ui.connected' : 'remote_sources_ui.disconnected')
+      + (account.provider === 'gdrive' ? ' · ' + t('remote_sources_ui.read_only') : '')})),
 ])
 // The panel used to open on the main Google Drive even when it is not connected
 // and another account is. Remember the last choice and otherwise prefer a connected account.

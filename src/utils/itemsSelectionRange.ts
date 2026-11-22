@@ -11,3 +11,9 @@ export function selectContiguousEntityIds(
   const end = Math.max(indexFrom, indexTo)
   return entities.slice(start, end + 1).map((item) => item.id)
 }
+
+/** Replace only this page's selection, retaining IDs selected on other pages. */
+export function replacePageSelection(selected: number[], page: Array<{id: number}>, ids: number[]): number[] {
+  const pageIds = new Set(page.map(item => item.id))
+  return [...new Set([...selected.filter(id => !pageIds.has(id)), ...ids])]
+}

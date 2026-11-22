@@ -16,7 +16,6 @@ import type { MediaPathFile } from '@shared/api/responses'
 import { createMediaRepository } from '../../db/repositories/media'
 import { createMediaTypesRepository } from '../../db/repositories/mediaTypes'
 import { createMediaPostProcessor } from '../../services/mediaPostProcess'
-import fs from 'fs'
 import path from 'path'
 import { stat } from 'fs/promises'
 import {parseAudioId3Tags} from '../../services/audioId3Tags'
@@ -466,7 +465,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
         if (!isVirtualZipPath(mediaPath)) {
           const resolved = await resolveExistingPath(mediaPath)
           if (resolved) {
-            const stats = fs.statSync(resolved)
+            const stats = await stat(resolved)
             mediaRepo.updateById(Number(media_id), {filesize: stats.size})
           }
         } else {
@@ -556,7 +555,7 @@ export default function createTasksMediaController(shared: TaskControllerShared)
           if (!isVirtualZipPath(mediaPath)) {
             const resolved = await resolveExistingPath(mediaPath)
             if (resolved) {
-              const stats = fs.statSync(resolved)
+              const stats = await stat(resolved)
               filesize = stats.size
               mediaRepo.updateById(mediaId, {filesize})
             }

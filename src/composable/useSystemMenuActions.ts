@@ -22,7 +22,6 @@ import {getDefaultMediaTypeId} from '@/utils/mediaType'
 import type {SystemMenuAction} from '@/types/systemMenu'
 import {LOCAL_AI_UI_ENABLED} from '@shared/features'
 import {
-  parseGapMenuAction,
   parseLocaleMenuAction,
   parseThemeMenuAction,
   type AppMenuThemeMode,
@@ -104,11 +103,6 @@ export function useSystemMenuActions(options: { onLock?: () => void } = {}) {
     const locale = parseLocaleMenuAction(action)
     if (locale) {
       await applyAppUiLocale(locale)
-      return
-    }
-    const gapSize = parseGapMenuAction(action)
-    if (gapSize) {
-      await setOption(gapSize, 'gapSize')
       return
     }
 

@@ -1,6 +1,6 @@
 import type {BrowseDirectoryEntry, BrowseDirectoryResult} from './typedApi/browse'
 
-export type RemoteSelectionProgress = {found: number; skipped: number; inLibrary: number}
+export type RemoteSelectionProgress = {found: number; skipped: number; inLibrary: number; skippedPaths?: string[]}
 
 /** Expand selected folders before importing so Stop during scanning keeps the
  * original selection retryable. Do not silently import a truncated folder. */
@@ -31,7 +31,7 @@ export async function expandRemoteSelection(options: {
   const pending = options.paths.filter(path => options.directories.has(path) && !isExcluded(path))
   const visited = new Set<string>()
   const failedFolders = new Set<string>()
-  const report = () => options.onProgress?.({found: files.size, skipped: skipped.size, inLibrary: inLibrary.size})
+  const report = () => options.onProgress?.({found: files.size, skipped: skipped.size, inLibrary: inLibrary.size, skippedPaths: [...skipped].slice(-5000)})
   report()
   let nextFolder = 0
   while (nextFolder < pending.length && !options.shouldStop()) {

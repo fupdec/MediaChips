@@ -2,7 +2,6 @@ import {app, ipcMain, Menu, type BrowserWindow, type IpcMainInvokeEvent, type Me
 import {recommendedThemePalettes} from '../shared/recommendedThemePalettes'
 import {LOCAL_AI_UI_ENABLED} from '../shared/features'
 import {
-  APP_MENU_GAP_SIZE_LABELS,
   APP_MENU_LOCALE_NATIVE_NAMES,
   APP_MENU_LOCALES,
   getAppMenuLabels,
@@ -10,12 +9,10 @@ import {
   type LocalizedAppMenuLabels,
 } from '../shared/electron/appMenuI18n'
 import {
-  APP_MENU_GAP_SIZES,
   APP_MENU_THEMES,
   DEFAULT_APP_MENU_STATE,
   parseAppMenuCheckedState,
   type AppMenuCheckedState,
-  type AppMenuGapSize,
   type AppMenuThemeMode,
 } from '../shared/electron/appMenuState'
 
@@ -100,10 +97,6 @@ export function buildAppMenuTemplate(options: {
       `setLocale:${locale}`,
       state.locale === locale,
     ),
-  )
-
-  const gapSubmenu: MenuItemConstructorOptions[] = APP_MENU_GAP_SIZES.map((size: AppMenuGapSize) =>
-    radioItem(APP_MENU_GAP_SIZE_LABELS[size], `setGapSize:${size}`, state.gapSize === size),
   )
 
   const fileMenu: MenuItemConstructorOptions = {
@@ -196,10 +189,6 @@ export function buildAppMenuTemplate(options: {
       checkboxItem(labels.showSidebar, 'toggleSidebar', state.sidebarVisible),
       checkboxItem(labels.showInspector, 'toggleInspector', state.inspectorVisible),
       {type: 'separator'},
-      {
-        label: labels.gapSize,
-        submenu: gapSubmenu,
-      },
       {
         label: labels.playback,
         submenu: [

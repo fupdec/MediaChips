@@ -156,7 +156,7 @@
         'folder-browse-tile__select-overlay--on': selected,
         'folder-browse-tile__select-overlay--list': list || compact,
       }"
-      @click.stop="emit('toggle-select', folder)"
+      @click.stop="emit('toggle-select', folder, $event)"
     >
       <button
         type="button"
@@ -220,7 +220,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   open: [path: string]
   contextmenu: [event: MouseEvent, path: string]
-  'toggle-select': [folder: FolderBrowseTileModel]
+  'toggle-select': [folder: FolderBrowseTileModel, event: MouseEvent]
 }>()
 
 const {t} = useI18n()
@@ -249,9 +249,9 @@ const mediaCountLabel = computed(() => {
 const objectsCountLabel = computed(() => mediaCountLabel.value)
 const iconGlyphSize = computed(() => 'var(--folder-icon-size, 88px)')
 
-function onClick() {
-  if (props.selectMode) {
-    emit('toggle-select', props.folder)
+function onClick(event: MouseEvent) {
+  if (props.selectMode || event.ctrlKey || event.metaKey || event.shiftKey) {
+    emit('toggle-select', props.folder, event)
     return
   }
   emit('open', props.folder.path)

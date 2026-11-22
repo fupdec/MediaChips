@@ -128,7 +128,7 @@ export async function runLegacyTimelineCleanup(db: ApiDb): Promise<{
   return {skipped: false, removed, failed}
 }
 
-let pendingCleanupTimers = new Map<string, NodeJS.Timeout>()
+const pendingCleanupTimers = new Map<string, NodeJS.Timeout>()
 
 export function scheduleLegacyTimelineCleanup(
   db: ApiDb,

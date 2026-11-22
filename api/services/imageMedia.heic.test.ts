@@ -1,6 +1,7 @@
 /**
  * @vitest-environment node
  */
+import {execFileSync} from 'node:child_process'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
@@ -12,8 +13,6 @@ import {
   resizeImageToMaxEdge,
 } from './imageMedia'
 
-const SAMPLE_HEIC = '/Users/vit/Downloads/IMG_5340.HEIC'
-const hasSampleHeic = fs.existsSync(SAMPLE_HEIC)
 
 describe('isHeicLikePath', () => {
   it('detects heic/heif extensions', () => {
@@ -23,13 +22,21 @@ describe('isHeicLikePath', () => {
   })
 })
 
-describe.runIf(hasSampleHeic && process.platform === 'darwin')('HEIC via sips fallback', () => {
+// The sample is generated at run time (PNG from sharp, converted by macOS sips),
+// so the test needs no personal file and runs on any Mac.
+describe.runIf(process.platform === 'darwin')('HEIC via sips fallback', () => {
   let tmpDir = ''
   let dbPath = ''
+  let SAMPLE_HEIC = ''
 
-  beforeAll(() => {
+  beforeAll(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-heic-thumb-'))
     dbPath = tmpDir
+    const {default: sharp} = await import('sharp')
+    const png = path.join(tmpDir, 'sample.png')
+    await sharp({create: {width: 640, height: 480, channels: 3, background: {r: 200, g: 120, b: 40}}}).png().toFile(png)
+    SAMPLE_HEIC = path.join(tmpDir, 'sample.heic')
+    execFileSync('sips', ['-s', 'format', 'heic', png, '--out', SAMPLE_HEIC], {stdio: 'ignore'})
   })
 
   afterAll(() => {

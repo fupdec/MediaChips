@@ -25,7 +25,8 @@ import { findFirstPlayableVideo } from '@/utils/findFirstPlayableVideo'
 import { resolveGalleryPlaylistVideos } from '@/utils/galleryPlaylist'
 import { cloneItemsStoreFieldValue } from '@/stores/itemsStoreClone'
 import type { ItemsGroupBy, ItemsGroupSummary } from '@/utils/itemsGroupBy'
-import { selectContiguousEntityIds } from '@/utils/itemsSelectionRange'
+import {itemsSelectionScopeKey} from '@/utils/itemsSelectionScope'
+import { selectContiguousEntityIds, replacePageSelection } from '@/utils/itemsSelectionRange'
 import { INFINITE_SCROLL_MAX_ITEMS } from '@shared/listPagination'
 
 const eventBus = useEventBus()
@@ -77,6 +78,7 @@ function createItemsStoreState() {
     /** Anchor id for Shift+keyboard / Shift+click range selection. */
     selectionAnchor: null as number | null,
     selection: [] as number[],
+    selectionRevision: 0,
     savedFilter: {} as SavedFilter,
     filters: [] as FilterObject[],
     /** How active filter rows combine: all (AND) or any (OR). */
@@ -700,29 +702,41 @@ export const useItemsStore = defineStore('items', {
       this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc'
     },
 
-    // Селекция элементов
-    toggleItemSelection(id: number) {
-      const index = this.selection.indexOf(id)
-      if (index === -1) {
-        // Добавить в выбранные
-        this.selection.push(id)
-        this.selected_last = id
-      } else {
-        // Удалить из выбранных
-        this.selection.splice(index, 1)
-        if (this.selected_last === id) {
-          this.selected_last = null
-        }
-      }
+    resetSelectionAnchor() {
+      this.selected_last = null
+      this.selectionAnchor = null
     },
 
-    // Выбрать все элементы на текущей странице
+    toggleItemSelection(id: number) {
+      this.toggleSelect(null, {id})
+    },
+
+    /** Select a page without losing selections from other pages. */
     selectAllOnPage() {
-      this.selection = this.itemsOnPage.map(item => item.id)
+      this.selectionRevision++
+      this.isSelect = true
+      this.selection = [...new Set([...this.selection, ...this.itemsOnPage.map(item => item.id)])]
+      this.resetSelectionAnchor()
+    },
+
+    /** Mouse and keyboard ranges use the displayed page order. */
+    selectRange(fromId: number, toId: number, additive = false) {
+      this.selectionRevision++
+      this.isSelect = true
+      const page = this.itemsOnPage
+      const anchor = page.some(item => item.id === fromId) ? fromId : toId
+      this.selectionAnchor = anchor
+      const ids = selectContiguousEntityIds(page, anchor, toId)
+      this.selection = additive
+        ? [...new Set([...this.selection, ...ids])]
+        : replacePageSelection(this.selection, page, ids)
+      this.selected_last = toId
     },
 
     // Выбрать все элементы, подходящие под текущие фильтры
     async selectAllFiltered() {
+      const revision = ++this.selectionRevision
+      const scope = itemsSelectionScopeKey(this)
       if (this.type === 'media') {
         const appStore = useAppStore()
         const mediaTypeId = this.environment.media_type_id
@@ -731,17 +745,24 @@ export const useItemsStore = defineStore('items', {
         const response = await typedApi.getMediaIds({
           mediaTypeId,
           filters: this.filters,
+          filtersJoin: this.filtersJoin,
           sortBy: this.sortBy,
           direction: this.sortDir,
           find_duplicates: this.find_duplicates,
           duplicates_by: getDuplicatesGroupKey(mediaType, this.duplicates_by),
         })
 
-        this.selection = response.data.ids || []
+        if (revision !== this.selectionRevision || scope !== itemsSelectionScopeKey(this)) return
+        const scopedIds = this.listScopeIds ? new Set(this.listScopeIds) : null
+        this.selection = [...new Set(response.data.ids || [])].filter(id => !scopedIds || scopedIds.has(id))
+        this.isSelect = true
+        this.resetSelectionAnchor()
         return
       }
 
-      this.selection = this.entities.map(item => item.id)
+      this.selection = [...new Set(this.entities.map(item => item.id))]
+      this.isSelect = true
+      this.resetSelectionAnchor()
     },
 
     // Выбрать все элементы вообще
@@ -751,6 +772,7 @@ export const useItemsStore = defineStore('items', {
 
     // Очистить выбор
     clearSelection() {
+      this.selectionRevision++
       this.selection = []
       this.selected_last = null
       this.selectionAnchor = null
@@ -759,6 +781,7 @@ export const useItemsStore = defineStore('items', {
 
     /** Focus a single item for the browser inspector without entering bulk-select mode. */
     focusForInspector(item: { id: number }) {
+      this.selectionRevision++
       this.selection = [item.id]
       this.selected_last = item.id
       this.selectionAnchor = null
@@ -766,6 +789,7 @@ export const useItemsStore = defineStore('items', {
 
     /** Clear inspector focus without toggling bulk-select chrome. */
     clearInspectorFocus() {
+      this.selectionRevision++
       this.selection = []
       this.selected_last = null
       this.selectionAnchor = null
@@ -786,29 +810,18 @@ export const useItemsStore = defineStore('items', {
       }
 
       const id = item.id
-      // Shift+click: set contiguous range from anchor (OS-style), do not toggle members
-      if (e && e.shiftKey) {
-        const anchor = this.selectionAnchor ?? this.selected_last ?? id
-        if (this.selectionAnchor == null) {
-          this.selectionAnchor = anchor
-        }
-
-        this.selection = selectContiguousEntityIds(this.entities, anchor, id)
-        this.selection.sort((a, b) => Number(a) - Number(b))
-        this.selected_last = id
+      if (e?.shiftKey) {
+        this.selectRange(this.selectionAnchor ?? this.selected_last ?? id, id, e.ctrlKey || e.metaKey)
         return
       }
 
+      this.selectionRevision++
       this.selectionAnchor = id
-      const selection = this.selection
-      if (selection.includes(id)) {
-        const x = selection.findIndex((i) => i == id)
-        if (x > -1) selection.splice(x, 1)
+      if (this.selection.includes(id)) {
+        this.selection = this.selection.filter(selectedId => selectedId !== id)
       } else {
-        selection.push(id)
+        this.selection = [...this.selection, id]
       }
-
-      selection.sort((a, b) => Number(a) - Number(b))
       this.selected_last = id
     },
 

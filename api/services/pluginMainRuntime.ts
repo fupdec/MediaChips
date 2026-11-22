@@ -26,7 +26,6 @@ function resolveMainPath(pluginDir: string, mainEntry: string | null | undefined
 }
 
 function loadRegistrar(mainPath: string): PluginMainRegistrar {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const mod = require(mainPath) as PluginMainRegistrar | {default?: PluginMainRegistrar}
   if (typeof mod === 'function') return mod
   if (mod && typeof mod.default === 'function') return mod.default

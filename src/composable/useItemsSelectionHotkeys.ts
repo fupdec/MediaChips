@@ -1,9 +1,9 @@
+import {selectAllMixedGridEntries, toggleMixedGridSelection} from '@/composable/mixedGridSelection'
 import {onBeforeUnmount, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
 import {useItemsStore} from '@/stores/items'
 import {usePlayerStore} from '@/stores/player'
 import {useContextMenu} from '@/stores/contextMenu'
-import {useFsBrowseSelection} from '@/stores/fsBrowseSelection'
 import {isFoldersRoute} from '@/composable/useBrowserLayout'
 import {
   applyMixedGridRange,
@@ -12,7 +12,6 @@ import {
   findGridElement,
   findItemElementById,
   findNeighborItemElement,
-  pathBasename,
   queryVisibleItemElements,
   queryVisibleMediaItemElements,
   type BrowserNavDirection,
@@ -34,13 +33,11 @@ export function useItemsSelectionHotkeys(options?: {
   onExitSelect?: () => void
   onBulkEdit?: () => void
   onDelete?: () => void
-  onSelectVisible?: () => void
 }) {
   const router = useRouter()
   const itemsStore = useItemsStore()
   const playerStore = usePlayerStore()
   const contextMenuStore = useContextMenu()
-  const fsSelection = useFsBrowseSelection()
   const {focused: foldersFocus, setFocus: setFoldersFocus} = useFoldersBrowserFocus()
 
   function onFoldersPage() {
@@ -106,22 +103,7 @@ export function useItemsSelectionHotkeys(options?: {
   }
 
   function toggleFsCursor(cursor: Extract<GridNavCursor, {kind: 'folder' | 'pending'}>) {
-    const name = pathBasename(cursor.path)
-    if (cursor.kind === 'folder') {
-      fsSelection.toggleFolder({path: cursor.path, name, mediaCount: 0})
-      return
-    }
-    fsSelection.toggleFsFile({
-      path: cursor.path,
-      name,
-      isDirectory: false,
-      size: null,
-      mtimeMs: null,
-      extension: null,
-      inLibrary: false,
-      addable: true,
-      mediaId: null,
-    })
+    toggleMixedGridSelection(cursor)
   }
 
   function moveFoldersCursor(direction: BrowserNavDirection, extend: boolean) {
@@ -167,7 +149,7 @@ export function useItemsSelectionHotkeys(options?: {
     if (!cursor) return
     if (cursor.kind === 'media') {
       itemsStore.selectionAnchor = cursor.id
-      itemsStore.toggleSelect(null, {id: cursor.id})
+      toggleMixedGridSelection(cursor)
       itemsStore.selected_last = cursor.id
       return
     }
@@ -186,18 +168,6 @@ export function useItemsSelectionHotkeys(options?: {
     return Number(first.id)
   }
 
-  function selectRange(fromId: number, toId: number) {
-    const page = itemsStore.itemsOnPage
-    const fromIndex = page.findIndex((item) => Number(item.id) === fromId)
-    const toIndex = page.findIndex((item) => Number(item.id) === toId)
-    if (fromIndex < 0 || toIndex < 0) {
-      itemsStore.selection = [toId]
-      return
-    }
-    const start = Math.min(fromIndex, toIndex)
-    const end = Math.max(fromIndex, toIndex)
-    itemsStore.selection = page.slice(start, end + 1).map((item) => item.id)
-  }
 
   function resolveNeighborId(fromId: number, direction: BrowserNavDirection): number | null {
     const currentEl = findItemElementById(fromId)
@@ -233,7 +203,7 @@ export function useItemsSelectionHotkeys(options?: {
 
     if (extend) {
       if (itemsStore.selectionAnchor == null) itemsStore.selectionAnchor = current
-      selectRange(Number(itemsStore.selectionAnchor), nextId)
+      itemsStore.selectRange(Number(itemsStore.selectionAnchor), nextId)
     } else {
       itemsStore.selectionAnchor = null
     }
@@ -253,7 +223,7 @@ export function useItemsSelectionHotkeys(options?: {
 
     if (extend) {
       if (itemsStore.selectionAnchor == null) itemsStore.selectionAnchor = current ?? nextId
-      selectRange(Number(itemsStore.selectionAnchor), nextId)
+      itemsStore.selectRange(Number(itemsStore.selectionAnchor), nextId)
     } else {
       itemsStore.selectionAnchor = null
     }
@@ -293,12 +263,9 @@ export function useItemsSelectionHotkeys(options?: {
     if (withMod && !event.altKey && event.code === 'KeyA') {
       event.preventDefault()
       if (onFoldersPage()) {
-        const visible = queryVisibleItemElements()
-        if (visible.length) {
-          applyMixedGridRange(visible[0], visible[visible.length - 1], visible)
-        }
+        selectAllMixedGridEntries()
       } else {
-        options?.onSelectVisible?.()
+        itemsStore.selectAllOnPage()
       }
       itemsStore.selectionAnchor = null
       clearMixedGridAnchor()

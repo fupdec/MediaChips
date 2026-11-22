@@ -74,7 +74,7 @@ describe('buildAppMenuTemplate', () => {
     expect(labelsOf(submenuOf(template, 'App'))).not.toContain('Settings')
   })
 
-  it('exposes theme, language, SFW, navigation, playback, and gap size in View', () => {
+  it('exposes theme, language, SFW, navigation, and playback in View', () => {
     const view = submenuOf(build(), 'View')
     const viewLabels = labelsOf(view)
     expect(viewLabels).toEqual(expect.arrayContaining([
@@ -84,7 +84,6 @@ describe('buildAppMenuTemplate', () => {
       'Navigation',
       'Sidebar',
       'Inspector',
-      'Gap Size',
       'Playback',
     ]))
     expect(viewLabels).not.toContain('Toggle Theme')

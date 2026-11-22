@@ -4,69 +4,69 @@
     <div v-if="authAttempt" class="cloud-accounts-source__waiting">
       <div class="cloud-accounts-source__waiting-status" role="status">
         <v-progress-circular indeterminate color="primary" size="14" width="2" aria-hidden="true" />
-        <span>{{ authMessage || tr('Завершите вход в открывшемся окне.', 'Complete sign-in in the opened window.') }}</span>
+        <span>{{ authMessage || t('remote_sources_ui.complete_sign_in_in_the_opened') }}</span>
       </div>
-      <v-btn size="small" variant="tonal" color="primary" rounded="lg" @click="cancelSignIn">{{ tr('Отменить', 'Cancel') }}</v-btn>
+      <v-btn size="small" variant="tonal" color="primary" rounded="lg" @click="cancelSignIn">{{ t('remote_sources_ui.cancel') }}</v-btn>
     </div>
     <v-alert v-else-if="authMessage" :type="authOk ? 'success' : 'warning'" variant="tonal" density="compact" rounded="lg" closable
              class="cloud-accounts-source__notice" @click:close="authMessage = ''">{{ authMessage }}</v-alert>
     <GoogleMismatchHelp v-if="authAttempt && account?.provider === 'gdrive'" class="mb-2" @json="fixWithJson" />
     <OAuthPasteField v-if="authAttempt?.mode === 'paste'" class="mb-2" endpoint="/api/cloud-accounts/oauth/complete" @completed="checkSignInNow" />
-    <v-select v-if="!unified" v-model="accountId" :items="visibleAccounts" item-title="name" item-value="id" :label="tr('Облачный аккаунт', 'Cloud account')" :disabled="busy" variant="outlined" density="compact" hide-details class="mb-3" @update:model-value="resetFolder" />
+    <v-select v-if="!unified" v-model="accountId" :items="visibleAccounts" item-title="name" item-value="id" :label="t('remote_sources_ui.cloud_account')" :disabled="busy" variant="outlined" density="compact" hide-details class="mb-3" @update:model-value="resetFolder" />
     <div v-if="!unified" class="d-flex flex-wrap ga-2 mb-4 account-toolbar">
-      <v-btn v-if="!unified" @click="addAccount" :disabled="busy" prepend-icon="mdi-plus">{{ tr('Добавить аккаунт', 'Add account') }}</v-btn>
-      <v-btn v-if="account" :disabled="busy" @click="editAccount">{{ tr('Настроить аккаунт', 'Configure account') }}</v-btn>
-      <v-btn v-if="account" :disabled="busy" @click="connect()">{{ tr('Подключить / сменить вход', 'Connect / sign in again') }}</v-btn>
+      <v-btn v-if="!unified" @click="addAccount" :disabled="busy" prepend-icon="mdi-plus">{{ t('remote_sources_ui.add_account') }}</v-btn>
+      <v-btn v-if="account" :disabled="busy" @click="editAccount">{{ t('remote_sources_ui.configure_account') }}</v-btn>
+      <v-btn v-if="account" :disabled="busy" @click="connect()">{{ t('remote_sources_ui.connect_sign_in_again') }}</v-btn>
       <v-btn v-if="account" :disabled="busy" @click="removeAccount">{{ t('sources.remove_connection') }}</v-btn>
-      <v-btn v-if="account?.authenticated" :disabled="busy" @click="logout">{{ tr('Отключить', 'Disconnect') }}</v-btn>
-      <v-btn v-if="!unified" icon="mdi-refresh" variant="tonal" color="primary" rounded="lg" :disabled="busy" :aria-label="tr('Обновить', 'Refresh')" :title="tr('Обновить', 'Refresh')" @click="refresh" />
+      <v-btn v-if="account?.authenticated" :disabled="busy" @click="logout">{{ t('remote_sources_ui.disconnect') }}</v-btn>
+      <v-btn v-if="!unified" icon="mdi-refresh" variant="tonal" color="primary" rounded="lg" :disabled="busy" :aria-label="t('remote_sources_ui.refresh')" :title="t('remote_sources_ui.refresh')" @click="refresh" />
     </div>
     <DialogConfirm v-model:dialog="confirmRemoval" variant="delete" @confirm="deleteAccount">
       {{ t('sources.remove_connection_confirm', {name: account?.name || ''}) }}
     </DialogConfirm>
     <v-dialog v-model="editing" max-width="580" persistent scrollable>
       <v-card rounded="xl" class="account-dialog">
-        <DialogHeader :header="editingId ? tr('Настройка аккаунта', 'Account settings') : tr('Новый облачный аккаунт', 'New cloud account')"
+        <DialogHeader :header="editingId ? t('remote_sources_ui.account_settings') : t('remote_sources_ui.new_cloud_account')"
                       :icon="providerStyle(form.provider).icon.replace('mdi-', '')" :buttons="editorButtons" compact closable
-                      :close-disabled="busy" :close-label="tr('Отмена', 'Cancel')" @close="closeEditor" />
+                      :close-disabled="busy" :close-label="t('remote_sources_ui.cancel_dialog')" @close="closeEditor" />
         <v-card-text class="account-editor">
           <v-alert v-if="error" type="error" variant="tonal" density="compact" rounded="lg" class="mb-4">{{ error }}</v-alert>
 
           <section v-if="!editingId && !props.provider" class="account-editor__section">
-            <h3 class="account-editor__label">{{ tr('Сервис', 'Service') }}</h3>
-            <div class="account-editor__providers" role="radiogroup" :aria-label="tr('Сервис', 'Service')">
+            <h3 class="account-editor__label">{{ t('remote_sources_ui.service') }}</h3>
+            <div class="account-editor__providers" role="radiogroup" :aria-label="t('remote_sources_ui.service')">
               <button v-for="item in providers" :key="item.value" type="button" role="radio" :aria-checked="form.provider === item.value"
                       class="account-editor__provider" :class="{'account-editor__provider--active': form.provider === item.value}"
                       :style="{'--provider-color': providerStyle(item.value).color}" :disabled="busy" @click="selectProvider(item.value)">
                 <span class="account-editor__provider-icon"><v-icon :icon="providerStyle(item.value).icon" size="26" /></span>
                 <span class="account-editor__provider-name">{{ item.title }}</span>
                 <span v-if="item.beta" class="account-editor__provider-beta"
-                      :title="tr('Проверено на тестах, приёмка на реальных аккаунтах не завершена', 'Covered by tests; live acceptance on real accounts is not finished')">beta</span>
+                      :title="t('remote_sources_ui.covered_by_tests_live_acceptance_on')">beta</span>
                 <v-icon v-if="form.provider === item.value" icon="mdi-check-circle" size="16" class="account-editor__provider-check" />
               </button>
             </div>
           </section>
 
           <section class="account-editor__section">
-            <v-text-field v-model="form.name" :disabled="busy" :label="tr('Название', 'Name')" :placeholder="providerName(form.provider)"
+            <v-text-field v-model="form.name" :disabled="busy" :label="t('remote_sources_ui.name')" :placeholder="providerName(form.provider)"
                           variant="outlined" density="compact" rounded="lg" hide-details="auto" maxlength="120" prepend-inner-icon="mdi-label-outline" />
           </section>
 
           <section v-if="quickConnect" class="account-editor__managed">
             <v-icon :icon="sharedGoogle ? 'mdi-key-chain-variant' : 'mdi-lightning-bolt-outline'" size="20" />
             <div>
-              <strong>{{ sharedGoogle ? tr('Ключи уже настроены', 'Keys are already set up') : tr('Быстрое подключение', 'Quick connect') }}</strong>
+              <strong>{{ sharedGoogle ? t('remote_sources_ui.keys_are_already_set_up') : t('remote_sources_ui.quick_connect') }}</strong>
               <p>{{ sharedGoogle
-                ? tr('Используется OAuth-клиент основного подключения Google Drive. Нажмите «Подключить» и выберите нужный Google-аккаунт.', 'Uses the OAuth client of the main Google Drive connection. Click "Connect" and pick the Google account.')
-                : tr('Нажмите «Подключить» — откроется окно входа в аккаунт. Ничего настраивать не нужно.', 'Click "Connect" to open the sign-in window. Nothing else to set up.') }}</p>
+                ? t('remote_sources_ui.uses_the_oauth_client_of_the')
+                : t('remote_sources_ui.click_connect_to_open_the_sign') }}</p>
             </div>
           </section>
 
           <component :is="quickConnect ? 'details' : 'section'" class="account-editor__oauth" :class="{'account-editor__oauth--collapsible': quickConnect}">
-            <summary v-if="quickConnect">{{ sharedGoogle ? tr('Использовать другой OAuth-клиент', 'Use a different OAuth client') : t('sources.advanced_oauth') }}</summary>
+            <summary v-if="quickConnect">{{ sharedGoogle ? t('remote_sources_ui.use_a_different_oauth_client') : t('sources.advanced_oauth') }}</summary>
             <header class="account-editor__oauth-head">
-              <h3 class="account-editor__label">{{ tr('Своё OAuth-приложение', 'Your own OAuth app') }}</h3>
-              <span class="account-editor__local"><v-icon icon="mdi-lock-outline" size="13" />{{ tr('Ключи хранятся только на этом компьютере', 'Keys stay on this computer') }}</span>
+              <h3 class="account-editor__label">{{ t('remote_sources_ui.your_own_oauth_app') }}</h3>
+              <span class="account-editor__local"><v-icon icon="mdi-lock-outline" size="13" />{{ t('remote_sources_ui.keys_stay_on_this_computer') }}</span>
             </header>
 
             <ol class="account-editor__steps">
@@ -79,18 +79,18 @@
             </ol>
 
             <div v-if="form.provider !== 'gdrive' || !googleDesktop" class="account-editor__callback">
-              <span class="account-editor__callback-label">{{ tr('Адрес возврата (Redirect URI)', 'Redirect URI') }}</span>
+              <span class="account-editor__callback-label">{{ t('remote_sources_ui.redirect_uri') }}</span>
               <div class="account-editor__callback-row">
                 <code>{{ form.redirectUri || callbackUri }}</code>
                 <v-btn size="x-small" variant="text" rounded="lg" :icon="copied ? 'mdi-check' : 'mdi-content-copy'" :color="copied ? 'success' : undefined"
-                       :aria-label="tr('Копировать', 'Copy')" v-tooltip:top="tr('Копировать', 'Copy')" @click="copyCallback" />
+                       :aria-label="t('remote_sources_ui.copy')" v-tooltip:top="t('remote_sources_ui.copy')" @click="copyCallback" />
               </div>
             </div>
 
             <div v-if="form.provider === 'gdrive'" class="account-editor__drop" :class="{'account-editor__drop--active': dragging}"
                  @dragover.prevent="dragging = true" @dragleave="dragging = false" @drop.prevent="onGoogleDrop">
               <v-icon icon="mdi-file-key-outline" size="22" />
-              <span>{{ googleJsonNotice || tr('Перетащите сюда JSON клиента из Google Cloud — поля заполнятся сами.', 'Drop the client JSON from Google Cloud here — fields fill in automatically.') }}</span>
+              <span>{{ googleJsonNotice || t('remote_sources_ui.drop_the_client_json_from_google') }}</span>
               <v-btn size="small" variant="tonal" color="primary" rounded="lg" :disabled="busy" @click="googleJson?.click()">{{ t('drive.json_choose') }}</v-btn>
               <input ref="googleJson" type="file" accept=".json,application/json" hidden @change="onGoogleJson">
             </div>
@@ -101,10 +101,10 @@
                   <v-text-field v-model="form.clientId" :disabled="busy" :label="form.provider === 'dropbox' ? 'App key' : 'Client ID'" required />
                   <v-text-field v-model="form.clientSecret" :disabled="busy" type="password" autocomplete="new-password"
                                 :label="form.provider === 'dropbox' ? 'App secret' : 'Client secret'"
-                                :placeholder="editingId ? tr('Без изменений', 'Unchanged') : undefined" />
+                                :placeholder="editingId ? t('remote_sources_ui.unchanged') : undefined" />
                 </div>
                 <details class="account-editor__advanced">
-                  <summary>{{ tr('Изменить адрес возврата', 'Change redirect URI') }}</summary>
+                  <summary>{{ t('remote_sources_ui.change_redirect_uri') }}</summary>
                   <v-text-field v-model="form.redirectUri" class="account-editor__redirect mt-2" :disabled="busy" label="Redirect URI" required />
                 </details>
               </v-defaults-provider>
@@ -118,7 +118,7 @@
     </v-dialog>
     <div v-if="account && !account.authenticated && !authAttempt" class="cloud-accounts-source__empty">
       <v-icon :icon="providerStyle(account.provider).icon" size="20" />
-      <span>{{ tr('Подключите аккаунт, чтобы открыть файлы.', 'Connect the account to browse files.') }}</span>
+      <span>{{ t('remote_sources_ui.connect_the_account_to_browse_files') }}</span>
       <v-btn size="small" variant="flat" color="primary" rounded="lg" prepend-icon="mdi-login" :disabled="busy" @click="connect()">{{ t('sources.connect_account') }}</v-btn>
     </div>
     <template v-if="account?.authenticated">
@@ -130,7 +130,7 @@
         <template v-if="$slots['browser-footer']" #footerActions><slot name="browser-footer" :folder-browser="exclusionBrowser"/></template>
         <template #entryActions="{entry}">
           <v-btn v-if="!entry.isDirectory && entry.addable" size="x-small" variant="plain" :rounded="0" :ripple="false" icon
-                 :href="preview(keyOfPath(entry.path))" target="_blank" rel="noopener" :aria-label="tr('Просмотр', 'View')" @click.stop>
+                 :href="preview(keyOfPath(entry.path))" target="_blank" rel="noopener" :aria-label="t('remote_sources_ui.view')" @click.stop>
             <v-icon size="16" icon="mdi-play-circle-outline" />
           </v-btn>
         </template>
@@ -139,7 +139,7 @@
     <v-progress-linear v-if="busy" indeterminate class="my-3" />
     <v-list v-if="imported.length">
       <v-list-item v-for="item in imported" :key="item.id" :title="item.title" :subtitle="`ID ${item.id}`">
-        <template #append><v-btn variant="text" @click="processingId = item.id">{{ tr('Обработка', 'Process') }}</v-btn></template>
+        <template #append><v-btn variant="text" @click="processingId = item.id">{{ t('remote_sources_ui.process') }}</v-btn></template>
       </v-list-item>
     </v-list>
     <RemoteProcessingPanel v-model:media-id="processingId" />
@@ -175,7 +175,7 @@ import MediaFolderBrowser from './MediaFolderBrowser.vue'
 const props = defineProps<{extensions?: string; importOptions?: RemoteImportOptions; provider?: CloudAccountInput['provider']; unified?: boolean}>()
 const sync = useItemsListSync(), events = useEventBus()
 const emit = defineEmits<{started: []}>()
-const {locale, t} = useI18n(), tr = (ru: string, en: string) => locale.value.startsWith('ru') ? ru : en
+const {t} = useI18n()
 const app = useAppStore(), gate = useFreeLibraryGate(), addingProcess = useRemoteMediaAddingProcess(t)
 const importing = ref(false), processed = ref(0), total = ref(0), failures = ref<Array<{path: string; message: string}>>([])
 const accounts = ref<CloudAccount[]>([]), accountId = ref(''), account = computed(() => accounts.value.find(a => a.id === accountId.value))
@@ -218,19 +218,19 @@ function selectProvider(provider: CloudProvider) {
 const setupSteps = computed(() => {
   const provider = form.value.provider
   if (provider === 'onedrive') return [
-    {text: tr('Зарегистрируйте приложение в Microsoft Entra.', 'Register an app in Microsoft Entra.'), link: 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade', linkText: tr('Открыть', 'Open')},
-    {text: tr('В разделе «Authentication» добавьте платформу Web и вставьте адрес возврата ниже.', 'Under "Authentication" add a Web platform and paste the redirect URI below.')},
-    {text: tr('Создайте секрет в «Certificates & secrets» и скопируйте Client ID и секрет сюда.', 'Create a secret in "Certificates & secrets", then copy the Client ID and secret here.')},
+    {text: t('remote_sources_ui.register_an_app_in_microsoft_entra'), link: 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade', linkText: t('remote_sources_ui.open')},
+    {text: t('remote_sources_ui.under_authentication_add_a_web_platform')},
+    {text: t('remote_sources_ui.create_a_secret_in_certificates_secrets')},
   ]
   if (provider === 'dropbox') return [
-    {text: tr('Создайте приложение с доступом Full Dropbox.', 'Create an app with Full Dropbox access.'), link: 'https://www.dropbox.com/developers/apps/create', linkText: tr('Открыть', 'Open')},
-    {text: tr('Во вкладке Permissions включите files.metadata.read и files.content.read.', 'On the Permissions tab enable files.metadata.read and files.content.read.')},
-    {text: tr('Добавьте адрес возврата ниже в Redirect URIs и скопируйте App key и App secret.', 'Add the redirect URI below to Redirect URIs, then copy the App key and App secret.')},
+    {text: t('remote_sources_ui.create_an_app_with_full_dropbox'), link: 'https://www.dropbox.com/developers/apps/create', linkText: t('remote_sources_ui.open')},
+    {text: t('remote_sources_ui.on_the_permissions_tab_enable_files')},
+    {text: t('remote_sources_ui.add_the_redirect_uri_below_to')},
   ]
   return [
-    {text: tr('Включите Google Drive API в своём проекте.', 'Enable the Google Drive API in your project.'), link: 'https://console.cloud.google.com/apis/library/drive.googleapis.com', linkText: tr('Открыть', 'Open')},
-    {text: tr('Создайте OAuth-клиент типа «Приложение для ПК» и скачайте JSON.', 'Create a "Desktop app" OAuth client and download its JSON.'), link: 'https://console.cloud.google.com/auth/clients/create', linkText: tr('Создать', 'Create')},
-    {text: tr('Добавьте свой адрес Gmail в тестовые пользователи.', 'Add your Gmail address as a test user.'), link: 'https://console.cloud.google.com/auth/audience', linkText: tr('Открыть', 'Open')},
+    {text: t('remote_sources_ui.enable_the_google_drive_api_in'), link: 'https://console.cloud.google.com/apis/library/drive.googleapis.com', linkText: t('remote_sources_ui.open')},
+    {text: t('remote_sources_ui.create_a_desktop_app_oauth_client'), link: 'https://console.cloud.google.com/auth/clients/create', linkText: t('remote_sources_ui.create')},
+    {text: t('remote_sources_ui.add_your_gmail_address_as_a'), link: 'https://console.cloud.google.com/auth/audience', linkText: t('remote_sources_ui.open')},
   ]
 })
 const managedProviders = ref<CloudProvider[]>([])
@@ -252,7 +252,7 @@ let reloadRequested = false
 const guarded = async (action: () => Promise<void>) => {
   if (busy.value) return
   busy.value = true; error.value = ''; controller = new AbortController()
-  try { await action() } catch (err) { if (!controller.signal.aborted) error.value = (err as {response?: {data?: {code?: string}}}).response?.data?.code === 'redirect_uri_mismatch' ? tr('Callback указывает на другой порт. Укажите адрес API из настроек подключения и зарегистрируйте его у провайдера.', 'Callback points to a different port. Use the API callback from connection settings and register it with the provider.') : remoteSourceErrorMessage(err, (key, params) => t(key, params || {})) }
+  try { await action() } catch (err) { if (!controller.signal.aborted) error.value = (err as {response?: {data?: {code?: string}}}).response?.data?.code === 'redirect_uri_mismatch' ? t('remote_sources_ui.callback_points_to_a_different_port') : remoteSourceErrorMessage(err, (key, params) => t(key, params || {})) }
   finally { busy.value = false; stopping.value = false; controller = undefined; if (reloadRequested) { reloadRequested = false; void refresh() } }
 }
 const base = () => `/api/cloud-accounts/${accountId.value}`
@@ -326,17 +326,17 @@ async function pollSignIn() {
     if (data.result !== 'waiting' || Date.now() > attempt.deadline) {
       authAttempt.value = undefined; stopAuthPoll()
       authOk.value = data.result === 'connected'
-      authMessage.value = data.result === 'connected' ? tr('Аккаунт подключён.', 'Account connected.')
-        : data.result === 'invalid_client' ? tr('Провайдер отклонил Client ID или secret. Проверьте настройки аккаунта.', 'Provider rejected the Client ID or secret. Check account settings.')
-        : data.result === 'redirect_uri_mismatch' ? tr('Проверьте точное совпадение callback в MediaChips и консоли провайдера.', 'Check that the callback matches exactly in MediaChips and the provider console.')
-        : data.result === 'network_error' ? tr('Не удалось завершить обмен токена. Проверьте сеть и начните вход заново.', 'Token exchange failed. Check the network and start sign-in again.')
-        : data.result === 'oauth_denied' ? tr('Доступ не предоставлен. Начните вход заново.', 'Access denied. Start sign-in again.')
-        : tr('Вход отменён, завершился ошибкой или истёк. Проверьте настройки OAuth и начните заново.', 'Sign-in cancelled, failed or expired. Check OAuth settings and try again.')
+      authMessage.value = data.result === 'connected' ? t('remote_sources_ui.account_connected')
+        : data.result === 'invalid_client' ? t('remote_sources_ui.provider_rejected_the_client_id_or')
+        : data.result === 'redirect_uri_mismatch' ? t('remote_sources_ui.check_that_the_callback_matches_exactly')
+        : data.result === 'network_error' ? t('remote_sources_ui.token_exchange_failed_check_the_network')
+        : data.result === 'oauth_denied' ? t('remote_sources_ui.access_denied_start_sign_in_again')
+        : t('remote_sources_ui.sign_in_cancelled_failed_or_expired')
       await refresh(); return
     }
   } catch {
-    if (Date.now() > attempt.deadline) { authAttempt.value = undefined; authMessage.value = tr('Вход истёк. Начните заново.', 'Sign-in expired. Try again.'); return }
-    authMessage.value = tr('Нет связи с MediaChips. Ожидаем восстановления соединения…', 'Cannot reach MediaChips. Waiting to reconnect…')
+    if (Date.now() > attempt.deadline) { authAttempt.value = undefined; authMessage.value = t('remote_sources_ui.sign_in_expired_try_again'); return }
+    authMessage.value = t('remote_sources_ui.cannot_reach_mediachips_waiting_to_reconnect')
   }
   if (authAttempt.value === attempt) authPoll = setTimeout(pollSignIn, 1500)
 }

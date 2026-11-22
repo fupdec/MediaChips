@@ -425,7 +425,7 @@ async function* iterateClipEmbeddingBackfill(
   let hashed = 0
   let missing = 0
   let failed = 0
-  let skipped = 0
+  const skipped = 0
   let lastId = 0
 
   yield {

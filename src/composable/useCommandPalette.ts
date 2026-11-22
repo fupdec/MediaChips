@@ -245,11 +245,8 @@ export function useCommandPaletteCommands(options: {
             const id = getDefaultMediaTypeId(appStore.mediaTypes)
             if (id != null) void router.push(`/media?mediaTypeId=${id}`)
           }
-          itemsStore.isSelect = !itemsStore.isSelect
+          itemsStore.toggleSelectMode()
           if (!itemsStore.isSelect) {
-            itemsStore.selection = []
-            itemsStore.selected_last = null
-            itemsStore.selectionAnchor = null
             if (isFoldersRoute(path)) fsSelection.clearSelection()
           }
         },

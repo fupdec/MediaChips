@@ -7,7 +7,10 @@ export type SelectedFsEntry =
   | {kind: 'folder'; path: string; name: string}
   | {kind: 'fs-file'; path: string; name: string}
 
+export type MixedGridEntry = {kind: 'media'; id: number} | SelectedFsEntry
+
 export const useFsBrowseSelection = defineStore('fsBrowseSelection', () => {
+  const gridEntries = ref<MixedGridEntry[]>([])
   const isSelectMode = ref(false)
   const selectedMap = ref(new Map<string, SelectedFsEntry>())
 
@@ -93,6 +96,7 @@ export const useFsBrowseSelection = defineStore('fsBrowseSelection', () => {
   )
 
   return {
+    gridEntries,
     isSelectMode,
     selectedMap,
     selectedEntries,

@@ -108,11 +108,8 @@ export function useAppHotkeys() {
       const path = router.currentRoute.value.path
       if (!isItemsLibraryRoute(path) && !isFoldersRoute(path)) return
       event.preventDefault()
-      itemsStore.isSelect = !itemsStore.isSelect
+      itemsStore.toggleSelectMode()
       if (!itemsStore.isSelect) {
-        itemsStore.selection = []
-        itemsStore.selected_last = null
-        itemsStore.selectionAnchor = null
         if (isFoldersRoute(path)) fsSelection.clearSelection()
       }
     }

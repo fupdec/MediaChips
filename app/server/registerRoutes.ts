@@ -84,7 +84,6 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
   // Task.routes pulls faces/ffmpeg controllers; load only when routes are registered
   // (after /api/ping is already listening), and keep controllers lazy-on-first-request.
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const registerTask = require('../../api/routes/Task.routes').default as ApiRouteRegistrar
     registrars.push({ routeFile: 'Task.routes', register: registerTask })
   } catch (err: unknown) {
@@ -99,7 +98,6 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     registrars.push({routeFile: 'WebVideo.routes', register: registerWebVideo})
     // Lazy require keeps ThePornDB / adult plugin modules out of SFW process graphs.
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const registerScraper = require('../../api/routes/Scraper.routes').default as ApiRouteRegistrar
       registrars.push({ routeFile: 'Scraper.routes', register: registerScraper })
     } catch (err: unknown) {
@@ -110,7 +108,6 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const registerStash = require('../../api/routes/Stash.routes').default as ApiRouteRegistrar
       registrars.push({ routeFile: 'Stash.routes', register: registerStash })
     } catch (err: unknown) {
@@ -121,7 +118,6 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const registerJellyfin = require('../../api/routes/Jellyfin.routes').default as ApiRouteRegistrar
       registrars.push({ routeFile: 'Jellyfin.routes', register: registerJellyfin })
     } catch (err: unknown) {
@@ -132,7 +128,6 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const registerPlex = require('../../api/routes/Plex.routes').default as ApiRouteRegistrar
       registrars.push({ routeFile: 'Plex.routes', register: registerPlex })
     } catch (err: unknown) {
@@ -143,7 +138,6 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
     }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const registerEmby = require('../../api/routes/Emby.routes').default as ApiRouteRegistrar
       registrars.push({ routeFile: 'Emby.routes', register: registerEmby })
     } catch (err: unknown) {
@@ -156,7 +150,6 @@ function buildRouteRegistrars(): Array<{ routeFile: string; register: ApiRouteRe
 
   // TMDB scraper is SFW-safe and always registered when the package is present.
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const registerTmdb = require('../../api/routes/Tmdb.routes').default as ApiRouteRegistrar
     registrars.push({ routeFile: 'Tmdb.routes', register: registerTmdb })
   } catch (err: unknown) {
