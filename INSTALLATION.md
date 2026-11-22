@@ -8,6 +8,32 @@ Pre-built installers are published on [GitHub Releases](https://github.com/fupde
 | Windows | `MediaChips.v<version>.Windows.Installer.exe` (NSIS installer) |
 | Linux | `MediaChips.v<version>.Linux.AppImage` |
 
+### Verify your download
+
+Questions about safety, the unsigned installers and what the app sends over the network: [Security and privacy](docs/security-and-privacy.md).
+
+Every release is built by GitHub Actions from the tagged commit of this repository, and each release includes `SHA256SUMS.txt`.
+
+```bash
+# Linux
+sha256sum -c SHA256SUMS.txt --ignore-missing
+# macOS
+shasum -a 256 -c SHA256SUMS.txt --ignore-missing
+```
+
+```powershell
+# Windows (compare the result with the matching line in SHA256SUMS.txt)
+Get-FileHash .\MediaChips.v<version>.Windows.Installer.exe -Algorithm SHA256
+```
+
+To confirm the file was built from this repository, install the [GitHub CLI](https://cli.github.com/) and run:
+
+```bash
+gh attestation verify <downloaded-file> --repo fupdec/mediaChips
+```
+
+Releases published before this was added do not include checksums or build attestations.
+
 ### In-app auto-update (desktop)
 
 NSIS (Windows), ZIP (macOS), and AppImage (Linux) builds support automatic updates inside the app:

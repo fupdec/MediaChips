@@ -21,6 +21,10 @@ jobs:
     needs: checks
     name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -92,6 +96,15 @@ jobs:
           echo "Distribution files:"
           ls -la dist-assets/
           test "$(ls -A dist-assets)"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist-assets/*.exe
+            dist-assets/*.dmg
+            dist-assets/*.zip
+            dist-assets/*.AppImage
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

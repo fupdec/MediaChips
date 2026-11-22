@@ -31,6 +31,8 @@ MediaChips is an open-source desktop app for local **videos, images, audio, and 
 You shape the library: define **chips** (custom metadata), keep rich **tags**, filter by anything, and browse with **previews and view modes** that make the collection readable — not just a folder tree.
 
 > **Private. Local. Yours.** Your library stays on your computer. Connect remote sources and transfer originals when you choose. Inspect the code, extend it with plugins, or self-host on your LAN / NAS.
+>
+> Installers are not code-signed, so Windows and macOS may show a warning. [Is it safe? What it sends over the network and how to verify a download →](docs/security-and-privacy.md)
 
 ---
 

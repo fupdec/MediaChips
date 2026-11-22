@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { appendFileSync, closeSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,6 +19,32 @@ export function digest(file, algorithm = 'sha512', encoding = 'base64') {
     while ((count = readSync(fd, buffer, 0, buffer.length, null))) hash.update(buffer.subarray(0, count))
     return hash.digest(encoding)
   } finally { closeSync(fd) }
+}
+
+export const CHECKSUMS_NAME = 'SHA256SUMS.txt'
+
+// sha256sum-compatible list of the installers people download (update metadata and
+// blockmaps are machine files, so they are left out).
+export function checksumLines(files) {
+  return [...files]
+    .filter(([name]) => !metadata(name) && !name.endsWith('.blockmap'))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, file]) => `${digest(file, 'sha256', 'hex')}  ${name}`)
+    .join('\n') + '\n'
+}
+
+export function verificationNotes(repo = 'fupdec/mediaChips') {
+  return `
+---
+
+### Verify your download
+
+Every installer in this release is built by GitHub Actions from the tagged commit of this repository.
+
+- **Checksums:** compare your file with \`${CHECKSUMS_NAME}\` (\`sha256sum -c ${CHECKSUMS_NAME}\` on Linux, \`shasum -a 256 -c ${CHECKSUMS_NAME}\` on macOS, \`Get-FileHash <file>\` in PowerShell).
+- **Build provenance:** \`gh attestation verify <file> --repo ${repo}\` confirms the file was built from this repository by GitHub Actions.
+- **First launch:** Windows and macOS builds are not signed with a commercial certificate, so the system may show a warning. See [INSTALLATION.md](https://github.com/${repo}/blob/master/INSTALLATION.md) for the steps.
+`
 }
 
 export function validateArtifacts(root, version) {
@@ -106,8 +132,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     let notesFile
     try {
       execFileSync(process.execPath, ['scripts/extract-changelog.mjs', version, notes], { stdio: 'inherit' })
+      appendFileSync(notes, verificationNotes(process.env.GITHUB_REPOSITORY || undefined))
       notesFile = notes
     } catch { console.log('Using generated release notes') }
+    const sums = path.join(temp, CHECKSUMS_NAME)
+    writeFileSync(sums, checksumLines(files))
+    files.set(CHECKSUMS_NAME, sums)
     publish({ tag, sha, files, gh, notes: notesFile })
   } finally { rmSync(temp, { recursive: true, force: true }) }
 }

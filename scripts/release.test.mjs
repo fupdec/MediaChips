@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { digest, publish, validateArtifacts } from './publish-release.mjs'
+import { checksumLines, digest, publish, validateArtifacts, verificationNotes } from './publish-release.mjs'
 const { load, dump } = createRequire(import.meta.url)('js-yaml')
 
 function fixture(t) {
@@ -108,4 +108,28 @@ test('metadata upload failure and mismatched remote bytes never publish', t => {
     assert.throws(() => publish({ tag: 'v1.2.3', sha: 'commit', files, gh }))
     assert.ok(!fake.calls.some(args => args.includes('--draft=false')))
   }
+})
+
+test('checksum list covers installers only and matches sha256sum format', t => {
+  const root = fixture(t)
+  const files = validateArtifacts(root, '1.2.3')
+  files.set('app-Windows.exe.blockmap', path.join(root, 'release-Windows/app-Windows.exe'))
+  const lines = checksumLines(files).trimEnd().split('\n')
+  assert.deepEqual(lines.map(line => line.split('  ')[1]), ['app-Linux.AppImage', 'app-macOS.zip', 'app-Windows.exe'])
+  for (const line of lines) {
+    const [hash, name] = line.split('  ')
+    assert.match(hash, /^[0-9a-f]{64}$/)
+    assert.equal(hash, digest(files.get(name), 'sha256', 'hex'))
+  }
+  assert.match(verificationNotes('o/r'), /gh attestation verify <file> --repo o\/r/)
+})
+
+test('release builds attest installer provenance with scoped permissions', () => {
+  const release = load(readFileSync('.github/workflows/release.yml', 'utf8'))
+  assert.deepEqual(release.jobs.build.permissions, { contents: 'read', 'id-token': 'write', attestations: 'write' })
+  const step = release.jobs.build.steps.find(item => item.uses?.startsWith('actions/attest-build-provenance'))
+  assert.ok(step)
+  assert.match(step.with['subject-path'], /dist-assets\/\*\.exe/)
+  assert.equal(release.jobs.publish.permissions.contents, 'write')
+  assert.equal(release.jobs.publish.permissions.attestations, undefined)
 })
