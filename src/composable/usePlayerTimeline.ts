@@ -104,7 +104,7 @@ export function usePlayerTimeline({ emit }: UsePlayerTimelineOptions) {
   ) || (
     // A card played through a verified copy (NAS / cloud) keeps its original path, so it is not a "web video"
     // for the timeline, yet it is fetched over the network on the first load too.
-    player.value.usesCopySource && player.value.webVideoLoading
+    player.value.usesCopySource && (player.value.webVideoLoading || player.value.isStreamWaiting)
   ))
 
   const timelineTrackStyle = computed(() => {

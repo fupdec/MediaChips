@@ -186,6 +186,9 @@ const catalogOpen = ref(false)
 const addingProcess = useRemoteMediaAddingProcess(t)
 const emit = defineEmits<{started: []}>()
 const app = useAppStore()
+/** Drive imports are one request per file; a few at a time hides the per-request round trips. */
+const DRIVE_IMPORT_PARALLEL = 5
+type DriveImportOutcome = (DriveImportResult & {path: string}) | {path: string; failure: unknown}
 const gate = useFreeLibraryGate()
 const sync = useItemsListSync()
 const events = useEventBus()
@@ -484,13 +487,22 @@ async function submit() {
     if (expanded.stopped) { message.value = t('nas.scan_stopped'); return }
     selectedPaths.value = [...expanded.paths, ...expanded.failedFolders]
     scanning.value = false; total.value = expanded.paths.length
-    const result = await runRemoteImportQueue<DriveImportResult & {path: string}>({
+    const result = await runRemoteImportQueue<DriveImportOutcome>({
       paths: expanded.paths, shouldStop: () => stopRequested.value || current !== generation,
-      nextChunkSize: async () => await gate.ensureCanImportMedia() ? 1 : 0,
-      async request([path]) {
+      async nextChunkSize() {
+        if (!await gate.ensureCanImportMedia()) return 0
+        if (gate.registered.value || gate.grandfathered.value) return DRIVE_IMPORT_PARALLEL
+        return Math.min(DRIVE_IMPORT_PARALLEL, Math.max(0, gate.freeCap - gate.libraryCount.value))
+      },
+      // Each file is its own request, so one failure never hides the files that were committed beside it.
+      async request(chunk) {
         run.phase('importing')
-        const {data} = await apiClient.post<DriveImportResult>('/api/drive/import', {fileId: driveFileIdFromPath(path)}, {timeout: 40_000, signal})
-        return [{...data, path}]
+        return await Promise.all(chunk.map(async (path): Promise<DriveImportOutcome> => {
+          try {
+            const {data} = await apiClient.post<DriveImportResult>('/api/drive/import', {fileId: driveFileIdFromPath(path)}, {timeout: 40_000, signal})
+            return {...data, path}
+          } catch (err) { return {path, failure: err} }
+        }))
       },
       async onRequestError(paths, err) {
         if (current !== generation) return
@@ -500,23 +512,30 @@ async function submit() {
       onProgress: done => { if (current === generation) processed.value = done },
       async onResults(results) {
         if (current !== generation) return
-        const [{path, ...data}] = results
-        if (data.created) added++; else duplicates++
+        const imported: Extract<DriveImportOutcome, {id: number}>[] = []
+        for (const result of results) {
+          if ('failure' in result) { failures.value.push({path: result.path, message: apiError(result.failure)}); continue }
+          if (result.created) added++; else duplicates++
+          // The import response provides the authoritative filename even after a rename.
+          pathTitles.value[result.path] = result.title
+          run.record(result.path, result.id, result.created)
+          imported.push(result)
+        }
         batchStats.value.added = added; batchStats.value.duplicates = duplicates
-        // The import response provides the authoritative filename even after a rename.
-        pathTitles.value[path] = data.title
-        run.record(path, data.id, data.created)
+        // A timeout can hide committed cards. Reconcile the cap before the next batch.
         refreshLibrary(); await gate.refreshLibraryCount()
         if (current !== generation) return
         try {
-          if (options.parseTags) run.phase('tagging')
-          if (options.parseTags) await parseAndAssignImportPathTags([
-            {path: driveReadablePath(path, pathTitles.value), mediaId: data.id},
-          ], {shouldStop: () => current !== generation})
+          if (options.parseTags && imported.length) {
+            run.phase('tagging')
+            await parseAndAssignImportPathTags(imported.map(({path, id}) => ({mediaId: id, path: driveReadablePath(path, pathTitles.value)})),
+              {shouldStop: () => current !== generation})
+          }
           if (current !== generation) return
-          selectedPaths.value = selectedPaths.value.filter(value => value !== path)
+          const done = new Set(imported.map(item => item.path))
+          selectedPaths.value = selectedPaths.value.filter(value => !done.has(value))
           refreshLibrary()
-        } catch (err) { if (current === generation) failures.value.push({path, message: apiError(err)}) }
+        } catch (err) { if (current === generation) for (const {path} of imported) failures.value.push({path, message: apiError(err)}) }
       },
     })
     if (current !== generation) return

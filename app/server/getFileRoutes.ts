@@ -192,10 +192,15 @@ export function registerGetFileRoutes({
         ? `W/"v${maxEdge}-${stats.size}-${Math.trunc(stats.mtimeMs)}"`
         : `W/"${stats.size}-${Math.trunc(stats.mtimeMs)}"`
 
-      // Media thumbs/grids can be overwritten by scraped posters (TPDB etc.),
-      // so they must revalidate with the server via ETag on every request.
-      // Unchanged files get a cheap 304; changed files get a fresh 200.
-      const cacheControl = 'public, max-age=0, must-revalidate'
+      // Media thumbs/grids can be overwritten by scraped posters (TPDB etc.), so
+      // they are always revalidated via ETag (unchanged -> cheap 304). Library
+      // thumbs add stale-while-revalidate: a card that scrolls back into view
+      // paints the cached thumb at once instead of waiting on a round trip
+      // (blank flashes), and a changed poster shows up on the next view.
+      const isLibraryThumb = /[\\/](thumbs|grids)[\\/]/.test(resolvedPath)
+      const cacheControl = isLibraryThumb
+        ? 'public, max-age=0, stale-while-revalidate=604800'
+        : 'public, max-age=0, must-revalidate'
 
       const ifNoneMatch = req.headers['if-none-match']
       if (typeof ifNoneMatch === 'string') {

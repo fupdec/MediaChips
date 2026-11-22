@@ -267,7 +267,11 @@ export function usePlayerPlayback({
     playerStore.player.addEventListener('error', () => {
       void handleVideoElementError()
     })
+    // A verified-copy stream (NAS/cloud) keeps its original path, so it is not a
+    // "web video", but it stalls on the network just the same and needs the spinner.
+    const isCopyStream = () => playerStore.usesCopySource && !playerStore.isWebVideo
     playerStore.player.addEventListener('seeking', () => {
+      if (isCopyStream()) playerStore.isStreamWaiting = true
       if (playerStore.isWebVideo) {
         playerStore.isStreamWaiting = true
         playerStore.webVideoFrameReady = false
@@ -277,12 +281,14 @@ export function usePlayerPlayback({
     })
     playerStore.player.addEventListener('seeked', () => {
       liveSession.clearDirectSeekStallWatch()
+      if (isCopyStream()) playerStore.isStreamWaiting = false
       if (playerStore.isWebVideo) {
         playerStore.isStreamWaiting = false
         playerStore.webVideoFrameReady = Boolean(playerStore.player && playerStore.player.readyState >= 2)
       }
     })
     const onWebFrameReady = () => {
+      if (isCopyStream()) playerStore.isStreamWaiting = false
       if (!playerStore.isWebVideo) return
       playerStore.isStreamWaiting = false
       playerStore.webVideoFrameReady = Boolean(playerStore.player && playerStore.player.readyState >= 2 && !playerStore.player.seeking)
@@ -294,6 +300,7 @@ export function usePlayerPlayback({
         && playerStore.player?.paused) playerStore.paused = true
     })
     playerStore.player.addEventListener('waiting', () => {
+      if (isCopyStream()) playerStore.isStreamWaiting = true
       if (playerStore.isWebVideo) { playerStore.isStreamWaiting = true; return }
       if (!playerStore.usesLiveTranscode) {
         // The watchdog only accepts suspect codec/container plans. Normal
@@ -309,6 +316,7 @@ export function usePlayerPlayback({
     playerStore.player.addEventListener('playing', () => {
       void ensureOpeningThumb()
       liveSession.clearDirectSeekStallWatch()
+      if (isCopyStream()) playerStore.isStreamWaiting = false
       if (playerStore.isWebVideo) {
         onWebFrameReady()
         if (!playerStore.webVideoLoading) playerStore.paused = false

@@ -17,8 +17,9 @@ import {
 
 /** Cards per database read; the pass keeps going until nothing is pending. */
 const BATCH = 24
-/** Parallel fingerprint reads (network sources dominate the time). */
-const FINGERPRINT_CONCURRENCY = 3
+/** Parallel fingerprint reads: NAS sessions are scarce, Drive and local files are not. */
+const NAS_FINGERPRINT_CONCURRENCY = 3
+const FINGERPRINT_CONCURRENCY = 8
 const MAX_EVENTS = 200
 
 type NewCardRow = {
@@ -114,14 +115,19 @@ export function createDuplicatesOnAdd(db: ApiDb, options: {
               return
             }
             // Exact copies are matched by oshash; hash new cards first when the import did not.
-            await mapWithConcurrency(rows.filter(row => !row.oshash && Number(row.filesize) > 8 && row.mediaType),
-              FINGERPRINT_CONCURRENCY, async (row) => {
-                if (stop()) return
-                stats.current = row.name || row.path
-                try {
-                  await (options.backfill || backfillMediaFingerprint)(current, row, {signal: controller.signal, assertCurrent: pinned.assertCurrent})
-                } catch { /* Unreadable now: path, name and visual signals can still match. */ }
-              })
+            const unhashed = rows.filter(row => !row.oshash && Number(row.filesize) > 8 && row.mediaType)
+            const hashRow = async (row: NewCardRow) => {
+              if (stop()) return
+              stats.current = row.name || row.path
+              try {
+                await (options.backfill || backfillMediaFingerprint)(current, row, {signal: controller.signal, assertCurrent: pinned.assertCurrent})
+              } catch { /* Unreadable now: path, name and visual signals can still match. */ }
+            }
+            const isNas = (row: NewCardRow) => row.path.startsWith('nas://')
+            await Promise.all([
+              mapWithConcurrency(unhashed.filter(row => !isNas(row)), FINGERPRINT_CONCURRENCY, hashRow),
+              mapWithConcurrency(unhashed.filter(isNas), NAS_FINGERPRINT_CONCURRENCY, hashRow),
+            ])
             for (const row of rows) {
               pinned.assertCurrent()
               if (stop()) return

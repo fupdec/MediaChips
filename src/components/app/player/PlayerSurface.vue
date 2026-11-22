@@ -320,7 +320,7 @@ async function openDrivePlayer() {
 
 const showTranscodeSpinner = computed(() => !player.value.playbackError && (
   isTranscodeBusy(player.value) || player.value.webVideoLoading
-  || (player.value.isWebVideo && player.value.isStreamWaiting && !player.value.paused)
+  || ((player.value.isWebVideo || player.value.usesCopySource) && player.value.isStreamWaiting && !player.value.paused)
 ))
 
 const remoteDownloadSpeed = useRemotePlaybackSpeed(
@@ -337,7 +337,7 @@ const remoteDownloadSpeedText = computed(() => {
 
 const remoteConnectionStatus = computed(() => {
   if (player.value.webVideoLoading) return t('player.remote_connecting')
-  if (player.value.isWebVideo && player.value.isStreamWaiting && !player.value.paused) {
+  if ((player.value.isWebVideo || player.value.usesCopySource) && player.value.isStreamWaiting && !player.value.paused) {
     return t('player.remote_buffering') + (remoteDownloadSpeedText.value ? ` · ${remoteDownloadSpeedText.value}` : '')
   }
   return ''

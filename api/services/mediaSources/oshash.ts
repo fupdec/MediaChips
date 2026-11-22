@@ -36,7 +36,11 @@ async function readSample(adapter: SourceReadAdapter, key: string, start: number
   } finally { signal.removeEventListener('abort', abort); body.destroy() }
 }
 
-/** Two bounded reads, regardless of file size. Fresh sessions also support FTP's range-close behavior. */
+/**
+ * Two bounded reads, regardless of file size.
+ * Stateless providers (Drive, OneDrive, Dropbox) reuse one adapter and read both samples in parallel: three round trips.
+ * NAS keeps fresh sessions because FTP closes the session at the end of a bounded read.
+ */
 export async function computeSourceOshash(open: OshashSourceFactory, key: string, options: {
   signal?: AbortSignal
   assertCurrent?: () => void
@@ -44,24 +48,47 @@ export async function computeSourceOshash(open: OshashSourceFactory, key: string
 } = {}) {
   const signal = options.signal || AbortSignal.timeout(30_000)
   const check = () => { signal.throwIfAborted(); options.assertCurrent?.() }
-  const using = async <T>(action: (adapter: SourceReadAdapter) => Promise<T>) => {
-    check()
-    const adapter = await open(signal)
-    try { check(); return await action(adapter) } finally { adapter.close() }
-  }
   let before!: SourceObject
   let chunkSize = CHUNK_SIZE
-  const unchanged = (current: SourceObject) => {
-    check()
-    if (current.isDirectory || current.size !== before.size || current.version !== before.version) throw sourceError('source_version_changed')
-  }
-  const head = await using(async adapter => {
-    before = await adapter.stat(key, signal)
+  const begin = (file: SourceObject) => {
+    before = file
     check()
     if (before.isDirectory || !Number.isSafeInteger(before.size) || before.size < 0 || !before.version) throw sourceError('invalid_file', 400)
     if (before.size <= 8) throw sourceError('file_too_small', 400)
     options.validate?.(before)
     chunkSize = before.size < CHUNK_SIZE ? Math.floor(before.size / 8) * 8 : CHUNK_SIZE
+  }
+  const unchanged = (current: SourceObject) => {
+    check()
+    if (current.isDirectory || current.size !== before.size || current.version !== before.version) throw sourceError('source_version_changed')
+  }
+  check()
+  const first = await open(signal)
+  if (first.provider !== 'nas') {
+    const samples = new AbortController()
+    const sampleSignal = AbortSignal.any([signal, samples.signal])
+    try {
+      begin(await first.stat(key, signal))
+      const [head, tail] = await Promise.all([
+        readSample(first, key, 0, chunkSize, before.size, sampleSignal),
+        readSample(first, key, before.size - chunkSize, chunkSize, before.size, sampleSignal),
+      ])
+      unchanged(await first.stat(key, signal))
+      return {value: computeOshashFromChunks(before.size, head, tail), size: before.size, version: before.version, file: before}
+    } catch (err) {
+      samples.abort()
+      throw err
+    } finally { first.close() }
+  }
+  let pending: SourceReadAdapter | undefined = first
+  const using = async <T>(action: (adapter: SourceReadAdapter) => Promise<T>) => {
+    check()
+    const adapter = pending ?? await open(signal)
+    pending = undefined
+    try { check(); return await action(adapter) } finally { adapter.close() }
+  }
+  const head = await using(async adapter => {
+    begin(await adapter.stat(key, signal))
     return readSample(adapter, key, 0, chunkSize, before.size, signal)
   })
   const tail = await using(async adapter => {

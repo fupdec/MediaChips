@@ -23,6 +23,7 @@
           :media-type="mediaType"
           :reg="reg"
           :x="position.index"
+          eager-preview
         />
       </div>
     </div>

@@ -177,7 +177,7 @@ export const VIRTUAL_GRID_THRESHOLD = 48
 /** Extra mounted rows above/below the viewport (smoother fling scroll). */
 export const VIRTUAL_ROW_BUFFER = 4
 
-export const VIRTUAL_MASONRY_BUFFER = 600
+export const VIRTUAL_MASONRY_BUFFER = 900
 
 /** Estimated description block height before natural rows are measured. */
 export function getDescriptionHeight(size = 3): number {

@@ -4370,11 +4370,21 @@ body > .video-preview-container.video-preview-container--expanded {
   }
 }
 
+// Missing source file: thumbs fade to gray. An animation (not a transition) so
+// it also plays for cards that mount already marked, and cannot be lost to a
+// `transition` shorthand set on .thumb elsewhere.
+@keyframes no-file-fade {
+  from {
+    filter: none;
+  }
+}
+
 .no-file {
   .thumb,
   img,
   .v-img__img {
     filter: saturate(0.1) opacity(50%);
+    animation: no-file-fade 0.9s ease-out;
   }
 }
 

@@ -403,7 +403,7 @@ const itemRootRef = ref<HTMLElement | null>(null)
 const checkedFilePath = ref<string | null>(null)
 const isTagDropTarget = ref(false)
 const mediaTagDragActive = ref(isMediaTagDragActive())
-const { isInView, wasInView } = useLazyInView(itemRootRef, { rootMargin: '400px 0px' })
+const { isInView, wasInView } = useLazyInView(itemRootRef, { rootMargin: '800px 0px' })
 
 let unsubscribeMediaTagDrag: (() => void) | null = onMediaTagDragChange((active) => {
   mediaTagDragActive.value = active
