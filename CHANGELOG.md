@@ -7,10 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-22
+
 ### Added
 
+- **Simple interface mode** — a reduced interface for new users.
+- **Filter panel rework** — grouped add-filter picker with presets, simpler filter modes, unified applied-filter chips with a count of hidden tags, and collapsed sections that are remembered.
+- **Duplicates** — a stop button for the duplicate search, progress for the search and the merge, faster merging, and checking the duplicates of all selected cards at once. Duplicate actions moved out of the app bar menu.
+- **Background processes** — server processes show up in notifications and tasks; selected media is deleted in batches with progress and a stop button.
+- **Network connections** are shown on the folders page, and copy availability is checked with a single request per grid view.
+- **Copies as a source** — verified file copies are accepted as a source for cards and playback, with timeline hover previews and loading stripes for tracks played through a copy. The resume position of remote files is restored, and stall stripes appear only on real stalls.
+- **Thumbnail editor** — crop area tools.
+- **Tags** — "color from main image" in the tag context menu; the first-letter filter matches the real alphabet.
+- **Themes** — a recommended default palette, used as the default theme.
+- **Settings** — slider controls restyled, field pinning with a card preview, and experimental virtualized image grids (off by default).
+- **Faster Google Drive import** — files are imported five at a time; thumbnails load from further off-screen and are served with stale-while-revalidate.
 - **Diagnostic logs** — the server and the desktop shell now keep a rolling log in the data folder (`logs/server.log`, `logs/main.log`, about 2 MB each plus two older copies). Settings → About shows the latest lines and lets you copy or download them. Access tokens, passwords and your home folder name are masked before anything is written. Crashes of the GPU or renderer process and the display session (X11/Wayland) are recorded too, so a bug report can include real data.
 - **Linux: `MEDIA_CHIPS_DISABLE_GPU=1`** now works on Linux as well as Windows, as an opt-in workaround for GPU driver problems. Nothing changes unless it is set.
+
+### Changed
+
+- Grid cards use adaptive gaps and fluid widths; the bottom navigation floats within the content area; the global search, All tags page, bulk edit dialog, meta assignment panel, notification cards and toasts are restyled.
+- Legacy country names in the database and country lists are renamed.
+
+### Fixed
+
+- Hover video falls back to frame grids when it is unavailable.
+- Missing `network_connections` and active-process translations were added.
 
 ## [2.0.0] - 2026-11-18
 

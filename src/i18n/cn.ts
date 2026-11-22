@@ -198,6 +198,7 @@ const cn = {
     openProcessInNotifications: '可在通知列表中查看详情',
     activeProcessesCount: '活动进程：{count}。详情在通知列表中',
     activeProcessesTitle: '活动进程：{count}',
+    activeProcessesMore: '另有 {count} 个',
     openNotificationsList: '打开列表',
   },
   systemBar: {

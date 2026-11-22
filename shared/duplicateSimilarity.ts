@@ -142,9 +142,10 @@ function couldMatch(a: SimilarityItem, b: SimilarityItem, policy: DuplicatePolic
 export type SimilarityGroupingProgress = {done: number; total: number}
 
 /** One original per step; the step reports how many items were consumed (compared or grouped) so far. */
-function* similarityGrouping(items: SimilarityItem[], policy: DuplicatePolicy) {
+type SimilarityGroup = {key: string; itemIds: number[]; originalId: number; similarity: SimilarityEvidence[]; similarityItems: SimilarityItem[]}
+function* similarityGrouping(items: SimilarityItem[], policy: DuplicatePolicy): Generator<SimilarityGroupingProgress, SimilarityGroup[], void> {
   const pending = new Map(items.map(item => [item.id, item]))
-  const groups: Array<{key: string; itemIds: number[]; originalId: number; similarity: SimilarityEvidence[]; similarityItems: SimilarityItem[]}> = []
+  const groups: SimilarityGroup[] = []
   const byId = new Map(pending)
   for (const original of [...items].sort((a, b) => compareOriginal(a, b, policy.priority))) {
     const id = original.id
@@ -166,7 +167,7 @@ export function groupSimilarityItems(items: SimilarityItem[], policy: DuplicateP
   const steps = similarityGrouping(items, policy)
   let step = steps.next()
   while (!step.done) step = steps.next()
-  return step.value
+  return step.value as SimilarityGroup[]
 }
 
 /** Same result, but gives the event loop back regularly so progress can be read and the search cancelled. */
@@ -181,7 +182,7 @@ export async function groupSimilarityItemsAsync(items: SimilarityItem[], policy:
   let sliceStart = Date.now()
   let step = steps.next()
   while (!step.done) {
-    options.onProgress?.(step.value)
+    options.onProgress?.(step.value as SimilarityGroupingProgress)
     if (Date.now() - sliceStart >= sliceMs) {
       await new Promise<void>(resolve => setImmediate(resolve))
       options.signal?.throwIfAborted()
@@ -190,5 +191,5 @@ export async function groupSimilarityItemsAsync(items: SimilarityItem[], policy:
     step = steps.next()
   }
   options.onProgress?.({done: items.length, total: items.length})
-  return step.value
+  return step.value as SimilarityGroup[]
 }

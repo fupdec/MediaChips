@@ -16,6 +16,7 @@ import {
   getLayoutGap,
   getLayoutMetrics,
   getMediaAspectRatio,
+  getMinimalFilenameHeight,
   getTargetCardWidth,
   getVariableGridHeight,
   getVariableRowOffset,
@@ -477,8 +478,9 @@ describe('automatic card gaps', () => {
       const style = getGridLayoutStyle(options)
       expect(style['--grid-gap-y']).toBe(style['--grid-gap-x'])
       // With no description/progress in minimalism, the stride is exact.
+      const {cardWidth} = getLayoutMetrics(1000, options)
       expect(estimateRowHeight({...options, imageOnly: true})).toBeCloseTo(
-        getLayoutMetrics(1000, options).cardWidth / (16 / 9) + 28 + spacing.y,
+        cardWidth / (16 / 9) + getMinimalFilenameHeight(getCardSizeForWidth(cardWidth)) + spacing.y,
       )
     }
     expect(getLayoutGap({gapSize: 'auto'})).toEqual({x: 10, y: 10})

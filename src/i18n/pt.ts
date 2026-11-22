@@ -198,6 +198,7 @@ const pt = {
     openProcessInNotifications: 'Você pode ver detalhes na lista de notificações',
     activeProcessesCount: 'Processos ativos: {count}. Os detalhes estão na lista de notificações',
     activeProcessesTitle: 'Processos ativos: {count}',
+    activeProcessesMore: 'e mais {count}',
     openNotificationsList: 'Abrir lista',
   },
   systemBar: {

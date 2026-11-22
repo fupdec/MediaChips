@@ -198,6 +198,7 @@ const ja = {
     openProcessInNotifications: '通知リストで詳細を確認できます',
     activeProcessesCount: 'アクティブなプロセス: {count}。詳細はお知らせ一覧に記載しております',
     activeProcessesTitle: 'アクティブなプロセス: {count}',
+    activeProcessesMore: '他 {count} 件',
     openNotificationsList: '一覧を開く',
   },
   systemBar: {

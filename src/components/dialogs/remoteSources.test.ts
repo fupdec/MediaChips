@@ -381,19 +381,23 @@ describe('remote source import actions', () => {
     expect(source.state.selectedPaths).toEqual([])
   })
 
-  it('finishes tagging the active Drive file on Stop, then resumes only remaining files', async () => {
+  it('finishes tagging the active Drive batch on Stop, then resumes only remaining files', async () => {
     const source = mountSource(GoogleDriveSource)
     await nextTick()
-    source.state.selectedPaths = [`${driveRoot}/first`, `${driveRoot}/last`]
-    mocks.post.mockImplementationOnce(async () => {
-      source.stop()
-      return {data: {id: 61, title: 'First.mp4', created: true}}
+    const names = ['a', 'b', 'c', 'd', 'e', 'last']
+    source.state.selectedPaths = names.map(name => `${driveRoot}/${name}`)
+    // Drive imports run five files at once; Stop lets that whole batch finish and holds back the rest.
+    mocks.post.mockImplementation(async (_url: string, body: {fileId: string}) => {
+      if (body.fileId === 'a') source.stop()
+      const id = 60 + names.indexOf(body.fileId)
+      return {data: {id, title: `${body.fileId}.mp4`, created: true}}
     })
     await source.submit()
-    expect(mocks.post).toHaveBeenCalledTimes(1)
-    expect(mocks.parseTags).toHaveBeenCalledWith([{path: '/First.mp4', mediaId: 61}], expect.anything())
+    expect(mocks.post).toHaveBeenCalledTimes(5)
+    expect(mocks.parseTags).toHaveBeenCalledWith(
+      expect.arrayContaining([{path: '/a.mp4', mediaId: 60}, {path: '/e.mp4', mediaId: 64}]), expect.anything())
     expect(source.state.selectedPaths).toEqual([`${driveRoot}/last`])
-    mocks.post.mockClear().mockResolvedValue({data: {id: 62, title: 'Last.mp4', created: true}})
+    mocks.post.mockReset().mockResolvedValue({data: {id: 62, title: 'Last.mp4', created: true}})
     await source.submit()
     expect(mocks.post).toHaveBeenCalledExactlyOnceWith('/api/drive/import', {fileId: 'last'}, expect.anything())
     expect(source.state.selectedPaths).toEqual([])
