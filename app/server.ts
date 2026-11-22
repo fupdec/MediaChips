@@ -15,6 +15,13 @@ import { registerPingRoute } from './server/pingRoute'
 import { registerConfigRoute } from './server/configRoute'
 import { attachLogDir, initAppLog } from './server/appLog'
 import { registerLogRoutes } from './server/logRoute'
+import {
+  DEFAULT_EVENT_LOOP_BLOCK_MS,
+  DEFAULT_SLOW_REQUEST_MS,
+  createSlowRequestLogger,
+  parseThresholdMs,
+  startEventLoopLagMonitor,
+} from './server/slowRequestLog'
 import packageJson from '../package.json'
 import { createServerStarter } from './server/startup'
 import {
@@ -52,6 +59,16 @@ logStartup('database open')
 const {db} = setupDatabase({databasesPath, dbConfig})
 
 const {app, router} = createExpressApp()
+// Slow responses and event loop stalls go to logs/server.log (Settings → About shows it).
+// MEDIA_CHIPS_SLOW_REQUEST_MS / MEDIA_CHIPS_EVENT_LOOP_BLOCK_MS override the thresholds; 0 disables.
+app.use(createSlowRequestLogger({
+  thresholdMs: parseThresholdMs(process.env.MEDIA_CHIPS_SLOW_REQUEST_MS, DEFAULT_SLOW_REQUEST_MS),
+  log: message => console.warn(message),
+}))
+startEventLoopLagMonitor({
+  thresholdMs: parseThresholdMs(process.env.MEDIA_CHIPS_EVENT_LOOP_BLOCK_MS, DEFAULT_EVENT_LOOP_BLOCK_MS),
+  log: message => console.warn(message),
+})
 const authService = initAuthService(db, {dataDir: path.dirname(databasesPath)})
 authService.applyPendingPasswordReset(true)
 app.use(createAuthMiddleware(authService))
