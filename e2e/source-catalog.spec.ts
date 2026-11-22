@@ -65,7 +65,7 @@ test('manually reconciles, cancels safely, persists a schedule and edits the off
   await expect.poll(() => limitBytes).toBe(2 * 1024 ** 3)
   await page.getByRole('button', {name: /^(Close|Закрыть)$/}).click()
   await page.setViewportSize({width: 390, height: 844})
-  const width = await source.evaluate(el => ({actual: el.clientWidth, scroll: el.scrollWidth}))
+  // The settings layout reflows after the viewport change, so wait for it to settle.
+  await expect.poll(() => source.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
   await source.screenshot({animations: 'disabled', path: test.info().outputPath('catalog-mobile.png')})
-  expect(width.scroll).toBeLessThanOrEqual(width.actual)
 })

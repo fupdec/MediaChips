@@ -125,7 +125,7 @@
           :hint="parameter === 'availability' ? t('sources.catalog.observation_hint') : undefined"
           :persistent-hint="parameter === 'availability'"
           :menu-props="{contentClass: 'filter-catalog-menu', maxHeight: 320}"
-          hide-details
+          hide-details="auto"
           class="ma-1 pt-0"
           density="compact"
           variant="outlined"
