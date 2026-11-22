@@ -113,7 +113,7 @@
             </div>
             <PillSlider
               :model-value="Number(SETTINGS.delayVideoPreview)"
-              @update:model-value="(val) => setOption(String(val), 'delayVideoPreview')"
+              @update:model-value="(val: number) => setOption(String(val), 'delayVideoPreview')"
               min="0"
               max="2000"
               step="100"
@@ -138,7 +138,7 @@
             </div>
             <PillSlider
               :model-value="Number(SETTINGS.big_video_preview_delay)"
-              @update:model-value="(val) => setOption(String(val), 'big_video_preview_delay')"
+              @update:model-value="(val: number) => setOption(String(val), 'big_video_preview_delay')"
               min="0"
               max="9999"
               step="100"

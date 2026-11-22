@@ -124,7 +124,7 @@ test('maintenance opens without a filesystem check and searches only the request
     originalFolder: '/Volumes/Previous/Video',
     folders: ['/Volumes/Archive/Video'],
   })
-  await expect(page.getByText('Missing in the previous folder: 0 · Files scanned: 0 · Matches: 0')).toBeVisible()
+  await expect(page.locator('#settings-find-missing-media').getByText('Missing in the previous folder: 0 · Files scanned: 0 · Matches: 0')).toBeVisible()
   expect(healthRequests).toEqual([])
 })
 

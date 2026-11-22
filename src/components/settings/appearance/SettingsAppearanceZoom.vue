@@ -36,7 +36,7 @@ const zoomPercent = computed(() => Math.round(zoom.value * 100))
           :max="Math.round(MAX_ZOOM * 100)"
           :step="5"
           class="mx-2 app-zoom-slider"
-          @update:model-value="value => setZoom(value / 100)"
+          @update:model-value="(value: number) => setZoom(value / 100)"
         />
 
         <v-btn

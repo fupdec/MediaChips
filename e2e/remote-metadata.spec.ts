@@ -62,7 +62,7 @@ test('offers catalog source and availability filters with readable labels while 
   await page.goto('/media?mediaTypeId=1')
   await waitForAppShell(page)
   await dismissOnboardingIfVisible(page)
-  await page.getByRole('radio', {name: /^(Advanced|Расширенные)$/}).click()
+  await page.getByRole('radio', {name: /^(Edit|Редактирование)$/}).click()
   const source = page.getByRole('combobox', {name: /^(Source|Источник)$/})
   await source.click()
   await expect(page.getByRole('option', {name: 'Studio NAS', exact: true})).toBeVisible()
