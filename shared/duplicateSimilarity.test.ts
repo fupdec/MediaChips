@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {compareSimilarity, defaultDuplicatePolicy, groupSimilarityItems, parseDuplicatePolicy, pickSimilarityOriginal,
+import {compareSimilarity, defaultDuplicatePolicy, groupSimilarityItems, groupSimilarityItemsAsync, parseDuplicatePolicy, pickSimilarityOriginal,
   DEFAULT_SIZE_CANDIDATE_MIN_BYTES, type DuplicatePolicy, type SimilarityItem} from './duplicateSimilarity'
 const GB = 1024 ** 3
 const item = (id: number, patch: Partial<SimilarityItem> = {}): SimilarityItem => ({id, path: `/${id}.mp4`, filesize: 200000, ...patch})
@@ -83,5 +83,24 @@ describe('duplicate policy', () => {
     expect(parseDuplicatePolicy({...fingerprintPreset, threshold: 85, visualMinimum: 90, minimumFrames: 7, searchSimilarVideos: true}))
       .toMatchObject({searchSimilarVideos: true, visualStrictness: 'balanced'})
     expect(parseDuplicatePolicy({weights: {visual: 100}, visualMinimum: 98})).toMatchObject({searchSimilarVideos: true, visualStrictness: 'strict'})
+  })
+})
+
+describe('async grouping', () => {
+  const items = Array.from({length: 60}, (_, i) => item(i + 1, {oshash: `hash${i % 20}`, filesize: 200000}))
+
+  it('gives the same groups as the synchronous pass and reports progress up to the total', async () => {
+    const seen: number[] = []
+    const groups = await groupSimilarityItemsAsync(items, policy(), {sliceMs: 0, onProgress: ({done}) => seen.push(done)})
+    expect(groups).toEqual(groupSimilarityItems(items, policy()))
+    expect(seen[seen.length - 1]).toBe(items.length)
+    expect([...seen].sort((a, b) => a - b)).toEqual(seen)
+  })
+
+  it('stops when the signal aborts', async () => {
+    const controller = new AbortController()
+    await expect(groupSimilarityItemsAsync(items, policy(), {
+      sliceMs: 0, signal: controller.signal, onProgress: ({done}) => { if (done > 5) controller.abort() },
+    })).rejects.toThrow()
   })
 })

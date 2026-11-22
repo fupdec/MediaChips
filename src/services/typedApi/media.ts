@@ -18,6 +18,7 @@ import type {
   EntityUpdatePayload,
   MarkForVideo,
   MediaDuplicateGroupsResult,
+  DuplicateSearchProgress,
   MergeMediaResult,
 } from '@shared/api/responses'
 import type {
@@ -282,6 +283,10 @@ export const mediaApi = {
 
   mergeMedia(body: MergeMediaPayload) {
     return apiClient.post<MergeMediaResult>(API_ROUTES.mediaMerge, body, {timeout: 30 * 60_000})
+  },
+
+  getMediaDuplicateGroupsProgress(id: string, signal?: AbortSignal) {
+    return apiClient.get<{progress: DuplicateSearchProgress | null}>(API_ROUTES.mediaDuplicateGroupsProgress, {params: {id}, signal})
   },
 
   getMediaDuplicateGroups(body: MediaDuplicateGroupsPayload, signal?: AbortSignal) {

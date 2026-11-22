@@ -130,6 +130,8 @@ const {
 })
 
 const showTaskSummary = () => {
+  // The open panel already lists every running task; the toast would cover it.
+  if (notificationsStore.show) return
   resetSwipe()
   taskSummaryVisible.value = true
   if (taskSummaryTimer.value) clearTimeout(taskSummaryTimer.value)
@@ -152,7 +154,7 @@ const SUMMARY_NAMED_TASKS = 3
 
 /** Names the process (not just "a process") so the toast says what is actually running. */
 const taskSummaryItem = computed((): TaskSummaryItem | null => {
-  if (!taskSummaryVisible.value || summaryTasks.value.length === 0) return null
+  if (!taskSummaryVisible.value || notificationsStore.show || summaryTasks.value.length === 0) return null
   const list = summaryTasks.value
   if (list.length === 1) {
     const [task] = list

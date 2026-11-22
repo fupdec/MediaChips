@@ -151,6 +151,44 @@ export async function fingerprintCopy(db: ApiDb, path: string, method: CopyVerif
 
 const comparisonKey = (checked: CopyFingerprint) => `${checked.verificationMethod}:${checked.file.size}:${checked.oshash || checked.sha256}`
 
+/** True when some local copy in the group cannot be opened right now (disk unplugged, file moved). One cheap `stat` each. */
+async function anyLocalCopyMissing(db: ApiDb, ids: number[], signal: AbortSignal, open: OpenCopySource): Promise<boolean> {
+  for (const id of ids) {
+    for (const copy of copyCandidates(db, id)) {
+      if (copy.provider !== 'local') continue
+      try {
+        const opened = await open(db, copy.path, signal)
+        try { await opened.adapter.stat(opened.key, signal) } finally { opened.adapter.close() }
+      } catch (err) {
+        if (isUnavailableLocalFile(copy.path, err)) return true
+      }
+    }
+  }
+  return false
+}
+
+/**
+ * Re-uses a fingerprint taken earlier for a remote copy instead of reading the file again: the stored one when the
+ * copy has it, else the catalog's oshash of its card. One metadata request still confirms the file exists, has the
+ * recorded size and an unchanged provider version (the validator playback relies on). Returns null (read the file
+ * as usual) when no fingerprint is known or anything differs.
+ */
+async function knownFingerprintIfCurrent(db: ApiDb, mediaId: number, copy: CopyCandidate, signal: AbortSignal,
+  assertCurrent: () => void, open: OpenCopySource): Promise<CopyFingerprint | null> {
+  if (copy.provider === 'local') return null
+  const stored = copy.stored
+  const card = stored ? null : db.drizzle.select({oshash: media.oshash, filesize: media.filesize}).from(media).where(eq(media.id, mediaId)).get()
+  const oshash = stored ? stored.oshash : card?.oshash
+  const size = Number(stored ? stored.size : card?.filesize || 0)
+  if (!oshash || !(size > 0)) return null
+  const opened = await open(db, copy.path, signal)
+  let file: SourceObject
+  try { file = await opened.adapter.stat(opened.key, signal) } finally { opened.adapter.close() }
+  validFile(file); assertCurrent(); signal.throwIfAborted()
+  if (!matchesVersion(copy, file) || file.size !== size) return null
+  return {file, sha256: '', oshash, verificationMethod: 'oshash'}
+}
+
 /** No writes until all selected cards and retained copies pass the configured comparison. */
 /** Version marker for a copy recorded while its file was unreachable: never matches, so playback re-checks the fingerprint first. */
 export const UNVERIFIED_COPY_VERSION = 'unverified:unavailable'
@@ -188,6 +226,10 @@ export async function verifyCopiesForMerge(db: ApiDb, ids: number[], signal: Abo
   const result: Array<Omit<VerifiedCopy, 'mediaId'>> = []
   const unavailable: Array<{id: number, copy: CopyCandidate}> = []
   let expected: string | undefined
+  // The cheap local source answers first. With "trust unavailable" and a local file confirmed missing, a remote copy
+  // whose fingerprint is already known (stored, or in the catalog) needs one metadata request, not three sessions of range reads.
+  const localMissing = trustUnavailable && method === 'oshash' && await anyLocalCopyMissing(db, ids, signal, open)
+  let reused = 0
   for (const id of ids) {
     for (const copy of copyCandidates(db, id)) {
       let checked: CopyFingerprint
@@ -196,7 +238,9 @@ export async function verifyCopiesForMerge(db: ApiDb, ids: number[], signal: Abo
           const baseline = await fingerprintCopy(db, copy.path, 'oshash', signal, pinned.assertCurrent, open)
           if (baseline.oshash !== copy.stored.oshash || baseline.file.size !== copy.stored.size) throw sourceError('copy_content_mismatch')
         }
-        checked = await fingerprintCopy(db, copy.path, method, signal, pinned.assertCurrent, open)
+        const reusedFingerprint = localMissing ? await knownFingerprintIfCurrent(db, id, copy, signal, pinned.assertCurrent, open) : null
+        if (reusedFingerprint) reused += 1
+        checked = reusedFingerprint || await fingerprintCopy(db, copy.path, method, signal, pinned.assertCurrent, open)
       } catch (err) {
         if (backupUnavailableFor.includes(id) && (trustUnavailable ? isUnreachableCopyError(err, signal) : isUnavailableLocalFile(copy.path, err))) {
           unavailable.push({id, copy}); continue
@@ -244,7 +288,7 @@ export async function verifyCopiesForMerge(db: ApiDb, ids: number[], signal: Abo
       contentType: copy.stored?.contentType || mediaFileContentType(copy.path) || 'application/octet-stream',
       availability: 'unavailable', verifiedAt: copy.stored?.verifiedAt || new Date().toISOString()})
   }
-  return {copies: result, unavailablePaths, method, assertUnchanged() {
+  return {copies: result, unavailablePaths, method, localMissing, reused, assertUnchanged() {
     pinned.assertCurrent(); signal.throwIfAborted()
     if (snapshot() !== initial) throw sourceError('media_changed')
   }}

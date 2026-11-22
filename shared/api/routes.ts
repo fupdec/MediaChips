@@ -54,6 +54,7 @@ export const API_ROUTES = {
   mediaSimilarHybrid: '/api/Media/similarHybrid',
   mediaMerge: '/api/Media/merge',
   mediaDuplicateGroups: '/api/Media/duplicateGroups',
+  mediaDuplicateGroupsProgress: '/api/Media/duplicateGroupsProgress',
   playlistSummary: '/api/Playlist/summary',
   mediaInPlaylists: '/api/MediaInPlaylists',
   mediaInPlaylistsUpdate: '/api/MediaInPlaylists/update',

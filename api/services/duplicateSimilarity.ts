@@ -1,7 +1,7 @@
 import type {ApiDb} from '../types/db'
 import {createSettingsRepository} from '../db/repositories/settings'
 import {queryAll} from '../db/utils/rawQuery'
-import {DUPLICATE_POLICY_SETTING, parseDuplicatePolicy, groupSimilarityItems, compareSimilarity, pickSimilarityOriginal,
+import {DUPLICATE_POLICY_SETTING, parseDuplicatePolicy, groupSimilarityItems, groupSimilarityItemsAsync, type SimilarityGroupingProgress, compareSimilarity, pickSimilarityOriginal,
   type SimilarityItem, type SimilarityEvidence} from '../../shared/duplicateSimilarity'
 
 export function readDuplicatePolicy(db: ApiDb) {
@@ -85,4 +85,14 @@ export function loadSimilarityItems(db: ApiDb, mediaTypeId?: number | null, medi
 }
 export function listSimilarityGroups(db: ApiDb, mediaTypeId?: number | null, mediaIds?: number[] | null) {
   return groupSimilarityItems(loadSimilarityItems(db, mediaTypeId, mediaIds), readDuplicatePolicy(db))
+}
+
+/** Library-wide search that stays responsive: reports progress and stops when `signal` aborts. */
+export async function listSimilarityGroupsAsync(db: ApiDb, mediaTypeId: number | null | undefined, mediaIds: number[] | null | undefined, options: {
+  onProgress?: (progress: SimilarityGroupingProgress) => void
+  signal?: AbortSignal
+} = {}) {
+  const items = loadSimilarityItems(db, mediaTypeId, mediaIds)
+  options.onProgress?.({done: 0, total: items.length})
+  return groupSimilarityItemsAsync(items, readDuplicatePolicy(db), options)
 }

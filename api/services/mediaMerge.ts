@@ -257,9 +257,32 @@ export function mergeMediaItemsTx(
   }
 }
 
+/** Logs where a merge spent its time, so a slow batch can be traced to a phase. */
 export async function mergeMediaItems(
   db: ApiDb,
   input: MergeMediaInput,
+): Promise<MergeMediaResult> {
+  const startedAt = performance.now()
+  const laps: string[] = []
+  let last = startedAt
+  const note = (text: string) => { laps.push(text) }
+  const lap = (name: string) => {
+    const now = performance.now()
+    laps.push(`${name}=${Math.round(now - last)}ms`)
+    last = now
+  }
+  try {
+    return await mergeMediaItemsTimed(db, input, lap, note)
+  } finally {
+    console.log(`[mediaMerge] ${Math.round(performance.now() - startedAt)}ms survivor=${input.survivorId} sources=${input.sourceIds?.length ?? 0} ${laps.join(' ')}`)
+  }
+}
+
+async function mergeMediaItemsTimed(
+  db: ApiDb,
+  input: MergeMediaInput,
+  lap: (name: string) => void,
+  note: (text: string) => void,
 ): Promise<MergeMediaResult> {
   const survivorId = Number(input.survivorId)
   const sourceIds = uniquePositiveIds(input.sourceIds).filter((id) => id !== survivorId)
@@ -278,8 +301,11 @@ export async function mergeMediaItems(
   const pinned = pinSourceDb(db)
   db = pinned.db
   const signal = input.signal || AbortSignal.timeout(30 * 60_000)
+  lap('setup')
   const verification = await verifyCopiesForMerge(db, [survivorId, ...sourceIds], signal, undefined, undefined, input.similarity === true,
     input.trustUnavailable ? [survivorId, ...sourceIds] : sourceIds, input.trustUnavailable === true)
+  lap('verify')
+  note(`trust=${input.trustUnavailable === true} method=${verification.method} localMissing=${verification.localMissing} reused=${verification.reused}`)
   if (input.similarity) {
     const policy = readDuplicatePolicy(db)
     // Exact copies are decided by oshash, so every readable copy needs a fresh one.
@@ -303,6 +329,7 @@ export async function mergeMediaItems(
       throw new MediaMergeError('similarity_threshold_not_met')
     }
   }
+  lap('similarity')
   const primary = db.drizzle.select().from(media).where(eq(media.id, survivorId)).get()
   const primaryCopy = verification.copies.find(copy => copy.path === primary?.path)
   if (!primaryCopy) throw new MediaMergeError('copy_not_found')
@@ -335,6 +362,7 @@ export async function mergeMediaItems(
     return merged
   })
 
+  lap('transaction')
   if (db.path) {
     await Promise.all(losers.map(async (row) => {
       const mediaType = row.mediaTypeId
@@ -344,6 +372,7 @@ export async function mergeMediaItems(
     }))
   }
 
+  lap('assets')
   // Retain every file first. A failed deletion leaves a usable, linked copy.
   const fileWarnings: string[] = []
   // A copy is deleted only after its whole content matches the primary file: oshash samples the
@@ -386,6 +415,8 @@ export async function mergeMediaItems(
   if (fileWarnings.length) result.fileWarnings = fileWarnings
   if (verification.unavailablePaths.length) result.unavailableCopyPaths = verification.unavailablePaths
 
+  lap('files')
   invalidateMediaDerivedCaches()
+  lap('caches')
   return result
 }

@@ -139,8 +139,10 @@ function couldMatch(a: SimilarityItem, b: SimilarityItem, policy: DuplicatePolic
   return Boolean(a.oshash && a.oshash === b.oshash && a.filesize === b.filesize)
     || (policy.searchSimilarVideos && Boolean(a.visualHash && b.visualHash || a.visualHashTiles && b.visualHashTiles))
 }
-/** Every member passes against its selected original. No transitive similarity chains. */
-export function groupSimilarityItems(items: SimilarityItem[], policy: DuplicatePolicy) {
+export type SimilarityGroupingProgress = {done: number; total: number}
+
+/** One original per step; the step reports how many items were consumed (compared or grouped) so far. */
+function* similarityGrouping(items: SimilarityItem[], policy: DuplicatePolicy) {
   const pending = new Map(items.map(item => [item.id, item]))
   const groups: Array<{key: string; itemIds: number[]; originalId: number; similarity: SimilarityEvidence[]; similarityItems: SimilarityItem[]}> = []
   const byId = new Map(pending)
@@ -149,10 +151,44 @@ export function groupSimilarityItems(items: SimilarityItem[], policy: DuplicateP
     if (!pending.has(id)) continue
     pending.delete(id)
     const evidence = [...pending.values()].filter(item => couldMatch(original, item, policy)).map(item => compareSimilarity(original, item, policy)).filter(match => match.eligible)
-    if (!evidence.length) continue
-    const itemIds = [id, ...evidence.map(match => match.ids[1])]
-    for (const memberId of itemIds) pending.delete(memberId)
-    groups.push({key: `similarity-${id}`, originalId: id, itemIds, similarity: evidence, similarityItems: [original, ...evidence.map(match => byId.get(match.ids[1])!)]})
+    if (evidence.length) {
+      const itemIds = [id, ...evidence.map(match => match.ids[1])]
+      for (const memberId of itemIds) pending.delete(memberId)
+      groups.push({key: `similarity-${id}`, originalId: id, itemIds, similarity: evidence, similarityItems: [original, ...evidence.map(match => byId.get(match.ids[1])!)]})
+    }
+    yield {done: items.length - pending.size, total: items.length}
   }
   return groups
+}
+
+/** Every member passes against its selected original. No transitive similarity chains. */
+export function groupSimilarityItems(items: SimilarityItem[], policy: DuplicatePolicy) {
+  const steps = similarityGrouping(items, policy)
+  let step = steps.next()
+  while (!step.done) step = steps.next()
+  return step.value
+}
+
+/** Same result, but gives the event loop back regularly so progress can be read and the search cancelled. */
+export async function groupSimilarityItemsAsync(items: SimilarityItem[], policy: DuplicatePolicy, options: {
+  onProgress?: (progress: SimilarityGroupingProgress) => void
+  signal?: AbortSignal
+  /** Longest stretch of synchronous work before yielding. */
+  sliceMs?: number
+} = {}) {
+  const sliceMs = options.sliceMs ?? 40
+  const steps = similarityGrouping(items, policy)
+  let sliceStart = Date.now()
+  let step = steps.next()
+  while (!step.done) {
+    options.onProgress?.(step.value)
+    if (Date.now() - sliceStart >= sliceMs) {
+      await new Promise<void>(resolve => setImmediate(resolve))
+      options.signal?.throwIfAborted()
+      sliceStart = Date.now()
+    }
+    step = steps.next()
+  }
+  options.onProgress?.({done: items.length, total: items.length})
+  return step.value
 }

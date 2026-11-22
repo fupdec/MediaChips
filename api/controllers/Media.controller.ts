@@ -12,8 +12,15 @@ import type {
 } from '@shared/api/payloads'
 import {
   listMediaDuplicateGroups,
+  normalizeMediaIds,
 } from '../services/mediaDuplicateGroups'
 import {mergeMediaItems} from '../services/mediaMerge'
+import {listSimilarityGroupsAsync} from '../services/duplicateSimilarity'
+import {
+  clearDuplicateSearchProgress,
+  readDuplicateSearchProgress,
+  reportDuplicateSearchProgress,
+} from '../services/duplicateSearchProgress'
 import {browseLibraryFolders} from '../services/mediaFolderBrowse'
 import { createMediaRepository } from '../db/repositories/media'
 import { createMediaTypesRepository } from '../db/repositories/mediaTypes'
@@ -341,6 +348,21 @@ export default function (db: ApiDb) {
         mediaIds = Array.isArray(idsResult?.ids) ? idsResult.ids.map(Number) : []
       }
 
+      if (String(body.duplicates_by) === 'similarity') {
+        // Pairwise comparison is the slow part: report how far it got and let the client cancel it.
+        const progressId = body.progressId
+        try {
+          const groups = await listSimilarityGroupsAsync(db, resolvedMediaTypeId, normalizeMediaIds(mediaIds), {
+            signal: createRequestAbortSignal(req, res),
+            onProgress: ({done, total}) => reportDuplicateSearchProgress(progressId, {phase: 'comparing', done, total}),
+          })
+          sendOk(res, {groups})
+        } finally {
+          clearDuplicateSearchProgress(progressId)
+        }
+        return
+      }
+
       const result = listMediaDuplicateGroups(db, {
         duplicatesBy: String(body.duplicates_by || 'filesize'),
         mediaTypeId: resolvedMediaTypeId,
@@ -348,8 +370,15 @@ export default function (db: ApiDb) {
       })
       sendOk(res, result)
     } catch (err) {
+      // The client stopped the search: nobody is waiting for an answer.
+      if (err instanceof Error && err.name === 'AbortError') return
       sendControllerError(res, err, 'Some error occurred while listing duplicate groups.')
     }
+  }
+
+  const duplicateGroupsProgress = function (req: ApiRequest, res: ApiResponse) {
+    const id = typeof req.query.id === 'string' ? req.query.id : ''
+    sendOk(res, {progress: id ? readDuplicateSearchProgress(id) : null})
   }
 
   const getBasicsByIds = async function (req: ApiRequest, res: ApiResponse) {
@@ -643,5 +672,6 @@ export default function (db: ApiDb) {
     similarHybrid,
     merge,
     duplicateGroups,
+    duplicateGroupsProgress,
   }
 }

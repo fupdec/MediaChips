@@ -145,9 +145,9 @@
                     @click="duplicateCheck.control(duplicateCheck.status.value.state === 'paused' ? 'resume' : 'pause')">
                     {{ t(duplicateCheck.status.value.state === 'paused' ? 'copyDiscovery.resume' : 'copyDiscovery.pause') }}
                   </v-btn>
-                  <v-btn size="small" variant="text" color="error" :disabled="duplicateCheck.busy.value" @click="duplicateCheck.control('skip')">
-                    {{ t('duplicatesOnAdd.skip') }}
-                    <v-tooltip activator="parent" location="bottom" max-width="280">{{ t('duplicatesOnAdd.skip_hint') }}</v-tooltip>
+                  <v-btn size="small" variant="text" color="error" :disabled="duplicateCheck.busy.value" @click="duplicateCheck.control('stop')">
+                    {{ t('duplicatesOnAdd.stop') }}
+                    <v-tooltip activator="parent" location="bottom" max-width="280">{{ t('duplicatesOnAdd.stop_hint') }}</v-tooltip>
                   </v-btn>
                   <v-btn size="small" variant="text" :to="duplicatesSettings" @click="showMenu = false">{{ t('copyDiscovery.configure') }}</v-btn>
                 </div>

@@ -49,7 +49,7 @@ export function parseGroupedIdCsv(value: unknown): number[] {
   return ids
 }
 
-function normalizeMediaIds(mediaIds?: number[] | null): number[] | null {
+export function normalizeMediaIds(mediaIds?: number[] | null): number[] | null {
   if (mediaIds == null) return null
   const ids: number[] = []
   const seen = new Set<number>()

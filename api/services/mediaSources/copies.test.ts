@@ -146,6 +146,74 @@ describe('verified file copies', () => {
     expect(reads).toContain(`bytes=${size - 65536}-${size - 1}`)
   })
 
+  it('with trust and a missing local file, re-uses the stored fingerprint of a remote copy instead of re-reading it', async () => {
+    strict(false)
+    const size = 5 * 1024 ** 3
+    const a = createMediaRepository(db.drizzle).create({path: '/Volumes/unplugged/movie.mp4', filesize: size, oshash: 'abc', mediaTypeId: 1})
+    const insert = fixture.sqlite.prepare(`INSERT INTO verifiedMediaCopies
+      (id, mediaId, path, relationship, version, sha256, oshash, verificationMethod, size, contentType, availability, verifiedAt)
+      VALUES (?, ?, ?, 'copy', ?, '', 'abc', 'oshash', ?, 'video/mp4', ?, '2026')`)
+    insert.run('local', a.id, a.path, UNVERIFIED_COPY_VERSION, size, 'unavailable')
+    insert.run('remote', a.id, 'gdrive://file-1', `${size}:v1`, size, 'available')
+    let version = `${size}:v1`
+    const reads: Array<string | undefined> = []
+    const open: OpenCopySource = async (_db, key) => ({key, adapter: {provider: key.startsWith('/') ? 'local' : 'gdrive',
+      capabilities: READ_SOURCE_CAPABILITIES, list: async () => ({entries: []}), close() {},
+      stat: async () => {
+        if (key.startsWith('/')) throw Object.assign(new Error('missing'), {code: 'ENOENT'})
+        return {resourceKey: key, name: 'movie.mp4', size, version, isDirectory: false, contentType: 'video/mp4'}
+      },
+      read: async (_key, range) => {
+        reads.push(range)
+        const [, start, end] = /^bytes=(\d+)-(\d+)$/.exec(range || '')!
+        return {status: 206, headers: {'content-range': `bytes ${start}-${end}/${size}`, 'content-length': String(Number(end) - Number(start) + 1)},
+          body: Buffer.alloc(Number(end) - Number(start) + 1)}
+      },
+    }})
+    const trusted = await verifyCopiesForMerge(db, [a.id], signal(), open, 'oshash', false, [a.id], true)
+    expect(reads).toHaveLength(0)
+    expect(trusted.copies.find(copy => copy.path === 'gdrive://file-1')).toMatchObject({oshash: 'abc', availability: 'available', verificationMethod: 'oshash'})
+    // Without the option the remote file is read as before; so is a copy whose version changed.
+    await expect(verifyCopiesForMerge(db, [a.id], signal(), open, 'oshash', false, [a.id], false)).rejects.toBeDefined()
+    expect(reads.length).toBeGreaterThan(0)
+    reads.length = 0
+    version = `${size}:v2`
+    await verifyCopiesForMerge(db, [a.id], signal(), open, 'oshash', false, [a.id], true).catch(() => undefined)
+    expect(reads.length).toBeGreaterThan(0)
+  })
+
+  it('with trust and a missing local file, uses the catalog oshash of a Drive card that has no stored copies yet', async () => {
+    strict(false)
+    const size = 3 * 1024 ** 3
+    const repo = createMediaRepository(db.drizzle)
+    const drive = repo.create({path: 'gdrive://file-2', filesize: size, oshash: 'abc', mediaTypeId: 1})
+    const gone = repo.create({path: '/Volumes/unplugged/other.mp4', filesize: size, oshash: 'abc', mediaTypeId: 1})
+    fixture.sqlite.exec("UPDATE media SET oshash = 'abc'")
+    let driveSize = size
+    const reads: Array<string | undefined> = []
+    const open: OpenCopySource = async (_db, key) => ({key, adapter: {provider: key.startsWith('/') ? 'local' : 'gdrive',
+      capabilities: READ_SOURCE_CAPABILITIES, list: async () => ({entries: []}), close() {},
+      stat: async () => {
+        if (key.startsWith('/')) throw Object.assign(new Error('missing'), {code: 'ENOENT'})
+        return {resourceKey: key, name: 'movie.mp4', size: driveSize, version: `${driveSize}:2021`, isDirectory: false, contentType: 'video/mp4'}
+      },
+      read: async (_key, range) => {
+        reads.push(range)
+        const [, start, end] = /^bytes=(\d+)-(\d+)$/.exec(range || '')!
+        return {status: 206, headers: {'content-range': `bytes ${start}-${end}/${driveSize}`, 'content-length': String(Number(end) - Number(start) + 1)},
+          body: Buffer.alloc(Number(end) - Number(start) + 1)}
+      },
+    }})
+    const verification = await verifyCopiesForMerge(db, [drive.id, gone.id], signal(), open, 'oshash', true, [drive.id, gone.id], true)
+    expect(reads).toHaveLength(0)
+    expect(verification.reused).toBe(1)
+    expect(verification.copies.find(copy => copy.path === 'gdrive://file-2')).toMatchObject({oshash: 'abc', size, availability: 'available'})
+    // A different size on Drive means the catalog fingerprint no longer describes the file: it is read normally.
+    driveSize = size + 1
+    await verifyCopiesForMerge(db, [drive.id, gone.id], signal(), open, 'oshash', true, [drive.id, gone.id], true).catch(() => undefined)
+    expect(reads.length).toBeGreaterThan(0)
+  })
+
   it('never upgrades a growing tiny file to a full large download in fast mode', async () => {
     const a = createMediaRepository(db.drizzle).create({path: 'gdrive://growing', mediaTypeId: 1, filesize: 4})
     const read = vi.fn(async () => { throw new Error('Must not read the full file') })

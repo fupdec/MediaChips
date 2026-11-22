@@ -349,6 +349,15 @@ export interface MergeMediaResult {
   }
 }
 
+/** Progress of a running duplicate search; `total` is 0 while it is still unknown. */
+export interface DuplicateSearchProgress {
+  phase: 'loading' | 'comparing'
+  done: number
+  total: number
+  startedAt: number
+  updatedAt: number
+}
+
 export interface MediaDuplicateGroupsResult {
   groups: Array<{
     originalId?: number

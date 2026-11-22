@@ -158,9 +158,9 @@ async function openReview() {
 </script>
 
 <style scoped>
-.duplicates-section { display: grid; gap: var(--settings-block-gap, 16px); }
+.duplicates-section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--settings-block-gap, 16px); }
 .duplicates-panel { padding: var(--settings-card-padding, 20px); border: 1px solid rgba(var(--v-theme-on-surface), .09); border-radius: 18px; background: rgb(var(--v-theme-surface)); }
-.duplicates-group { display: grid; gap: var(--settings-block-gap, 16px); }
+.duplicates-group { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--settings-block-gap, 16px); }
 .duplicates-group > :deep(.settings-group-label) { margin-block: 12px; }
 .duplicates-panel__heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: var(--settings-heading-gap, 12px); }
 .duplicates-panel__icon { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 11px; color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), .08); }

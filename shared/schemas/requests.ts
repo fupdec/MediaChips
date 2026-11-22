@@ -86,6 +86,8 @@ export const MediaDuplicateGroupsRequestSchema = z.object({
   targetMediaId: z.union([z.number(), z.string()]).optional().nullable(),
   /** Only groups that contain any of these media items (bulk check of a selection, searched across the whole DB). */
   targetMediaIds: z.array(z.union([z.number(), z.string()])).optional().nullable(),
+  /** Client-chosen id to read this search's progress while it runs. */
+  progressId: z.string().trim().min(1).max(64).optional(),
 })
 
 export const MediaFolderBrowseRequestSchema = z.object({
@@ -114,6 +116,8 @@ export const MergeMediaRequestSchema = z.object({
   survivorId: z.union([z.number(), z.string()]),
   sourceIds: z.array(z.union([z.number(), z.string()])).min(1),
   with_file: z.boolean().optional(),
+  /** Merge duplicates found by the similarity policy: the server re-checks the group against it. */
+  similarity: z.boolean().optional(),
   /** Keep unreadable files as backup copies even without a catalog fingerprint (user's explicit choice). */
   trustUnavailable: z.boolean().optional(),
 })

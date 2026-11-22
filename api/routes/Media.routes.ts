@@ -79,6 +79,7 @@ export default function registerRoutes(app: Express, db: ApiDb) {
   router.post('/similarByClip', validateBody(MediaSimilarByClipRequestSchema), Media.similarByClip)
   router.post('/similarHybrid', validateBody(MediaSimilarHybridRequestSchema), Media.similarHybrid)
   router.post('/duplicateGroups', validateBody(MediaDuplicateGroupsRequestSchema), Media.duplicateGroups)
+  router.get('/duplicateGroupsProgress', Media.duplicateGroupsProgress)
   router.post('/merge', validateBody(MergeMediaRequestSchema), Media.merge)
 
   router.get('/get-stats', Media.getStats)

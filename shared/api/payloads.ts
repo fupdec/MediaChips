@@ -77,6 +77,8 @@ export interface MediaDuplicateGroupsPayload {
   targetMediaId?: number | string | null
   /** Only groups that contain any of these media items (bulk check of a selection, searched across the whole DB). */
   targetMediaIds?: Array<number | string> | null
+  /** Client-chosen id to read this search's progress while it runs. */
+  progressId?: string
 }
 
 export interface MoveTagsToCategoryPayload {

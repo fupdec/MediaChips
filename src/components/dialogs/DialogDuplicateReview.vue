@@ -57,19 +57,25 @@
           <span>{{ t('duplicateSimilarity.reviewLevelsHint') }}</span>
         </div>
 
+        <DuplicateProgress
+          v-if="merging && progress?.phase === 'merge'"
+          class="dup-review-merge-progress"
+          :label="phaseLabel('merge')"
+          :done="progress.done"
+          :total="progress.total"
+          :started-at="progress.startedAt"
+        />
+
         <div
           v-if="loading"
           class="dup-review-loading py-8"
         >
-          <v-progress-linear
-            indeterminate
-            color="primary"
-            rounded
-            class="mb-3"
+          <DuplicateProgress
+            :label="progress ? phaseLabel(progress.phase) : t('media.dialogs.duplicate_review_loading')"
+            :done="progress?.done ?? 0"
+            :total="progress?.total ?? 0"
+            :started-at="progress?.startedAt ?? 0"
           />
-          <div class="text-medium-emphasis text-body-2 text-center">
-            {{ t('media.dialogs.duplicate_review_loading') }}
-          </div>
         </div>
 
         <div
@@ -89,6 +95,7 @@
         <v-virtual-scroll
           v-else-if="visibleGroups.length"
           :items="visibleGroups"
+          item-key="key"
           :item-height="GROUP_HEIGHT"
           renderless
         >
@@ -324,7 +331,7 @@
 <script setup lang="ts">
 import {useSettingsStore} from '@/stores/settings'
 import {parseDuplicatePolicy, compareSimilarity, pickSimilarityOriginal, SIMILARITY_SIGNALS, type SimilarityItem, type SimilarityEvidence} from '@shared/duplicateSimilarity'
-import {computed, ref, watch} from 'vue'
+import {computed, ref, toRaw, watch} from 'vue'
 import type {Ref} from 'vue'
 import {useI18n} from 'vue-i18n'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
@@ -333,6 +340,8 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
 import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from '@/stores/notifications'
+import {isThrottleError, runAdaptive} from '@/utils/adaptiveConcurrency'
+import DuplicateProgress from '@/components/dialogs/DuplicateProgress.vue'
 import {typedApi} from '@/services/typedApi'
 import {checkFileExists as checkPathExists} from '@/services/fileService'
 import {getReadableFileSize} from '@/services/formatUtils'
@@ -355,6 +364,13 @@ function virtualItemRef(slot: object): Ref<HTMLElement | undefined> | undefined 
   return (slot as {itemRef?: Ref<HTMLElement | undefined>}).itemRef
 }
 const BASICS_CHUNK = 200
+/** Merged groups leave the list in batches of this size, so the list updates as the batch runs without a re-render per group. */
+const BULK_SKIP_FLUSH = 10
+/** Groups merged at once in a batch: where it starts, and the most it grows to while the provider keeps up. */
+const MERGE_START_CONCURRENCY = 3
+const MERGE_MAX_CONCURRENCY = 8
+/** Paths listed in a merge-issue notification; the rest are counted. */
+const ISSUE_LINES = 5
 
 type ReviewGroup = {
   key: string
@@ -369,7 +385,7 @@ type ReviewGroup = {
   survivorId: number | null
 }
 
-const {t, te} = useI18n()
+const {t, te, locale} = useI18n()
 
 /** Human-readable merge failure: known source/copy codes are translated, anything else is shown as-is. */
 function mergeErrorText(err: unknown): string {
@@ -384,6 +400,12 @@ const notificationsStore = useNotificationsStore()
 const listSync = useItemsListSync()
 
 const loading = ref(false)
+type ProgressPhase = 'search' | 'details' | 'files' | 'merge'
+/** What the dialog is busy with and how far it got; `total` 0 means the amount is not known yet. */
+const progress = ref<{phase: ProgressPhase, done: number, total: number, startedAt: number} | null>(null)
+const phaseLabel = (phase: ProgressPhase) => t(`media.dialogs.duplicate_review_phase_${phase}`)
+const startPhase = (phase: ProgressPhase, total = 0) => { progress.value = {phase, done: 0, total, startedAt: Date.now()} }
+const advancePhase = (done: number) => { if (progress.value) progress.value = {...progress.value, done} }
 const stopped = ref(false)
 const merging = ref(false)
 const policy = computed(() => parseDuplicatePolicy(useSettingsStore().duplicateSimilarityPolicy))
@@ -513,9 +535,35 @@ function sourceIcon(path: unknown): string {
   return scheme ? SOURCE_ICONS[scheme] || 'mdi-cloud-outline' : 'mdi-harddisk'
 }
 
+/**
+ * Evidence and card views per group, computed once per (original, policy, language) instead of on every render:
+ * the template asks for them several times per card, and a scroll re-renders every visible group.
+ */
+type GroupView = {
+  survivorId: number | null
+  policy: unknown
+  locale: string
+  evidence: SimilarityEvidence[]
+  info: Map<number, ReturnType<typeof buildMatchInfo>>
+  reasons: Map<number, string[]>
+}
+const groupViews = new WeakMap<ReviewGroup, GroupView>()
+
+function groupView(group: ReviewGroup): GroupView {
+  const raw = toRaw(group)
+  const existing = groupViews.get(raw)
+  if (existing && existing.survivorId === raw.survivorId && existing.policy === policy.value && existing.locale === locale.value) return existing
+  const original = raw.similarityItems?.find(item => item.id === raw.survivorId)
+  const evidence = original
+    ? raw.similarityItems!.filter(item => item.id !== original.id).map(item => compareSimilarity(original, item, policy.value))
+    : []
+  const view: GroupView = {survivorId: raw.survivorId, policy: policy.value, locale: locale.value, evidence, info: new Map(), reasons: new Map()}
+  groupViews.set(raw, view)
+  return view
+}
+
 function similarityEvidence(group: ReviewGroup): SimilarityEvidence[] {
-  const original = group.similarityItems?.find(item => item.id === group.survivorId)
-  return original ? group.similarityItems!.filter(item => item.id !== original.id).map(item => compareSimilarity(original, item, policy.value)) : []
+  return groupView(group).evidence
 }
 function canMergeGroup(group: ReviewGroup) {
   return group.confidence !== 'possible' && group.items.length >= 2 && group.survivorId != null
@@ -528,7 +576,7 @@ function filesToDelete(group: ReviewGroup): number[] {
 type MatchSignalView = {key: string, label: string, value: string, state: 'match' | 'differs' | 'unchecked', icon: string}
 
 /** Same data as matchReasons for a similarity group, shaped for the card: level badge plus per-signal marks. */
-function matchInfo(group: ReviewGroup, mediaId: number): {level: SimilarityEvidence['level'] | null, signals: MatchSignalView[]} {
+function buildMatchInfo(group: ReviewGroup, mediaId: number): {level: SimilarityEvidence['level'] | null, signals: MatchSignalView[]} {
   const match = similarityEvidence(group).find(match => match.ids[1] === mediaId)
   if (!match) return {level: null, signals: []}
   const shown = SIMILARITY_SIGNALS.filter(key => key !== 'path' && (key !== 'visual' || match.signals.visual != null))
@@ -547,7 +595,13 @@ function matchInfo(group: ReviewGroup, mediaId: number): {level: SimilarityEvide
     }),
   }
 }
-function matchReasons(group: ReviewGroup, mediaId: number): string[] {
+function matchInfo(group: ReviewGroup, mediaId: number) {
+  const view = groupView(group)
+  let info = view.info.get(mediaId)
+  if (!info) { info = buildMatchInfo(group, mediaId); view.info.set(mediaId, info) }
+  return info
+}
+function buildMatchReasons(group: ReviewGroup, mediaId: number): string[] {
   if (isSimilarity.value) {
     if (mediaId === group.survivorId) return [t('duplicateSimilarity.original')]
     const match = similarityEvidence(group).find(match => match.ids[1] === mediaId)
@@ -563,6 +617,13 @@ function matchReasons(group: ReviewGroup, mediaId: number): string[] {
       id: otherId, count: match.matchingTiles, thumbnailId: match.thumbnailId, frame: match.frameIndex,
     })
   })
+}
+
+function matchReasons(group: ReviewGroup, mediaId: number): string[] {
+  const view = groupView(group)
+  let reasons = view.reasons.get(mediaId)
+  if (!reasons) { reasons = buildMatchReasons(group, mediaId); view.reasons.set(mediaId, reasons) }
+  return reasons
 }
 
 function thumbUrl(id: number | string) {
@@ -583,10 +644,15 @@ function onDialogToggle(value: boolean) {
   if (!value) close()
 }
 
-function skipGroup(key: string) {
+function skipGroups(keys: string[]) {
+  if (!keys.length) return
   const next = new Set(skippedKeys.value)
-  next.add(key)
+  for (const key of keys) next.add(key)
   skippedKeys.value = next
+}
+
+function skipGroup(key: string) {
+  skipGroups([key])
 }
 
 function pickSurvivor(groupKey: string, mediaId: number) {
@@ -627,7 +693,8 @@ async function withReadableSurvivor(group: ReviewGroup): Promise<ReviewGroup> {
   return replacement ? {...group, survivorId: replacement} : group
 }
 
-async function mergeGroupItems(originalGroup: ReviewGroup) {
+/** `syncList: false` leaves the main list untouched, so a batch can refresh it once at the end. */
+async function mergeGroupItems(originalGroup: ReviewGroup, syncList = true) {
   const group = await withReadableSurvivor(originalGroup)
   const survivorId = Number(group.survivorId)
   if (!Number.isFinite(survivorId) || survivorId <= 0) {
@@ -647,17 +714,32 @@ async function mergeGroupItems(originalGroup: ReviewGroup) {
     trustUnavailable: dialogsStore.mergeTrustUnavailable,
   })
 
-  if (res.data.unavailableCopyPaths?.length) notificationsStore.setNotification({type: 'info', title: t('media.dialogs.duplicate_review_unavailable_copies'), text: res.data.unavailableCopyPaths.join('\n')})
-  if (res.data.fileWarnings?.length) notificationsStore.setNotification({type: 'warning', title: t('duplicateSimilarity.filesRetained'), text: res.data.fileWarnings.join('\n')})
-  listSync.removeEntitiesFromState({
-    ids: res.data.deletedIds || sourceIds,
-    type: 'media',
-  })
-  listSync.getItemsFromDb({
-    ids: [Number(res.data.survivor.id)],
-    type: 'media',
-  })
-  return res.data
+  // Older servers may omit deletedIds; the sources are what was merged away.
+  const data = {...res.data, deletedIds: res.data.deletedIds || sourceIds}
+  if (syncList) {
+    syncMainList([data])
+    notifyMergeIssues([data])
+  }
+  return data
+}
+
+/** Unavailable copies and retained files, reported once however many groups merged. */
+function notifyMergeIssues(results: MergeResult[]) {
+  const unavailable = results.flatMap((res) => res.unavailableCopyPaths || [])
+  const warnings = results.flatMap((res) => res.fileWarnings || [])
+  const list = (lines: string[]) => [...lines.slice(0, ISSUE_LINES), ...(lines.length > ISSUE_LINES ? [`+${lines.length - ISSUE_LINES}`] : [])].join('\n')
+  if (unavailable.length) notificationsStore.setNotification({type: 'info', title: t('media.dialogs.duplicate_review_unavailable_copies'), text: list(unavailable)})
+  if (warnings.length) notificationsStore.setNotification({type: 'warning', title: t('duplicateSimilarity.filesRetained'), text: list(warnings)})
+}
+
+type MergeResult = Awaited<ReturnType<typeof typedApi.mergeMedia>>['data']
+
+/** Drops merged cards from the main list and re-fetches the survivors, in one request however many groups merged. */
+function syncMainList(results: MergeResult[]) {
+  const deletedIds = results.flatMap((res) => res.deletedIds || [])
+  const survivorIds = [...new Set(results.map((res) => Number(res.survivor.id)))]
+  if (deletedIds.length) listSync.removeEntitiesFromState({ids: deletedIds, type: 'media'})
+  if (survivorIds.length) listSync.getItemsFromDb({ids: survivorIds, type: 'media'})
 }
 
 async function mergeSuggested(group: ReviewGroup) {
@@ -668,7 +750,8 @@ async function mergeSuggested(group: ReviewGroup) {
     error.value = ''
     try {
       await mergeGroupItems(group)
-      await reload()
+      // The merged group is gone and groups never share cards: no need to search the whole library again.
+      skipGroup(group.key)
       notificationsStore.setNotification({
         type: 'success',
         title: t('media.dialogs.merge_media_done'),
@@ -727,17 +810,37 @@ async function mergeAllSuggested(automatic = false) {
     let failed = 0
     const reasons = new Set<string>()
     try {
-      for (const group of pending) {
-        try {
-          await mergeGroupItems(group)
-          skipGroup(group.key)
-          merged += 1
-        } catch (err) {
+      const results: MergeResult[] = []
+      let mergedKeys: string[] = []
+      startPhase('merge', pending.length)
+      // The main list is refreshed once after the batch: a refresh per group made every merge wait seconds.
+      // Groups are disjoint and each merge mostly waits on file reads (remote sources), so several run together;
+      // how many adapts to the connection and to the provider's limits.
+      const finished = () => advancePhase(merged + failed)
+      await runAdaptive(pending, async (group) => {
+        const result = await mergeGroupItems(group, false)
+        if (result) results.push(result)
+        mergedKeys.push(group.key)
+        merged += 1
+        finished()
+        if (mergedKeys.length >= BULK_SKIP_FLUSH) {
+          skipGroups(mergedKeys)
+          mergedKeys = []
+        }
+      }, {
+        start: MERGE_START_CONCURRENCY,
+        max: MERGE_MAX_CONCURRENCY,
+        isThrottled: isThrottleError,
+        onFailure: (_group, err) => {
           console.error(err)
           failed += 1
           reasons.add(mergeErrorText(err))
-        }
-      }
+          finished()
+        },
+      })
+      skipGroups(mergedKeys)
+      syncMainList(results)
+      notifyMergeIssues(results)
       notificationsStore.setNotification({
         type: failed ? 'warning' : 'success',
         title: failed
@@ -747,12 +850,14 @@ async function mergeAllSuggested(automatic = false) {
           ? [t('media.dialogs.duplicate_review_bulk_done', {count: merged}), ...reasons].join('\n')
           : undefined,
       })
-      await reload()
+      // Failed groups may have changed on the server; only then is a fresh search worth its time.
+      if (failed) await reload()
       if (failed) {
         error.value = [t('media.dialogs.duplicate_review_bulk_failed'), ...reasons].join(': ')
       }
     } finally {
       merging.value = false
+      progress.value = null
     }
   }
   if (automatic) await run()
@@ -768,13 +873,14 @@ async function mergeAllSuggested(automatic = false) {
   }
 }
 
-async function loadBasicsByIds(ids: number[]): Promise<MediaItem[]> {
+async function loadBasicsByIds(ids: number[], onProgress?: (done: number) => void): Promise<MediaItem[]> {
   const items: MediaItem[] = []
   for (let i = 0; i < ids.length; i += BASICS_CHUNK) {
     const chunk = ids.slice(i, i + BASICS_CHUNK)
     const res = await typedApi.getMediaBasics({ids: chunk})
     const rows = Array.isArray(res.data?.items) ? res.data.items : []
     items.push(...(rows as MediaItem[]))
+    onProgress?.(Math.min(i + chunk.length, ids.length))
   }
   return items
 }
@@ -797,16 +903,19 @@ async function loadThumbsForItems(items: MediaItem[]) {
   thumbs.value = next
 }
 
-async function checkFilesForItems(items: MediaItem[]) {
+async function checkFilesForItems(items: MediaItem[], onProgress?: (done: number) => void) {
+  let checked = 0
   const results = await Promise.all(
     items.map(async (item) => {
       const id = String(item.id)
       const path = String(item.path || '')
-      if (!path) return [id, false] as const
       try {
-        return [id, await checkPathExists(path)] as const
+        return [id, Boolean(path) && await checkPathExists(path)] as const
       } catch {
         return [id, false] as const
+      } finally {
+        checked += 1
+        onProgress?.(checked)
       }
     }),
   )
@@ -835,6 +944,19 @@ function stopSearch() {
   searchAbort?.abort()
 }
 
+const SEARCH_POLL_MS = 500
+
+/** Reads how far the server's comparison got; only the similarity search reports counts. */
+async function pollSearchProgress(id: string, signal: AbortSignal) {
+  try {
+    const {data} = await typedApi.getMediaDuplicateGroupsProgress(id, signal)
+    const reported = data.progress
+    // Ignore a late answer once the search has moved on to loading cards.
+    if (!reported || signal.aborted || progress.value?.phase !== 'search') return
+    progress.value = {phase: 'search', done: reported.done, total: reported.total, startedAt: reported.startedAt}
+  } catch { /* A missed poll only delays the next number. */ }
+}
+
 async function reload(automatic = false) {
   searchAbort?.abort()
   const abort = new AbortController()
@@ -843,6 +965,9 @@ async function reload(automatic = false) {
   loading.value = true
   stopped.value = false
   error.value = ''
+  const progressId = crypto.randomUUID()
+  startPhase('search')
+  const poll = setInterval(() => { void pollSearchProgress(progressId, signal) }, SEARCH_POLL_MS)
   try {
     const mediaTypeId = Number(
       dialogsStore.duplicateReview.mediaTypeId
@@ -856,11 +981,14 @@ async function reload(automatic = false) {
       filtersJoin: dialogsStore.duplicateReview.filtersJoin ?? undefined,
       targetMediaId: dialogsStore.duplicateReview.targetMediaId,
       targetMediaIds: dialogsStore.duplicateReview.targetMediaIds,
+      progressId,
     }, signal)
+    clearInterval(poll)
     if (signal.aborted) return
     const rawGroups = Array.isArray(res.data?.groups) ? res.data.groups : []
     const allIds = [...new Set(rawGroups.flatMap((group) => group.itemIds.map(Number)))]
-    const basics = await loadBasicsByIds(allIds)
+    startPhase('details', allIds.length)
+    const basics = await loadBasicsByIds(allIds, advancePhase)
     if (signal.aborted) return
     const byId = new Map(basics.map((item) => [Number(item.id), item]))
 
@@ -886,9 +1014,10 @@ async function reload(automatic = false) {
       .filter((group) => group.items.length >= 2)
 
     const flatItems = groups.value.flatMap((group) => group.items)
+    startPhase('files', flatItems.length)
     await Promise.all([
       loadThumbsForItems(flatItems),
-      checkFilesForItems(flatItems),
+      checkFilesForItems(flatItems, advancePhase),
     ])
     if (signal.aborted) return
     if (!isSimilarity.value) preferExistingSurvivors()
@@ -901,8 +1030,10 @@ async function reload(automatic = false) {
     const message = getErrorResponseData<{message?: string}>(err)?.message || (err instanceof Error ? err.message : String(err))
     error.value = message === 'similarity_scope_too_large' ? t('duplicateSimilarity.scopeTooLarge') : message === 'similarity_threshold_not_met' ? t('duplicateSimilarity.thresholdFailed') : message
   } finally {
+    clearInterval(poll)
     if (searchAbort === abort) {
       loading.value = false
+      progress.value = null
       searchAbort = null
     }
   }
@@ -1044,8 +1175,13 @@ watch(
 }
 
 /* Group */
+.dup-review-merge-progress {
+  margin-bottom: 12px;
+}
+
 .dup-review-group-wrap {
   box-sizing: border-box;
+  contain: layout style;
   padding-bottom: 12px;
 }
 
@@ -1227,18 +1363,8 @@ watch(
   overflow: hidden;
 }
 
-/* An animation, not a transition: cards are mounted after the file check, already marked no-file. */
 .dup-review-thumb.no-file > :not(.dup-review-keep-badge) {
-  filter: grayscale(1);
   opacity: 0.45;
-  animation: dup-review-thumb-fade 1.2s ease-out 0.15s backwards;
-}
-
-@keyframes dup-review-thumb-fade {
-  from {
-    filter: grayscale(0);
-    opacity: 1;
-  }
 }
 
 .dup-review-thumb img,
