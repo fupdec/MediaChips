@@ -7,6 +7,7 @@ import {
   groupMetaByType,
   sortMetaItems,
   sortTagItems,
+  sortTagsByCategoryPreference,
 } from './metaSort'
 
 describe('getMetaSortOptions', () => {
@@ -152,5 +153,19 @@ describe('getTopTagsSubtitleKey', () => {
     ['other', undefined, 'widgets.top_tags.top_by_created'],
   ] as const)('%s/%s → %s', (mode, sortBy, key) => {
     expect(getTopTagsSubtitleKey(mode as never, sortBy)).toBe(key)
+  })
+})
+
+
+describe('tag input sort priority', () => {
+  it.each(['asc', 'desc'])('sorts by the selected field, then name (%s)', (direction) => {
+    const tags = [
+      {id: 1, name: 'Zulu', mediaCount: 4},
+      {id: 2, name: 'beta', mediaCount: 4},
+      {id: 3, name: 'Alpha', mediaCount: 4},
+      {id: 4, name: 'Other', mediaCount: 9},
+    ]
+    expect(sortTagsByCategoryPreference(tags, 'mediaCount', direction).map(tag => tag.id))
+      .toEqual(direction === 'asc' ? [3, 2, 1, 4] : [4, 3, 2, 1])
   })
 })

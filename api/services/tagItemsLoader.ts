@@ -320,7 +320,7 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
       const allIdRows = await queryAllAsync<{id: number}>(db, `${idSelect}
         ${fromClause}
         ${whereClause}
-        ORDER BY ${sortExpr} ${sortDir}`, replacements)
+        ORDER BY ${sortExpr} ${sortDir}, tags.name COLLATE NOCASE ASC, tags.id ASC`, replacements)
       const allIds = allIdRows.map((row) => Number(row.id))
       const rowsById = new Map<number, Record<string, unknown>>()
       for (const chunk of chunkArray(allIds)) {
@@ -341,7 +341,7 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
       slimRows = await queryAllAsync(db, `${TAG_GROUP_SLIM_SELECT}
         ${fromClause}
         ${whereClause}
-        ORDER BY ${sortExpr} ${sortDir}`, replacements)
+        ORDER BY ${sortExpr} ${sortDir}, tags.name COLLATE NOCASE ASC, tags.id ASC`, replacements)
     }
     const aggregated = await buildTagGroupsFromSlimRows(
       db,
@@ -361,7 +361,7 @@ async function loadTagItemsSql(db: ApiDb, options: TagLoadOptions) {
       `${idSelect}
       ${fromClause}
       ${whereClause}
-      ORDER BY ${sortExpr} ${sortDir}`,
+      ORDER BY ${sortExpr} ${sortDir}, tags.name COLLATE NOCASE ASC, tags.id ASC`,
       queryReplacements,
       {shouldPaginate, pageLimit, safePage},
     )
@@ -441,7 +441,7 @@ async function loadTagSortedIds(
   const rows = await queryAllAsync<{id: number}>(db, `${idSelect}
     ${fromClause}
     ${whereClause}
-    ORDER BY ${sortPlan.expression} ${sortDir}, tags.id ASC`, replacements)
+    ORDER BY ${sortPlan.expression} ${sortDir}, tags.name COLLATE NOCASE ASC, tags.id ASC`, replacements)
   return rows.map((row) => Number(row.id))
 }
 

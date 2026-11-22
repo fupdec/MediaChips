@@ -36,7 +36,7 @@ describe('loadTagSortedIds', () => {
 
     expect(ids).toEqual([3, 1, 2])
     const [, sql, replacements] = queryAllAsync.mock.calls[0]
-    expect(sql).toContain('ORDER BY tags.views DESC, tags.id ASC')
+    expect(sql).toContain('ORDER BY tags.views DESC, tags.name COLLATE NOCASE ASC, tags.id ASC')
     expect(sql).not.toMatch(/LIMIT/i)
     expect(replacements).toEqual({metaId: 5})
   })

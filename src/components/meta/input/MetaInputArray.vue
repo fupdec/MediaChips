@@ -565,7 +565,7 @@ const mergeTagLists = (...lists: TagListItem[][]) => {
       byId.set(Number(tag.id), tag)
     }
   }
-  return [...byId.values()]
+  return sortTags([...byId.values()])
 }
 
 const hydrateSelectedTags = async (ids: number[]) => {
