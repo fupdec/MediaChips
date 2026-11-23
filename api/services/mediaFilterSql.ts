@@ -285,11 +285,13 @@ function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterO
   const {mediaTypeId, ids = [], filtersJoin: filtersJoinRaw} = options
   const filtersJoin = normalizeFiltersJoinMode(filtersJoinRaw)
 
-  if (mediaTypeId == null || mediaTypeId === '') {
+  const hasMediaType = mediaTypeId != null && mediaTypeId !== ''
+  // Lookups by explicit ids (e.g. opening a card) don't need a media type scope.
+  if (!hasMediaType && !ids.length) {
     return missingMediaTypeResult()
   }
 
-  const replacements: AnyRecord = {mediaTypeId}
+  const replacements: AnyRecord = hasMediaType ? {mediaTypeId} : {}
   let paramIndex = 0
 
   const nextParam: SqlParamBinder = (value) => {
@@ -300,7 +302,7 @@ function buildMediaFilterQuery(filters: FilterLike[] = [], options: MediaFilterO
   }
 
   const baseClauses: string[] = [
-    'media.mediaTypeId = :mediaTypeId',
+    ...(hasMediaType ? ['media.mediaTypeId = :mediaTypeId'] : []),
     MEDIA_NOT_IN_TRASH_SQL,
   ]
   const filterClauses: string[] = []

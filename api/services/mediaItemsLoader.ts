@@ -473,7 +473,11 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
     const fetchTotals = async () => {
       const [totalsRows, unfilteredRows] = await Promise.all([
         queryAllAsync(db, buildFilteredTotalsSql(fromForCount, whereClause, needsDistinct), replacements),
-        queryAllAsync(db, `SELECT COUNT(*) AS totalUnfiltered
+        mediaTypeId == null || mediaTypeId === ''
+          ? queryAllAsync(db, `SELECT COUNT(*) AS totalUnfiltered
+           FROM media
+           WHERE media.id IN (:ids)`, {ids})
+          : queryAllAsync(db, `SELECT COUNT(*) AS totalUnfiltered
            FROM media
            WHERE media.mediaTypeId = :mediaTypeId`, {mediaTypeId}),
       ])
@@ -571,7 +575,11 @@ async function loadMediaItemsSql(db: ApiDb, options: MediaLoadOptions = {}) {
     } else {
       const [totalsRows, unfilteredRows] = await Promise.all([
         queryAllAsync(db, buildFilteredTotalsSql(fromForCount, whereClause, needsDistinct), replacements),
-        queryAllAsync(db, `SELECT COUNT(*) AS totalUnfiltered
+        mediaTypeId == null || mediaTypeId === ''
+          ? queryAllAsync(db, `SELECT COUNT(*) AS totalUnfiltered
+           FROM media
+           WHERE media.id IN (:ids)`, {ids})
+          : queryAllAsync(db, `SELECT COUNT(*) AS totalUnfiltered
            FROM media
            WHERE media.mediaTypeId = :mediaTypeId`, {mediaTypeId}),
       ])

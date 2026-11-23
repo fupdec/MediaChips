@@ -35,6 +35,10 @@ describe('getMediaFilterSqlFallbackReason', () => {
     expect(getMediaFilterSqlFallbackReason({ filters: [] })).toBe('Missing mediaTypeId')
   })
 
+  it('allows id lookups without mediaTypeId', () => {
+    expect(getMediaFilterSqlFallbackReason({ filters: [], ids: [5] })).toBeNull()
+  })
+
   it('returns null for a simple SQL-compatible query', () => {
     expect(getMediaFilterSqlFallbackReason({
       mediaTypeId: 1,
