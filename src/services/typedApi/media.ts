@@ -341,8 +341,8 @@ export const mediaApi = {
     }))
   },
 
-  postMarkItems(body: MarkItemsRequestPayload) {
-    return apiClient.post<MediaListResponseData>(API_ROUTES.markItems, body).then((res) => ({
+  postMarkItems(body: MarkItemsRequestPayload, config?: AxiosRequestConfig) {
+    return apiClient.post<MediaListResponseData>(API_ROUTES.markItems, body, config).then((res) => ({
       ...res,
       data: validated(parseMediaListResponse, res.data),
     }))

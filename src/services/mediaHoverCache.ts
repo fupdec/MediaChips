@@ -4,6 +4,7 @@ import type { MediaItem } from '@/types/stores'
 
 const MAX_HOVER_CACHE = 80
 const cache = new Map<string, MediaItem>()
+const pending = new Map<string, Promise<MediaItem | null>>()
 
 export function getMediaHoverCacheKey(mediaTypeId: number, mediaId: number): string {
   return `${mediaTypeId}:${mediaId}`
@@ -45,35 +46,44 @@ export async function loadMediaForHover(
     return fromStore
   }
 
-  try {
-    const res = await typedApi.getMediaItems({
-      mediaTypeId,
-      filters: [],
-      ids: [mediaId],
-      limit: 1,
-    })
-    const item = res.data.items?.[0]
-    if (item) {
-      touch(key, item)
-      return item
+  const existing = pending.get(key)
+  if (existing) return existing
+
+  // Defer the request until it is registered, including synchronous failures.
+  const request = Promise.resolve().then(async (): Promise<MediaItem | null> => {
+    let item: MediaItem | undefined
+    try {
+      const res = await typedApi.getMediaItems({
+        mediaTypeId,
+        filters: [],
+        ids: [mediaId],
+        limit: 1,
+      })
+      item = res.data.items?.[0]
+    } catch (error) {
+      console.error(error)
     }
-  } catch (error) {
-    console.error(error)
-  }
 
-  if (fromStore) {
-    touch(key, fromStore)
-    return fromStore
-  }
-
-  return null
+    const result = item ?? fromStore ?? null
+    // Invalidated requests must not repopulate the cache or remove a newer request.
+    if (pending.get(key) === request) {
+      pending.delete(key)
+      if (result) touch(key, result)
+    }
+    return result
+  })
+  pending.set(key, request)
+  return request
 }
 
 export function invalidateMediaHoverCache(mediaTypeId?: number, mediaId?: number): void {
   if (mediaTypeId != null && mediaId != null) {
-    cache.delete(getMediaHoverCacheKey(mediaTypeId, mediaId))
+    const key = getMediaHoverCacheKey(mediaTypeId, mediaId)
+    cache.delete(key)
+    pending.delete(key)
     return
   }
 
   cache.clear()
+  pending.clear()
 }

@@ -3,6 +3,9 @@ import { typedApi } from '@/services/typedApi'
 import { MARKS_PAGE_LIMIT } from '@/utils/markSort'
 import type { MarkFilterMeta, MarkItem } from '@/types/stores'
 
+// Keep request handles outside reactive/serialized Pinia state and isolate store instances.
+const activeRequests = new WeakMap<object, AbortController>()
+
 export const useMarksStore = defineStore('marks', {
   state: () => ({
     marksOnPage: [] as MarkItem[],
@@ -54,24 +57,33 @@ export const useMarksStore = defineStore('marks', {
 
     async fetchMarks({ append = false }: { append?: boolean } = {}) {
       if (append) {
-        if (this.isLoadingMore || !this.hasMore) return
+        if (this.isLoading || this.isLoadingMore || !this.hasMore) return
         this.isLoadingMore = true
       } else {
         this.isLoading = true
+        this.isLoadingMore = false
         this.page = 1
         this.marksOnPage = []
       }
 
+      activeRequests.get(this)?.abort()
+      const controller = new AbortController()
+      activeRequests.set(this, controller)
+      const requestedPage = append ? this.page + 1 : 1
+
       try {
         const response = await typedApi.postMarkItems({
-          types: this.selectedTypes,
+          types: [...this.selectedTypes],
           sortBy: this.sortBy,
           sortDir: this.sortDir,
           search: this.search,
           clipsOnly: this.clipsOnly,
-          page: this.page,
+          page: requestedPage,
           limit: MARKS_PAGE_LIMIT,
-        })
+        }, { signal: controller.signal })
+        if (activeRequests.get(this) !== controller) return
+
+        this.page = requestedPage
 
         const items = response.data?.items || []
         this.total = response.data?.total || 0
@@ -89,6 +101,7 @@ export const useMarksStore = defineStore('marks', {
 
         this.isLoaded = true
       } catch (error) {
+        if (activeRequests.get(this) !== controller) return
         console.error(error)
         if (!append) {
           this.marksOnPage = []
@@ -97,8 +110,11 @@ export const useMarksStore = defineStore('marks', {
           this.isLoaded = true
         }
       } finally {
-        this.isLoading = false
-        this.isLoadingMore = false
+        if (activeRequests.get(this) === controller) {
+          activeRequests.delete(this)
+          this.isLoading = false
+          this.isLoadingMore = false
+        }
       }
     },
 
@@ -135,7 +151,6 @@ export const useMarksStore = defineStore('marks', {
     async loadNextPage() {
       if (!this.hasMore || this.isLoading || this.isLoadingMore) return
 
-      this.page += 1
       await this.fetchMarks({ append: true })
     },
   },

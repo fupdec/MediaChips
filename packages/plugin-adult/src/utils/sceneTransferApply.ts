@@ -1,11 +1,5 @@
 import type { ScraperTransferField } from '../types/scraper'
 
-function cloneTransferValue(value: unknown): unknown {
-  if (Array.isArray(value)) return [...value]
-  if (value && typeof value === 'object') return {...value as Record<string, unknown>}
-  return value
-}
-
 function normalizeNameList(value: unknown): string[] {
   if (!Array.isArray(value)) return []
 

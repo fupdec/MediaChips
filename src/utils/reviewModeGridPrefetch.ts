@@ -1,8 +1,6 @@
 import {ref} from 'vue'
 import path from 'path-browserify'
 import {typedApi} from '@/services/typedApi'
-import {buildVideoGridTaskParams} from '@shared/videoPreview'
-import type {MediaItem} from '@/types/stores'
 
 export type ReviewGridStatus = 'unknown' | 'ready' | 'missing' | 'generating'
 
@@ -14,10 +12,7 @@ export const reviewGridStatusVersion = ref(0)
 
 let prefetchToken = 0
 let neighborQueue: number[] = []
-let neighborMediaById: Record<number, MediaItem> = {}
-let neighborWorkerRunning = false
 let generateChain: Promise<void> = Promise.resolve()
-let focusMediaId: number | null = null
 
 function bumpStatusVersion() {
   reviewGridStatusVersion.value += 1
@@ -63,9 +58,7 @@ export function clearReviewGridPrefetch(): void {
   prefetchToken += 1
   statusById.clear()
   neighborQueue = []
-  neighborMediaById = {}
   generateWaiters.clear()
-  focusMediaId = null
   bumpStatusVersion()
 }
 
@@ -150,12 +143,6 @@ export async function finalizeReviewGridGenerate(
   }
 }
 
-function isGridAlreadyExistsError(error: unknown): boolean {
-  const err = error as {response?: {data?: {message?: string}}; message?: string} | null
-  const message = String(err?.response?.data?.message || err?.message || error || '')
-  return /already exists/i.test(message)
-}
-
 export async function probeReviewGridStatuses(
   mediaPath: string,
   mediaIds: number[],
@@ -181,124 +168,25 @@ export async function probeReviewGridStatuses(
   }
 }
 
-async function generateOneNeighbor(mediaId: number): Promise<void> {
-  const item = neighborMediaById[mediaId]
-  if (!item?.path || !item.id) {
-    setReviewGridStatus(mediaId, 'missing')
-    return
-  }
-  if (getReviewGridStatus(mediaId) === 'ready') return
-
-  setReviewGridStatus(mediaId, 'generating')
-  try {
-    await runExclusiveGridGenerate(async () => {
-      if (getReviewGridStatus(mediaId) === 'ready') return
-      try {
-        await typedApi.taskCreateGrid(
-          buildVideoGridTaskParams(item.path!, `${mediaId}.jpg`),
-        )
-        setReviewGridStatus(mediaId, 'ready')
-      } catch (error) {
-        if (isGridAlreadyExistsError(error)) {
-          setReviewGridStatus(mediaId, 'ready')
-          return
-        }
-        console.error(error)
-        setReviewGridStatus(mediaId, 'missing')
-      }
-    })
-  } catch (error) {
-    console.error(error)
-    if (getReviewGridStatus(mediaId) === 'generating') {
-      setReviewGridStatus(mediaId, 'missing')
-    }
-  } finally {
-    if (getReviewGridStatus(mediaId) === 'generating') {
-      setReviewGridStatus(mediaId, 'missing')
-    }
-  }
-}
-
-const NEIGHBOR_WARMUP_DELAY_MS = 2_000
-
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-async function waitWhileFocusGenerating(token: number): Promise<void> {
-  let waited = 0
-  while (token === prefetchToken && waited < 120_000) {
-    if (focusMediaId == null) return
-    if (getReviewGridStatus(focusMediaId) !== 'generating') return
-    await sleep(350)
-    waited += 350
-  }
-}
-
-/** Wait until the focused item leaves unknown/generating, then settle briefly. */
-async function waitForFocusSettledBeforeNeighbors(token: number): Promise<void> {
-  let waited = 0
-  while (token === prefetchToken && waited < 120_000) {
-    if (focusMediaId == null) return
-    const status = getReviewGridStatus(focusMediaId)
-    // MediaStage owns current createGrid — wait until it finishes or is already known.
-    if (status === 'ready' || status === 'missing') break
-    await sleep(350)
-    waited += 350
-  }
-  if (token !== prefetchToken) return
-  // Let the current Review UI settle before stealing ffmpeg for neighbors.
-  await sleep(NEIGHBOR_WARMUP_DELAY_MS)
-}
-
-async function pumpNeighborQueue(token: number): Promise<void> {
-  if (neighborWorkerRunning) return
-  if (!neighborQueue.length) return
-  neighborWorkerRunning = true
-  try {
-    await waitForFocusSettledBeforeNeighbors(token)
-    if (token !== prefetchToken) return
-
-    while (neighborQueue.length && token === prefetchToken) {
-      // If the user navigated and focus is generating again, yield.
-      await waitWhileFocusGenerating(token)
-      if (token !== prefetchToken) return
-
-      const mediaId = neighborQueue.shift()!
-      bumpStatusVersion()
-      if (getReviewGridStatus(mediaId) === 'ready') continue
-      await generateOneNeighbor(mediaId)
-    }
-  } finally {
-    neighborWorkerRunning = false
-    if (neighborQueue.length && token === prefetchToken) {
-      void pumpNeighborQueue(token)
-    }
-  }
-}
-
 /**
  * Probe current/next/prev so navigation can reuse known ready/missing status.
- * Neighbor warm-generate is disabled for now (current item stays MediaStage's job).
+ * Grids are never generated ahead of time: the current item stays MediaStage's job.
  */
 export function scheduleReviewGridPrefetch(options: {
   mediaPath: string
   mediaIds: number[]
   index: number
-  mediaById: Record<number, MediaItem>
 }): void {
-  const {mediaPath, mediaIds, index, mediaById} = options
+  const {mediaPath, mediaIds, index} = options
 
   if (!mediaPath || !mediaIds.length || index < 0) return
 
   const token = ++prefetchToken
-  neighborMediaById = mediaById
   neighborQueue = []
 
   const currentId = mediaIds[index] ?? null
   const nextId = mediaIds[index + 1]
   const prevId = mediaIds[index - 1]
-  focusMediaId = currentId
 
   const windowIds = [currentId, nextId, prevId].filter(
     (id): id is number => id != null && Number.isFinite(id),

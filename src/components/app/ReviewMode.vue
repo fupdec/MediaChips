@@ -531,7 +531,6 @@ watch(
       mediaPath: appStore.mediaPath,
       mediaIds: review.mediaIds,
       index: review.index,
-      mediaById: review.mediaById,
     })
   },
 )
