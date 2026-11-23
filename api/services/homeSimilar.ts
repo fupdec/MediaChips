@@ -133,8 +133,11 @@ function loadViewedSeedCandidates(db: ApiDb, limit = SEED_CANDIDATE_LIMIT): Home
   return rows.map((row) => mapSeedRow(row, 'viewed'))
 }
 
-/** Random sample of media that can drive CLIP and/or tag similarity. */
-function loadRandomSeedCandidates(db: ApiDb, limit = SEED_CANDIDATE_LIMIT): HomeSimilarSeed[] {
+/** Time allowed for the cheap id probes before falling back to the full random scan. */
+const PROBE_BUDGET_MS = 40
+
+/** Exact but slow on big libraries: it scans and sorts every eligible row (about 200 ms at 185k files). */
+function loadRandomSeedCandidatesByScan(db: ApiDb, limit: number): HomeSimilarSeed[] {
   const rows = queryAll(db, `
     SELECT media.id, media.name, media.basename, media.path, media.mediaTypeId
     FROM media
@@ -146,6 +149,44 @@ function loadRandomSeedCandidates(db: ApiDb, limit = SEED_CANDIDATE_LIMIT): Home
     limit,
   })
   return rows.map((row) => mapSeedRow(row, 'any'))
+}
+
+/**
+ * Random sample of media that can drive CLIP and/or tag similarity.
+ * Probes random id positions (each probe only walks the primary key from that point to the
+ * first eligible row) instead of sorting the whole table; small or sparse libraries, where the
+ * probes cannot fill the sample inside the time budget, use the exact scan.
+ */
+function loadRandomSeedCandidates(
+  db: ApiDb,
+  limit = SEED_CANDIDATE_LIMIT,
+  random: () => number = Math.random,
+): HomeSimilarSeed[] {
+  const range = queryGet<{minId?: number | null; maxId?: number | null}>(db, `
+    SELECT MIN(id) AS minId, MAX(id) AS maxId FROM media
+  `)
+  const minId = Number(range?.minId)
+  const maxId = Number(range?.maxId)
+  if (!Number.isFinite(minId) || !Number.isFinite(maxId) || maxId < minId) return []
+
+  const found = new Map<number, HomeSimilarSeed>()
+  const startedAt = performance.now()
+  for (let attempt = 0; attempt < limit * 3 && found.size < limit; attempt++) {
+    if (performance.now() - startedAt > PROBE_BUDGET_MS) break
+    const start = minId + Math.floor(random() * (maxId - minId + 1))
+    const row = queryGet(db, `
+      SELECT media.id, media.name, media.basename, media.path, media.mediaTypeId
+      FROM media
+      WHERE media.id >= :start AND ${ELIGIBLE_SEED_WHERE}
+      ORDER BY media.id
+      LIMIT 1
+    `, {start, model: CLIP_EMBEDDING_INDEX_KEY})
+    if (row) found.set(Number(row.id), mapSeedRow(row, 'any'))
+  }
+
+  return found.size >= limit
+    ? [...found.values()]
+    : loadRandomSeedCandidatesByScan(db, limit)
 }
 
 function libraryHasSimilarSignals(db: ApiDb): boolean {
@@ -227,7 +268,50 @@ async function buildSimilarForSeed(
   return {seed, seedItem, items}
 }
 
+/** The widget is a "discover something" row, so a few minutes of reuse is fine and saves a heavy search. */
+const RESULT_CACHE_TTL_MS = 3 * 60_000
+
+type CachedResult = {expiresAt: number; promise: Promise<HomeSimilarResult>}
+
+let resultCache = new WeakMap<object, Map<string, CachedResult>>()
+
+export function clearHomeSimilarCache(): void {
+  resultCache = new WeakMap()
+}
+
+/**
+ * Cached for a few minutes per library and request, and concurrent calls share one search.
+ * Calls with an injected `random` (tests) are never cached.
+ */
 export async function getHomeSimilar(
+  db: ApiDb,
+  options: {limit?: number; random?: () => number; excludeSeedId?: number | null} = {},
+): Promise<HomeSimilarResult> {
+  if (options.random) return computeHomeSimilar(db, options)
+
+  const limit = Math.min(Math.max(Number(options.limit) || 12, 1), 24)
+  const excludeSeedId = Number(options.excludeSeedId)
+  const key = `${limit}:${Number.isFinite(excludeSeedId) && excludeSeedId > 0 ? excludeSeedId : 0}`
+
+  let perDb = resultCache.get(db)
+  if (!perDb) {
+    perDb = new Map()
+    resultCache.set(db, perDb)
+  }
+  const hit = perDb.get(key)
+  if (hit && hit.expiresAt > Date.now()) return hit.promise
+
+  const entry: CachedResult = {
+    expiresAt: Date.now() + RESULT_CACHE_TTL_MS,
+    promise: computeHomeSimilar(db, options),
+  }
+  perDb.set(key, entry)
+  const forget = () => { if (perDb!.get(key) === entry) perDb!.delete(key) }
+  entry.promise.then((result) => { if (!result.items.length) forget() }, forget)
+  return entry.promise
+}
+
+async function computeHomeSimilar(
   db: ApiDb,
   options: {limit?: number; random?: () => number; excludeSeedId?: number | null} = {},
 ): Promise<HomeSimilarResult> {
@@ -249,7 +333,7 @@ export async function getHomeSimilar(
   // Keep Continue off the seed too — Similar should not echo that row.
   const viewed = loadViewedSeedCandidates(db, SEED_CANDIDATE_LIMIT)
     .filter((seed) => !excludeSet.has(seed.id))
-  const randomPool = loadRandomSeedCandidates(db, SEED_CANDIDATE_LIMIT)
+  const randomPool = loadRandomSeedCandidates(db, SEED_CANDIDATE_LIMIT, options.random)
     .filter((seed) => !excludeSet.has(seed.id))
   const candidates = orderHomeSimilarSeeds(viewed, randomPool, {
     limit: SEED_CANDIDATE_LIMIT,

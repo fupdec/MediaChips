@@ -220,6 +220,43 @@ export function rankByMaxPairwiseCosineSimilarityHits(
     .slice(0, limit)
 }
 
+const defaultYield = () => new Promise<void>((resolve) => { setImmediate(resolve) })
+
+/**
+ * Same result as `rankByMaxPairwiseCosineSimilarityHits`, but hands the event loop back every
+ * `sliceMs` so a search over a large library does not freeze every other request while it runs.
+ */
+export async function rankByMaxPairwiseCosineSimilarityHitsCooperative(
+  seed: ClipEmbeddingVector[],
+  candidates: ClipEmbeddingCandidate[],
+  limit: number,
+  options: {sliceMs?: number; yieldFn?: () => Promise<void>; now?: () => number} = {},
+): Promise<ClipPairwiseSimilarityHit[]> {
+  if (!seed.length || limit <= 0) return []
+  const sliceMs = options.sliceMs ?? 8
+  const yieldFn = options.yieldFn ?? defaultYield
+  const now = options.now ?? (() => performance.now())
+
+  const rows: ClipPairwiseSimilarityHit[] = []
+  let sliceStart = now()
+  for (const candidate of candidates) {
+    const best = bestPairwiseCosineSimilarity(seed, candidate.embeddings)
+    if (Number.isFinite(best.score)) {
+      rows.push({
+        id: candidate.id,
+        score: best.score,
+        tileIndex: best.tileIndex,
+        tileCount: candidate.embeddings.length,
+      })
+    }
+    if (now() - sliceStart >= sliceMs) {
+      await yieldFn()
+      sliceStart = now()
+    }
+  }
+  return rows.sort((a, b) => b.score - a.score || a.id - b.id).slice(0, limit)
+}
+
 export function rankByMaxPairwiseCosineSimilarity(
   seed: ClipEmbeddingVector[],
   candidates: ClipEmbeddingCandidate[],

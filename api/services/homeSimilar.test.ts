@@ -4,7 +4,7 @@
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import type {ApiDb} from '../types/db'
 import {createTestDb as createSharedTestDb, closeTestDb} from '../db/testUtils/createTestDb'
-import {getHomeSimilar, orderHomeSimilarSeeds} from './homeSimilar'
+import {clearHomeSimilarCache, getHomeSimilar, orderHomeSimilarSeeds} from './homeSimilar'
 import {parseHomeSimilarResponse} from '@shared/schemas'
 import {CLIP_EMBEDDING_INDEX_KEY} from './clipEmbeddingModel'
 import {l2Normalize, packFloat32Embeddings, type ClipEmbeddingVector} from './clipEmbeddingMath'
@@ -136,6 +136,43 @@ describe('getHomeSimilar', () => {
     expect(parsed.items[0].similarity?.signals?.tags).toBeGreaterThan(0)
     expect(parsed.seedItem?.isSeed).toBe(true)
     expect(parsed.items[0].similarity?.signals?.tags).toBeTypeOf('number')
+  })
+
+  it('reuses the result for the same request, keys by excluded seed, and clears on invalidation', async () => {
+    db = createTestDb()
+    insertMedia(db, {id: 1, viewedAt: '2026-08-01'})
+    linkTag(db, 1, 1)
+    insertMedia(db, {id: 2})
+    linkTag(db, 2, 1)
+    insertMedia(db, {id: 3})
+    linkTag(db, 3, 1)
+    clearHomeSimilarCache()
+
+    const first = await getHomeSimilar(db, {limit: 6})
+    expect(first.items.length).toBeGreaterThan(0)
+    expect(await getHomeSimilar(db, {limit: 6})).toBe(first)
+
+    const other = await getHomeSimilar(db, {limit: 6, excludeSeedId: first.seed?.id})
+    expect(other).not.toBe(first)
+
+    clearHomeSimilarCache()
+    expect(await getHomeSimilar(db, {limit: 6})).not.toBe(first)
+  })
+
+  it('does not cache empty results and never caches calls with an injected random', async () => {
+    db = createTestDb()
+    insertMedia(db, {id: 1})
+    clearHomeSimilarCache()
+    const empty = await getHomeSimilar(db, {limit: 6})
+    expect(empty.items).toEqual([])
+    expect(await getHomeSimilar(db, {limit: 6})).not.toBe(empty)
+
+    insertMedia(db, {id: 2})
+    linkTag(db, 1, 1)
+    linkTag(db, 2, 1)
+    const a = await getHomeSimilar(db, {limit: 6, random: () => 0})
+    const b = await getHomeSimilar(db, {limit: 6, random: () => 0})
+    expect(a).not.toBe(b)
   })
 
   it('excludes Continue-watching ids from neighbors', async () => {

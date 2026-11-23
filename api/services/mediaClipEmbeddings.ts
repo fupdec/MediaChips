@@ -9,7 +9,7 @@ import {
   packFloat32Embeddings,
   unpackFloat32Embeddings,
   rankByMaxCosineSimilarityHits,
-  rankByMaxPairwiseCosineSimilarityHits,
+  rankByMaxPairwiseCosineSimilarityHitsCooperative,
   type ClipEmbeddingVector,
 } from './clipEmbeddingMath'
 import {
@@ -763,7 +763,7 @@ async function findSimilarByClip(
   const candidates = loadStoredEmbeddings(db, media?.mediaTypeId ?? null)
     .filter((row) => row.id !== id)
 
-  const neighborHits = rankByMaxPairwiseCosineSimilarityHits(
+  const neighborHits = await rankByMaxPairwiseCosineSimilarityHitsCooperative(
     seedEmbeddings,
     candidates,
     Math.max(clampLimit(options.limit) - 1, 0),

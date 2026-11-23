@@ -11,6 +11,7 @@ import {
   rankByMaxCosineSimilarity,
   rankByMaxCosineSimilarityHits,
   rankByMaxPairwiseCosineSimilarityHits,
+  rankByMaxPairwiseCosineSimilarityHitsCooperative,
   unpackFloat32Embedding,
   unpackFloat32Embeddings,
 } from './clipEmbeddingMath'
@@ -160,6 +161,25 @@ describe('clipEmbeddingMath', () => {
     ], 2)
     expect(hits[0]).toMatchObject({id: 20, tileIndex: 2, tileCount: 3})
     expect(hits[1]).toMatchObject({id: 21, tileIndex: 0, tileCount: 1})
+  })
+
+  it('cooperative ranking matches the synchronous one and yields to the event loop', async () => {
+    const seed = [l2Normalize([1, 0, 0]), l2Normalize([0, 1, 0])]
+    const candidates = Array.from({length: 40}, (_, index) => ({
+      id: index + 1,
+      embeddings: [l2Normalize([Math.cos(index), Math.sin(index), 0.1 * index])],
+    }))
+    let yields = 0
+    let tick = 0
+    const hits = await rankByMaxPairwiseCosineSimilarityHitsCooperative(seed, candidates, 5, {
+      sliceMs: 1,
+      now: () => tick++,
+      yieldFn: async () => { yields += 1 },
+    })
+    expect(hits).toEqual(rankByMaxPairwiseCosineSimilarityHits(seed, candidates, 5))
+    expect(yields).toBeGreaterThan(0)
+    expect(await rankByMaxPairwiseCosineSimilarityHitsCooperative([], candidates, 5)).toEqual([])
+    expect(await rankByMaxPairwiseCosineSimilarityHitsCooperative(seed, candidates, 0)).toEqual([])
   })
 
   it('returns empty ranks for empty query or non-positive limit', () => {
