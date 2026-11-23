@@ -18,6 +18,15 @@ import { getClipEmbeddingBackfillStatus } from './mediaClipEmbeddings'
 import { getFaceDetectionStatus } from './faceDetector'
 import { queryGet } from '../db/utils/rawQuery'
 import { getDirectorySize } from './directorySize'
+import { createDbTtlCache } from './dbTtlCache'
+
+/**
+ * Duplicate scans (3 full-table GROUP BY) and `du` over the whole library folder
+ * are slow on big libraries and barely change between Home visits. The fix queue
+ * re-checks right after a fix, so only these slow-moving parts are cached.
+ */
+const SLOW_HEALTH_CACHE_TTL_MS = 5 * 60_000
+const slowHealthCache = createDbTtlCache(SLOW_HEALTH_CACHE_TTL_MS)
 
 type HealthQueueItem = NonNullable<ParsedHomeHealth['queue']>[number]
 
@@ -323,14 +332,14 @@ async function getHomeHealth(db: ApiDb): Promise<ParsedHomeHealth> {
     clipStatus,
     facesStatus,
   ] = await Promise.all([
-    getDuplicateCounts(db),
+    slowHealthCache.get(db, 'duplicates', () => getDuplicateCounts(db)),
     getFingerprintBackfillStatus(db),
     getContentHashBackfillStatus(db),
     getOshashBackfillStatus(db),
     getVideoCodecBackfillStatus(db),
     getVideoImagesGenerationStatus(db, dbPath),
     getImageThumbsGenerationStatus(db, dbPath),
-    getActiveDatabaseSize(db),
+    slowHealthCache.get(db, 'databaseSize', () => getActiveDatabaseSize(db)),
     getTagImageAiUpscaleStatus(db),
     getClipEmbeddingBackfillStatus(db),
     getFaceDetectionStatus(db),
