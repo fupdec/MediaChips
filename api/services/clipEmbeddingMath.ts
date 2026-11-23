@@ -1,17 +1,19 @@
-export type ClipEmbeddingVector = number[]
+/** Float32Array keeps big in-memory indexes at 4 bytes/number and makes dot products fast. */
+export type ClipEmbeddingVector = number[] | Float32Array
 
 export type ClipEmbeddingCandidate = {
   id: number
   embeddings: ClipEmbeddingVector[]
 }
 
-export function l2Normalize(values: ClipEmbeddingVector): ClipEmbeddingVector {
+export function l2Normalize(values: ClipEmbeddingVector): number[] {
   if (!values.length) return []
   let sum = 0
-  for (const value of values) sum += value * value
+  for (let i = 0; i < values.length; i++) sum += values[i] * values[i]
   const norm = Math.sqrt(sum)
-  if (!norm) return values.map(() => 0)
-  return values.map((value) => value / norm)
+  const out = new Array<number>(values.length)
+  for (let i = 0; i < values.length; i++) out[i] = norm ? values[i] / norm : 0
+  return out
 }
 
 export function packFloat32Embedding(values: ClipEmbeddingVector): Buffer {
@@ -36,21 +38,20 @@ export function packFloat32Embeddings(vectors: ClipEmbeddingVector[]): Buffer {
   return buffer
 }
 
-export function unpackFloat32Embedding(buffer: Buffer | Uint8Array | null | undefined): ClipEmbeddingVector {
-  if (!buffer || !buffer.byteLength) return []
-  const view = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer)
-  if (view.byteLength % 4 !== 0) return []
-  const count = view.byteLength / 4
-  const values = new Array<number>(count)
-  for (let i = 0; i < count; i++) {
-    values[i] = view.readFloatLE(i * 4)
-  }
+export function unpackFloat32Embedding(buffer: Buffer | Uint8Array | null | undefined): Float32Array {
+  if (!buffer || !buffer.byteLength) return new Float32Array(0)
+  if (buffer.byteLength % 4 !== 0) return new Float32Array(0)
+  // Copy into an aligned buffer (SQLite blobs are not guaranteed 4-byte aligned). All supported
+  // platforms are little-endian, matching the packed format.
+  const values = new Float32Array(buffer.byteLength / 4)
+  new Uint8Array(values.buffer).set(buffer)
   return values
 }
 
 /**
  * Split a packed blob into per-tile vectors using the stored per-vector `dims`.
  * Legacy single-vector rows (byteLength/4 === dims) return one embedding.
+ * Tiles are views over one buffer, so no per-tile copies are made.
  */
 export function unpackFloat32Embeddings(
   buffer: Buffer | Uint8Array | null | undefined,
@@ -64,15 +65,29 @@ export function unpackFloat32Embeddings(
   }
   const tiles: ClipEmbeddingVector[] = []
   for (let offset = 0; offset < flat.length; offset += perVector) {
-    tiles.push(flat.slice(offset, offset + perVector))
+    tiles.push(flat.subarray(offset, offset + perVector))
   }
   return tiles
 }
 
 export function cosineSimilarity(a: ClipEmbeddingVector, b: ClipEmbeddingVector): number {
   if (!a.length || !b.length || a.length !== b.length) return 0
-  let dot = 0
-  for (let i = 0; i < a.length; i++) dot += a[i] * b[i]
+  // Four independent accumulators: this is the hot loop of every CLIP search over the library.
+  const n = a.length
+  const limit = n - (n % 4)
+  let d0 = 0
+  let d1 = 0
+  let d2 = 0
+  let d3 = 0
+  let i = 0
+  for (; i < limit; i += 4) {
+    d0 += a[i] * b[i]
+    d1 += a[i + 1] * b[i + 1]
+    d2 += a[i + 2] * b[i + 2]
+    d3 += a[i + 3] * b[i + 3]
+  }
+  let dot = d0 + d1 + d2 + d3
+  for (; i < n; i++) dot += a[i] * b[i]
   return dot
 }
 
