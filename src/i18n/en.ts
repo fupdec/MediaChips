@@ -5079,6 +5079,7 @@ const en = {
     trial_label: 'Free trial',
     trial_days_left: '{days} days left',
     appbar_trial: 'Trial: {days} d',
+    trial_ended_notice: 'Cloud and network sources, AI search, faces, the assistant, auto-merge and multiple libraries are now locked. Your library and existing items are unchanged. Click to see how to unlock them.',
     paywall_benefit_pro: 'Pro features: cloud and network sources, AI search, faces, assistant, auto-merge, multiple libraries',
     pro_feature: {
       cloud_sources: 'Cloud sources',

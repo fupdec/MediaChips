@@ -33,6 +33,15 @@ export function parseProTrialStart(value: unknown): number | null {
   return Number.isFinite(time) ? time : null
 }
 
+/**
+ * The clock the trial runs on: never earlier than the last time the server saw the app running, so
+ * setting the system clock back cannot give the trial more days.
+ */
+export function trialClockNow(lastSeenAt: unknown, now: number = Date.now()): number {
+  const seen = parseProTrialStart(lastSeenAt)
+  return seen == null ? now : Math.max(now, seen)
+}
+
 /** Whole days left in the trial, 0 when over, null when no trial was started. */
 export function proTrialDaysLeft(trialStartedAt: unknown, now: number = Date.now()): number | null {
   const start = parseProTrialStart(trialStartedAt)
@@ -52,10 +61,11 @@ export function hasProAccess(input: {
   registered: boolean
   grandfathered?: boolean
   trialStartedAt?: unknown
+  trialLastSeenAt?: unknown
   now?: number
 }): boolean {
   if (input.registered || input.grandfathered) return true
-  return isProTrialActive(input.trialStartedAt, input.now)
+  return isProTrialActive(input.trialStartedAt, trialClockNow(input.trialLastSeenAt, input.now))
 }
 
 /**

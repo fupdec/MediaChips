@@ -434,6 +434,8 @@ watch(() => props.importOptions, () => { clearTimeout(relistTimer); relistTimer 
 function preview(key: string) { const query = new URLSearchParams({key}); const token = getAuthToken(); if (token) query.set('token', token); return buildApiUrl(`${base()}/stream?${query}`) }
 async function submit() {
   if (!selectedPaths.value.length) return
+  // Accounts connected during the trial stay listed after it ends, but adding media from them is Pro.
+  if (!proGate.requirePro('cloud_sources')) return
   const accountBase = base(), importAccountId = accountId.value
   await guarded(async () => {
     importing.value = true; stopping.value = false; scanning.value = true; processed.value = 0; total.value = selectedPaths.value.length; failures.value = []

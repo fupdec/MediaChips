@@ -2,18 +2,22 @@ import {useAppStore} from '@/stores/app'
 import {updateConfig} from '@/services/configService'
 import {useRegistrationStore} from '@/stores/registration'
 import {isFreeLibraryCapSettled} from '@/services/freeLibraryCapConfig'
-import {decideProAccessMigration} from '@/utils/proAccess'
+import {decideProAccessMigration, proTrialDaysLeft, trialClockNow} from '@/utils/proAccess'
 
 export type ProAccessConfigState = {
   proAccessSettled: string
   proFeaturesGrandfathered: string
   proTrialStartedAt: string
+  proTrialLastSeenAt: string
+  proTrialEndNoticeShown: string
 }
 
 const DEFAULT_STATE: ProAccessConfigState = {
   proAccessSettled: '0',
   proFeaturesGrandfathered: '0',
   proTrialStartedAt: '',
+  proTrialLastSeenAt: '',
+  proTrialEndNoticeShown: '0',
 }
 
 export function readProAccessConfig(
@@ -26,6 +30,8 @@ export function readProAccessConfig(
     proAccessSettled: read('proAccessSettled'),
     proFeaturesGrandfathered: read('proFeaturesGrandfathered'),
     proTrialStartedAt: read('proTrialStartedAt'),
+    proTrialLastSeenAt: read('proTrialLastSeenAt'),
+    proTrialEndNoticeShown: read('proTrialEndNoticeShown'),
   }
 }
 
@@ -87,5 +93,35 @@ export async function settleProAccessIfNeeded(): Promise<void> {
     proAccessSettled: '1',
     proFeaturesGrandfathered: decision.grandfathered ? '1' : '0',
     proTrialStartedAt: decision.trialStartedAt,
+  })
+}
+
+/**
+ * Tell the user once, after the trial has run out, that Pro features are now locked. Without this the
+ * trial chip just disappears and the first sign is a paywall in the middle of some task.
+ *
+ * Skipped until the machine id is known: without it a registered user would look unregistered.
+ */
+export async function announceProTrialEndIfNeeded(): Promise<void> {
+  const config = readProAccessConfig()
+  if (config.proAccessSettled !== '1' || config.proTrialEndNoticeShown === '1') return
+  if (config.proFeaturesGrandfathered === '1' || !config.proTrialStartedAt) return
+
+  const registrationStore = useRegistrationStore()
+  if (!registrationStore.machineId || registrationStore.reg) return
+  if (proTrialDaysLeft(config.proTrialStartedAt, trialClockNow(config.proTrialLastSeenAt)) !== 0) return
+
+  const [{i18n}, {setNotification}, {useDialogsStore}] = await Promise.all([
+    import('@/i18n/loadLocale'),
+    import('@/services/notificationService'),
+    import('@/stores/dialogs'),
+  ])
+  await persistProAccessConfig({proTrialEndNoticeShown: '1'})
+  setNotification({
+    type: 'info',
+    title: i18n.global.t('registration.paywall_trial_ended'),
+    text: i18n.global.t('registration.trial_ended_notice'),
+    timeout: 0,
+    click: () => useDialogsStore().openPaywall(),
   })
 }

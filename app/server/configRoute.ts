@@ -13,6 +13,7 @@ import { isSecretSettingOption } from './auth'
 import { getAuthService } from './authRegistry'
 import { getAllIps, getBestLocalIp } from './network'
 import { pickPublicHost } from './publicHost'
+import { PRO_ENTITLEMENT_KEYS, syncProEntitlement } from './proEntitlement'
 
 function buildGlobalSettingsPayload(config: ServerConfig, hideSecrets = false) {
   const source = config as unknown as Record<string, unknown>
@@ -45,8 +46,11 @@ export function registerConfigRoute(
   config: ServerConfig,
   databasesPath: string,
   authService?: ConfigAuth,
+  proEntitlementFile?: string,
 ) {
   app.get('/api/config', async (req: ApiRequest, res: ApiResponse) => {
+    // Also advances the trial's last-seen clock, so a clock set back later cannot extend the trial.
+    if (proEntitlementFile) syncProEntitlement(config as unknown as Record<string, unknown>, proEntitlementFile)
     const hideSecrets = await shouldHideSecrets(req, authService)
     console.log('Config request from:', req.headers.origin || 'unknown origin')
 
@@ -84,9 +88,10 @@ export function registerConfigRoute(
       ...(typeof config.seenFeatureHints === 'string' ? { seenFeatureHints: config.seenFeatureHints } : {}),
       ...(typeof config.freeLibraryCapSettled === 'string' ? { freeLibraryCapSettled: config.freeLibraryCapSettled } : {}),
       ...(typeof config.freeLibraryGrandfathered === 'string' ? { freeLibraryGrandfathered: config.freeLibraryGrandfathered } : {}),
-      ...(typeof config.proAccessSettled === 'string' ? { proAccessSettled: config.proAccessSettled } : {}),
-      ...(typeof config.proFeaturesGrandfathered === 'string' ? { proFeaturesGrandfathered: config.proFeaturesGrandfathered } : {}),
-      ...(typeof config.proTrialStartedAt === 'string' ? { proTrialStartedAt: config.proTrialStartedAt } : {}),
+      ...Object.fromEntries(PRO_ENTITLEMENT_KEYS.flatMap(key => {
+        const value = (config as unknown as Record<string, unknown>)[key]
+        return typeof value === 'string' ? [[key, value]] : []
+      })),
     })
   })
 }

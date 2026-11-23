@@ -382,6 +382,8 @@ async function previewFile(entry: BrowseDirectoryEntry) {
 }
 async function importSelected(paths: string[] = selectedPaths.value) {
   if (addingProcess.active || busy.value || browserLoading.value || !selected.value?.hasCredentials || !paths.length) return
+  // Connections made during the trial stay listed after it ends, but adding media from them is Pro.
+  if (!proGate.requirePro('nas_sources')) return
   const current = generation
   const connection = selected.value
   const connectionId = connection.id

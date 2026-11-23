@@ -4441,6 +4441,7 @@ const fr = {
     trial_label: 'Essai gratuit',
     trial_days_left: '{days} jours restants',
     appbar_trial: 'Essai : {days} j',
+    trial_ended_notice: 'Les sources cloud et réseau, la recherche IA, les visages, l\'assistant, la fusion automatique et les bibliothèques multiples sont désormais verrouillés. Votre bibliothèque et vos éléments existants restent inchangés. Cliquez pour voir comment les débloquer.',
     paywall_benefit_pro: 'Fonctions Pro : sources cloud et réseau, recherche IA, visages, assistant, fusion automatique, plusieurs bibliothèques',
     pro_feature: {
       cloud_sources: 'Sources cloud',

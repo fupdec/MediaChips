@@ -13,6 +13,7 @@ import { initAuthService, getAuthService } from './server/authRegistry'
 import { createAuthMiddleware, registerAuthRoutes } from './server/auth'
 import { registerPingRoute } from './server/pingRoute'
 import { registerConfigRoute } from './server/configRoute'
+import { proEntitlementPath, syncProEntitlement } from './server/proEntitlement'
 import { attachLogDir, initAppLog } from './server/appLog'
 import { registerLogRoutes } from './server/logRoute'
 import {
@@ -52,6 +53,8 @@ const networkHelpers = {
 
 logStartup('config init')
 const {config, configPath, databasesPath} = initializeServerConfig(networkHelpers)
+// Restore Pro access state if config.json was lost or rebuilt.
+syncProEntitlement(config as unknown as Record<string, unknown>, proEntitlementPath(configPath))
 attachLogDir(path.join(path.dirname(databasesPath), 'logs'))
 
 const dbConfig = config.databases.find((i: ServerDatabaseEntry) => i.active)
@@ -76,7 +79,7 @@ registerAuthRoutes(app, authService)
 
 // Answer Electron waitForBackend / SPA boot before loading Task/face/transcode graphs.
 registerPingRoute(app, config)
-registerConfigRoute(app, config, databasesPath)
+registerConfigRoute(app, config, databasesPath, undefined, proEntitlementPath(configPath))
 registerLogRoutes(app)
 logStartup('ping+config ready')
 

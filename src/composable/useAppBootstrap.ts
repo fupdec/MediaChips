@@ -590,7 +590,10 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
     // Pro access first: the cap migration marks fresh installs as settled, which would make them
     // look like existing installs.
     import('@/services/proAccessConfig')
-      .then(({settleProAccessIfNeeded}) => settleProAccessIfNeeded())
+      .then(async ({settleProAccessIfNeeded, announceProTrialEndIfNeeded}) => {
+        await settleProAccessIfNeeded()
+        await announceProTrialEndIfNeeded()
+      })
       .catch((error) => {
         console.warn('Failed to settle Pro access:', error)
       })

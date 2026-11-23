@@ -25,6 +25,8 @@ export interface ServerConfig {
   proAccessSettled?: string
   proFeaturesGrandfathered?: string
   proTrialStartedAt?: string
+  proTrialLastSeenAt?: string
+  proTrialEndNoticeShown?: string
   minimizeToTray?: string
   allowLanAccess?: string
   checkForUpdatesAtStartup?: string

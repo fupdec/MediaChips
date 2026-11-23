@@ -23,6 +23,7 @@ import { deleteEntries, copyEntries, moveEntries, validateEntries, createFolder,
 import { syncMediaPathsForMoves } from '../../api/services/browseMediaPathSync'
 import { invalidateMediaDerivedCaches } from '../../api/services/mediaCacheInvalidation'
 import { saveConfigFile } from './configFile'
+import { proEntitlementPath, syncProEntitlement } from './proEntitlement'
 import { safeJsonError } from './fileResolver'
 import { streamVideoFile } from '../../api/services/transcode/streamVideoFile'
 import { parseMaxHeightOverride } from '../../api/services/transcode/transcodeSettings'
@@ -310,6 +311,8 @@ function registerBuiltinRoutes({
       && !isLanAccessEnvLocked()
 
     Object.assign(config, req.body)
+    // A client may only advance Pro access state (see proEntitlement); settled decisions stay as stored.
+    syncProEntitlement(config as unknown as Record<string, unknown>, proEntitlementPath(configPath))
 
     if (Array.isArray(req.body?.databases)) {
       createStorageDirectories(config, databasesPath)

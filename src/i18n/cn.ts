@@ -4441,6 +4441,7 @@ const cn = {
     trial_label: '免费试用',
     trial_days_left: '剩余 {days} 天',
     appbar_trial: '试用：{days} 天',
+    trial_ended_notice: '云端和网络来源、AI 搜索、人脸识别、助手、自动合并和多资料库现已锁定。您的资料库和现有项目不会改变。点击查看解锁方法。',
     paywall_benefit_pro: 'Pro 功能：云端和网络来源、AI 搜索、人脸、助手、自动合并重复项、多个媒体库',
     pro_feature: {
       cloud_sources: '云端来源',

@@ -4441,6 +4441,7 @@ const es = {
     trial_label: 'Prueba gratuita',
     trial_days_left: 'quedan {days} días',
     appbar_trial: 'Prueba: {days} d',
+    trial_ended_notice: 'Las fuentes en la nube y de red, la búsqueda con IA, los rostros, el asistente, la fusión automática y las bibliotecas múltiples ahora están bloqueados. Tu biblioteca y los elementos existentes no cambian. Haz clic para ver cómo desbloquearlos.',
     paywall_benefit_pro: 'Funciones Pro: fuentes en la nube y de red, búsqueda con IA, rostros, asistente, fusión automática, varias bibliotecas',
     pro_feature: {
       cloud_sources: 'Fuentes en la nube',

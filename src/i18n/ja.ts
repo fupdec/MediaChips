@@ -4441,6 +4441,7 @@ const ja = {
     trial_label: '無料トライアル',
     trial_days_left: '残り {days} 日',
     appbar_trial: 'トライアル：{days}日',
+    trial_ended_notice: 'クラウド／ネットワークソース、AI検索、顔認識、アシスタント、自動マージ、複数ライブラリがロックされました。ライブラリと既存のアイテムは変更されません。クリックして解除方法を確認してください。',
     paywall_benefit_pro: 'Pro 機能：クラウド・ネットワークソース、AI 検索、顔認識、アシスタント、重複の自動統合、複数ライブラリ',
     pro_feature: {
       cloud_sources: 'クラウドソース',

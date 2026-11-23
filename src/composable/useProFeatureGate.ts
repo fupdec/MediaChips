@@ -3,7 +3,7 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useRegistrationStore} from '@/stores/registration'
 import {isProAccessSettled, isProFeaturesGrandfathered, readProAccessConfig} from '@/services/proAccessConfig'
-import {hasProAccess, proTrialDaysLeft, type ProFeature} from '@/utils/proAccess'
+import {hasProAccess, proTrialDaysLeft, trialClockNow, type ProFeature} from '@/utils/proAccess'
 
 /**
  * Pro feature gate: a registered key, a grandfathered install or an active trial unlocks everything;
@@ -15,12 +15,14 @@ export function useProFeatureGate() {
   const dialogsStore = useDialogsStore()
 
   const trialStartedAt = computed(() => readProAccessConfig(appStore.config).proTrialStartedAt)
-  const trialDaysLeft = computed(() => proTrialDaysLeft(trialStartedAt.value))
+  const trialLastSeenAt = computed(() => readProAccessConfig(appStore.config).proTrialLastSeenAt)
+  const trialDaysLeft = computed(() => proTrialDaysLeft(trialStartedAt.value, trialClockNow(trialLastSeenAt.value)))
   // Until the one-time migration has decided who is an existing install, nothing is blocked.
   const hasPro = computed(() => !isProAccessSettled(appStore.config) || hasProAccess({
     registered: registrationStore.reg,
     grandfathered: isProFeaturesGrandfathered(appStore.config),
     trialStartedAt: trialStartedAt.value,
+    trialLastSeenAt: trialLastSeenAt.value,
   }))
 
   /** @returns true when the feature may be used; false when blocked (paywall opened). */

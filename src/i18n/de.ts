@@ -4441,6 +4441,7 @@ const de = {
     trial_label: 'Kostenlose Testphase',
     trial_days_left: 'noch {days} Tage',
     appbar_trial: 'Test: {days} T.',
+    trial_ended_notice: 'Cloud- und Netzwerkquellen, KI-Suche, Gesichter, der Assistent, automatisches Zusammenführen und mehrere Bibliotheken sind jetzt gesperrt. Ihre Bibliothek und vorhandene Einträge bleiben unverändert. Klicken Sie, um zu sehen, wie Sie sie freischalten.',
     paywall_benefit_pro: 'Pro-Funktionen: Cloud- und Netzwerkquellen, KI-Suche, Gesichter, Assistent, automatisches Zusammenführen, mehrere Bibliotheken',
     pro_feature: {
       cloud_sources: 'Cloud-Quellen',
