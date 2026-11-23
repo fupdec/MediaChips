@@ -91,6 +91,7 @@ import {useI18n} from 'vue-i18n'
 import {useScraperStore} from '../../stores/scraper'
 import {useAppStore} from '@/stores/app'
 import {getMetaName} from "@/utils/metaI18n"
+import {cloneTransferValue} from '../../utils/cloneTransferValue'
 import {buildScraperTransferFields, mergeBookmarkValues, mergeCountryValues, mergeSynonymValues} from '../../utils/scraperTransferFields'
 import {typedApi} from '@/services/typedApi'
 import {
@@ -112,11 +113,6 @@ function formatTransferValue(value: unknown): string {
   return typeof value === 'object' ? JSON.stringify(value) : String(value)
 }
 
-function cloneTransferValue(value: unknown): unknown {
-  if (Array.isArray(value)) return [...value]
-  if (value && typeof value === 'object') return {...value as Record<string, unknown>}
-  return value
-}
 import type {
   ScraperPinnedItem,
   ScraperSelectedResult,

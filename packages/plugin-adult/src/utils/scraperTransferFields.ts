@@ -1,4 +1,5 @@
 import Countries from '@/assets/Countries'
+import { cloneTransferValue } from './cloneTransferValue'
 import { areScraperValuesEqual } from './scraperValueCompare'
 import { normalizeScraperExtras } from './scraperFieldNormalize'
 import {
@@ -16,12 +17,6 @@ import type {
   ScraperSelectedResult,
   ScraperTransferField,
 } from '../types/scraper'
-
-function cloneTransferValue(value: unknown): unknown {
-  if (Array.isArray(value)) return [...value]
-  if (value && typeof value === 'object') return {...value as Record<string, unknown>}
-  return value
-}
 
 function parseSynonymValues(value: unknown): string[] {
   return String(value || '')

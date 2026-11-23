@@ -245,6 +245,7 @@ import {useSceneScraperStore} from '../../stores/sceneScraper'
 import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {getMetaName} from '@/utils/metaI18n'
+import {cloneTransferValue} from '../../utils/cloneTransferValue'
 import {buildSceneTransferFields} from '../../utils/buildSceneTransferFields'
 import {applyTransferAllToFields} from '../../utils/sceneTransferApply'
 import {loadSceneTransferContext} from '../../services/sceneScraperAutoApply'
@@ -342,12 +343,6 @@ async function loadMarkers() {
     sceneId: props.scene.id,
     mediaId: mediaId.value,
   })
-}
-
-function cloneTransferValue(value: unknown): unknown {
-  if (Array.isArray(value)) return [...value]
-  if (value && typeof value === 'object') return {...value as Record<string, unknown>}
-  return value
 }
 
 function formatFieldValue(value: unknown): string {

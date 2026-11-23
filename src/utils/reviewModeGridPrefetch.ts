@@ -11,7 +11,6 @@ const generateWaiters = new Map<number, Array<() => void>>()
 export const reviewGridStatusVersion = ref(0)
 
 let prefetchToken = 0
-let neighborQueue: number[] = []
 let generateChain: Promise<void> = Promise.resolve()
 
 function bumpStatusVersion() {
@@ -46,18 +45,15 @@ export function isAnyReviewGridBusy(): boolean {
   return false
 }
 
-/** True while a neighbor grid is generating or queued for warmup. */
+/** True while the grid of this item is being generated. */
 export function isReviewGridWarmupPending(mediaId: number | null | undefined): boolean {
   if (mediaId == null || !Number.isFinite(mediaId)) return false
-  const status = getReviewGridStatus(mediaId)
-  if (status === 'generating') return true
-  return status === 'missing' && neighborQueue.includes(mediaId)
+  return getReviewGridStatus(mediaId) === 'generating'
 }
 
 export function clearReviewGridPrefetch(): void {
   prefetchToken += 1
   statusById.clear()
-  neighborQueue = []
   generateWaiters.clear()
   bumpStatusVersion()
 }
@@ -182,7 +178,6 @@ export function scheduleReviewGridPrefetch(options: {
   if (!mediaPath || !mediaIds.length || index < 0) return
 
   const token = ++prefetchToken
-  neighborQueue = []
 
   const currentId = mediaIds[index] ?? null
   const nextId = mediaIds[index + 1]

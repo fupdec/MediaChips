@@ -58,13 +58,13 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   const storeBuild = String(process.env.MEDIA_CHIPS_SFW || '').trim() === '1' || masBuild
   const msStoreBuild = String(process.env.MEDIA_CHIPS_MSSTORE || '').trim() === '1'
   const adultPackageRoot = masBuild
-    ? path.resolve(__dirname, './src/plugins/sfwStub')
-    : path.resolve(__dirname, './packages/plugin-adult/src')
-  const stashPackageRoot = path.resolve(__dirname, './packages/plugin-stash/src')
-  const jellyfinPackageRoot = path.resolve(__dirname, './packages/plugin-jellyfin/src')
-  const plexPackageRoot = path.resolve(__dirname, './packages/plugin-plex/src')
-  const embyPackageRoot = path.resolve(__dirname, './packages/plugin-emby/src')
-  const tmdbPackageRoot = path.resolve(__dirname, './packages/plugin-tmdb/src')
+    ? path.resolve(import.meta.dirname, './src/plugins/sfwStub')
+    : path.resolve(import.meta.dirname, './packages/plugin-adult/src')
+  const stashPackageRoot = path.resolve(import.meta.dirname, './packages/plugin-stash/src')
+  const jellyfinPackageRoot = path.resolve(import.meta.dirname, './packages/plugin-jellyfin/src')
+  const plexPackageRoot = path.resolve(import.meta.dirname, './packages/plugin-plex/src')
+  const embyPackageRoot = path.resolve(import.meta.dirname, './packages/plugin-emby/src')
+  const tmdbPackageRoot = path.resolve(import.meta.dirname, './packages/plugin-tmdb/src')
 
   const plugins = normalizePlugins(
     vue(),
@@ -146,8 +146,8 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@shared': path.resolve(__dirname, './shared'),
+      '@': path.resolve(import.meta.dirname, './src'),
+      '@shared': path.resolve(import.meta.dirname, './shared'),
       // Package root (src/) so deep imports like @mediachips/plugin-adult/components/... work.
       // MEDIA_CHIPS_MAS=1 points at noop stubs under src/plugins/sfwStub.
       '@mediachips/plugin-adult': adultPackageRoot,

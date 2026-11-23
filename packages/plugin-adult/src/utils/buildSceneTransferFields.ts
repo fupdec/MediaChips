@@ -1,6 +1,7 @@
 import type { Meta, Tag } from '@/types/stores'
 import type { SceneScraperScene } from '../types/sceneScraper'
 import type { ScraperPinnedItem, ScraperTransferField } from '../types/scraper'
+import { cloneTransferValue } from './cloneTransferValue'
 import { areScraperValuesEqual } from './scraperValueCompare'
 import {
   buildScrapedTagEntries,
@@ -9,12 +10,6 @@ import {
   tagMatchesLookupName,
 } from './sceneScraperTags'
 import { performerMatchesGenderFilter } from './scraperPerformerGender'
-
-function cloneTransferValue(value: unknown): unknown {
-  if (Array.isArray(value)) return [...value]
-  if (value && typeof value === 'object') return {...value as Record<string, unknown>}
-  return value
-}
 
 function areAllScrapedNamesPresent(
   assignedTagIds: number[],
