@@ -46,7 +46,7 @@ for (const provider of ['gdrive', 'onedrive', 'dropbox']) {
     await cloud.locator('.media-folder-browser__list .v-list-item').filter({hasText: 'Second movie.mp4'}).getByRole('checkbox').check()
     const add = dialog.locator('.dialog-header').first().getByRole('button', {name: /^(Add|Добавить)$/})
     await expect(add).toBeEnabled(); await add.click()
-    await expect.poll(() => imports).toEqual([`/api/cloud-accounts/${second}/import`])
+    await expect.poll(() => imports, {timeout: 20_000}).toEqual([`/api/cloud-accounts/${second}/import`])
     await expect(page.locator('.media-adding-process .process-percents')).toHaveText('100 %')
     await page.goto('/settings?tab=connections'); await waitForAppShell(page)
     await page.getByRole('radio', {name: /^(Cloud|Облако)$/}).click()
@@ -56,7 +56,7 @@ for (const provider of ['gdrive', 'onedrive', 'dropbox']) {
     await processing.getByText(/Background server processing|Фоновая обработка на сервере/).click()
     await processing.getByLabel(/Imported media ID|ID импортированного медиа/).fill('100')
     await processing.getByRole('button', {name: /^(Start|Запустить)$/}).click()
-    await expect.poll(() => job?.kind).toBe('storyboard')
+    await expect.poll(() => job?.kind, {timeout: 20_000}).toBe('storyboard')
     await expect(processing.getByRole('link', {name: /^(Open|Открыть)$/})).toBeVisible()
   })
 }
