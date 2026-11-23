@@ -109,6 +109,7 @@ import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsListSync} from '@/composable/itemsListSync'
+import {mapWithConcurrency} from '@/utils/mapWithConcurrency'
 import {getReadableFileSize} from '@/services/formatUtils'
 import {originalOperationsApi as api, type OriginalSourceInfo, type OriginalDestination} from '@/services/typedApi/originalOperations'
 import type {OriginalJob, OriginalOperation, OriginalTarget} from '@shared/originalOperations'
@@ -240,15 +241,22 @@ watch(kind, () => {
       .catch(() => { if (current === generation) error.value = errorText() })
   }
 })
+const SOURCE_LOOKUP_CONCURRENCY = 6
+
 watch([visible, () => props.mediaIds.join(','), () => JSON.stringify(props.scope), () => app.dbPath, () => app.localhost], async () => {
   const current = ++generation; clearTimeout(timer)
   source.value = undefined; sources.value = []; jobs.value = []; destinations.value = []; targetConnection.value = 'local'; removeSource.value = false; kind.value = 'download'; error.value = ''; pending.value = false; confirmDelete.value = false
   if (!visible.value) return
   try {
     await loadJobs(current)
-    const data = await Promise.all(props.mediaIds.map(id => api.source(id)))
+    // Bounded: a large selection must not fire thousands of requests at once; stale runs stop issuing new ones.
+    const data = await mapWithConcurrency(props.mediaIds, SOURCE_LOOKUP_CONCURRENCY, async id => {
+      if (current !== generation) return null
+      return api.source(id)
+    })
     if (current !== generation) return
-    sources.value = data.map(row => row.data); source.value = sources.value[0]
+    if (data.some(row => row === null)) return
+    sources.value = data.map(row => row!.data); source.value = sources.value[0]
     if (!props.mediaIds.length && props.scope) {
       source.value = {provider: props.scope.connectionId === 'google-drive' ? 'gdrive' : props.scope.connectionId ? 'nas' : 'local', source: props.scope,
         name: '', path: props.scope.key, parentKey: props.scope.key, writable: props.scopeWritable !== false}
