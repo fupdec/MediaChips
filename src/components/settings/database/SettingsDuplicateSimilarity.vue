@@ -69,7 +69,8 @@
 
       <div class="similarity-auto">
         <div><h4>{{ t('duplicateSimilarity.autoMerge') }}</h4><p class="similarity-caption">{{ t('duplicateSimilarity.autoExactHint') }}</p></div>
-        <v-switch v-model="draft.autoMerge" :disabled="draft.files !== 'keep'" color="primary" inset hide-details
+        <v-switch :model-value="draft.autoMerge" :disabled="draft.files !== 'keep'" color="primary" inset hide-details
+          @update:model-value="setAutoMerge"
           :aria-label="t('duplicateSimilarity.autoMerge')" />
       </div>
     </section>
@@ -80,6 +81,7 @@ import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useSettingsStore} from '@/stores/settings'
 import {setOption} from '@/services/settingsService'
+import {useProFeatureGate} from '@/composable/useProFeatureGate'
 import SettingsGroupLabel from '@/components/settings/SettingsGroupLabel.vue'
 import {VISUAL_STRICTNESS, parseDuplicatePolicy, type SimilarityLevel, type VisualStrictness} from '@shared/duplicateSimilarity'
 withDefaults(defineProps<{similarityMode?: boolean}>(), {similarityMode: true})
@@ -123,6 +125,12 @@ const stored = ref(JSON.stringify(draft.value))
 watch(() => settings.duplicateSimilarityPolicy, value => {
   if (!saving.value) { draft.value = parseDuplicatePolicy(value); stored.value = JSON.stringify(draft.value) }
 })
+const proGate = useProFeatureGate()
+// Turning auto-merge on is a Pro feature; turning it off is always allowed.
+function setAutoMerge(value: boolean | null) {
+  if (value && !proGate.requirePro('duplicate_automerge')) return
+  draft.value.autoMerge = Boolean(value)
+}
 watch(() => draft.value.files, value => { if (value !== 'keep') draft.value.autoMerge = false })
 const priorities = computed(() => ['quality', 'largest', 'smallest', 'oldest', 'newest'].map(value => ({value, title: t(`duplicateSimilarity.${value}`)})))
 const fileActions = computed(() => ['keep', 'delete'].map(value => ({value, title: t(`duplicateSimilarity.${value}`)})))

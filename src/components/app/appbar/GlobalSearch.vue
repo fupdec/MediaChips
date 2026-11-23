@@ -45,6 +45,7 @@ import {
 import {useGlobalSearchSemantic} from '@/composable/useGlobalSearchSemantic'
 import type { ContextMenuEntry, MediaItem, Meta, Tag } from '@/types/stores'
 import type {CommandPaletteCommand} from '@/composable/commandPaletteCommands'
+import {useProFeatureGate} from '@/composable/useProFeatureGate'
 
 type MatchedSearchTag = {
   id: number
@@ -114,6 +115,7 @@ const playerStore = usePlayerStore()
 const imageViewerStore = useImageViewerStore()
 const contextMenuStore = useContextMenu()
 const settingsStore = useSettingsStore()
+const proGate = useProFeatureGate()
 const mixBusy = ref(false)
 const meta = computed(() => app.meta)
 const mediaTypes = computed(() => app.mediaTypes)
@@ -744,6 +746,11 @@ function sortGroups(groups: SearchGroup[]) {
 async function searchSemantic() {
   const q = query.value.trim()
   if (!q) {
+    results.value = []
+    loading.value = false
+    return
+  }
+  if (!proGate.requirePro('ai_search')) {
     results.value = []
     loading.value = false
     return

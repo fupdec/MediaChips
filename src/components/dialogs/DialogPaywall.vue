@@ -8,22 +8,28 @@
     <v-card rounded="xl">
       <DialogHeader
         icon="lock-open-variant-outline"
-        :header="t('registration.paywall_title')"
-        :subheader="t('registration.paywall_subtitle', {cap: FREE_LIBRARY_CAP})"
+        :header="feature ? t('registration.paywall_feature_title') : t('registration.paywall_title')"
+        :subheader="feature
+          ? t('registration.paywall_feature_subtitle', {feature: t(`registration.pro_feature.${feature}`)})
+          : t('registration.paywall_subtitle', {cap: FREE_LIBRARY_CAP})"
         closable
         @close="close"
       />
 
       <v-card-text class="pa-4 pa-sm-6">
-        <p class="mb-4 text-medium-emphasis">
+        <p v-if="!feature" class="mb-4 text-medium-emphasis">
           {{ t('registration.paywall_usage', {
             count: registrationStore.libraryCount,
             cap: FREE_LIBRARY_CAP,
           }) }}
         </p>
+        <p v-else-if="trialDaysLeft === 0" class="mb-4 text-medium-emphasis">
+          {{ t('registration.paywall_trial_ended') }}
+        </p>
 
         <ul class="paywall-benefits mb-6">
           <li>{{ t('registration.paywall_benefit_unlimited') }}</li>
+          <li>{{ t('registration.paywall_benefit_pro') }}</li>
           <li>{{ t('registration.paywall_benefit_lifetime') }}</li>
           <li>{{ t('registration.paywall_benefit_devices') }}</li>
           <li>{{ t('registration.paywall_benefit_local') }}</li>
@@ -73,11 +79,13 @@
 </template>
 
 <script setup lang="ts">
+import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useRegistrationStore} from '@/stores/registration'
+import {useProFeatureGate} from '@/composable/useProFeatureGate'
 import {openExternal} from '@/services/shellService'
 import {BUY_ACTIVATION_KEY_URL, FREE_LIBRARY_CAP} from '@/utils/freeLibraryCap'
 
@@ -85,6 +93,8 @@ const {t} = useI18n()
 const router = useRouter()
 const dialogsStore = useDialogsStore()
 const registrationStore = useRegistrationStore()
+const {trialDaysLeft} = useProFeatureGate()
+const feature = computed(() => dialogsStore.paywall.feature)
 
 function close() {
   dialogsStore.closePaywall()

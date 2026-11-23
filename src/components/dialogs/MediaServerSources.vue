@@ -32,6 +32,7 @@ import {BUILTIN_PLUGIN_IDS} from '@shared/plugins'
 import {usePluginsStore} from '@/stores/plugins'
 import {useEventBus} from '@/utils/eventBus'
 import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
+import {useProFeatureGate} from '@/composable/useProFeatureGate'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {PLEX_COMPONENT_KEYS, plexHostComponentMap} from '@/plugins/plex/hostBridge'
 import {JELLYFIN_COMPONENT_KEYS, jellyfinHostComponentMap} from '@/plugins/jellyfin/hostBridge'
@@ -40,6 +41,7 @@ import {EMBY_COMPONENT_KEYS, embyHostComponentMap} from '@/plugins/emby/hostBrid
 const {t} = useI18n()
 const plugins = usePluginsStore()
 const gate = useFreeLibraryGate()
+const proGate = useProFeatureGate()
 const sync = useItemsListSync()
 const events = useEventBus()
 const servers = [
@@ -61,6 +63,7 @@ const canSubmit = computed(() => !busy.value && !!importer.value?.canSubmit)
 async function submit() {
   const current = importer.value
   if (!current || !canSubmit.value) return
+  if (!proGate.requirePro('media_servers')) return
   submitting.value = true
   try {
     if (await gate.ensureCanImportMedia() && importer.value === current) await current.submit()

@@ -84,6 +84,9 @@ export function registerConfigRoute(
       ...(typeof config.seenFeatureHints === 'string' ? { seenFeatureHints: config.seenFeatureHints } : {}),
       ...(typeof config.freeLibraryCapSettled === 'string' ? { freeLibraryCapSettled: config.freeLibraryCapSettled } : {}),
       ...(typeof config.freeLibraryGrandfathered === 'string' ? { freeLibraryGrandfathered: config.freeLibraryGrandfathered } : {}),
+      ...(typeof config.proAccessSettled === 'string' ? { proAccessSettled: config.proAccessSettled } : {}),
+      ...(typeof config.proFeaturesGrandfathered === 'string' ? { proFeaturesGrandfathered: config.proFeaturesGrandfathered } : {}),
+      ...(typeof config.proTrialStartedAt === 'string' ? { proTrialStartedAt: config.proTrialStartedAt } : {}),
     })
   })
 }

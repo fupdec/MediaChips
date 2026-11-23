@@ -126,6 +126,7 @@ import {useSettingsStore} from '@/stores/settings'
 import {useAppShell} from '@/composable/appShell'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import {typedApi} from '@/services/typedApi'
+import {useProFeatureGate} from '@/composable/useProFeatureGate'
 import type {LocalAiChatMessage} from '@/services/typedApi/localAi'
 
 type ChatMsg = LocalAiChatMessage & {
@@ -152,6 +153,11 @@ const scrollEl = ref<HTMLElement | null>(null)
 let abortController: AbortController | null = null
 
 const open = computed(() => dialogsStore.localAi.show)
+const proGate = useProFeatureGate()
+// The assistant can be opened from several places; the gate lives here so none of them can skip it.
+watch(open, (value) => {
+  if (value && !proGate.requirePro('ai_assistant')) dialogsStore.localAi.show = false
+}, {immediate: true})
 
 function isStatusReady(status: {enabled?: boolean | string | number; status?: string}) {
   const enabled = status.enabled === true

@@ -183,6 +183,7 @@ import {useAppStore} from '@/stores/app'
 import {useFilePreview} from '@/composable/useFilePreview'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
+import {useProFeatureGate} from '@/composable/useProFeatureGate'
 import {useEventBus} from '@/utils/eventBus'
 import {remoteSourceErrorMessage} from '@/services/remoteSourceErrors'
 
@@ -196,6 +197,7 @@ const app = useAppStore()
 const {preview} = useFilePreview()
 const sync = useItemsListSync()
 const gate = useFreeLibraryGate()
+const proGate = useProFeatureGate()
 const events = useEventBus()
 const connections = ref<NasConnection[]>([])
 const selectedId = ref<string>()
@@ -303,6 +305,7 @@ async function loadConnections() {
   } catch (err) { if (current === generation) { error.value = true; message.value = apiError(err) } }
 }
 function newConnection() {
+  if (!proGate.requirePro('nas_sources')) return
   showPassword.value = false; savedPassword.value = false; savedPrivateKey.value = false
   draft.value = initialDraft(); editId.value = undefined; authMode.value = 'password'; formError.value = ''; fingerprint.value = ''; editing.value = true
 }

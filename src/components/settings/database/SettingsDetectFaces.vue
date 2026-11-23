@@ -517,6 +517,9 @@ import {
   parseFaceMatchModeForm,
   parseMatchAfterDetectForm,
 } from '@/utils/faceSettingsForm'
+import {useProFeatureGate} from '@/composable/useProFeatureGate'
+
+const proGate = useProFeatureGate()
 
 interface DetectionStatus {
   total: number
@@ -1026,6 +1029,7 @@ const runStreamJob = async (options: {
   completeKey: string
 }) => {
   if (activeJob.value) return
+  if (!proGate.requirePro('faces')) return
   activeJob.value = options.job
   progress.value = 0
   currentPath.value = ''

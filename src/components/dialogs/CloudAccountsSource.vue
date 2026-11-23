@@ -158,6 +158,7 @@ import {getAuthToken} from '@/services/authSession'
 import {openExternal} from '@/services/shellService'
 import {useAppStore} from '@/stores/app'
 import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
+import {useProFeatureGate} from '@/composable/useProFeatureGate'
 import {useRemoteMediaAddingProcess} from '@/composable/useRemoteMediaAddingProcess'
 import {type CloudAccount, type CloudAccountInput, type CloudProvider} from '@shared/cloudAccounts'
 import {mediaFileKind} from '@shared/mediaFormats'
@@ -176,7 +177,7 @@ const props = defineProps<{extensions?: string; importOptions?: RemoteImportOpti
 const sync = useItemsListSync(), events = useEventBus()
 const emit = defineEmits<{started: []}>()
 const {t} = useI18n()
-const app = useAppStore(), gate = useFreeLibraryGate(), addingProcess = useRemoteMediaAddingProcess(t)
+const app = useAppStore(), gate = useFreeLibraryGate(), proGate = useProFeatureGate(), addingProcess = useRemoteMediaAddingProcess(t)
 const importing = ref(false), processed = ref(0), total = ref(0), failures = ref<Array<{path: string; message: string}>>([])
 const accounts = ref<CloudAccount[]>([]), accountId = ref(''), account = computed(() => accounts.value.find(a => a.id === accountId.value))
 const visibleAccounts = computed(() => accounts.value.filter(a => !props.provider || a.provider === props.provider))
@@ -286,10 +287,11 @@ const editorButtons = computed(() => {
   ]
   return [{text: t('sources.save_and_connect'), icon: 'login', color: 'primary', loading: busy.value, disabled: !canSaveManual.value, action: () => create()}]
 })
-function addAccount() { error.value = ''; editingId.value = ''; editing.value = true; googleJsonNotice.value = ''; googleDesktop.value = false; form.value = {provider: props.provider || 'gdrive', name: '', clientId: '', clientSecret: '', redirectUri: callbackUri.value} }
+function addAccount() { if (!proGate.requirePro('cloud_sources')) return; error.value = ''; editingId.value = ''; editing.value = true; googleJsonNotice.value = ''; googleDesktop.value = false; form.value = {provider: props.provider || 'gdrive', name: '', clientId: '', clientSecret: '', redirectUri: callbackUri.value} }
 function editAccount() { if (!account.value) return; googleJsonNotice.value = ''; googleDesktop.value = false; editingId.value = account.value.id; editing.value = true; form.value = {provider: account.value.provider, name: account.value.name, clientId: '', clientSecret: '', redirectUri: account.value.redirectUri || callbackUri.value} }
 async function create(signIn = true, managed = false) {
   if (busy.value) return
+  if (!proGate.requirePro('cloud_sources')) return
   const input = {...form.value, name: form.value.name.trim() || providerName(form.value.provider)}
   if (managed ? !managedAvailable.value : !canSaveManual.value) return
   const popup = signIn ? openSignInWindow() : null

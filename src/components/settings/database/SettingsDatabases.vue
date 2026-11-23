@@ -235,6 +235,7 @@ import {ref, computed, watch, onMounted, defineAsyncComponent} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
 import {useAppStore} from '@/stores/app'
+import {useProFeatureGate} from '@/composable/useProFeatureGate'
 import {useDialogsStore} from '@/stores/dialogs'
 import type { DatabaseEntry } from '@/types/settings'
 import type {VFormInstance} from '@/types/vue'
@@ -267,6 +268,7 @@ const DEFAULT_DB_ICON = 'database-outline'
 
 /* stores */
 const store = useAppStore()
+const proGate = useProFeatureGate()
 const dialogsStore = useDialogsStore()
 const {t} = useI18n()
 
@@ -377,6 +379,8 @@ function shareOf(id: string): number | null {
 
 /* actions */
 function openAdd() {
+  // The first library is free; a second one is a Pro feature.
+  if (databases.value.length >= 1 && !proGate.requirePro('multi_library')) return
   db.value = null
   dialogMode.value = 'add'
   dbName.value = ''

@@ -3,6 +3,7 @@ import { useAppStore } from '@/stores/app'
 import { useItemsStore } from '@/stores/items'
 import { useTasksStore } from '@/stores/tasks'
 import { getCurrentMediaType } from '@/utils/mediaType'
+import type { ProFeature } from '@/utils/proAccess'
 import {
   BASE_MARK_TYPES,
   DEFAULT_BOOKMARK_ICON,
@@ -143,10 +144,11 @@ export const useDialogsStore = defineStore('useDialogsStore', {
       resolve: null as ((action: 'restore' | 'purge' | 'cancel') => void) | null,
     },
     videoConversion: { show: false, items: [] as MediaItem[] },
-    paywall: { show: false },
+    paywall: { show: false, feature: null as ProFeature | null },
   }),
   actions: {
-    openPaywall() {
+    openPaywall(feature: ProFeature | null = null) {
+      this.paywall.feature = feature
       this.paywall.show = true
     },
     closePaywall() {

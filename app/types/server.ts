@@ -22,6 +22,9 @@ export interface ServerConfig {
   seenFeatureHints?: string
   freeLibraryCapSettled?: string
   freeLibraryGrandfathered?: string
+  proAccessSettled?: string
+  proFeaturesGrandfathered?: string
+  proTrialStartedAt?: string
   minimizeToTray?: string
   allowLanAccess?: string
   checkForUpdatesAtStartup?: string

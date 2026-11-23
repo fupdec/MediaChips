@@ -337,6 +337,7 @@ import {useI18n} from 'vue-i18n'
 import DialogHeader from '@/components/elements/DialogHeader.vue'
 import ItemPreviewVideo from '@/components/items/ItemPreviewVideo.vue'
 import {useDialogsStore} from '@/stores/dialogs'
+import {useProFeatureGate} from '@/composable/useProFeatureGate'
 import {useItemsStore} from '@/stores/items'
 import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from '@/stores/notifications'
@@ -394,6 +395,7 @@ function mergeErrorText(err: unknown): string {
   return te(`copies.errors.${raw}`) ? t(`copies.errors.${raw}`) : raw
 }
 const dialogsStore = useDialogsStore()
+const proGate = useProFeatureGate()
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const notificationsStore = useNotificationsStore()
@@ -1041,7 +1043,7 @@ async function reload(automatic = false) {
   // Auto-merge belongs to library-wide maintenance runs, not to cards opened from their context menu.
   const singleCard = dialogsStore.duplicateReview.targetMediaId != null
     || dialogsStore.duplicateReview.targetMediaIds != null
-  if (automatic && !singleCard && isSimilarity.value && policy.value.autoMerge && policy.value.files === 'keep') await mergeAllSuggested(true)
+  if (automatic && !singleCard && isSimilarity.value && policy.value.autoMerge && policy.value.files === 'keep' && proGate.hasPro.value) await mergeAllSuggested(true)
 }
 
 watch(
