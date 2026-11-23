@@ -379,6 +379,8 @@
               <span>{{ t('items.group_by_filter_action') }}</span>
             </button>
           </div>
+          <!-- v-memo sits on the same element as its own v-for, which Vue supports; the rule only sees the outer section loop. -->
+          <!-- eslint-disable vue/valid-v-memo -->
           <Item
             v-for="(i, x) in section.items"
             v-memo="[i.id, i.name, i.bookmark, i.time, i.views, i.viewedAt, i.favorite, i.rating, i.thumb, i.tags, i.values, ITEMS.size, ITEMS.view, listItemType, itemsRenderKey, ITEMS.thumbRefreshKeys[i.id]]"
@@ -390,6 +392,7 @@
             :reg="reg"
             :x="x"
           />
+          <!-- eslint-enable vue/valid-v-memo -->
         </template>
       </template>
       <template v-else>
