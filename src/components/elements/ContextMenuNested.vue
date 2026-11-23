@@ -165,7 +165,7 @@ const activate = (originalFunction?: (...args: unknown[]) => unknown) => {
 const hideChildNested = () => {
   for (const sub of props.item.menu ?? []) {
     if (sub.type == 'menu') {
-      sub.show = false
+      contextMenu.setEntryShown(sub, false)
     }
   }
 }
@@ -211,7 +211,7 @@ const open = () => {
   // Close other menus at this level before opening (v-menu used to do this).
   emit('close-siblings')
   emit('show-parent')
-  props.item.show = true
+  contextMenu.setEntryShown(props.item, true)
   isOpen.value = true
   void placeSubmenu()
 }
@@ -219,12 +219,12 @@ const open = () => {
 const onPlainItemEnter = () => {
   hideChildNested()
   emit('show-parent')
-  props.item.show = true
+  contextMenu.setEntryShown(props.item, true)
   isOpen.value = true
 }
 
 const showCurrent = () => {
-  props.item.show = true
+  contextMenu.setEntryShown(props.item, true)
   isOpen.value = true
   void placeSubmenu()
 }

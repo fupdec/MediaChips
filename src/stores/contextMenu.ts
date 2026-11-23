@@ -14,6 +14,14 @@ export const useContextMenu = defineStore('contextMenu', {
     y: 0,
   }),
   actions: {
+    /**
+     * Open/close flag of a submenu entry. The store owns the entries, so components change it here
+     * instead of writing to the entry they received as a prop; a submenu watching its own entry closes
+     * when a parent or sibling sets it to false.
+     */
+    setEntryShown(entry: ContextMenuEntry, shown: boolean) {
+      entry.show = shown
+    },
     showContextMenu(contextMenuObj: ContextMenuPayload) {
       const parseMenu = (entry: ContextMenuEntry[]) => {
         for (const i of entry) {

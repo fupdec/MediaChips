@@ -166,7 +166,7 @@ const activate = (originalFunction: unknown) => {
 const hideNested = () => {
   for (const item of (menu.value.content ?? []) as ContextMenuEntry[]) {
     if (item.type == 'menu') {
-      item.show = false
+      contextMenu.setEntryShown(item, false)
     }
   }
 }
