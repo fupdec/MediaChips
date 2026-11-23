@@ -203,15 +203,31 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   },
   base: './',
   test: {
-    environment: 'jsdom',
-    include: [
-      'src/**/*.test.{js,ts}',
-      'shared/**/*.test.ts',
-      'api/**/*.test.ts',
-      'app/**/*.test.ts',
-      'electron/**/*.test.ts',
-      'packages/**/*.test.ts',
-      'scripts/**/*.test.{mjs,ts}',
+    // Only UI code needs a DOM. Server, shared and tooling tests run in plain node, which skips creating
+    // a jsdom window per file (about two thirds of the suite's CPU time before this split).
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'ui',
+          environment: 'jsdom',
+          include: ['src/**/*.test.{js,ts}', 'packages/**/*.test.ts'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: [
+            'shared/**/*.test.ts',
+            'api/**/*.test.ts',
+            'app/**/*.test.ts',
+            'electron/**/*.test.ts',
+            'scripts/**/*.test.{mjs,ts}',
+          ],
+        },
+      },
     ],
     // Release validation uses node:test and runs separately in CI.
     exclude: ['**/node_modules/**', '**/.git/**', 'scripts/release.test.mjs'],
