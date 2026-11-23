@@ -63,14 +63,25 @@ async function copyFileWithProgress(
   let transferred = 0
 
   const readStream = fssync.createReadStream(sourcePath)
-  const writeStream = fssync.createWriteStream(destinationPath)
+  // 'wx' never opens a file that appeared after the existence check, so cleanup below only ever
+  // removes a file this copy created itself.
+  const writeStream = fssync.createWriteStream(destinationPath, { flags: 'wx' })
+  let created = false
+  writeStream.once('open', () => { created = true })
 
   readStream.on('data', (chunk: Buffer) => {
     transferred += chunk.length
     if (onProgress) onProgress(transferred, size)
   })
 
-  await pipeline(readStream, writeStream)
+  try {
+    await pipeline(readStream, writeStream)
+  } catch (error) {
+    // A truncated copy would look like a finished one: later moves would refuse to overwrite it.
+    // The source is untouched until the copy succeeds, so dropping the partial file loses nothing.
+    if (created) await fs.unlink(destinationPath).catch(() => undefined)
+    throw error
+  }
   if (onProgress) onProgress(size, size)
 }
 
