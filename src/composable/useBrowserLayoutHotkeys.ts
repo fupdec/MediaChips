@@ -222,7 +222,6 @@ export function useBrowserLayoutHotkeys() {
   const {useBrowserLayout: browserLayoutActive} = useBrowserLayout()
   const {openReviewMode} = useReviewModeLauncher()
   const {focused: foldersFocus, setFocus: setFoldersFocus} = useFoldersBrowserFocus()
-  const fsSelection = useFsBrowseSelection()
   const eventBus = useEventBus()
 
   function emitFoldersGoUp() {

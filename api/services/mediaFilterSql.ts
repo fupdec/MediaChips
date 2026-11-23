@@ -155,7 +155,7 @@ function buildTagArrayClause(metaId: number | string, filter: FilterLike, nextPa
 }
 
 function buildFilterClause(filter: FilterLike, nextParam: SqlParamBinder) {
-  const {param, type, cond, val} = filter
+  const {param, type} = filter
   const metaId = resolveMetaId(param)
 
   if (type === 'array' || type === 'select') {

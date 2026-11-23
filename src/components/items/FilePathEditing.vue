@@ -214,7 +214,6 @@ import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import path from 'path-browserify'
 import { parseMediaFilePath } from '@shared/mediaPath'
-import {typedApi} from '@/services/typedApi'
 import { useOperationsStore } from '@/stores/operations'
 import { useItemsStore } from '@/stores/items'
 import { useDialogsStore } from '@/stores/dialogs'
@@ -346,43 +345,6 @@ const copyPath = () => {
   void copyToClipboard(filePath, {
     successText: t('common.copied'),
   })
-}
-
-const savePathToDb = async (filePath: string, { notify = true } = {}) => {
-  const { basename } = parseMediaFilePath(filePath)
-
-  try {
-    await typedApi.updateMediaPath({
-      id: props.media.id,
-      path: filePath,
-      confirmedOriginal: true,
-    })
-
-    applyPathUpdate(filePath)
-
-    if (notify) {
-      setNotification({
-        type: "success",
-        title: t("media.file_path.updated"),
-        text: basename,
-        filePath,
-        icon: 'folder-edit',
-      })
-    }
-
-    return true
-  } catch (_error) {
-    if (notify) {
-      setNotification({
-        type: "error",
-        title: t("media.file_path.already_exists"),
-        text: basename,
-        filePath,
-        icon: 'folder-edit',
-      })
-    }
-    return false
-  }
 }
 
 const handleMoveProgress = (msg: MoveWsMessage) => {

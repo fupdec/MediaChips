@@ -3286,6 +3286,7 @@ const es = {
     },
     delete_from_app_confirm: '¿Eliminar medio de la aplicación?',
     move_to_trash_confirm: '¿Mover el medio a la Papelera? Puedes restaurarlo en 30 días.',
+    delete_impact: 'Entradas de la biblioteca: {count}, tamaño total {size}. Ya no están en la biblioteca: {missing}.',
     delete_zip_confirm: '¿Eliminar medios seleccionados de la aplicación? <br><br>ZIP galería: <b>{archives}</b>',
     organize: {
       title: 'Organizar archivos en el disco por etiqueta',
@@ -4344,6 +4345,8 @@ const es = {
     items_delete_stopped: 'Eliminación detenida',
     items_delete_stopped_count: 'Procesados {done} de {total}',
     items_delete_stop: 'Detener',
+    items_delete_continue: 'Continuar',
+    items_delete_retry: 'Reintentar fallidos',
     server_error_logs: 'Error del servidor. Revisa los registros del servidor.',
     items_deleted: 'Elementos eliminados',
     items_moved_to_trash: 'Movido a la Papelera',

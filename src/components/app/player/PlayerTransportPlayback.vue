@@ -114,7 +114,6 @@ import PlayerNeighborPreview from '@/components/app/player/PlayerNeighborPreview
 const {t} = useI18n()
 const {
   player,
-  playerStore,
   density,
   isPrevDisabled,
   isNextDisabled,

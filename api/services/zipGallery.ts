@@ -3,9 +3,6 @@ import path from 'path'
 import StreamZip from 'node-stream-zip'
 import { normalizeMediaPath } from '../utils/normalizeUserPath'
 import {
-  ZIP_VIRTUAL_SEP,
-  MAX_ZIP_BYTES,
-  MAX_ZIP_IMAGE_ENTRIES,
   MAX_ENTRY_UNCOMPRESSED_BYTES,
   buildVirtualZipPath,
   buildZipSkipMessage,
@@ -13,7 +10,6 @@ import {
   extensionSet,
   isEncryptedZipEntry,
   isSafeZipEntryName,
-  isVirtualZipPath,
   isZipFilePath,
   normalizeZipEntryName,
   parseVirtualZipPath,

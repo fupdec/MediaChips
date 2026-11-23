@@ -572,7 +572,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onMounted, onBeforeUnmount, nextTick} from 'vue'
+import {ref, computed, watch, onBeforeUnmount} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useI18n} from 'vue-i18n'
 import {useItemsStore} from '@/stores/items'
@@ -1091,7 +1091,6 @@ const { gridStyle: itemsGridStyle } = useResponsiveGridLayout(
 )
 
 const reg = computed(() => registrationStore.reg)
-const ENV = computed(() => ITEMS.value.environment)
 
 // Real first letters of this category's tags (Latin diacritics merged, `#` for digits, symbols and other scripts).
 const alphabetLetters = computed(() => {

@@ -3286,6 +3286,7 @@ const cn = {
     },
     delete_from_app_confirm: '从应用中删除媒体？',
     move_to_trash_confirm: '将媒体移到回收站？可在 30 天内恢复。',
+    delete_impact: '库中条目：{count}，总大小 {size}。已不在库中：{missing}。',
     delete_zip_confirm: '从应用程序中删除选定的媒体？<br><br>ZIP 图库：<b>{archives}</b>',
     organize: {
       title: '按标签整理磁盘上的文件',
@@ -4344,6 +4345,8 @@ const cn = {
     items_delete_stopped: '删除已停止',
     items_delete_stopped_count: '已处理 {done} / {total}',
     items_delete_stop: '停止',
+    items_delete_continue: '继续',
+    items_delete_retry: '重试失败项',
     server_error_logs: '服务器错误。请查看服务器日志。',
     items_deleted: '项目已删除',
     items_moved_to_trash: '已移到回收站',

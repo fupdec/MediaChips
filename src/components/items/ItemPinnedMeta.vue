@@ -264,7 +264,6 @@ import {isAdultUiAvailable} from '@/services/adultFeatures'
 import {isTmdbUiAvailable, isTmdbPersonCategory} from '@/services/tmdbFeatures'
 import {refreshTagThumbDisplay} from '@/utils/tagThumbRefresh'
 
-import {useEventBus} from "@/utils/eventBus"
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog, reloadTabsCatalog} from '@/composable/appCatalogs'
 import {applyTagColorFromMainImage, canPickTagColorFromImage} from '@/composable/tagColorFromMainImage'
@@ -282,7 +281,6 @@ import {getFilterObject, getTagChipTextColor} from '@/services/formatUtils'
 import {isNearWhiteColor} from '@/utils/headerColorUtils'
 import {hideHoverImage, showHoverImage} from '@/services/hoverService'
 import {copyToClipboard} from '@/utils/copyToClipboard'
-import {getApiErrorMessage} from '@/types/vue'
 import {
   clearMediaTagDrag,
   writeMediaTagDragPayload,
@@ -367,7 +365,6 @@ const itemsStore = useItemsStore()
 const notificationsStore = useNotificationsStore()
 const scraperStore = useScraperStore()
 
-const eventBus = useEventBus()
 const listSync = useItemsListSync()
 const filtersController = useItemsFiltersController()
 const sessionFocusStore = useSessionFocusStore()

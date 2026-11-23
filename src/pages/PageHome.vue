@@ -165,7 +165,7 @@ import {typedApi} from '@/services/typedApi'
 const store = useAppStore()
 const settingsStore = useSettingsStore()
 const itemsStore = useItemsStore()
-const {on: onEventBus, clearAll: clearEventBusListeners, emit: emitEventBus} = useEventBus()
+const {on: onEventBus, clearAll: clearEventBusListeners} = useEventBus()
   const appShell = useAppShell()
 const {t} = useI18n()
 const {openMediaList} = useOpenMediaList()

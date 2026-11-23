@@ -540,19 +540,21 @@ async function loadSpotlight(excludeTagId?: number | null) {
     spotlight.value = res.data
     sampleMedia.value = (res.data.sampleMedia || []) as HomeMediaItem[]
 
-    if (res.data.tag?.metaId && res.data.tag.id) {
-      tagImage.value = await resolveTagImage(res.data.tag.metaId, res.data.tag.id)
-    } else {
-      tagImage.value = ''
-    }
-
-    if (sampleMedia.value.length && store.mediaPath) {
-      await loadHomeMediaThumbs(sampleMedia.value, store.mediaTypes, store.mediaPath)
-    }
-
+    // Show the card right away; image and thumbs fill in as they resolve.
+    loading.value = false
+    tagImage.value = ''
+    const imageTask = res.data.tag?.metaId && res.data.tag.id
+      ? resolveTagImage(res.data.tag.metaId, res.data.tag.id).then((url) => {
+        if (seq === loadSeq) tagImage.value = url
+      })
+      : Promise.resolve()
+    const thumbsTask = sampleMedia.value.length && store.mediaPath
+      ? loadHomeMediaThumbs(sampleMedia.value, store.mediaTypes, store.mediaPath)
+      : Promise.resolve()
     if (LOCAL_AI_UI_ENABLED && res.data.tag) {
       void refreshLocalAiReady()
     }
+    await Promise.all([imageTask, thumbsTask])
   } catch (error) {
     console.error('Failed to load tag spotlight', error)
     if (seq === loadSeq) {

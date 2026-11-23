@@ -21,7 +21,6 @@ import {
   getGridFramePercent,
 } from '@/utils/gridSprite'
 import {resolveGridSpriteDisplayUrl} from '@/utils/thumbSource'
-import {buildVideoGridTaskParams} from '@shared/videoPreview'
 import type {MediaItem} from '@/types/stores'
 
 export function getGridFrameDurationLabel(

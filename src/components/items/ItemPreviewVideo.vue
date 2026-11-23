@@ -908,7 +908,6 @@ const {
   handlePreviewKeydown,
   handlePreviewBlur,
   play,
-  restartImageGeneration,
 } = useItemPreviewCardActions({
   media: () => props.media,
   playTime: () => props.playTime,

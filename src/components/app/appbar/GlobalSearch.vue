@@ -398,14 +398,6 @@ function onModeToggle(mode: unknown) {
   if (mode === 'search' || mode === 'commands') setPaletteMode(mode)
 }
 
-function toggleSearch() {
-  if (dialog.value && isSearchMode.value) {
-    dialog.value = false
-    return
-  }
-  showSearch()
-}
-
 async function onCommandRun(command: CommandPaletteCommand) {
   dialog.value = false
   await command.run()

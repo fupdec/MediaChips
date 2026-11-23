@@ -3948,6 +3948,7 @@ const ru = {
     },
     delete_from_app_confirm: 'Удалить медиа из приложения?',
     move_to_trash_confirm: 'Переместить медиа в Корзину? Можно восстановить в течение 30 дней.',
+    delete_impact: 'Записей в библиотеке: {count}, общий размер {size}. Уже нет в библиотеке: {missing}.',
     delete_zip_confirm: 'Удалить выбранное медиа из приложения?<br><br>ZIP-галерея: <b>{archives}</b>',
     organize: {
       title: 'Организовать файлы на диске по тегу',
@@ -4985,6 +4986,8 @@ const ru = {
     items_delete_stopped: 'Удаление остановлено',
     items_delete_stopped_count: 'Обработано {done} из {total}',
     items_delete_stop: 'Остановить',
+    items_delete_continue: 'Продолжить',
+    items_delete_retry: 'Повторить неудавшиеся',
     delete_selected_from_app: 'Удалить выбранные {type} из приложения?',
     duplicates_list: 'Дубликаты: {items}',
     added_list: 'Добавлено: {items}',

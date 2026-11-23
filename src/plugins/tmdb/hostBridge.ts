@@ -1,6 +1,5 @@
 import {
   TMDB_COMPONENT_KEYS,
-  tmdbPlugin,
   createTmdbComponentMap,
 } from '@mediachips/plugin-tmdb'
 import type {PluginComponentMap} from '@/types/pluginRuntime'

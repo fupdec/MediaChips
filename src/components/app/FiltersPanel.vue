@@ -1303,14 +1303,24 @@ function dragItemKey(filter: FilterObject) {
       min-width: 110px;
     }
 
+    // Rows with no value field push their action buttons to the right edge.
     .filter__cond {
       order: 2;
       flex: 0 0 auto;
+      margin-inline-end: auto !important;
     }
 
     .filter__body {
       order: 3;
-      flex: 1 1 auto;
+      flex: 1 1 0;
+      width: 100%;
+      min-width: 0;
+
+      > .filter__value-wrap {
+        flex: 1 1 0;
+        width: 100%;
+        min-width: 0;
+      }
     }
 
     .filter__restore {

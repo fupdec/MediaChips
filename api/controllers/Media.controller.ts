@@ -1,3 +1,4 @@
+import {getBulkJob, normalizeBulkIds, resumeBulkJob, startBulkJob, stopBulkJob, type BulkJobSnapshot} from '../services/bulkJobs'
 import {getMediaSelectionStats} from '../services/mediaSelectionStats'
 import {createRequestAbortSignal} from '../services/requestAbortSignal'
 import type { ApiDb, FilterLike } from '../types/db'
@@ -563,42 +564,71 @@ export default function (db: ApiDb) {
     }
   };
 
+  /** Deletes one chunk of media; shared by the synchronous endpoint and the server job. */
+  const deleteMediaChunk = async function (ids: number[], opts: {permanent: boolean; withFile: boolean}) {
+    if (!opts.permanent) {
+      const {deletedIds, missingIds} = softDeleteMediaMany(db, ids, {purgeFile: opts.withFile})
+      invalidateMediaDerivedCaches()
+      return {deletedIds, missingIds, failedIds: [] as number[], softDeleted: true}
+    }
+    const deletedIds: number[] = []
+    const missingIds: number[] = []
+    const failedIds: number[] = []
+    for (const id of ids) {
+      try {
+        const media = mediaRepo.findById(id)
+        if (!media) {
+          missingIds.push(id)
+          continue
+        }
+        deletedIds.push(...await hardDeleteTargets([media as Record<string, unknown>], {id, with_file: opts.withFile}))
+      } catch (error) {
+        console.error(`Failed to delete media ${id}:`, apiErrorMessage(error))
+        failedIds.push(id)
+      }
+    }
+    invalidateMediaDerivedCaches()
+    return {deletedIds, missingIds, failedIds, softDeleted: false}
+  }
+
   const deleteMany = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const body = getRequestBody<DeleteMediaManyPayload>(req)
-      const ids = [...new Set(
-        (Array.isArray(body.ids) ? body.ids : [])
-          .map((id) => Number(id))
-          .filter((id) => Number.isInteger(id) && id > 0),
-      )]
-      const withFile = Boolean(body.with_file)
-
-      if (!body.permanent) {
-        const {deletedIds, missingIds} = softDeleteMediaMany(db, ids, {purgeFile: withFile})
-        invalidateMediaDerivedCaches()
-        return sendOk(res, {deletedIds, missingIds, failedIds: [], softDeleted: true})
-      }
-
-      const deletedIds: number[] = []
-      const missingIds: number[] = []
-      const failedIds: number[] = []
-      for (const id of ids) {
-        try {
-          const media = mediaRepo.findById(id)
-          if (!media) {
-            missingIds.push(id)
-            continue
-          }
-          deletedIds.push(...await hardDeleteTargets([media as Record<string, unknown>], {id, with_file: withFile}))
-        } catch (error) {
-          console.error(`Failed to delete media ${id}:`, apiErrorMessage(error))
-          failedIds.push(id)
-        }
-      }
-      invalidateMediaDerivedCaches()
-      sendOk(res, {deletedIds, missingIds, failedIds, softDeleted: false})
+      const ids = normalizeBulkIds(Array.isArray(body.ids) ? body.ids : [])
+      sendOk(res, await deleteMediaChunk(ids, {permanent: Boolean(body.permanent), withFile: Boolean(body.with_file)}))
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while performing query.')
+    }
+  }
+
+  const startDeleteJob = function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<DeleteMediaManyPayload>(req)
+      const permanent = Boolean(body.permanent)
+      const withFile = Boolean(body.with_file)
+      const job = startBulkJob({
+        kind: 'media-delete',
+        ids: Array.isArray(body.ids) ? body.ids : [],
+        options: {permanent, withFile},
+        runChunk: async (chunk) => {
+          const result = await deleteMediaChunk(chunk, {permanent, withFile})
+          return {done: [...result.deletedIds, ...result.missingIds], failed: result.failedIds}
+        },
+      })
+      sendOk(res, job)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while starting the delete job.')
+    }
+  }
+
+  const bulkJobAction = (action: (id: string, body: {with_ids?: boolean}) => BulkJobSnapshot | null) => function (req: ApiRequest, res: ApiResponse) {
+    try {
+      const body = getRequestBody<{id?: string; with_ids?: boolean}>(req)
+      const job = action(String(body.id || ''), body)
+      if (!job) return sendNotFound(res, 'Job not found')
+      sendOk(res, job)
+    } catch (err) {
+      sendControllerError(res, err, 'Some error occurred while handling the delete job.')
     }
   }
 
@@ -679,6 +709,10 @@ export default function (db: ApiDb) {
     update,
     deleteOne,
     deleteMany,
+    startDeleteJob,
+    getDeleteJob: bulkJobAction((id, body) => getBulkJob(id, {withIds: body.with_ids})),
+    stopDeleteJob: bulkJobAction(stopBulkJob),
+    resumeDeleteJob: bulkJobAction(id => resumeBulkJob(id)),
     listTrash,
     restoreTrash,
     purgeTrash,

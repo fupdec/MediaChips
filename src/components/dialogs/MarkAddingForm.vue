@@ -391,12 +391,6 @@ const hasInvalidRange = computed(() => {
   return (markAdding.value.end ?? 0) - (markAdding.value.time ?? 0) < 0
 })
 
-const rangeTooltip = computed(() => (
-  markAdding.value.is_end_time_active
-    ? t('player.mark_dialog.clear_range')
-    : t('player.mark_dialog.set_range')
-))
-
 const canSubmit = computed(() => {
   if (markAdding.value.submitting || hasInvalidRange.value) return false
   if (bookmarkTextRequired.value) return Boolean(text.value?.trim())

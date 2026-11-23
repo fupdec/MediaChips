@@ -157,7 +157,6 @@ import {
   loadOrganizeByTagPrefs,
   saveOrganizeByTagPrefs,
 } from '@/services/organizeMediaByTag'
-import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {normalizePastedFilePath} from '@/utils/filePathInput'
 import type {Meta} from '@/types/stores'
@@ -176,7 +175,6 @@ const {t} = useI18n()
 const mainStore = useAppStore()
 const itemsStore = useItemsStore()
 const operationsStore = useOperationsStore()
-const eventBus = useEventBus()
   const listSync = useItemsListSync()
 const {
   isElectron,

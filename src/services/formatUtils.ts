@@ -1,6 +1,6 @@
 import type { FilterCondition, FilterObject, ReadableFileSize } from '@/types/common'
 import {checkColorForDarkText, hexToRgba as hexToRgbaFromHeader, isNearWhiteColor} from '@/utils/headerColorUtils'
-import {textMatchesGlobalSearchQuery, tokenMatchesQueryPart} from '@shared/globalSearchMatch'
+import {tokenMatchesQueryPart} from '@shared/globalSearchMatch'
 import {tagChipNeedsContrastText, tagChipNeedsOutlinedInk} from '@shared/tagChipColor'
 
 export {textMatchesGlobalSearchQuery} from '@shared/globalSearchMatch'

@@ -82,7 +82,7 @@ function buildMetaValueClause(metaId: number | string, filter: FilterLike, nextP
 }
 
 function buildFilterClause(filter: FilterLike, nextParam: SqlParamBinder) {
-  const {param, type, cond} = filter
+  const {param, type} = filter
   const metaId = resolveMetaId(param)
 
   if (type === 'array' || type === 'select') {

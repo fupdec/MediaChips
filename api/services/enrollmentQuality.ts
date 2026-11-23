@@ -1,5 +1,4 @@
 import fs from 'fs'
-import path from 'path'
 import type { ApiDb } from '../types/db'
 import { detectFacesInFrame, loadModel } from './faceDetector'
 import { createFaceEnrollmentsRepository } from '../db/repositories/faceEnrollments'

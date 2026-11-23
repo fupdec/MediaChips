@@ -86,15 +86,6 @@ export const MEDIA_ONLY_GROUP_BY = new Set<ItemsGroupBy>([
   'resolution',
 ])
 
-const REBUCKET_GROUP_BY = new Set<ItemsGroupBy>([
-  'favorite',
-  'ext',
-  'codec',
-  'path',
-  'diskRoot',
-  'pinnedMeta',
-])
-
 const FIRST_LETTER_RE = /^\p{L}/u
 const PINNED_META_RE = /^pinnedMeta(?::(\d+))?$/
 

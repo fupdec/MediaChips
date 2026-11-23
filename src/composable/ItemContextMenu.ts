@@ -1,5 +1,7 @@
 import {computed} from 'vue'
+import {getReadableFileSize} from '@/services/formatUtils'
 import {typedApi} from '@/services/typedApi'
+import type {BulkJobSnapshot} from '@/services/typedApi/media'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useSettingsStore} from '@/stores/settings'
@@ -26,7 +28,6 @@ import {resolveOpenMediaKind} from '@/utils/openMediaKind'
 import {openTextMedia} from '@/utils/openTextMedia'
 import {isInAppTextPreviewPath} from '@/utils/textPreview'
 import {setNotification} from '@/services/notificationService'
-import {getApiErrorMessage} from '@/types/vue'
 import {refreshMediaFileInfoMany} from '@/services/mediaFileInfoService'
 import {runFaceDetectionForMediaIds} from '@/composable/useFaceDetectionTask'
 import {openPath} from '@/services/shellService'
@@ -1495,105 +1496,123 @@ export default function useItemContextMenu(
       withFile: boolean
       permanent: boolean
     }): Promise<void> => {
-      const BATCH_SIZE = 500
       const total = ids.length
-      let softDeleted = !permanent
+      let jobId: string | null = null
       let cancelled = false
-      let processed = 0
-      let removedCount = 0
-      const failedIds: number[] = []
 
       // Clear selection up front so the same ids cannot be submitted twice while this runs.
       itemsStore.selection = []
       itemsStore.selected_last = null
       itemsStore.isSelect = false
 
-      const progressTitle = translate(
-        permanent ? 'notifications_text.items_delete_progress' : 'notifications_text.items_trash_progress',
-        {},
-        locale,
-      )
-      const progressId = total > BATCH_SIZE
-        ? notificationsStore.setNotification({
-          type: 'info',
-          icon: 'delete-outline',
-          title: progressTitle,
-          text: `0 / ${total}`,
-          timeout: 0,
-          progressPercent: 0,
-          actions: [
-            {
-              id: 'delete-stop',
-              text: translate('notifications_text.items_delete_stop', {}, locale),
-              close: true,
-              action: () => {
-                cancelled = true
+      /** Follows one server job (new or resumed) to its end and reports the outcome. */
+      const follow = async (begin: () => Promise<BulkJobSnapshot>): Promise<void> => {
+        cancelled = false
+        const progressId = total > 500
+          ? notificationsStore.setNotification({
+            type: 'info',
+            icon: 'delete-outline',
+            title: translate(
+              permanent ? 'notifications_text.items_delete_progress' : 'notifications_text.items_trash_progress',
+              {},
+              locale,
+            ),
+            text: `0 / ${total}`,
+            timeout: 0,
+            progressPercent: 0,
+            actions: [
+              {
+                id: 'delete-stop',
+                text: translate('notifications_text.items_delete_stop', {}, locale),
+                close: true,
+                action: () => {
+                  cancelled = true
+                  if (jobId) void typedApi.stopMediaDeleteJob(jobId).catch(error => console.error(error))
+                },
               },
-            },
-          ],
-        })
-        : null
-
-      for (let start = 0; start < total; start += BATCH_SIZE) {
-        if (cancelled) break
-        const chunk = ids.slice(start, start + BATCH_SIZE)
-        try {
-          const response = await typedApi.deleteMediaMany({
-            ids: chunk,
-            with_file: withFile,
-            permanent,
+            ],
           })
-          const data = response.data
-          if (data.softDeleted === false) softDeleted = false
-          const gone = [...(data.deletedIds ?? []), ...(data.missingIds ?? [])]
-          failedIds.push(...(data.failedIds ?? []))
-          removedCount += gone.length
-          if (gone.length) {
-            listSync.removeEntitiesFromState({ids: gone, type})
+          : null
+
+        let job: BulkJobSnapshot | null = null
+        try {
+          job = await begin()
+          jobId = job.id
+          if (cancelled) void typedApi.stopMediaDeleteJob(job.id).catch(error => console.error(error))
+          while (job.status === 'running' || job.status === 'stopping') {
+            await new Promise(resolve => setTimeout(resolve, 400))
+            job = (await typedApi.getMediaDeleteJob(job.id)).data
+            if (progressId != null) {
+              notificationsStore.updateNotification(progressId, {
+                text: `${job.processed} / ${job.total}`,
+                progressPercent: Math.round((job.processed / Math.max(1, job.total)) * 100),
+              })
+            }
           }
         } catch (e) {
-          // The batch was rejected as a whole (rolled back): keep these items in the list.
+          // Lost contact with the server: keep everything that was not confirmed deleted.
           console.error(e)
-          failedIds.push(...chunk)
+          job = null
         }
-        processed += chunk.length
+        if (progressId != null) notificationsStore.closeNotification(progressId)
 
-        if (progressId != null) {
-          notificationsStore.updateNotification(progressId, {
-            text: `${processed} / ${total}`,
-            progressPercent: Math.round((processed / total) * 100),
+        const doneIds = job?.doneIds ?? []
+        const failedIds = job?.failedIds ?? ids
+        const doneSet = new Set(doneIds)
+        const failedSet = new Set(failedIds)
+        const remainingIds = ids.filter(id => !doneSet.has(id) && !failedSet.has(id))
+        if (doneIds.length) listSync.removeEntitiesFromState({ids: doneIds, type})
+        itemsStore.selection = [...new Set([...failedIds.filter(id => !doneSet.has(id)), ...remainingIds])]
+        itemsStore.selectionAnchor = null
+        itemsStore.isSelect = itemsStore.selection.length > 0
+
+        // Continue what was not reached and retry only what failed, on the same server job.
+        const resumeAction = job && (job.status === 'stopped' || job.failedCount > 0)
+          ? [{
+            id: 'delete-resume',
+            text: translate(
+              job.status === 'stopped' ? 'notifications_text.items_delete_continue' : 'notifications_text.items_delete_retry',
+              {},
+              locale,
+            ),
+            close: true,
+            action: () => {
+              const id = job!.id
+              void follow(async () => (await typedApi.resumeMediaDeleteJob(id)).data)
+            },
+          }]
+          : undefined
+
+        if (cancelled || job?.status === 'stopped') {
+          notificationsStore.setNotification({
+            type: 'warning',
+            title: translate('notifications_text.items_delete_stopped', {}, locale),
+            text: translate('notifications_text.items_delete_stopped_count', {done: doneIds.length, total}, locale),
+            timeout: 0,
+            actions: resumeAction,
+          })
+        } else if (failedIds.length) {
+          notificationsStore.setNotification({
+            type: 'warning',
+            title: translate('notifications_text.items_delete_failed', {}, locale),
+            text: translate('notifications_text.items_delete_failed_count', {count: failedIds.length}, locale),
+            timeout: 0,
+            actions: resumeAction,
+          })
+        } else {
+          notificationsStore.setNotification({
+            type: 'info',
+            title: !permanent
+              ? translate('notifications_text.items_moved_to_trash', {}, locale)
+              : translate('notifications_text.items_deleted', {}, locale),
+            text: translate('notifications_text.items_delete_summary', {count: doneIds.length}, locale),
           })
         }
+
+        eventBus.emit('update:watcher')
       }
 
-      if (progressId != null) notificationsStore.closeNotification(progressId)
-      itemsStore.selection = [...new Set([...failedIds, ...ids.slice(processed)])]
-      itemsStore.selectionAnchor = null
-      itemsStore.isSelect = itemsStore.selection.length > 0
-
-      if (cancelled) {
-        notificationsStore.setNotification({
-          type: 'warning',
-          title: translate('notifications_text.items_delete_stopped', {}, locale),
-          text: translate('notifications_text.items_delete_stopped_count', {done: removedCount, total}, locale),
-        })
-      } else if (failedIds.length) {
-        notificationsStore.setNotification({
-          type: 'warning',
-          title: translate('notifications_text.items_delete_failed', {}, locale),
-          text: translate('notifications_text.items_delete_failed_count', {count: failedIds.length}, locale),
-        })
-      } else {
-        notificationsStore.setNotification({
-          type: 'info',
-          title: softDeleted
-            ? translate('notifications_text.items_moved_to_trash', {}, locale)
-            : translate('notifications_text.items_deleted', {}, locale),
-          text: translate('notifications_text.items_delete_summary', {count: removedCount}, locale),
-        })
-      }
-
-      eventBus.emit('update:watcher')
+      await follow(async () => (await typedApi.startMediaDeleteJob({ids, with_file: withFile, permanent})).data)
     }
 
     const runDelete = async ({
@@ -1739,6 +1758,36 @@ export default function useItemContextMenu(
       dialogsStore.confirm.text = previewLabel ? `${base}\n${previewLabel}` : base
       dialogsStore.confirm.checkBoxText = ''
       dialogsStore.confirm.checkBox2Text = ''
+    }
+
+    if (type === 'media' && bulkSelection && selectedIds.length > 1) {
+      // Show the real consequences (also for pages not loaded) before the user confirms.
+      const scope = itemsStore.filterSelectionScope
+      const wholeFilter = scope && scope.revision === itemsStore.selectionRevision && scope.count === selectedIds.length
+        ? scope.filter
+        : null
+      const baseText = dialogsStore.confirm.text
+      const request = wholeFilter
+        ? typedApi.getMediaFilterSelectionStats(wholeFilter).then(response => response.data)
+        : (async () => {
+          const total = {count: 0, filesize: 0, missing: 0, unknownSize: 0}
+          for (let offset = 0; offset < selectedIds.length; offset += 5000) {
+            const {data} = await typedApi.getMediaSelectionStats(selectedIds.slice(offset, offset + 5000))
+            total.count += data.count
+            total.filesize += data.filesize
+            total.missing += data.missing
+            total.unknownSize += data.unknownSize
+          }
+          return total
+        })()
+      void request.then(data => {
+        if (!dialogsStore.confirm.show || dialogsStore.confirm.text !== baseText) return
+        dialogsStore.confirm.text = `${baseText}\n${translate('media.delete_impact', {
+          count: data.count,
+          size: getReadableFileSize(data.filesize),
+          missing: data.missing,
+        }, locale)}`
+      }).catch(error => console.warn('Failed loading delete impact', error))
     }
 
     dialogsStore.confirm.action = () => {

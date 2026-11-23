@@ -1,6 +1,5 @@
 import {
   JELLYFIN_COMPONENT_KEYS,
-  jellyfinPlugin,
   createJellyfinComponentMap,
 } from '@mediachips/plugin-jellyfin'
 

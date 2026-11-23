@@ -10,7 +10,7 @@ describe('getMediaTypeName', () => {
   })
 
   it('falls back to name when type is unknown or missing', () => {
-    const t = vi.fn((key: string, fallback?: string) => key)
+    const t = vi.fn((key: string, _fallback?: string) => key)
     expect(getMediaTypeName({ type: 'custom', name: 'Custom' }, t)).toBe('Custom')
     expect(getMediaTypeName(null, t)).toBe('')
     expect(t).not.toHaveBeenCalled()

@@ -48,6 +48,12 @@ export type MediaFolderBrowseRequest = {
   mediaTypeId?: number | null
 }
 
+export type BulkJobSnapshot = {
+  id: string; kind: string; status: 'running' | 'stopping' | 'stopped' | 'completed'
+  total: number; processed: number; doneIds: number[]; failedIds: number[]
+  doneCount: number; failedCount: number; remaining: number
+}
+
 export type MediaSelectionStats = {count: number; filesize: number; missing: number; unknownSize: number}
 
 export const mediaApi = {
@@ -151,6 +157,23 @@ export const mediaApi = {
 
   deleteMediaMany(body: DeleteMediaManyPayload) {
     return apiClient.post<DeleteMediaManyResult>(API_ROUTES.mediaDeleteMany, body)
+  },
+
+  startMediaDeleteJob(body: DeleteMediaManyPayload) {
+    return apiClient.post<BulkJobSnapshot>('/api/Media/deleteJob/start', body)
+  },
+
+  /** withIds: false returns counters only, without the done/failed id lists. */
+  getMediaDeleteJob(id: string, opts: {withIds?: boolean} = {}) {
+    return apiClient.post<BulkJobSnapshot>('/api/Media/deleteJob/status', {id, with_ids: opts.withIds})
+  },
+
+  stopMediaDeleteJob(id: string) {
+    return apiClient.post<BulkJobSnapshot>('/api/Media/deleteJob/stop', {id})
+  },
+
+  resumeMediaDeleteJob(id: string) {
+    return apiClient.post<BulkJobSnapshot>('/api/Media/deleteJob/resume', {id})
   },
 
   listMediaTrash(params?: {limit?: number}) {

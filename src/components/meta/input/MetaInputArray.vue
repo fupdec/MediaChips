@@ -273,7 +273,6 @@ import {useSettingsStore} from '@/stores/settings'
 import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from '@/stores/notifications'
 import {getApiErrorMessage} from '@/types/vue'
-import {useEventBus} from "@/utils/eventBus"
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {onTagsCatalogChanged, reloadTagsCatalog} from '@/composable/appCatalogs'
 import {createTagsInteractive} from '@/composable/createTagsInteractive'
@@ -318,7 +317,6 @@ const emit = defineEmits<{
 const settingsStore = useSettingsStore()
 const appStore = useAppStore()
 const notificationsStore = useNotificationsStore()
-const eventBus = useEventBus()
   const listSync = useItemsListSync()
 const router = useRouter()
 const {t} = useI18n()

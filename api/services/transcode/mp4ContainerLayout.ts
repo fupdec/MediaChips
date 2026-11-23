@@ -1,7 +1,6 @@
 import fs from 'fs'
 import path from 'path'
 import {
-  PATHOLOGICAL_SAMPLE_COUNT,
   probeBufferForPathologicalLayout,
 } from './mp4BoxProbe'
 

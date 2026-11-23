@@ -25,7 +25,6 @@ describe('grid observers without forced layout', () => {
     const host = document.createElement('div')
     const widthRead = vi.spyOn(Element.prototype, 'clientWidth', 'get')
     let grid!: ReturnType<typeof useResponsiveGridLayout>
-    let el!: HTMLElement
     const app = createApp({setup() {
       const target = ref<HTMLElement | null>(null)
       grid = useResponsiveGridLayout(target, computed(() => ({size: 3, imageGrid: true})))
@@ -34,7 +33,7 @@ describe('grid observers without forced layout', () => {
     app.mount(host)
     cleanup = () => app.unmount()
     await nextTick()
-    el = host.firstElementChild as HTMLElement
+    const el = host.firstElementChild as HTMLElement
     expect(widthRead).not.toHaveBeenCalled()
     resize([{target: el, contentRect: {width: 960}} as ResizeObserverEntry], {} as ResizeObserver)
     expect(grid.containerWidth.value).toBe(960)

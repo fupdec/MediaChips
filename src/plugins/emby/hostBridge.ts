@@ -1,6 +1,5 @@
 import {
   EMBY_COMPONENT_KEYS,
-  embyPlugin,
   createEmbyComponentMap,
 } from '@mediachips/plugin-emby'
 

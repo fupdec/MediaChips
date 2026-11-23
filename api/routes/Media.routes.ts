@@ -21,6 +21,9 @@ import {
   MediaPathUpdateRequestSchema,
   DeleteEntityOneRequestSchema,
   MediaDeleteManyRequestSchema,
+  MediaDeleteJobRequestSchema,
+  BulkJobIdRequestSchema,
+  BulkJobStatusRequestSchema,
   MediaTagCountQuerySchema,
   EntityUpdateRequestSchema,
   MediaTrashIdsRequestSchema,
@@ -107,6 +110,10 @@ export default function registerRoutes(app: Express, db: ApiDb) {
 
   router.post('/deleteOne', validateBody(DeleteEntityOneRequestSchema), Media.deleteOne)
   router.post('/deleteMany', validateBody(MediaDeleteManyRequestSchema), Media.deleteMany)
+  router.post('/deleteJob/start', validateBody(MediaDeleteJobRequestSchema), Media.startDeleteJob)
+  router.post('/deleteJob/status', validateBody(BulkJobStatusRequestSchema), Media.getDeleteJob)
+  router.post('/deleteJob/stop', validateBody(BulkJobIdRequestSchema), Media.stopDeleteJob)
+  router.post('/deleteJob/resume', validateBody(BulkJobIdRequestSchema), Media.resumeDeleteJob)
 
   app.use('/api/Media', router)
 }

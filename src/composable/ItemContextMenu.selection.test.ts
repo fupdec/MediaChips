@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   items: {} as any,
   app: {} as any,
   dialogs: {confirm: {} as any, openMediaMerge: vi.fn()},
-  update: vi.fn(), close: vi.fn(), remove: vi.fn(), notify: vi.fn(), deleteOne: vi.fn(), deleteMany: vi.fn(), basics: vi.fn(),
+  update: vi.fn(), close: vi.fn(), remove: vi.fn(), notify: vi.fn(), deleteOne: vi.fn(), deleteMany: vi.fn(), startJob: vi.fn(), stopJob: vi.fn(), resumeJob: vi.fn(), basics: vi.fn(),
 }))
 vi.mock('@/stores/items', () => ({useItemsStore: () => mocks.items}))
 vi.mock('@/stores/app', () => ({useAppStore: () => mocks.app}))
@@ -28,7 +28,7 @@ vi.mock('@mediachips/plugin-adult/composables/useAutoScrapeBatch', () => ({useAu
 vi.mock('@mediachips/plugin-adult/composables/useAutoSceneScrapeBatch', () => ({useAutoSceneScrapeBatch: () => ({})}))
 vi.mock('@mediachips/plugin-tmdb/composables/useTmdbPersonAutoScrapeBatch', () => ({useTmdbPersonAutoScrapeBatch: () => ({})}))
 vi.mock('@/services/typedApi', () => ({typedApi: {
-  deleteEntityOne: mocks.deleteOne, deleteMediaMany: mocks.deleteMany, getMediaBasics: mocks.basics,
+  deleteEntityOne: mocks.deleteOne, deleteMediaMany: mocks.deleteMany, startMediaDeleteJob: mocks.startJob, stopMediaDeleteJob: mocks.stopJob, resumeMediaDeleteJob: mocks.resumeJob, getMediaDeleteJob: vi.fn(), getMediaBasics: mocks.basics,
 }}))
 
 beforeEach(() => {
@@ -67,14 +67,14 @@ describe('deletion of a selection', () => {
     errorLog.mockRestore()
   })
 
-  it('uses the confirmed ID snapshot and preserves failures from a media batch', async () => {
+  it('uses the confirmed ID snapshot and preserves failures from a media job', async () => {
     const first = {id: 1, path: '/first.mp4', name: 'first'} as MediaItem
     mocks.items.entities = [first]
-    mocks.deleteMany.mockResolvedValue({data: {deletedIds: [1], failedIds: [2], missingIds: []}})
+    mocks.startJob.mockResolvedValue({data: {id: 'j', status: 'completed', total: 2, processed: 2, doneIds: [1], failedIds: [2], doneCount: 1, failedCount: 1, remaining: 0}})
     useItemContextMenu(first, 'media', null, true, null).deleteItem()
     mocks.items.selection = [3]
     await mocks.dialogs.confirm.action()
-    expect(mocks.deleteMany).toHaveBeenCalledWith(expect.objectContaining({ids: [1, 2]}))
+    expect(mocks.startJob).toHaveBeenCalledWith(expect.objectContaining({ids: [1, 2]}))
     expect(mocks.remove).toHaveBeenCalledWith({ids: [1], type: 'media'})
     expect(mocks.items.selection).toEqual([2])
   })
@@ -109,19 +109,34 @@ describe('merging a selection across pages', () => {
 
 
 describe('stopping batch deletion', () => {
+  it('offers to continue a stopped job on the same server job and drops finished ids from the selection', async () => {
+    const first = {id: 1, path: '/first.mp4', name: 'first'} as MediaItem
+    mocks.items.entities = [first]
+    mocks.items.selection = [1, 2, 3]
+    mocks.startJob.mockResolvedValue({data: {id: 'j', status: 'stopped', total: 3, processed: 1, doneIds: [1], failedIds: [], doneCount: 1, failedCount: 0, remaining: 2}})
+    mocks.resumeJob.mockResolvedValue({data: {id: 'j', status: 'completed', total: 3, processed: 3, doneIds: [1, 2, 3], failedIds: [], doneCount: 3, failedCount: 0, remaining: 0}})
+    useItemContextMenu(first, 'media', null, true, null).deleteItem()
+    await mocks.dialogs.confirm.action()
+    expect(mocks.items.selection).toEqual([2, 3])
+    const stopped = mocks.notify.mock.calls.map(([n]) => n).find(n => n.actions?.some((a: any) => a.id === 'delete-resume'))
+    stopped.actions[0].action()
+    await vi.waitFor(() => expect(mocks.items.selection).toEqual([]))
+    expect(mocks.resumeJob).toHaveBeenCalledWith('j')
+  })
+
   it('keeps failed and unprocessed files selected', async () => {
     const first = {id: 1, path: '/first.mp4', name: 'first'} as MediaItem
     mocks.items.entities = [first]
     mocks.items.selection = Array.from({length: 501}, (_, i) => i + 1)
     mocks.notify.mockReturnValue(7)
-    mocks.deleteMany.mockImplementation(async () => {
-      const progress = mocks.notify.mock.calls.find(([notification]) => notification.actions)?.[0]
-      progress.actions[0].action()
-      return {data: {deletedIds: Array.from({length: 499}, (_, i) => i + 1), failedIds: [500]}}
-    })
+    mocks.startJob.mockResolvedValue({data: {
+      id: 'j', status: 'stopped', total: 501, processed: 500,
+      doneIds: Array.from({length: 499}, (_, i) => i + 1), failedIds: [500],
+      doneCount: 499, failedCount: 1, remaining: 1,
+    }})
     useItemContextMenu(first, 'media', null, true, null).deleteItem()
     await mocks.dialogs.confirm.action()
-    expect(mocks.deleteMany).toHaveBeenCalledTimes(1)
+    expect(mocks.startJob).toHaveBeenCalledTimes(1)
     expect(mocks.items.selection).toEqual([500, 501])
     expect(mocks.items.isSelect).toBe(true)
   })

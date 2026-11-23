@@ -1,10 +1,7 @@
 import type { Tag } from '@/types/stores'
 import { findOrCreateTagByName } from '@/utils/tagLookup'
 import {
-  buildExistingMarkSignature,
-  buildSceneMarkerSignature,
   findTagForMarkerTitle,
-  resolveMarkerTagId,
 } from '@shared/sceneMarkerTags'
 
 export {

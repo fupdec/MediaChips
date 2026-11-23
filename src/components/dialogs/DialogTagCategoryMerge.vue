@@ -155,7 +155,6 @@ import {useDialogsStore} from '@/stores/dialogs'
 import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from '@/stores/notifications'
 import {typedApi} from '@/services/typedApi'
-import {useEventBus} from '@/utils/eventBus'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {getErrorResponseData} from '@/types/vue'
@@ -165,7 +164,6 @@ const {t} = useI18n()
 const dialogsStore = useDialogsStore()
 const appStore = useAppStore()
 const notificationsStore = useNotificationsStore()
-const eventBus = useEventBus()
 
 const selectedIds = ref<number[]>([])
 const survivorId = ref<number | null>(null)

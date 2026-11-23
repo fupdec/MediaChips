@@ -590,7 +590,6 @@
 import {computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import {useI18n} from 'vue-i18n'
-import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
 import {useMarksStore} from '@/stores/marks'
 import {useSettingsStore} from '@/stores/settings'
@@ -626,7 +625,6 @@ let navCountsRequestToken = 0
 let navCountsTimer: ReturnType<typeof setTimeout> | null = null
 const {t, locale} = useI18n()
 const route = useRoute()
-const appStore = useAppStore()
 const itemsStore = useItemsStore()
 const marksStore = useMarksStore()
 const settingsStore = useSettingsStore()

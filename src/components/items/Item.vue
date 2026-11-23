@@ -454,12 +454,6 @@ const isMasonryOrSquaresImage = computed(() =>
   && (Number(itemsStore.view) === 3 || Number(itemsStore.view) === 6)
 )
 
-const isSquaresGrid = computed(() =>
-  props.type === 'media'
-  && isImageMedia.value
-  && Number(itemsStore.view) === 6
-)
-
 // Card grids use one stable structural class; all dimensions come from width.
 const isFluidCard = computed(() => [1, 3, 4, 6].includes(Number(itemsStore.view)))
 

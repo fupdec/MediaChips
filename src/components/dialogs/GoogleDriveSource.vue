@@ -179,7 +179,7 @@ import MediaImportOptions from './MediaImportOptions.vue'
 import {defaultRemoteImportOptions, remotePathExcluder, importExtensionMatcher, type RemoteImportOptions} from '@/services/remoteImportOptions'
 import {parseAndAssignImportPathTags} from '@/services/importPathAutoTag'
 
-const {connectionsOnly = false, embedded = false, extensions} = defineProps<{connectionsOnly?: boolean; embedded?: boolean; extensions?: string; unified?: boolean; actionsTarget?: HTMLElement}>()
+const {connectionsOnly = false, extensions} = defineProps<{connectionsOnly?: boolean; embedded?: boolean; extensions?: string; unified?: boolean; actionsTarget?: HTMLElement}>()
 const {t, te} = useI18n()
 const originalsOpen = ref(false)
 const catalogOpen = ref(false)

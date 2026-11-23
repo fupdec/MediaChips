@@ -302,7 +302,6 @@ watch(pictureOpen, open => {
 })
 const {
   playerStore,
-  density,
   isAudioMode,
   isWebVideo,
 } = inject(PLAYER_TRANSPORT_KEY)!

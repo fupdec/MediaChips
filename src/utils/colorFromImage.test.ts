@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_TAG_COLOR,
   extractColorFromImageData,
-  extractColorFromLocalFile,
   isDefaultTagColor,
   isMainTagImagePath,
   parseLocalFilePathFromApiUrl,

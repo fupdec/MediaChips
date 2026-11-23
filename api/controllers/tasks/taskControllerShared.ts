@@ -19,7 +19,7 @@ import {
   GENERATED_MEDIA_FOLDERS,
   type GeneratedMediaFolderKey,
 } from '../../../shared/generatedMediaFolders'
-import { VIDEO_THUMB_HEIGHT, VIDEO_THUMB_JPEG_QUALITY, VIDEO_MARK_HEIGHT, VIDEO_MARK_JPEG_QUALITY } from '../../../shared/videoPreview'
+import { VIDEO_THUMB_HEIGHT, VIDEO_THUMB_JPEG_QUALITY } from '../../../shared/videoPreview'
 import { formatMarkTimestamp } from '../../../shared/markTimestamp'
 import {parseBooleanSetting} from '../../utils/parseBooleanSetting'
 import { createStreamAbortSignal } from './ndjsonStreamRunner'

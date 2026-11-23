@@ -1,7 +1,6 @@
 import type Database from 'better-sqlite3'
 import {
   matchesGlobalSearchName,
-  splitGlobalSearchTokens,
 } from '../../shared/globalSearchMatch'
 
 export {

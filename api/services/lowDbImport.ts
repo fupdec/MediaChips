@@ -26,7 +26,6 @@ import {
   dedupeByMediaId,
   dedupeLegacyVideosByPath,
   expandMediaIdMappings,
-  normalizeLegacyId,
   sameOldId,
 } from './lowDbImportDedupe'
 import {assignUniqueNormalizedTagNames} from '../db/ensureGlobalUniqueTagNames'

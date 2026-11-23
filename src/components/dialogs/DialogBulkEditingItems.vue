@@ -137,7 +137,6 @@ import {useEditDialogButtons} from '@/composable/useEditDialog'
 import {useItemsStore} from '@/stores/items'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useSettingsStore} from '@/stores/settings'
-import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import ButtonDocumentation from '@/components/ui/ButtonDocumentation.vue'
@@ -184,7 +183,6 @@ const BulkEditFieldCard = defineAsyncComponent(() =>
 const itemsStore = useItemsStore()
 const dialogsStore = useDialogsStore()
 const settingsStore = useSettingsStore()
-const eventBus = useEventBus()
   const listSync = useItemsListSync()
 const {t} = useI18n()
 

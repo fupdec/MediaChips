@@ -214,6 +214,18 @@ export const LibraryResetTagsRequestSchema = z.object({
 /** Upper bound of one batch; the client sends bigger selections in several batches. */
 export const MEDIA_DELETE_MANY_MAX_IDS = 1000
 
+/** A server job takes the whole selection and batches it itself. */
+export const MEDIA_DELETE_JOB_MAX_IDS = 1_000_000
+export const MediaDeleteJobRequestSchema = z.object({
+  ids: z.array(z.union([z.number(), z.string()])).min(1).max(MEDIA_DELETE_JOB_MAX_IDS),
+  with_file: z.boolean().optional(),
+  permanent: z.boolean().optional(),
+}).passthrough()
+
+export const BulkJobIdRequestSchema = z.object({id: z.string().min(1)})
+/** with_ids: false skips the (possibly huge) done/failed id lists, for pollers that only need counters. */
+export const BulkJobStatusRequestSchema = BulkJobIdRequestSchema.extend({with_ids: z.boolean().optional()})
+
 export const MediaDeleteManyRequestSchema = z.object({
   ids: z.array(z.union([z.number(), z.string()])).min(1).max(MEDIA_DELETE_MANY_MAX_IDS),
   with_file: z.boolean().optional(),

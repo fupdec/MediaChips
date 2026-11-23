@@ -17,7 +17,6 @@ import {copyCandidates, listMediaCopies, setPreferredCopy, selectPlayableCopy, v
 import {updateVerifiedCopyPath} from './copyPathUpdates'
 import {createLocalOriginalAdapter} from './localAdapter'
 import {mediaCopiesRouter} from '../../routes/MediaCopies.routes'
-import type {SourceReadAdapter} from './adapter'
 import {READ_SOURCE_CAPABILITIES} from '../../../shared/mediaSources'
 import {CATALOG_SOURCE_TOKENS_SQL, CATALOG_AVAILABILITY_SQL, markCatalogSourceDisconnected} from '../mediaCatalogSources'
 

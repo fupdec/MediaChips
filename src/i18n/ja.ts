@@ -3286,6 +3286,7 @@ const ja = {
     },
     delete_from_app_confirm: 'アプリからメディアを削除しますか?',
     move_to_trash_confirm: 'メディアをゴミ箱に移動しますか? 30日以内に復元できます。',
+    delete_impact: 'ライブラリの項目: {count}、合計サイズ {size}。すでにライブラリにない項目: {missing}。',
     delete_zip_confirm: '選択したメディアをアプリから削除しますか?<br><br>ZIP ギャラリー: <b>{archives}</b>',
     organize: {
       title: 'ドライブ上のファイルをタグで整理する',
@@ -4344,6 +4345,8 @@ const ja = {
     items_delete_stopped: '削除を停止しました',
     items_delete_stopped_count: '{total} 件中 {done} 件処理済み',
     items_delete_stop: '停止',
+    items_delete_continue: '続行',
+    items_delete_retry: '失敗分を再試行',
     server_error_logs: 'サーバーエラー。サーバーログを確認してください。',
     items_deleted: '項目を削除しました',
     items_moved_to_trash: 'ゴミ箱に移動しました',

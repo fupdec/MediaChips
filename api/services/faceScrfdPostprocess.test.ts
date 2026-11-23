@@ -116,7 +116,7 @@ describe('collectScrfdCandidates', () => {
       b2: level2.bbox,
     }
 
-    const candidates = collectScrfdCandidates({
+    collectScrfdCandidates({
       outputs,
       outputNames: names,
       detScale: 1,

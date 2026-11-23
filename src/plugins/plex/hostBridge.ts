@@ -1,6 +1,5 @@
 import {
   PLEX_COMPONENT_KEYS,
-  plexPlugin,
   createPlexComponentMap,
 } from '@mediachips/plugin-plex'
 

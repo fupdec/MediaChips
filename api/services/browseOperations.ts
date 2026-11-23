@@ -1,9 +1,7 @@
-import fs from 'fs'
 import fsp from 'fs/promises'
 import path from 'path'
 import {normalizeMediaPath} from '../utils/normalizeUserPath'
 import {isPathInsideMediaRoots, isPathInsideRoot, listMediaRoots} from './mediaRoots'
-import type {BrowseDirectoryEntry, BrowseDirectoryResult} from './browseDirectory'
 
 export type FsOperationEntry = {
   path: string

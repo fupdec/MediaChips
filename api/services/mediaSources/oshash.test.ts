@@ -84,7 +84,7 @@ describe('bounded remote oshash', () => {
   })
 
   it('uses exact offset bounds through the NAS adapter', async () => {
-    const read = vi.fn(async (_key: string, start: number, end: number) => Readable.from([start === 0 ? head : tail]))
+    const read = vi.fn(async (_key: string, start: number, _end: number) => Readable.from([start === 0 ? head : tail]))
     const open = async () => createNasSourceAdapter({list: async () => [],
       stat: async () => ({size: bigSize, modifiedAt: 1000, isDirectory: false}), read, close() {}})
     expect((await computeSourceOshash(open, 'movie.mp4')).value).toBe(computeOshashFromChunks(bigSize, head, tail))

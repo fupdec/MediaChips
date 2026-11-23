@@ -377,7 +377,7 @@ export async function selectPlayableCopy(db: ApiDb, mediaId: number, signal: Abo
       observe(db, mediaId, copy, 'available')
       return {url: `/api/Media/${mediaId}/copies/stream?copyId=${encodeURIComponent(copy.id)}&version=${encodeURIComponent(file.version)}`,
         kind: 'mp4' as const, title: '', qualities: [], quality: null, adaptive: false}
-    } catch (err) {
+    } catch {
       pinned.assertCurrent(); signal.throwIfAborted()
       observe(db, mediaId, copy, 'unavailable')
     } finally { adapter?.close() }

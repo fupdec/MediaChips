@@ -13,11 +13,6 @@ const DEFAULT_STATE: FreeLibraryCapConfigState = {
   freeLibraryGrandfathered: '0',
 }
 
-const CONFIG_KEYS = [
-  'freeLibraryCapSettled',
-  'freeLibraryGrandfathered',
-] as const satisfies ReadonlyArray<keyof FreeLibraryCapConfigState>
-
 export function readFreeLibraryCapConfig(
   config: Record<string, unknown> | null | undefined = useAppStore().config,
 ): FreeLibraryCapConfigState {

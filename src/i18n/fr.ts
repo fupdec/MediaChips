@@ -3286,6 +3286,7 @@ const fr = {
     },
     delete_from_app_confirm: 'Supprimer le média de l\'application ?',
     move_to_trash_confirm: 'Déplacer le média vers la Corbeille ? Vous pouvez le restaurer sous 30 jours.',
+    delete_impact: 'Entrées de la bibliothèque : {count}, taille totale {size}. Plus dans la bibliothèque : {missing}.',
     delete_zip_confirm: 'Supprimer le média sélectionné de la galerie app?<br><br>ZIP : <b>{archives}</b>',
     organize: {
       title: 'Organiser les fichiers sur le lecteur par balise',
@@ -4344,6 +4345,8 @@ const fr = {
     items_delete_stopped: 'Suppression arrêtée',
     items_delete_stopped_count: '{done} sur {total} traités',
     items_delete_stop: 'Arrêter',
+    items_delete_continue: 'Continuer',
+    items_delete_retry: 'Réessayer les échecs',
     server_error_logs: 'Erreur serveur. Vérifiez les journaux du serveur.',
     items_deleted: 'Éléments supprimés',
     items_moved_to_trash: 'Déplacé vers la Corbeille',

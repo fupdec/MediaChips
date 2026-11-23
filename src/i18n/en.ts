@@ -3948,6 +3948,7 @@ const en = {
     },
     delete_from_app_confirm: 'Delete media from app?',
     move_to_trash_confirm: 'Move to Trash? You can restore within 30 days.',
+    delete_impact: 'Library entries: {count}, total size {size}. Not in the library anymore: {missing}.',
     delete_zip_confirm: 'Delete selected media from app?<br><br>ZIP gallery: <b>{archives}</b>',
     organize: {
       title: 'Organize files on drive by tag',
@@ -4985,6 +4986,8 @@ const en = {
     items_delete_stopped: 'Deletion stopped',
     items_delete_stopped_count: 'Processed {done} of {total}',
     items_delete_stop: 'Stop',
+    items_delete_continue: 'Continue',
+    items_delete_retry: 'Retry failed',
     delete_selected_from_app: 'Delete selected {type} from app?',
     duplicates_list: 'Duplicates: {items}',
     added_list: 'Added: {items}',

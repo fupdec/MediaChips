@@ -3286,6 +3286,7 @@ const pt = {
     },
     delete_from_app_confirm: 'Excluir mídia do aplicativo?',
     move_to_trash_confirm: 'Mover a mídia para a Lixeira? Você pode restaurá-la em 30 dias.',
+    delete_impact: 'Entradas da biblioteca: {count}, tamanho total {size}. Já não estão na biblioteca: {missing}.',
     delete_zip_confirm: 'Excluir mídia selecionada do aplicativo?<br><br>ZIP galeria: <b>{archives}</b>',
     organize: {
       title: 'Organize arquivos no drive por tag',
@@ -4344,6 +4345,8 @@ const pt = {
     items_delete_stopped: 'Exclusão interrompida',
     items_delete_stopped_count: 'Processados {done} de {total}',
     items_delete_stop: 'Parar',
+    items_delete_continue: 'Continuar',
+    items_delete_retry: 'Repetir falhas',
     server_error_logs: 'Erro do servidor. Verifique os logs do servidor.',
     items_deleted: 'Itens excluídos',
     items_moved_to_trash: 'Movido para a Lixeira',

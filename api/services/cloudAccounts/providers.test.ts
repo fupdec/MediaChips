@@ -3,7 +3,6 @@ import {describe, it, expect, vi} from 'vitest'
 import {createCloudAdapter, type CloudRequest} from './providers'
 import {downloadRemoteThumbnail} from '../remoteThumbnailDownload'
 vi.mock('../remoteThumbnailDownload', () => ({downloadRemoteThumbnail: vi.fn(async () => Buffer.from('cover'))}))
-import type {CloudProvider} from '../../../shared/cloudAccounts'
 
 import {fixtureRequest} from './testFixtures'
 
@@ -34,7 +33,7 @@ it('rejects an untrusted OneDrive continuation before sending a bearer token', a
 })
 
 it.each(['gdrive', 'onedrive', 'dropbox'] as const)('fetches a %s thumbnail without reading the original', async provider => {
-  const request = vi.fn<CloudRequest>(async url => ({
+  const request = vi.fn<CloudRequest>(async _url => ({
     status: 200, headers: {}, data: provider === 'dropbox' ? Buffer.from('cover')
       : provider === 'gdrive' ? {thumbnailLink: 'https://lh3.googleusercontent.com/poster'}
       : {value: [{large: {url: 'https://images.example.com/poster'}}]},

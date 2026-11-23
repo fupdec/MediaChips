@@ -71,7 +71,6 @@ import {useItemsStore} from '@/stores/items'
 import {useAppStore} from '@/stores/app'
 import {useNotificationsStore} from '@/stores/notifications'
 import {typedApi} from '@/services/typedApi'
-import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {getErrorResponseData} from '@/types/vue'
@@ -82,7 +81,6 @@ const dialogsStore = useDialogsStore()
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const notificationsStore = useNotificationsStore()
-const eventBus = useEventBus()
   const listSync = useItemsListSync()
 
 const survivorId = ref<number | null>(null)

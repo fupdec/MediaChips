@@ -3286,6 +3286,7 @@ const de = {
     },
     delete_from_app_confirm: 'Medien aus App löschen?',
     move_to_trash_confirm: 'Medien in den Papierkorb verschieben? Wiederherstellung innerhalb von 30 Tagen möglich.',
+    delete_impact: 'Bibliothekseinträge: {count}, Gesamtgröße {size}. Nicht mehr in der Bibliothek: {missing}.',
     delete_zip_confirm: 'Ausgewählte Medien aus der App löschen?<br><br>ZIP Galerie: <b>{archives}</b>',
     organize: {
       title: 'Organisieren Sie Dateien auf dem Laufwerk nach Tags',
@@ -4344,6 +4345,8 @@ const de = {
     items_delete_stopped: 'Löschen gestoppt',
     items_delete_stopped_count: '{done} von {total} verarbeitet',
     items_delete_stop: 'Stoppen',
+    items_delete_continue: 'Fortsetzen',
+    items_delete_retry: 'Fehlgeschlagene wiederholen',
     server_error_logs: 'Serverfehler. Prüfen Sie die Serverprotokolle.',
     items_deleted: 'Elemente gelöscht',
     items_moved_to_trash: 'In den Papierkorb verschoben',

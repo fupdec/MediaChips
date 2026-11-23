@@ -9,7 +9,7 @@ describe('getMetaName', () => {
   })
 
   it('returns the raw name for custom metas', () => {
-    const t = vi.fn((key: string, fallback?: string) => key)
+    const t = vi.fn((key: string, _fallback?: string) => key)
     expect(getMetaName({ name: 'Studio' }, t)).toBe('Studio')
     expect(getMetaName(undefined, t)).toBe('')
     expect(t).not.toHaveBeenCalled()

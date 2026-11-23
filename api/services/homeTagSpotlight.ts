@@ -277,8 +277,10 @@ function loadCandidates(db: ApiDb, excludeTagId?: number | null): TagCandidateRo
       meta.rating AS metaRating,
       meta.favorite AS metaFavorite,
       meta.color AS metaColor,
-      (
-        SELECT COUNT(*)
+      -- Scoring only needs "has media" (0/1): EXISTS stops at the first hit
+      -- instead of counting every link of every tag. Exact count: countTagMedia.
+      EXISTS (
+        SELECT 1
         FROM tagsInMedia tim
         INNER JOIN media ON media.id = tim.mediaId
         WHERE tim.tagId = tags.id
@@ -291,8 +293,8 @@ function loadCandidates(db: ApiDb, excludeTagId?: number | null): TagCandidateRo
           AND vit.value IS NOT NULL
           AND TRIM(vit.value) != ''
       ) AS valueCount,
-      (
-        SELECT COUNT(*)
+      EXISTS (
+        SELECT 1
         FROM tagsInTags tit
         WHERE tit.parentTagId = tags.id
       ) AS nestedTagCount,
@@ -309,6 +311,17 @@ function loadCandidates(db: ApiDb, excludeTagId?: number | null): TagCandidateRo
       AND meta.type = 'array'
       ${exclude != null ? 'AND tags.id != :excludeTagId' : ''}
   `, exclude != null ? {excludeTagId: exclude} : {})
+}
+
+function countTagMedia(db: ApiDb, tagId: number): number {
+  const row = queryGet<{count: number}>(db, `
+    SELECT COUNT(*) AS count
+    FROM tagsInMedia tim
+    INNER JOIN media ON media.id = tim.mediaId
+    WHERE tim.tagId = :tagId
+      AND ${MEDIA_NOT_IN_TRASH_SQL}
+  `, {tagId})
+  return Number(row?.count) || 0
 }
 
 function loadSampleMedia(db: ApiDb, tagId: number, limit: number) {
@@ -374,6 +387,9 @@ export function getHomeTagSpotlight(
     random,
   )
   if (!picked) return {tag: null}
+
+  // Candidates carry a 0/1 flag; resolve the real count for the picked tag only.
+  if (picked.mediaCount > 0) picked.mediaCount = countTagMedia(db, picked.id)
 
   const gaps = buildTagSpotlightGaps(picked)
   const tips = buildTagSpotlightTips(picked, gaps)

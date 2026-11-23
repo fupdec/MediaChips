@@ -21,7 +21,6 @@ export function createFilterRowsInSavedFiltersRepository(db: DrizzleClient) {
           .orderBy(asc(filterRows.order), asc(filterRows.id))
           .all()
         : []
-      const rowById = new Map(rows.map((row) => [row.id, row]))
 
       return rows.map((row) => {
         const link = links.find((entry) => entry.rowId === row.id)

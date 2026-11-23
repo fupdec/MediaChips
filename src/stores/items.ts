@@ -79,6 +79,8 @@ function createItemsStoreState() {
     selectionAnchor: null as number | null,
     selection: [] as number[],
     selectionRevision: 0,
+    /** Set when the whole filter result was selected; valid only while selectionRevision is unchanged. */
+    filterSelectionScope: null as null | {revision: number; count: number; filter: Record<string, unknown>},
     savedFilter: {} as SavedFilter,
     filters: [] as FilterObject[],
     /** How active filter rows combine: all (AND) or any (OR). */
@@ -259,7 +261,7 @@ export const useItemsStore = defineStore('items', {
 
       const half = Math.floor(MAX_PLAYLIST / 2)
       let start = Math.max(0, idx - half)
-      let end = Math.min(ids.length, start + MAX_PLAYLIST)
+      const end = Math.min(ids.length, start + MAX_PLAYLIST)
       start = Math.max(0, end - MAX_PLAYLIST)
       return ids.slice(start, end)
     },
@@ -755,6 +757,19 @@ export const useItemsStore = defineStore('items', {
         if (revision !== this.selectionRevision || scope !== itemsSelectionScopeKey(this)) return
         const scopedIds = this.listScopeIds ? new Set(this.listScopeIds) : null
         this.selection = [...new Set(response.data.ids || [])].filter(id => !scopedIds || scopedIds.has(id))
+        this.filterSelectionScope = scopedIds ? null : {
+          revision,
+          count: this.selection.length,
+          filter: {
+            mediaTypeId,
+            filters: this.filters,
+            filtersJoin: this.filtersJoin,
+            sortBy: this.sortBy,
+            direction: this.sortDir,
+            find_duplicates: this.find_duplicates,
+            duplicates_by: getDuplicatesGroupKey(mediaType, this.duplicates_by),
+          },
+        }
         this.isSelect = true
         this.resetSelectionAnchor()
         return

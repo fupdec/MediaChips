@@ -267,15 +267,6 @@ const addColor = () => {
   })
 }
 
-const removeColor = () => {
-  if (colors.value.length > 2) {
-    const lastColor = colors.value[colors.value.length - 1]
-    if (!lastColor.disabled) {
-      colors.value.pop()
-    }
-  }
-}
-
 const generateGradient = () => {
   colors.value.forEach((color, index) => {
     if (!color.disabled) {

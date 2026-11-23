@@ -1,5 +1,5 @@
 // @vitest-environment node
-import {beforeEach, afterEach, describe, it, expect, vi} from 'vitest'
+import {beforeEach, afterEach, it, expect, vi} from 'vitest'
 import {createTestDb, closeTestDb, type TestDb} from '../../db/testUtils/createTestDb'
 import {createMediaRepository} from '../../db/repositories/media'
 import {createMediaTypesRepository} from '../../db/repositories/mediaTypes'

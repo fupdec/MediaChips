@@ -3,7 +3,7 @@ import {buildExtArrayClause} from './extFilterSql'
 
 function binder() {
   let n = 0
-  return (value: unknown) => {
+  return (_value: unknown) => {
     n += 1
     return `:e${n}`
   }

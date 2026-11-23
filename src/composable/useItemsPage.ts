@@ -1,6 +1,6 @@
 import {useVisibleImportRefresh} from './useVisibleImportRefresh'
 import {useAppStore} from '@/stores/app'
-import {ref, computed, nextTick} from 'vue'
+import {ref, computed} from 'vue'
 import uniqBy from 'lodash/uniqBy'
 import {cloneFilters} from '@/utils/filterClone'
 import {useI18n} from 'vue-i18n'
@@ -56,9 +56,6 @@ export const INFINITE_JUMP_WINDOW_ITEMS = INFINITE_PAGE_SIZE * 8
 
 /** After a far seek, block jump/append/recover while natural rows settle. */
 export const INFINITE_SEEK_LOCK_MS = 1100
-
-/** Start appending when this many items remain before the loaded end. */
-const INFINITE_PREFETCH_REMAINING_ITEMS = INFINITE_PAGE_SIZE * 2
 
 /** Next infinite-scroll page from the current page index (not DOM window size). */
 export function getNextInfiniteMediaPage(currentPage: number): number {

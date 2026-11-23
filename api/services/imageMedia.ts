@@ -362,7 +362,7 @@ const getImageMetadataFromBuffer = async (buffer: Buffer) => {
   try {
     assertNonEmptyImageSource(buffer, 'image')
     return await readMetadataWithSharp(buffer)
-  } catch (error: unknown) {
+  } catch {
     try {
       assertNonEmptyImageSource(buffer, 'image')
       const image = await decodeImageBuffer(buffer)

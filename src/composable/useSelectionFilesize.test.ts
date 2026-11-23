@@ -2,9 +2,9 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {effectScope, reactive, type EffectScope} from 'vue'
 import {useSelectionFilesize} from './useSelectionFilesize'
 
-const mocks = vi.hoisted(() => ({stats: vi.fn(), store: {} as any}))
+const mocks = vi.hoisted(() => ({stats: vi.fn(), filterStats: vi.fn(), store: {} as any}))
 vi.mock('@/stores/items', () => ({useItemsStore: () => mocks.store}))
-vi.mock('@/services/typedApi', () => ({typedApi: {getMediaSelectionStats: mocks.stats}}))
+vi.mock('@/services/typedApi', () => ({typedApi: {getMediaSelectionStats: mocks.stats, getMediaFilterSelectionStats: mocks.filterStats}}))
 let scope: EffectScope
 function start() {
   scope = effectScope()
@@ -76,4 +76,30 @@ it('splits a large off-page selection into bounded aggregate requests', async ()
   await vi.advanceTimersByTimeAsync(150)
   expect(mocks.stats.mock.calls.map(([ids]) => ids.length)).toEqual([5000, 1])
   expect(state.filesize.value).toBe(50010)
+})
+
+describe('whole-filter selection', () => {
+  const filter = {mediaTypeId: 1}
+  it('asks the server by filter while the selection is untouched', async () => {
+    mocks.store.selection = Array.from({length: 6000}, (_, i) => i + 1)
+    mocks.store.selectionRevision = 3
+    mocks.store.filterSelectionScope = {revision: 3, count: 6000, filter}
+    mocks.filterStats.mockResolvedValue({data: {count: 6000, filesize: 777}})
+    const state = start()
+    await vi.advanceTimersByTimeAsync(150)
+    expect(mocks.filterStats).toHaveBeenCalledWith(filter, expect.anything())
+    expect(mocks.stats).not.toHaveBeenCalled()
+    expect(state.filesize.value).toBe(777)
+  })
+
+  it('falls back to ID lists once the selection was edited', async () => {
+    mocks.store.selection = [1, 2]
+    mocks.store.selectionRevision = 4
+    mocks.store.filterSelectionScope = {revision: 3, count: 2, filter}
+    mocks.stats.mockResolvedValue({data: {count: 2, filesize: 30}})
+    start()
+    await vi.advanceTimersByTimeAsync(150)
+    expect(mocks.filterStats).not.toHaveBeenCalled()
+    expect(mocks.stats).toHaveBeenCalled()
+  })
 })

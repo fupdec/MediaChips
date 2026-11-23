@@ -38,7 +38,6 @@ import {
   pathsEquivalent,
   buildPathLookupVariants,
 } from '../../utils/normalizeUserPath'
-import { invalidateMediaDerivedCaches } from '../../services/mediaCacheInvalidation'
 import { applyFolderTagsOnMediaAdd } from '../../services/applyFolderTagsOnMediaAdd'
 import {applyMediaRelinks} from '../../services/mediaRelink'
 import { runMediaBulkLiteImport } from '../../services/mediaBulkLiteImport'

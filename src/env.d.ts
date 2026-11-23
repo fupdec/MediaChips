@@ -45,6 +45,6 @@ declare module 'chart.js' {
   export const ArcElement: unknown
   export const BarElement: unknown
   export const Filler: unknown
-  export type ChartData<TType = string> = Record<string, unknown>
-  export type ChartOptions<TType = string> = Record<string, unknown>
+  export type ChartData<_TType = string> = Record<string, unknown>
+  export type ChartOptions<_TType = string> = Record<string, unknown>
 }
