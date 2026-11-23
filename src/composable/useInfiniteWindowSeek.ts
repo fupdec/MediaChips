@@ -40,6 +40,7 @@ export function useInfiniteWindowSeek(options: Options) {
   let timer: ReturnType<typeof setTimeout> | null = null
   let running = false
   let busyRetries = 0
+  let bindingGeneration = 0
 
   const resolveGridEl = (): HTMLElement | null => {
     const host = options.gridRef.value as {$el?: unknown} | HTMLElement | null
@@ -53,6 +54,7 @@ export function useInfiniteWindowSeek(options: Options) {
   }
 
   const schedule = (delay = INFINITE_JUMP_DEBOUNCE_MS) => {
+    if (!scrollEl || !options.enabled()) return
     clearTimer()
     timer = setTimeout(() => {
       timer = null
@@ -100,29 +102,36 @@ export function useInfiniteWindowSeek(options: Options) {
     }
     busyRetries = 0
 
+    const expectedGeneration = bindingGeneration
     running = true
     let jumped = false
     try {
       jumped = await options.jump(seekIndex)
+    } catch (error) {
+      if (expectedGeneration === bindingGeneration) console.warn('Failed to seek the media grid', error)
     } finally {
       running = false
     }
     // The user may have kept scrolling while the window loaded.
-    if (jumped) schedule(0)
+    if (jumped && expectedGeneration === bindingGeneration) schedule(0)
   }
 
   const onScroll = () => {
     if (!options.enabled()) return
+    busyRetries = 0
     schedule()
   }
 
   const bind = () => {
     unbind()
+    if (!options.enabled()) return
     scrollEl = getMainScrollEl() as HTMLElement | null
     scrollEl?.addEventListener('scroll', onScroll, {passive: true})
   }
 
   const unbind = () => {
+    bindingGeneration += 1
+    busyRetries = 0
     scrollEl?.removeEventListener('scroll', onScroll)
     scrollEl = null
     clearTimer()
@@ -135,5 +144,5 @@ export function useInfiniteWindowSeek(options: Options) {
     else unbind()
   })
 
-  return {evaluate: () => schedule(0)}
+  return {evaluate: () => { busyRetries = 0; schedule(0) }}
 }

@@ -99,7 +99,16 @@ function createConcurrencyQueue(
 
       active += 1
 
-      void entry.task()
+      let result: Promise<unknown>
+      try {
+        result = entry.task()
+      } catch (error) {
+        active -= 1
+        entry.reject(error)
+        continue
+      }
+
+      void result
         .then((result) => {
           active -= 1
           pump()
@@ -170,7 +179,7 @@ function createConcurrencyQueue(
     for (const entry of pending.splice(0)) {
       rejectEntry(entry, createAbortError('Queue reset'))
     }
-    active = 0
+    // Running tasks still own their slots until they settle.
   }
 
   return {

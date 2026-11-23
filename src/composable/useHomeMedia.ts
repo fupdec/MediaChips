@@ -21,6 +21,8 @@ const isLoading = ref(false)
 
 let loadPromise: Promise<void> | null = null
 let lastOptionsKey = ''
+let loadGeneration = 0
+let favoritesGeneration = 0
 
 function buildOptionsKey(options: HomeMediaLoadOptions, dbPath: string) {
   return [
@@ -38,6 +40,8 @@ export function getLoadedHomeMedia(): MediaItem[] {
 }
 
 export function invalidateHomeMediaCache() {
+  loadGeneration += 1
+  favoritesGeneration += 1
   continueWatching.value = []
   favorites.value = []
   topViews.value = []
@@ -50,6 +54,7 @@ export function invalidateHomeMediaCache() {
 export function useHomeMedia() {
   const store = useAppStore()
   const favoritesLoading = ref(false)
+  let shuffleGeneration = 0
 
   async function loadHomeMedia(options: HomeMediaLoadOptions) {
     const {
@@ -61,11 +66,7 @@ export function useHomeMedia() {
     } = options
 
     if (!loadContinue && !loadFavorites && !loadTopViews && !loadInbox) {
-      continueWatching.value = []
-      favorites.value = []
-      topViews.value = []
-      inbox.value = []
-      isLoading.value = false
+      invalidateHomeMediaCache()
       return
     }
 
@@ -74,6 +75,12 @@ export function useHomeMedia() {
       return loadPromise
     }
 
+    const generation = ++loadGeneration
+    const favoritesRequestGeneration = ++favoritesGeneration
+    const dbPath = store.dbPath
+    const mediaTypes = store.mediaTypes
+    const mediaPath = store.mediaPath
+    const isCurrent = () => generation === loadGeneration && dbPath === store.dbPath
     lastOptionsKey = optionsKey
     isLoading.value = true
     loadPromise = (async () => {
@@ -84,10 +91,13 @@ export function useHomeMedia() {
           topViewsLimit: loadTopViews ? (limits.topViews ?? 12) : 0,
           inboxLimit: loadInbox ? (limits.inbox ?? 12) : 0,
         })
+        if (!isCurrent()) return
         const data = response.data
 
         continueWatching.value = loadContinue ? (data.continueWatching || []) : []
-        favorites.value = loadFavorites ? (data.favorites || []) : []
+        if (favoritesRequestGeneration === favoritesGeneration) {
+          favorites.value = loadFavorites ? (data.favorites || []) : []
+        }
         topViews.value = loadTopViews ? (data.topViews || []) : []
         inbox.value = loadInbox ? (data.inbox || []) : []
 
@@ -98,14 +108,15 @@ export function useHomeMedia() {
           ...inbox.value,
         ]
 
-        await loadHomeMediaThumbs(allItems, store.mediaTypes, store.mediaPath)
+        await loadHomeMediaThumbs(allItems, mediaTypes, mediaPath)
       } catch (error) {
+        if (!isCurrent()) return
         loadPromise = null
         lastOptionsKey = ''
         console.error(error)
         throw error
       } finally {
-        isLoading.value = false
+        if (generation === loadGeneration) isLoading.value = false
       }
     })()
 
@@ -114,6 +125,12 @@ export function useHomeMedia() {
 
   /** Re-sample favorites from the API (random pivot) without touching other rows. */
   async function reshuffleFavorites(limit = 12) {
+    const shuffle = ++shuffleGeneration
+    const generation = ++favoritesGeneration
+    const dbPath = store.dbPath
+    const mediaTypes = store.mediaTypes
+    const mediaPath = store.mediaPath
+    const isCurrent = () => generation === favoritesGeneration && dbPath === store.dbPath
     favoritesLoading.value = true
     try {
       const response = await typedApi.getHomeMedia({
@@ -121,14 +138,16 @@ export function useHomeMedia() {
         favoritesLimit: Math.min(Math.max(Number(limit) || 12, 1), 24),
         topViewsLimit: 0,
       })
+      if (!isCurrent()) return
       const next = response.data.favorites || []
-      await loadHomeMediaThumbs(next, store.mediaTypes, store.mediaPath)
-      favorites.value = next
+      await loadHomeMediaThumbs(next, mediaTypes, mediaPath)
+      if (isCurrent()) favorites.value = next
     } catch (error) {
+      if (!isCurrent()) return
       console.error(error)
       throw error
     } finally {
-      favoritesLoading.value = false
+      if (shuffle === shuffleGeneration) favoritesLoading.value = false
     }
   }
 

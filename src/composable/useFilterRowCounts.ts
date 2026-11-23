@@ -21,6 +21,7 @@ export const FILTER_ROW_COUNTS_KEY: InjectionKey<Ref<FilterRowCounts>> = Symbol(
 export const filterRowKey = (filter: FilterObject): string => String(filter.id ?? filter.clientKey ?? '')
 
 const DEBOUNCE_MS = 450
+const MAX_CACHED_COUNTS = 200
 const VALUELESS_CONDITIONS = ['is null', 'not null']
 
 const hasUsableValue = (filter: FilterObject): boolean => {
@@ -50,12 +51,16 @@ export function useFilterRowCounts(
   const cache = new Map<string, FilterRowCount>()
   let timer: ReturnType<typeof setTimeout> | null = null
   let runId = 0
+  let controller: AbortController | null = null
 
   const run = async () => {
+    timer = null
     const ctx = context.value
-    const myRun = ++runId
+    const myRun = runId
     if (!ctx || !enabled.value) return
 
+    const requestController = new AbortController()
+    controller = requestController
     const rows = filters.value.filter(isCountable)
     const next: FilterRowCounts = {}
 
@@ -77,12 +82,17 @@ export function useFilterRowCounts(
             page: 1,
             limit: 1,
             includeNavigation: false,
-          })
+          }, {signal: requestController.signal})
+          if (myRun !== runId) return
           const matched = Number(response.data.totalFiltered)
           const total = Number(response.data.total)
           if (!Number.isFinite(matched)) continue
           result = {matched, total: Number.isFinite(total) ? total : matched}
           cache.set(cacheKey, result)
+          if (cache.size > MAX_CACHED_COUNTS) {
+            const oldest = cache.keys().next().value
+            if (oldest !== undefined) cache.delete(oldest)
+          }
         } catch {
           continue
         }
@@ -96,8 +106,13 @@ export function useFilterRowCounts(
   }
 
   const schedule = () => {
+    runId += 1
+    controller?.abort()
+    controller = null
     if (timer) clearTimeout(timer)
-    timer = setTimeout(run, DEBOUNCE_MS)
+    timer = null
+    counts.value = {}
+    if (enabled.value && context.value) timer = setTimeout(run, DEBOUNCE_MS)
   }
 
   watch(
@@ -112,6 +127,7 @@ export function useFilterRowCounts(
 
   onUnmounted(() => {
     runId += 1
+    controller?.abort()
     if (timer) clearTimeout(timer)
   })
 

@@ -7,12 +7,13 @@ const PERSIST_DEBOUNCE_MS = 10
 
 type PersistTask = {
   value: SettingsState[keyof SettingsState]
-  timer: ReturnType<typeof setTimeout>
+  timer: ReturnType<typeof setTimeout> | undefined
   resolvers: Array<() => void>
   rejecters: Array<(error: unknown) => void>
 }
 
 const pendingByOption = new Map<string, PersistTask>()
+const activeByOption = new Map<string, PersistTask>()
 
 export async function getOption(option: keyof SettingsState | string) {
   return typedApi.getSetting(String(option))
@@ -31,13 +32,28 @@ async function persistOption(
 }
 
 function flushOption(option: keyof SettingsState, task: PersistTask): void {
-  pendingByOption.delete(String(option))
+  const key = String(option)
+  task.timer = undefined
+  if (activeByOption.has(key)) return
+  pendingByOption.delete(key)
+  activeByOption.set(key, task)
+
+  const complete = () => {
+    if (activeByOption.get(key) !== task) return
+    activeByOption.delete(key)
+    const next = pendingByOption.get(key)
+    // A pending timer still owns its debounce window; otherwise it is ready.
+    if (next && next.timer === undefined) flushOption(option, next)
+  }
+
   void persistOption(task.value, option).then(
     () => {
       for (const resolve of task.resolvers) resolve()
+      complete()
     },
     (error: unknown) => {
       for (const reject of task.rejecters) reject(error)
+      complete()
     },
   )
 }
@@ -46,6 +62,7 @@ function flushOption(option: keyof SettingsState, task: PersistTask): void {
  * Update a setting in the Pinia store immediately and persist it.
  * Persistence is debounced per option key so rapid writes to different
  * settings (e.g. adjacent Adult scraper switches) cannot cancel each other.
+ * Writes for one key run sequentially, coalescing edits while a request is active.
  */
 export function setOption(
   value: SettingsState[keyof SettingsState],
@@ -87,4 +104,5 @@ export function resetSettingsServiceForTests(): void {
     clearTimeout(task.timer)
   }
   pendingByOption.clear()
+  activeByOption.clear()
 }

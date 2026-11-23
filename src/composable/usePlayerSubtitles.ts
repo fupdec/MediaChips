@@ -25,8 +25,6 @@ function loadScale(): number {
 export function usePlayerSubtitles(playerStore: ReturnType<typeof usePlayerStore>) {
   const cues = shallowRef<SubtitleCue[]>([])
   const now = ref(0)
-  let tracksToken = 0
-  let cuesToken = 0
   let timer: ReturnType<typeof setInterval> | null = null
 
   playerStore.subtitleScale = loadScale()
@@ -34,35 +32,39 @@ export function usePlayerSubtitles(playerStore: ReturnType<typeof usePlayerStore
     try { localStorage.setItem(SCALE_STORAGE_KEY, String(scale)) } catch { /* the size just applies to this session */ }
   })
 
-  const loadTracks = async (id: number | undefined) => {
-    const token = ++tracksToken
+  watch([() => playerStore.media?.id, () => playerStore.isAudioMode], async ([id, audio], _, onCleanup) => {
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
     playerStore.subtitleTracks = []
     playerStore.subtitleTrackName = null
     playerStore.subtitleDelay = 0
-    if (!id || id <= 0 || playerStore.isAudioMode) return
+    if (!id || id <= 0 || audio) return
     try {
-      const {data} = await mediaSubtitlesApi.list(id)
-      if (token !== tracksToken) return
+      const {data} = await mediaSubtitlesApi.list(id, {signal: controller.signal})
+      if (controller.signal.aborted) return
       playerStore.subtitleTracks = data.tracks
       playerStore.subtitleTrackName = data.tracks[0]?.name ?? null
     } catch {
       // Subtitles are optional: without them the player is unchanged.
     }
-  }
-  watch(() => playerStore.media?.id, id => { void loadTracks(id) }, {immediate: true})
+  }, {immediate: true, flush: 'sync'})
 
-  watch(() => playerStore.subtitleTrackName, async name => {
-    const token = ++cuesToken
+  watch([
+    () => playerStore.media?.id,
+    () => playerStore.subtitleTrackName,
+    () => playerStore.isAudioMode,
+  ], async ([id, name, audio], _, onCleanup) => {
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
     cues.value = []
-    const id = playerStore.media?.id
-    if (!name || !id || id <= 0) return
+    if (!name || !id || id <= 0 || audio) return
     try {
-      const {data} = await mediaSubtitlesApi.read(id, name)
-      if (token === cuesToken) cues.value = parseSubtitles(data.text)
+      const {data} = await mediaSubtitlesApi.read(id, name, {signal: controller.signal})
+      if (!controller.signal.aborted) cues.value = parseSubtitles(data.text)
     } catch {
-      if (token === cuesToken) cues.value = []
+      if (!controller.signal.aborted) cues.value = []
     }
-  }, {immediate: true})
+  }, {immediate: true, flush: 'sync'})
 
   const readTime = () => {
     const video = playerStore.player

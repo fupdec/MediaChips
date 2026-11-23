@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import {randomUUID} from 'node:crypto'
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -14,8 +15,8 @@ function isRetryableFsError(error: unknown): boolean {
  * Replace `outputPath` with `tempPath`.
  *
  * Destination files are often still open by the UI (`/api/get-file`), so a direct
- * overwrite or rename can fail with EPERM/EBUSY (especially on Windows). Retry
- * unlink+rename, then fall back to copyFile over the destination.
+ * overwrite or rename can fail with EPERM/EBUSY (especially on Windows). Try
+ * rename first, then fall back to copyFile over the destination.
  */
 export async function replaceFileWithRetry(tempPath: string, outputPath: string): Promise<void> {
   const attempts = 10
@@ -23,15 +24,6 @@ export async function replaceFileWithRetry(tempPath: string, outputPath: string)
 
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
-      try {
-        await fs.promises.unlink(outputPath)
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
-          // Destination may be locked; still try rename/copy below.
-          if (!isRetryableFsError(error)) throw error
-        }
-      }
-
       await fs.promises.rename(tempPath, outputPath)
       return
     } catch (error) {
@@ -67,7 +59,7 @@ export async function writeFileAtomically(
   const ext = path.extname(resolved)
   const stem = ext ? resolved.slice(0, -ext.length) : resolved
   // Keep the real extension so ffmpeg/sharp can infer the container/codec.
-  const tempPath = `${stem}.${process.pid}.${Date.now()}.tmp${ext || '.bin'}`
+  const tempPath = `${stem}.${process.pid}.${randomUUID()}.tmp${ext || '.bin'}`
   try {
     await writeTemp(tempPath)
     await replaceFileWithRetry(tempPath, resolved)

@@ -47,27 +47,44 @@ export async function readNdjsonStream<T = unknown>(
 
   const emitLine = (line: string) => {
     if (!line.trim()) return
+    let event: T
     try {
-      onEvent(JSON.parse(line) as T)
+      event = JSON.parse(line) as T
     } catch (error) {
       if (options.ignoreMalformed) return
       throw error
     }
+    onEvent(event)
   }
 
-  while (true) {
-    if (options.beforeRead) await options.beforeRead()
-    const {value, done} = await reader.read()
-    if (done) break
+  let exhausted = false
+  try {
+    while (true) {
+      if (options.beforeRead) await options.beforeRead()
+      const {value, done} = await reader.read()
+      if (done) {
+        exhausted = true
+        break
+      }
 
-    buffer += decoder.decode(value, {stream: true})
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
+      buffer += decoder.decode(value, {stream: true})
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
 
-    for (const line of lines) emitLine(line)
+      for (const line of lines) emitLine(line)
+    }
+
+    emitLine(buffer + decoder.decode())
+  } finally {
+    try {
+      // Stop downloading if parsing, event handling or the pause hook fails.
+      if (!exhausted) await reader.cancel()
+    } catch {
+      // Cancellation must not replace the original failure.
+    } finally {
+      reader.releaseLock()
+    }
   }
-
-  emitLine(buffer)
 }
 
 export async function fetchApiJson<T = unknown>(

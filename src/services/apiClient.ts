@@ -1,4 +1,4 @@
-import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios'
+import axios, { AxiosHeaders, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
 import { isViteDevProxyMode, resolveApiBaseUrl } from '@/utils/apiBaseUrl'
@@ -60,6 +60,10 @@ axios.interceptors.response.use(
   (error) => {
     // Password checks from settings fail with 401 on purpose and must not lock the app.
     if (error?.response?.status === 401 && !error?.config?.skipAuthLock) {
+      const token = getAuthToken()
+      const authorization = AxiosHeaders.from(error?.config?.headers).get('Authorization') || null
+      // A delayed failure from an earlier login must not clear the current session.
+      if (authorization !== (token ? `Bearer ${token}` : null)) return Promise.reject(error)
       clearAuthToken()
       try {
         const settingsStore = useSettingsStore()

@@ -223,3 +223,61 @@ describe('useItemPreviewTimelineFrames', () => {
     expect(gridSpriteUrl.value).toBe(loadedUrl)
   })
 })
+
+describe('timeline request lifecycle', () => {
+  function setup(runImageProbe: (url: string) => Promise<boolean>, createGrid?: (input: string, output: string) => Promise<unknown>) {
+    return useItemPreviewTimelineFrames({
+      media: {id: 7, path: '/video.mp4'} as never,
+      isFileExists: true, isMounted: false, isViewTimeline: false,
+      showTimelinePreview: false, mediaDuration: 100, durationLabel: '01:40',
+      mediaAspectRatio: 16 / 9, isTaskRunning: false, mediaPath: '/media',
+      itemsView: 2, previewActive: false, thumb: null,
+      resolveThumbFallback: () => null, getImg: async () => {}, runImageProbe, createGrid,
+      getStoryEl: () => null, getStoryWrapperEl: () => null,
+    })
+  }
+  it('does not restore a cleared preview when a pending probe finishes', async () => {
+    let resolve!: (value: boolean) => void
+    const api = setup(() => new Promise<boolean>(done => { resolve = done }))
+    const pending = api.ensureGridSpriteLoaded()
+    api.clearTimelineFrames()
+    resolve(true)
+    await pending
+    expect(api.gridSpriteUrl.value).toBeNull()
+    expect(api.gridLoading.value).toBe(false)
+  })
+  it('keeps the loading state of the newest probe when an older one finishes', async () => {
+    const resolvers: ((value: boolean) => void)[] = []
+    const api = setup(() => new Promise<boolean>(done => { resolvers.push(done) }))
+    const old = api.ensureGridSpriteLoaded()
+    const latest = api.ensureGridSpriteLoaded({force: true})
+    resolvers[0](true)
+    await old
+    expect(api.gridLoading.value).toBe(true)
+    expect(api.gridSpriteUrl.value).toBeNull()
+    resolvers[1](true)
+    await latest
+    expect(api.gridLoading.value).toBe(false)
+    expect(api.gridSpriteUrl.value).toContain('7.jpg')
+  })
+  it('waits for an existing sprite generation when a newer request takes over', async () => {
+    let finish!: () => void
+    let generated = false
+    const creation = new Promise<void>(resolve => { finish = () => { generated = true; resolve() } })
+    const createGrid = vi.fn(() => creation)
+    const probe = vi.fn(async () => generated)
+    const api = setup(probe, createGrid)
+    const first = api.ensureGridSpriteLoaded()
+    await Promise.resolve()
+    expect(createGrid).toHaveBeenCalledTimes(1)
+    const second = api.ensureGridSpriteLoaded({force: true})
+    await Promise.resolve()
+    finish()
+    await first
+    expect(await second).toBe(true)
+    expect(createGrid).toHaveBeenCalledTimes(1)
+    expect(api.gridSpriteUrl.value).toContain('7.jpg')
+    expect(api.storyUsesThumbFallback.value).toBe(false)
+  })
+
+})

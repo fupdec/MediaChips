@@ -35,7 +35,8 @@ export function useBackgroundTasksSync() {
   const {t} = useI18n()
   const app = useAppStore()
   const tasksStore = useTasksStore()
-  const polling = new AbortController()
+  let polling: AbortController | undefined
+  let mounted = false
   let timer: ReturnType<typeof setTimeout> | undefined
   /** Server task id -> id of the entry in the tasks store. */
   const mirrored = new Map<string, string>()
@@ -77,29 +78,39 @@ export function useBackgroundTasksSync() {
     }
   }
 
-  async function poll() {
-    const dbPath = app.dbPath
+  async function poll(session: AbortController) {
+    if (session.signal.aborted || polling !== session) return
     let active = false
     try {
       if (!document.hidden) {
-        const {data} = await backgroundTasksApi.list(polling.signal)
-        if (app.dbPath !== dbPath) return
+        const {data} = await backgroundTasksApi.list(session.signal)
+        if (session.signal.aborted || polling !== session) return
         apply(data.tasks)
         active = data.tasks.length > 0
       }
     } catch {
       // The backend can be briefly unavailable while switching libraries.
     } finally {
-      if (!polling.signal.aborted) timer = setTimeout(poll, active ? ACTIVE_POLL_MS : IDLE_POLL_MS)
+      if (!session.signal.aborted && polling === session) {
+        timer = setTimeout(() => { void poll(session) }, active ? ACTIVE_POLL_MS : IDLE_POLL_MS)
+      }
     }
   }
 
-  // Background work belongs to one library.
-  watch(() => app.dbPath, clear)
-  onMounted(poll)
-  onBeforeUnmount(() => {
-    polling.abort()
+  function restart() {
+    polling?.abort()
+    polling = undefined
     clearTimeout(timer)
+    timer = undefined
     clear()
-  })
+    if (!mounted) return
+    const session = new AbortController()
+    polling = session
+    void poll(session)
+  }
+
+  // A new session also distinguishes a quick A -> B -> A library switch.
+  watch(() => app.dbPath, restart, {flush: 'sync'})
+  onMounted(() => { mounted = true; restart() })
+  onBeforeUnmount(() => { mounted = false; restart() })
 }

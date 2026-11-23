@@ -143,3 +143,27 @@ describe('createConcurrencyQueue', () => {
     })).rejects.toThrow('queue failed')
   })
 })
+
+it('keeps running tasks counted across reset and respects the concurrency limit', async () => {
+  const queue = createConcurrencyQueue(1)
+  let finish!: () => void
+  const gate = new Promise<void>(resolve => { finish = resolve })
+  const first = queue.enqueue(async () => { await gate })
+  queue.reset()
+  let nextStarted = false
+  const next = queue.enqueue(async () => { nextStarted = true })
+  const activeAfterReset = queue.getStats().active
+  const startedBeforeCompletion = nextStarted
+  finish()
+  await Promise.all([first, next])
+  expect(activeAfterReset).toBe(1)
+  expect(startedBeforeCompletion).toBe(false)
+  expect(queue.getStats().active).toBe(0)
+})
+
+it('releases its slot when a task throws before returning a promise', async () => {
+  const queue = createConcurrencyQueue(1)
+  await expect(queue.enqueue(() => { throw new Error('synchronous failure') })).rejects.toThrow('synchronous failure')
+  expect(queue.getStats()).toMatchObject({active: 0, pending: 0})
+  await expect(queue.enqueue(async () => 'recovered')).resolves.toBe('recovered')
+})

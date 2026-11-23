@@ -15,8 +15,6 @@ import {isThumbUnavailable, resolveMediaThumbDisplayUrl, CARD_THUMB_MAX_EDGE} fr
 import {probeDisplayImageUrl} from '@/utils/probeImageUrl'
 import type {MediaItem} from '@/types/stores'
 
-const thumbLoadInFlight = new Map<string, Promise<void>>()
-
 export type VideoPreviewThumbOptions = {
   media: MaybeRefOrGetter<MediaItem>
   previewActive: MaybeRefOrGetter<boolean>
@@ -31,6 +29,8 @@ export type VideoPreviewThumbOptions = {
 }
 
 export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
+  // Loading updates refs owned by this instance; another card must run its own load.
+  const thumbLoadInFlight = new Map<string, Promise<void>>()
   const itemsStore = useItemsStore()
   const settingsStore = useSettingsStore()
 
@@ -42,6 +42,7 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
 
   /** In-flight probes — abort only on clear/pause, never when starting another probe. */
   const thumbProbeControllers = new Set<AbortController>()
+  let thumbWorkGeneration = 0
 
   const media = computed(() => toValue(options.media))
   const usesExternalThumb = computed(() => {
@@ -53,6 +54,7 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
   )
 
   const abortThumbProbe = () => {
+    thumbWorkGeneration += 1
     for (const controller of thumbProbeControllers) {
       controller.abort()
     }
@@ -207,14 +209,16 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
     if (isRemoteMediaPath(media.value.path)) return
     if (isCreatingThumb.value || thumbCreateAttempted.value) return
 
+    const generation = thumbWorkGeneration
     const exists = await runImageProbe(thumb.value)
-    if (!toValue(options.isMounted)) return
-    if (exists) return
+    if (generation !== thumbWorkGeneration || !toValue(options.isMounted) || !toValue(options.previewActive)) return
+    if (exists || isCreatingThumb.value || thumbCreateAttempted.value) return
 
     isCreatingThumb.value = true
     thumbCreateAttempted.value = true
     try {
       await createThumb()
+      if (generation !== thumbWorkGeneration || !toValue(options.isMounted) || !toValue(options.previewActive)) return
       loadThumb('thumbs', {bust: true})
     } finally {
       isCreatingThumb.value = false
@@ -229,6 +233,7 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
       return
     }
 
+    const generation = thumbWorkGeneration
     const subfolder = getStaticPreviewSubfolder()
 
     if (!bust) {
@@ -247,7 +252,7 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
       loadThumb('grids', {bust})
       if (allowCreate && thumb.value) {
         const gridExists = await runImageProbe(thumb.value)
-        if (!toValue(options.isMounted)) return
+        if (generation !== thumbWorkGeneration || !toValue(options.isMounted) || !toValue(options.previewActive)) return
         if (!gridExists) {
           loadThumb('thumbs', {bust})
         }
@@ -268,7 +273,7 @@ export function useVideoPreviewThumb(options: VideoPreviewThumbOptions) {
 
     const subfolder = getStaticPreviewSubfolder()
     const bustKey = bust === false ? 0 : bust === true ? 1 : bust
-    const key = `${media.value.id}:${subfolder}:${bustKey}:${allowCreate ? 1 : 0}`
+    const key = `${thumbWorkGeneration}:${media.value.id}:${subfolder}:${bustKey}:${allowCreate ? 1 : 0}`
     const existing = thumbLoadInFlight.get(key)
     if (existing) {
       await existing

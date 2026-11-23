@@ -86,11 +86,13 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
   const storyUsesThumbFallback = ref(false)
   const gridLoading = ref(false)
 
+  let gridLoadToken = 0
   let initFramesToken = 0
   let gridGenerationPromise: Promise<unknown> | null = null
 
   const clearTimelineFrames = () => {
     initFramesToken += 1
+    gridLoadToken += 1
     gridSpriteUrl.value = null
     hoverFrameIndex.value = 0
     storyUsesThumbFallback.value = false
@@ -171,7 +173,13 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
   }
 
   const ensureGridSpriteLoaded = async ({force = false}: {force?: boolean} = {}) => {
+    const token = ++gridLoadToken
     const media = toValue(options.media)
+    const mediaPath = toValue(options.mediaPath)
+    const isCurrent = () => token === gridLoadToken
+      && toValue(options.media)?.id === media?.id
+      && toValue(options.media)?.path === media?.path
+      && toValue(options.mediaPath) === mediaPath
     if (!media?.id) return false
     if (isRemoteMediaPath(media.path)) {
       storyUsesThumbFallback.value = true
@@ -194,6 +202,7 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
     gridLoading.value = true
     try {
       let hasGrid = await options.runImageProbe(gridUrl)
+      if (!isCurrent()) return false
       if (!hasGrid) {
         // Keep a previously loaded sprite if a concurrent probe aborted/failed.
         if (!force && gridSpriteUrl.value) {
@@ -204,14 +213,18 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
         storyUsesThumbFallback.value = true
         gridSpriteUrl.value = null
       }
-      if (!hasGrid && options.createGrid && media.path && !gridGenerationPromise) {
-        gridGenerationPromise = options.createGrid(String(media.path), `${media.id}.jpg`)
-          .catch(() => undefined)
-          .finally(() => {
-            gridGenerationPromise = null
-          })
+      if (!hasGrid && options.createGrid && media.path) {
+        if (!gridGenerationPromise) {
+          gridGenerationPromise = options.createGrid(String(media.path), `${media.id}.jpg`)
+            .catch(() => undefined)
+            .finally(() => {
+              gridGenerationPromise = null
+            })
+        }
         await gridGenerationPromise
+        if (!isCurrent()) return false
         hasGrid = await options.runImageProbe(gridUrl)
+        if (!isCurrent()) return false
       }
       if (!hasGrid) {
         if (!force && gridSpriteUrl.value) {
@@ -228,7 +241,7 @@ export function useItemPreviewTimelineFrames(options: ItemPreviewTimelineFramesO
       setCachedThumb(mediaThumbKey('videos', media.id, 'grids'), gridUrl)
       return true
     } finally {
-      gridLoading.value = false
+      if (token === gridLoadToken) gridLoading.value = false
     }
   }
 

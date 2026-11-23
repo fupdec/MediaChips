@@ -1,3 +1,5 @@
+import {useAppStore} from '@/stores/app'
+import {getApiBaseUrl} from '@/services/apiClient'
 import {typedApi} from '@/services/typedApi'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useItemsStore} from '@/stores/items'
@@ -24,7 +26,14 @@ const MEDIA_FILE_INFO_FIELDS = [
 
 type MediaFileInfoField = (typeof MEDIA_FILE_INFO_FIELDS)[number]
 
-const inFlight = new Map<number, Promise<Partial<MediaItem> | null>>()
+const inFlightByStore = new WeakMap<object, Map<string, Promise<Partial<MediaItem> | null>>>()
+
+function refreshContext() {
+  const app = useAppStore()
+  const key = () => JSON.stringify([app.dbPath, getApiBaseUrl(app)])
+  const expected = key()
+  return {app, key: expected, isCurrent: () => key() === expected}
+}
 
 export function pickMediaFileInfo(item: Partial<MediaItem>): Partial<MediaItem> {
   const picked: Partial<MediaItem> = {}
@@ -49,8 +58,9 @@ export function syncMediaFileInfo(mediaId: number, fileInfo: Partial<MediaItem>)
   }
 }
 
-async function loadRefreshedMediaFileInfo(mediaId: number): Promise<Partial<MediaItem> | null> {
+async function loadRefreshedMediaFileInfo(mediaId: number, context: ReturnType<typeof refreshContext>): Promise<Partial<MediaItem> | null> {
   await typedApi.updateMediaInfo(mediaId)
+  if (!context.isCurrent()) return null
 
   const res = await typedApi.getMediaItems({
     ids: [mediaId],
@@ -58,6 +68,7 @@ async function loadRefreshedMediaFileInfo(mediaId: number): Promise<Partial<Medi
     includeNavigation: false,
   })
 
+  if (!context.isCurrent()) return null
   const item = res.data.items?.find((entry) => Number(entry.id) === Number(mediaId))
   if (!item) return null
 
@@ -72,21 +83,29 @@ async function loadRefreshedMediaFileInfo(mediaId: number): Promise<Partial<Medi
  */
 export async function refreshMediaFileInfo(mediaId: number): Promise<Partial<MediaItem> | null> {
   const id = Number(mediaId)
-  if (!id) return null
+  if (!Number.isSafeInteger(id) || id <= 0) return null
 
-  const existing = inFlight.get(id)
+  const context = refreshContext()
+  let inFlight = inFlightByStore.get(context.app)
+  if (!inFlight) {
+    inFlight = new Map()
+    inFlightByStore.set(context.app, inFlight)
+  }
+  const key = JSON.stringify([context.key, id])
+  const requests = inFlight
+  const existing = requests.get(key)
   if (existing) return existing
 
-  const promise = loadRefreshedMediaFileInfo(id)
+  const promise = loadRefreshedMediaFileInfo(id, context)
     .catch((error) => {
       console.error('Failed to refresh media file info:', error)
       return null
     })
     .finally(() => {
-      inFlight.delete(id)
+      requests.delete(key)
     })
 
-  inFlight.set(id, promise)
+  requests.set(key, promise)
   return promise
 }
 
@@ -95,10 +114,12 @@ export async function refreshMediaFileInfoMany(
   mediaIds: number[],
   concurrency: number = MEDIA_FILE_INFO_REFRESH_CONCURRENCY,
 ): Promise<number[]> {
-  const ids = mediaIds.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+  const ids = [...new Set(mediaIds.map(Number).filter((id) => Number.isSafeInteger(id) && id > 0))]
   if (!ids.length) return []
 
+  const context = refreshContext()
   const results = await mapWithConcurrency(ids, concurrency, async (id) => {
+    if (!context.isCurrent()) return null
     const fileInfo = await refreshMediaFileInfo(id)
     return fileInfo ? id : null
   })

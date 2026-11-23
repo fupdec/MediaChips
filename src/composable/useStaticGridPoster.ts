@@ -77,10 +77,8 @@ export function useStaticGridPoster(options: StaticGridPosterOptions) {
       toValue(options.isMounted),
     ],
     () => {
+      clearPoster()
       if (!toValue(options.previewActive) || tileIndex.value == null || !toValue(options.isMounted)) {
-        if (!toValue(options.previewActive) || tileIndex.value == null) {
-          spriteUrl.value = null
-        }
         return
       }
       void loadPoster()

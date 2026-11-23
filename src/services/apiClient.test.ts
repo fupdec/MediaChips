@@ -21,7 +21,7 @@ vi.mock('@/stores/settings', () => ({
   }),
 }))
 
-import { getAuthToken } from '@/services/authSession'
+import { clearAuthToken, getAuthToken } from '@/services/authSession'
 
 const mockGetAuthToken = vi.mocked(getAuthToken)
 
@@ -115,5 +115,30 @@ describe('apiClient auth headers', () => {
         data: {ok: true},
       }),
     )
+  })
+})
+
+
+describe('unauthorized response ownership', () => {
+  beforeEach(() => { vi.mocked(clearAuthToken).mockClear() })
+  afterEach(() => { mockGetAuthToken.mockReturnValue(null) })
+  const unauthorized = (authorization?: string) => axios.get('/test', {
+    headers: authorization ? {Authorization: authorization} : {},
+    adapter: async config => { throw Object.assign(new Error('unauthorized'), {config, response: {status: 401}}) },
+  })
+  it('keeps a newer login when an old authenticated request returns 401', async () => {
+    mockGetAuthToken.mockReturnValue('new-session')
+    await expect(unauthorized('Bearer old-session')).rejects.toThrow('unauthorized')
+    expect(clearAuthToken).not.toHaveBeenCalled()
+  })
+  it('keeps a newer login when an older anonymous request returns 401', async () => {
+    mockGetAuthToken.mockReturnValue('new-session')
+    await expect(unauthorized()).rejects.toThrow('unauthorized')
+    expect(clearAuthToken).not.toHaveBeenCalled()
+  })
+  it('still clears the current session when its own request returns 401', async () => {
+    mockGetAuthToken.mockReturnValue('current-session')
+    await expect(unauthorized('Bearer current-session')).rejects.toThrow('unauthorized')
+    expect(clearAuthToken).toHaveBeenCalledOnce()
   })
 })

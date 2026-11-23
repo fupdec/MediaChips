@@ -199,9 +199,8 @@ export async function downloadHttpFileWithRetries(
       return
     } catch (error) {
       lastError = error
-      for (const stale of [`${destination}.download`, destination]) {
-        unlinkQuiet(stale)
-      }
+      // Downloads are atomic (temp + rename), so a failed attempt never touches an existing destination.
+      unlinkQuiet(`${destination}.download`)
       if (attempt >= attempts || !isTransientDownloadError(error)) {
         break
       }

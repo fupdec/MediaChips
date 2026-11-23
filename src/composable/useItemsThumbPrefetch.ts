@@ -1,4 +1,4 @@
-import { watch, type ComputedRef, type Ref } from 'vue'
+import { onScopeDispose, watch, type ComputedRef, type Ref } from 'vue'
 import { debounce } from '@/utils/debounce'
 import { useAppStore } from '@/stores/app'
 import { useItemsStore } from '@/stores/items'
@@ -97,9 +97,19 @@ export function useItemsThumbPrefetch({
   const settingsStore = useSettingsStore()
   let warmAbort: AbortController | null = null
   let warmTimer: ReturnType<typeof setTimeout> | null = null
+  let generation = 0
   let lastPrefetchFirstId: number | string | null = null
 
+  const invalidate = () => {
+    generation += 1
+    warmAbort?.abort()
+    warmAbort = null
+    if (warmTimer) clearTimeout(warmTimer)
+    warmTimer = null
+  }
+
   const prefetch = async () => {
+    const expectedGeneration = generation
     const list = resolvePrefetchItems(items.value)
     if (!list.length) return
 
@@ -137,6 +147,7 @@ export function useItemsThumbPrefetch({
         )
         : {}
 
+      if (expectedGeneration !== generation) return
       if (Object.keys(thumbs).length) {
         setCachedMediaThumbs(folder, thumbs, subfolder)
       }
@@ -163,8 +174,9 @@ export function useItemsThumbPrefetch({
         .filter((url): url is string => Boolean(url))
 
       const runWarm = () => {
+        warmTimer = null
         void mapWithConcurrency(warmUrls, WARM_CONCURRENCY, async (url) => {
-          await warmDisplayImageUrl(url, signal)
+          if (!signal.aborted) await warmDisplayImageUrl(url, signal)
         })
       }
       if (jumpedWindow) warmTimer = setTimeout(runWarm, 350)
@@ -173,27 +185,31 @@ export function useItemsThumbPrefetch({
     }
 
     if (itemsType.value === 'tag' && metaId?.value && appStore.dbPath) {
+      const targetMetaId = metaId.value
       const types = Number(itemsStore.view) === 2
         ? ['avatar', 'main']
         : ['main', 'alt', 'custom1', 'custom2']
 
       const thumbs = await loadTagThumbUrls(
         appStore.dbPath,
-        metaId.value,
+        targetMetaId,
         list.map((item) => item.id),
         types,
       )
-      setCachedTagThumbs(metaId.value, thumbs)
+      if (expectedGeneration !== generation) return
+      setCachedTagThumbs(targetMetaId, thumbs)
     }
   }
 
   // Leading for immediate paint; trailing so the final scroll window is not dropped.
   const debouncedPrefetch = debounce(() => {
-    void prefetch()
+    void prefetch().catch(error => console.error('Unable to prefetch thumbnails', error))
   }, 20, { leading: true, trailing: true })
 
   watch(
     () => [
+      appStore.dbPath,
+      appStore.mediaPath,
       itemsType.value,
       mediaType.value?.id ?? null,
       metaId?.value ?? null,
@@ -202,7 +218,15 @@ export function useItemsThumbPrefetch({
       getItemsSignature(items.value),
       visibleItemIds.value.join(','),
     ],
-    () => debouncedPrefetch(),
+    () => {
+      invalidate()
+      debouncedPrefetch()
+    },
     { immediate: true },
   )
+
+  onScopeDispose(() => {
+    invalidate()
+    debouncedPrefetch.cancel()
+  })
 }

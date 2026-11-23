@@ -4,13 +4,14 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import {afterEach, describe, expect, it} from 'vitest'
+import {afterEach, describe, expect, it, vi} from 'vitest'
 import {replaceFileWithRetry, writeFileAtomically} from './safeFileReplace'
 
 describe('safeFileReplace', () => {
   let tmpDir = ''
 
   afterEach(() => {
+    vi.restoreAllMocks()
     if (tmpDir && fs.existsSync(tmpDir)) {
       fs.rmSync(tmpDir, {recursive: true, force: true})
     }
@@ -85,4 +86,37 @@ describe('safeFileReplace', () => {
       fs.promises.rename = originalRename
     }
   })
+  it('preserves the destination if the replacement file is missing', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-safe-replace-'))
+    const target = path.join(tmpDir, 'out.jpg')
+    fs.writeFileSync(target, 'original')
+    await expect(replaceFileWithRetry(path.join(tmpDir, 'missing.jpg'), target)).rejects.toMatchObject({code: 'ENOENT'})
+    expect(fs.readFileSync(target, 'utf8')).toBe('original')
+  })
+
+  it('uses separate temporary files for concurrent writes within the same millisecond', async () => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-safe-replace-'))
+    const target = path.join(tmpDir, 'out.jpg')
+    vi.spyOn(Date, 'now').mockReturnValue(123456)
+    const temps: string[] = []
+    let finish!: () => void
+    let started!: () => void
+    const gate = new Promise<void>(resolve => { finish = resolve })
+    const bothStarted = new Promise<void>(resolve => { started = resolve })
+    const writes = ['first', 'second'].map(content => writeFileAtomically(target, async temp => {
+      temps.push(temp)
+      if (temps.length === 2) started()
+      await gate
+      await fs.promises.writeFile(temp, content)
+    }))
+    await bothStarted
+    finish()
+    const results = await Promise.allSettled(writes)
+    expect(new Set(temps).size).toBe(2)
+    expect(temps.every(temp => temp.endsWith('.jpg'))).toBe(true)
+    expect(results.map(result => result.status)).toEqual(['fulfilled', 'fulfilled'])
+    expect(['first', 'second']).toContain(fs.readFileSync(target, 'utf8'))
+    expect(fs.readdirSync(tmpDir)).toEqual(['out.jpg'])
+  })
+
 })

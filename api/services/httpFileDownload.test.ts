@@ -176,4 +176,13 @@ describe('httpFileDownload', () => {
     expect(fs.existsSync(destination + '.download')).toBe(false)
   })
 
+  it('preserves an existing destination when a replacement download fails', async () => {
+    const {baseUrl} = await listen((_req, res) => { res.writeHead(404); res.end() })
+    const destination = path.join(tmpDir(), 'existing.onnx')
+    fs.writeFileSync(destination, 'working-model')
+    await expect(downloadHttpFileWithRetries(`${baseUrl}/missing`, destination, {attempts: 1})).rejects.toThrow('HTTP 404')
+    expect(fs.readFileSync(destination, 'utf8')).toBe('working-model')
+    expect(fs.existsSync(destination + '.download')).toBe(false)
+  })
+
 })

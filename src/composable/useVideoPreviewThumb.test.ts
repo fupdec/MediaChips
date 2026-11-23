@@ -23,6 +23,8 @@ vi.mock('@/services/typedApi', () => ({
   },
 }))
 
+vi.mock('@/services/fileService', () => ({buildLocalFileUrl: () => '/generated-thumb.jpg'}))
+
 vi.mock('@/utils/probeImageUrl', () => ({
   probeDisplayImageUrl: vi.fn(async () => true),
 }))
@@ -137,4 +139,84 @@ describe('useVideoPreviewThumb', () => {
     expect(api.thumb.value).toBe('/thumbs/4.jpg')
     expect(api.thumbLoadStarted.value).toBe(false)
   })
+})
+
+it('loads each card when the same media is displayed by two instances', async () => {
+  let finish!: (value: boolean) => void
+  const probe = new Promise<boolean>(resolve => { finish = resolve })
+  vi.mocked(probeDisplayImageUrl).mockReturnValue(probe)
+  const options = {
+    media: {id: 987, path: '/same.mp4'} as never,
+    previewActive: true, isFileExists: true, thumbUrl: undefined,
+    isViewCard: true, isEmbeddedHost: false, isMounted: true, mediaPath: '/media',
+  }
+  const first = useVideoPreviewThumb(options)
+  const second = useVideoPreviewThumb(options)
+  const loadingFirst = first.getImg()
+  const loadingSecond = second.getImg()
+  finish(true)
+  await Promise.all([loadingFirst, loadingSecond])
+  expect(first.thumb.value).toBeTruthy()
+  expect(second.thumb.value).toBe(first.thumb.value)
+  expect(second.thumbLoadStarted.value).toBe(true)
+})
+
+it('does not generate a thumbnail after its pending probe is cancelled offscreen', async () => {
+  vi.mocked(typedApi.taskCreateThumbForVideo).mockReset()
+  vi.mocked(probeDisplayImageUrl).mockImplementation((_url, signal) => new Promise(resolve => {
+    signal?.addEventListener('abort', () => resolve(false), {once: true})
+  }))
+  const api = useVideoPreviewThumb({
+    media: {id: 988, path: '/cancelled.mp4'} as never,
+    previewActive: true, isFileExists: true, thumbUrl: undefined,
+    isViewCard: true, isEmbeddedHost: false, isMounted: true, mediaPath: '/media',
+  })
+  const loading = api.getImg()
+  api.pauseOffscreenThumb()
+  await loading
+  expect(typedApi.taskCreateThumbForVideo).not.toHaveBeenCalled()
+  expect(api.thumbCreateAttempted.value).toBe(false)
+})
+
+it('generates a missing poster only once when concurrent probes both report it missing', async () => {
+  settings.videoPreviewStatic = 'thumb'
+  const probes: ((value: boolean) => void)[] = []
+  vi.mocked(probeDisplayImageUrl).mockImplementation(() => new Promise(resolve => { probes.push(resolve) }))
+  let finishCreation!: () => void
+  const creation = new Promise<void>(resolve => { finishCreation = resolve })
+  vi.mocked(typedApi.taskCreateThumbForVideo).mockReset().mockReturnValue(creation as never)
+  const api = useVideoPreviewThumb({
+    media: {id: 989, path: '/concurrent.mp4'} as never,
+    previewActive: true, isFileExists: true, thumbUrl: undefined,
+    isViewCard: true, isEmbeddedHost: false, isMounted: true, mediaPath: '/media',
+  })
+  const first = api.getImg({bust: 1})
+  const second = api.getImg({bust: 2})
+  probes.forEach(resolve => resolve(false))
+  await Promise.resolve()
+  await Promise.resolve()
+  const creations = vi.mocked(typedApi.taskCreateThumbForVideo).mock.calls.length
+  // Release all backend calls even if the assertion below fails.
+  finishCreation()
+  expect(creations).toBe(1)
+  await Promise.all([first, second])
+})
+
+it('starts a fresh load after cancellation even before the old promise settles', async () => {
+  settings.videoPreviewStatic = 'thumb'
+  vi.mocked(probeDisplayImageUrl).mockImplementation((_url, signal) => new Promise(resolve => {
+    signal?.addEventListener('abort', () => resolve(false), {once: true})
+  }))
+  const api = useVideoPreviewThumb({
+    media: {id: 990, path: '/reentered.mp4'} as never,
+    previewActive: true, isFileExists: true, thumbUrl: undefined,
+    isViewCard: true, isEmbeddedHost: false, isMounted: true, mediaPath: '/media',
+  })
+  const old = api.getImg()
+  api.clearThumbState()
+  vi.mocked(probeDisplayImageUrl).mockResolvedValue(true)
+  const fresh = api.getImg()
+  await Promise.all([old, fresh])
+  expect(api.thumb.value).toBeTruthy()
+  expect(api.thumbLoadStarted.value).toBe(true)
 })

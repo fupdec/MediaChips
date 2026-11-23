@@ -20,6 +20,10 @@ export function captureVideoFrame(video: HTMLVideoElement): string {
 export function captureVideoFrameAt(src: string, time: number, signal: AbortSignal): Promise<string> {
   return new Promise((resolve, reject) => {
     signal.throwIfAborted()
+    if (!Number.isFinite(time) || time < 0) {
+      reject(new Error('Invalid video frame time.'))
+      return
+    }
     const video = document.createElement('video')
     const timeout = window.setTimeout(() => fail(), 8000)
 
@@ -50,10 +54,24 @@ export function captureVideoFrameAt(src: string, time: number, signal: AbortSign
     signal.addEventListener('abort', fail, {once: true})
     video.crossOrigin = 'anonymous'
     video.preload = 'auto'
-    video.onloadedmetadata = () => { video.currentTime = time }
+    video.onloadedmetadata = () => {
+      if (Number.isFinite(video.duration) && time > video.duration) {
+        fail()
+        return
+      }
+      try {
+        video.currentTime = time
+      } catch {
+        fail()
+      }
+    }
     video.onloadeddata = video.onseeked = capture
     video.onerror = fail
-    video.src = src
+    try {
+      video.src = src
+    } catch {
+      fail()
+    }
   })
 }
 
@@ -67,7 +85,7 @@ const isNearTime = (video: HTMLVideoElement, time: number) => (
 
 /** Seeks the live player to `time`, grabs the frame and puts the playhead back where it was. */
 async function captureFrameAtTime(video: HTMLVideoElement, time: number): Promise<string | null> {
-  if (video.readyState < 1 || !Number.isFinite(video.duration) || time > video.duration) return null
+  if (!Number.isFinite(time) || time < 0 || video.readyState < 1 || !Number.isFinite(video.duration) || time > video.duration) return null
   const previousTime = video.currentTime
   const wasPlaying = !video.paused && !video.ended
   if (wasPlaying) video.pause()
@@ -85,7 +103,11 @@ async function captureFrameAtTime(video: HTMLVideoElement, time: number): Promis
       const onError = () => finish(new Error('Seek failed.'))
       video.addEventListener('seeked', onSeeked)
       video.addEventListener('error', onError)
-      video.currentTime = time
+      try {
+        video.currentTime = time
+      } catch (error) {
+        finish(error instanceof Error ? error : new Error('Seek failed.'))
+      }
     })
     return captureVideoFrame(video)
   } catch {
@@ -100,6 +122,7 @@ export async function saveWebVideoCurrentFrame({video, mediaId, markId, expected
   video: HTMLVideoElement | null; mediaId: number; markId?: number; expectedTime?: number; mediaPath?: string
 }): Promise<boolean> {
   if (!video || video.seeking || video.readyState < 2) return false
+  if (expectedTime != null && (!Number.isFinite(expectedTime) || expectedTime < 0)) return false
   let image: string | null
   if (expectedTime == null || isNearTime(video, expectedTime)) {
     image = captureVideoFrame(video)
