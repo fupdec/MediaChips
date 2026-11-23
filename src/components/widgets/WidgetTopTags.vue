@@ -130,7 +130,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, watch, onMounted} from 'vue'
+import {ref, computed, watch, onMounted, onBeforeUnmount} from 'vue'
 import {useRouter} from 'vue-router'
 import path from 'path-browserify'
 import {useAppStore} from '@/stores/app'
@@ -189,7 +189,7 @@ const metas = computed(() => store.meta)
 const sortMode = computed((): MetaSortMode =>
   (settingsStore.meta_sort_mode as MetaSortMode) || META_SORT_MODES.menu,
 )
-const visibleCategories = computed(() => tagsTop.value.slice(0, visibleCategoryCount.value))
+const visibleCategories = computed(() => tagsTop.value)
 
 function resolveCategorySort(meta: Meta): {sortBy: string; sortDir: string} {
   const pageSort = pageSortByMetaId.value[Number(meta.id)]
@@ -323,86 +323,104 @@ async function fetchTagsForCategory(
   return sortTagItems(catalogTags, sortMode.value, pageSort).slice(0, limit) as TopTagItem[]
 }
 
+/** Categories (with tags) in menu order; data is loaded lazily from the top. */
+let candidateMetas: Meta[] = []
+let buildSeq = 0
+let loadingMore = false
+
+async function buildCategory(
+  meta: Meta,
+  limit: number,
+): Promise<TopTagsCategory | null> {
+  const metaId = String(meta.id)
+  const catalogTags = groupBy(tags.value, 'metaId')[metaId] as TopTagItem[] | undefined
+  if (!catalogTags?.length) return null
+
+  const pageSort = resolveCategorySort(meta)
+  const sorted = await fetchTagsForCategory(meta, catalogTags, limit, pageSort)
+  if (!sorted.length) return null
+
+  const tagsWithImages = await Promise.all(sorted.map(async (tag) => ({
+    ...tag,
+    image: await resolveTagImageUrl(metaId, tag.id),
+  })))
+
+  const total = catalogTags.length
+  return {
+    meta: {...meta, sortBy: pageSort.sortBy, sortDir: pageSort.sortDir},
+    tags: tagsWithImages,
+    limit,
+    total,
+    isNotAllLoaded: total > limit,
+  } satisfies TopTagsCategory
+}
+
+async function buildCategories(list: Meta[]): Promise<TopTagsCategory[]> {
+  await loadPageSorts(list.map((meta) => Number(meta.id)).filter((id) => id > 0))
+  const results = await Promise.all(list.map((meta) => buildCategory(meta, props.limit)))
+  return results.filter((group): group is TopTagsCategory => group != null)
+}
+
 async function getTagsTop(activeGroup: TopTagsCategory | null = null) {
   if (!metas.value.length) {
     tagsTop.value = []
+    candidateMetas = []
     loading.value = false
     return
   }
 
-  loading.value = !activeGroup && !tagsTop.value.length
-
-  // Fresh page sorts on full rebuild so home tracks the category page.
-  if (!activeGroup) {
-    pageSortByMetaId.value = {}
+  // "Show more" on one category: rebuild only that category in place.
+  if (activeGroup) {
+    const index = tagsTop.value.findIndex((group) => group.meta.id === activeGroup.meta.id)
+    if (index < 0) return
+    const updated = await buildCategory(activeGroup.meta, activeGroup.limit + 10)
+    const current = tagsTop.value.findIndex((group) => group.meta.id === activeGroup.meta.id)
+    if (updated && current >= 0) {
+      const next = tagsTop.value.slice()
+      next[current] = updated
+      tagsTop.value = next
+    }
+    return
   }
 
+  const seq = ++buildSeq
+  loading.value = !tagsTop.value.length
+  // Fresh page sorts on full rebuild so home tracks the category page.
+  pageSortByMetaId.value = {}
+
   try {
-    const grouped = groupBy(tags.value, 'metaId')
+    const withTags = new Set(tags.value.map((tag) => String(tag.metaId)))
     // Category order always matches the navigation menu.
-    const visibleMetas = sortMetaItems(
+    candidateMetas = sortMetaItems(
       metas.value.filter((meta) => meta.type === 'array' && !meta.hidden),
       META_SORT_MODES.menu,
-    )
-    const metaIds = visibleMetas.map((meta) => Number(meta.id)).filter((id) => id > 0)
-    await loadPageSorts(metaIds)
+    ).filter((meta) => withTags.has(String(meta.id)))
 
-    const groupResults = await Promise.all(visibleMetas.map(async (meta): Promise<TopTagsCategory | null> => {
-      const metaId = String(meta.id)
-      if (!grouped[metaId]?.length) return null
-
-      let limit = props.limit
-      if (activeGroup && activeGroup.meta.id === meta.id) {
-        limit = activeGroup.limit + 10
-      }
-
-      const pageSort = resolveCategorySort(meta)
-      const sorted = await fetchTagsForCategory(
-        meta,
-        grouped[metaId] as TopTagItem[],
-        limit,
-        pageSort,
-      )
-      if (!sorted.length) return null
-
-      const tagsWithImages = await Promise.all(sorted.map(async (tag) => ({
-        ...tag,
-        image: await resolveTagImageUrl(metaId, tag.id),
-      })))
-
-      const total = grouped[metaId].length
-      return {
-        meta: {
-          ...meta,
-          sortBy: pageSort.sortBy,
-          sortDir: pageSort.sortDir,
-        },
-        tags: tagsWithImages,
-        limit,
-        total,
-        isNotAllLoaded: total > limit,
-      } satisfies TopTagsCategory
-    }))
-
-    const groups = groupResults.filter((group): group is TopTagsCategory => group != null)
-
+    // Only the first screenful is fetched; the rest loads on scroll.
+    const groups = await buildCategories(candidateMetas.slice(0, visibleCategoryCount.value))
+    if (seq !== buildSeq) return
     tagsTop.value = groups
-    visibleCategoryCount.value = Math.min(
-      Math.max(visibleCategoryCount.value, INITIAL_VISIBLE_CATEGORIES),
-      groups.length || INITIAL_VISIBLE_CATEGORIES,
-    )
   } finally {
-    loading.value = false
+    if (seq === buildSeq) loading.value = false
   }
 }
 
-function revealMoreCategories(index: number) {
-  if (index < visibleCategoryCount.value - 1) return
-  if (visibleCategoryCount.value >= tagsTop.value.length) return
-  visibleCategoryCount.value = Math.min(
-    tagsTop.value.length,
-    visibleCategoryCount.value + REVEAL_CATEGORY_BATCH,
-  )
+async function revealMoreCategories(index: number) {
+  if (loadingMore || index < tagsTop.value.length - 1) return
+  const loadedIds = new Set(tagsTop.value.map((group) => String(group.meta.id)))
+  const rest = candidateMetas.filter((meta) => !loadedIds.has(String(meta.id)))
+  if (!rest.length) return
+
+  loadingMore = true
+  const seq = buildSeq
+  try {
+    const groups = await buildCategories(rest.slice(0, REVEAL_CATEGORY_BATCH))
+    if (seq !== buildSeq) return
+    visibleCategoryCount.value += REVEAL_CATEGORY_BATCH
+    tagsTop.value = [...tagsTop.value, ...groups]
+  } finally {
+    loadingMore = false
+  }
 }
 
 function openTagPage(meta: Meta, tag: TopTagItem) {
@@ -418,8 +436,15 @@ function openCategoryPage(meta: Meta) {
   router.push(metaPath(meta.id))
 }
 
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+/** Coalesce bursts (tags + meta + thumb keys change together at startup). */
 function refreshTagsTop() {
-  void getTagsTop()
+  if (refreshTimer) clearTimeout(refreshTimer)
+  refreshTimer = setTimeout(() => {
+    refreshTimer = null
+    void getTagsTop()
+  }, 80)
 }
 
 watch(tags, refreshTagsTop)
@@ -435,8 +460,12 @@ watch(sortMode, () => {
   refreshTagsTop()
 })
 
+onBeforeUnmount(() => {
+  if (refreshTimer) clearTimeout(refreshTimer)
+  buildSeq++
+})
+
 onMounted(() => {
-  window.dispatchEvent(new CustomEvent('getTags'))
   refreshTagsTop()
 })
 </script>
