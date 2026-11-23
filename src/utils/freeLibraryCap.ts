@@ -1,7 +1,7 @@
 /** Free-tier library size: registered / grandfathered users have no cap. */
-export const FREE_LIBRARY_CAP = 100
+export const FREE_LIBRARY_CAP = 300
 
-/** Soft warning threshold as a fraction of the free cap (e.g. 0.8 → 80 items). */
+/** Soft warning threshold as a fraction of the free cap (e.g. 0.8 → 240 items). */
 export const FREE_LIBRARY_SOFT_RATIO = 0.8
 
 export const BUY_ACTIVATION_KEY_URL = 'https://mediachips.app/buy/'

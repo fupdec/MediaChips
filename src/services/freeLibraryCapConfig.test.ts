@@ -67,7 +67,7 @@ describe('freeLibraryCapConfig', () => {
     const {settleFreeLibraryCapIfNeeded, isFreeLibraryGrandfathered} = await import(
       './freeLibraryCapConfig'
     )
-    getMediaStats.mockResolvedValue({data: {total: 250}})
+    getMediaStats.mockResolvedValue({data: {total: 350}})
 
     await settleFreeLibraryCapIfNeeded()
 
