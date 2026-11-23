@@ -1,8 +1,21 @@
-import {test, expect} from '@playwright/test'
+import {test, expect, type Locator, type Page} from '@playwright/test'
 import {disableFeatureHints, dismissOnboardingIfVisible, waitForAppShell} from './helpers'
 import type {OriginalJob, OriginalOperation} from '../shared/originalOperations'
 
 const connectionId = '22222222-2222-4222-8222-222222222222'
+
+/**
+ * Vuetify selects ignore a key press that lands while the dialog is re-rendering (for example right
+ * after a job is submitted and the copies reload). Press only while the option list is closed and retry
+ * until it is open, instead of pressing once and waiting out the whole test timeout.
+ */
+async function chooseOption(page: Page, combobox: Locator, option: Locator) {
+  await expect(async () => {
+    if (!await option.isVisible()) await combobox.press('ArrowDown')
+    await expect(option).toBeVisible({timeout: 2_000})
+  }).toPass({timeout: 20_000})
+  await option.click()
+}
 test('transfers to another source with a safe default and explicit source removal mode', async ({page}) => {
   await disableFeatureHints(page)
   const medium = {id: 987659, name: 'Archive movie', basename: 'movie.mp4',
@@ -51,7 +64,7 @@ test('transfers to another source with a safe default and explicit source remova
   const dialog = page.getByRole('dialog', {name: /Manage originals|Управление оригиналами/})
   await dialog.getByRole('button', {name: /^(Choose: Transfer between sources|Выбрать: Между источниками)$/}).click()
   const target = dialog.getByRole('combobox', {name: /Destination source|Источник назначения/})
-  await target.press('ArrowDown'); await page.getByRole('option', {name: 'Google Drive', exact: true}).click()
+  await chooseOption(page, target, page.getByRole('option', {name: 'Google Drive', exact: true}))
   const submit = dialog.getByRole('button', {name: /^(Transfer between sources|Между источниками)$/})
   await expect(dialog.getByRole('textbox', {name: /Destination folder|Папка назначения/})).toHaveValue('root')
   await expect(dialog.getByRole('checkbox')).toHaveCount(0)
@@ -60,7 +73,8 @@ test('transfers to another source with a safe default and explicit source remova
   await expect.poll(() => copiesRequests).toBeGreaterThan(0)
   expect(submissions[0]).toEqual([{kind: 'transfer', mediaId: medium.id, target: {connectionId: 'google-drive', key: 'root', name: 'movie.mp4'}, conflict: 'fail', removeSource: false}])
   const mode = dialog.getByRole('combobox', {name: /After copying|После копирования/})
-  await mode.press('ArrowDown'); await page.getByRole('option', {name: /Delete the source after verification|Удалить исходник после проверки/}).click()
+  await expect(mode).toBeEnabled()
+  await chooseOption(page, mode, page.getByRole('option', {name: /Delete the source after verification|Удалить исходник после проверки/}))
   await expect(submit).toBeDisabled()
   await dialog.getByRole('checkbox').check()
   await expect(submit).toBeEnabled()
