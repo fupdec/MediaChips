@@ -13,6 +13,30 @@ const THUMB_GENERATION_TIMEOUT_MS = 120_000
 /** Reject empty/corrupt stubs left by failed FFmpeg 6 single-image writes. */
 export const MIN_USABLE_VIDEO_THUMB_BYTES = 512
 const inFlight = new Map<string, Promise<string | null>>()
+/**
+ * Thumbs that could not be generated (source missing or offline, ffmpeg failed) are not retried
+ * on every request: a card, the inspector and the copies list each ask for the same file, and each
+ * retry used to touch the disk, run ffmpeg and log. An existing usable file is always served first.
+ */
+export const THUMB_RETRY_AFTER_MS = 60_000
+const recentFailures = new Map<string, number>()
+
+export function clearVideoThumbFailures(): void {
+  recentFailures.clear()
+}
+
+function rememberThumbFailure(outputPath: string): null {
+  recentFailures.set(outputPath, Date.now())
+  return null
+}
+
+function thumbRecentlyFailed(outputPath: string): boolean {
+  const failedAt = recentFailures.get(outputPath)
+  if (failedAt == null) return false
+  if (Date.now() - failedAt < THUMB_RETRY_AFTER_MS) return true
+  recentFailures.delete(outputPath)
+  return false
+}
 
 export type VideoThumbEnsureOptions = {
   /**
@@ -132,7 +156,7 @@ async function generateVideoPreviewThumb(
   }
 
   const media = createMediaRepository(db.drizzle).findById(mediaId)
-  if (!media?.path) return null
+  if (!media?.path) return rememberThumbFailure(outputPath)
 
   if (isRemoteMediaPath(media.path)) {
     const {ensureRemoteVideoThumbnail} = await import('./remoteVideoThumbnail')
@@ -141,7 +165,7 @@ async function generateVideoPreviewThumb(
 
   const videoPath = resolveActiveDbFilePath(media.path, dbPath)
     ?? resolveFilePath(media.path)
-  if (!videoPath || !fs.existsSync(videoPath)) return null
+  if (!videoPath || !fs.existsSync(videoPath)) return rememberThumbFailure(outputPath)
 
   const thumbsDir = path.dirname(outputPath)
   if (!fs.existsSync(thumbsDir)) {
@@ -162,10 +186,12 @@ async function generateVideoPreviewThumb(
     )
   } catch (error) {
     if (isAbortError(error)) return null
+    rememberThumbFailure(outputPath)
     throw error
   }
 
-  if (!isUsableVideoThumbFile(outputPath)) return null
+  if (!isUsableVideoThumbFile(outputPath)) return rememberThumbFailure(outputPath)
+  recentFailures.delete(outputPath)
   await upsertThumbnailVisualHash(db, mediaId).catch(() => { /* Backfill can retry hashing. */ })
   return outputPath
 }
@@ -186,6 +212,9 @@ export async function ensureVideoPreviewThumb(
   if (fs.existsSync(outputPath)) {
     removeUnusableVideoThumbFile(outputPath)
   }
+
+  // Only local generation failures are remembered, so remote thumbnails never take this exit.
+  if (thumbRecentlyFailed(outputPath)) return null
 
   const media = createMediaRepository(db.drizzle).findById(mediaId)
   if (media && isRemoteMediaPath(media.path)) {

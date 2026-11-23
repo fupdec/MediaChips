@@ -46,6 +46,19 @@ const VIEWER_RESIZE_EXTS = new Set([
   '.jpg', '.jpeg', '.png', '.webp', '.tif', '.tiff', '.avif', '.heic', '.heif', '.gif',
 ])
 
+const MISSING_FILE_LOG_INTERVAL_MS = 60_000
+const missingFileLoggedAt = new Map<string, number>()
+
+/** One line per missing file per minute: a card, the inspector and the copies list ask for the same one. */
+export function logMissingFileOnce(filePath: string, now = Date.now()): boolean {
+  const last = missingFileLoggedAt.get(filePath)
+  if (last != null && now - last < MISSING_FILE_LOG_INTERVAL_MS) return false
+  if (missingFileLoggedAt.size > 2000) missingFileLoggedAt.clear()
+  missingFileLoggedAt.set(filePath, now)
+  console.error('File not found:', filePath)
+  return true
+}
+
 function getFileRequestPath(req: ApiRequest): string | null {
   const bodyPath = req.body?.url
   if (typeof bodyPath === 'string' && bodyPath) return bodyPath
@@ -175,7 +188,7 @@ export function registerGetFileRoutes({
       )
 
       if (!resolvedPath) {
-        console.error('File not found:', originalFilePath)
+        logMissingFileOnce(originalFilePath)
         return res.status(404).json({
           error: 'File not found',
           resolved: false,

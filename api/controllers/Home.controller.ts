@@ -5,6 +5,7 @@ import { getHomeMedia } from '../services/homeMedia'
 import { getRandomMarks } from '../services/homeMarkers'
 import { getHomeHealth, getHomeHealthLite } from '../services/homeHealth'
 import { getHomeExtendedStats } from '../services/homeExtendedStats'
+import { createDbTtlCache } from '../services/dbTtlCache'
 import { getHomeNavCounts } from '../services/homeNavCounts'
 import { getHomeChartStats } from '../services/homeChartStats'
 import { getHomeSimilar } from '../services/homeSimilar'
@@ -12,6 +13,11 @@ import { getHomeTagSpotlight } from '../services/homeTagSpotlight'
 import { getCreatedCalendarMonth } from '../services/homeCreatedCalendar'
 import { searchMediaByName, searchTagsByName, searchGlobal, searchGlobalMediaPage } from '../services/globalSearch'
 import { parseClampedLimit, parseOptionalInt } from '../utils/parseRequestNumber'
+
+/** Dashboard blocks that cost 200 ms+ on a big library; a minute of reuse is fine for stats and a random spotlight. */
+const DASHBOARD_CACHE_TTL_MS = 60_000
+const extendedStatsCache = createDbTtlCache(DASHBOARD_CACHE_TTL_MS)
+const tagSpotlightCache = createDbTtlCache(DASHBOARD_CACHE_TTL_MS)
 
 function parseHomeMediaLimit(value: unknown, fallbackWhenMissing: number, max = 24): number {
   if (value === undefined || value === null || value === '') return fallbackWhenMissing
@@ -76,7 +82,7 @@ export default (db: ApiDb) => {
 
   const getExtendedStats = async function (req: ApiRequest, res: ApiResponse) {
     try {
-      const data = await getHomeExtendedStats(db)
+      const data = await extendedStatsCache.get(db, 'stats', () => getHomeExtendedStats(db))
       sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving extended stats.')
@@ -121,9 +127,10 @@ export default (db: ApiDb) => {
       const excludeTagId = excludeRaw == null || excludeRaw === ''
         ? null
         : Number(excludeRaw)
-      const data = getHomeTagSpotlight(db, {
-        excludeTagId: Number.isFinite(excludeTagId) && excludeTagId! > 0 ? excludeTagId : null,
-      })
+      const exclude = Number.isFinite(excludeTagId) && excludeTagId! > 0 ? excludeTagId : null
+      const data = tagSpotlightCache.get(db, `exclude:${exclude ?? 0}`, () => getHomeTagSpotlight(db, {
+        excludeTagId: exclude,
+      }))
       sendOk(res, data)
     } catch (err) {
       sendControllerError(res, err, 'Some error occurred while retrieving tag spotlight.')

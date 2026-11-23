@@ -4,6 +4,7 @@ import { clearMediaListGroupingCache } from './mediaListGroupingCache'
 import { clearMediaListTotalsCache } from './mediaListTotalsCache'
 import { clearHomeNavCountsCache } from './homeNavCounts'
 import { clearHomeSimilarCache } from './homeSimilar'
+import { clearDbTtlCaches } from './dbTtlCache'
 import { terminateFilterItemsWorker } from './filterItemsWorkerRunner'
 
 export function invalidateMediaDerivedCaches(): void {
@@ -13,5 +14,6 @@ export function invalidateMediaDerivedCaches(): void {
   clearInheritedFolderTagsCache()
   clearHomeNavCountsCache()
   clearHomeSimilarCache()
+  clearDbTtlCaches()
   terminateFilterItemsWorker()
 }

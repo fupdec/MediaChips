@@ -13,6 +13,15 @@ import {getLoadedHomeMedia} from '@/composable/useHomeMedia'
 import type {MediaItem} from '@/types/stores'
 
 export const CLOUD_METADATA_SYNC_MS = 5000
+/**
+ * A card whose snapshot comes back without the missing fields (file offline, probe not done yet,
+ * field the file does not have) was asked for again every 5 s for as long as it stayed on screen.
+ * Each unsuccessful attempt now waits longer: 5 s, 10 s, 20 s, then every 30 s, so a result that
+ * finally arrives still shows up quickly while a stuck card costs six times fewer requests.
+ */
+export const CLOUD_METADATA_MAX_RETRY_MS = 30_000
+export const cloudMetadataRetryDelayMs = (tries: number) =>
+  Math.min(CLOUD_METADATA_MAX_RETRY_MS, CLOUD_METADATA_SYNC_MS * 2 ** Math.max(0, tries - 1))
 const BATCH_SIZE = 64
 const numericFields = ['filesize', 'duration', 'width', 'height', 'bitrate', 'fps'] as const
 const textFields = ['codec', 'title', 'artist', 'album'] as const
@@ -39,6 +48,11 @@ function needsMetadata(item: MediaItem, kind: string): boolean {
 export function useCloudMetadataSync(enabled: Ref<boolean>) {
   const app = useAppStore(), items = useItemsStore(), dialogs = useDialogsStore()
   let generation = 0, cursor = 0
+  const attempts = new Map<number, {at: number; tries: number}>()
+  const due = (id: number) => {
+    const attempt = attempts.get(id)
+    return !attempt || Date.now() - attempt.at >= cloudMetadataRetryDelayMs(attempt.tries)
+  }
   const thumbVersions = new Map<number, number>()
   let timer: ReturnType<typeof setInterval> | undefined
   let controller: AbortController | undefined
@@ -55,10 +69,16 @@ export function useCloudMetadataSync(enabled: Ref<boolean>) {
       app.mediaTypes.find(type => Number(type.id) === Number(item.mediaTypeId))?.type || '',
     ))
     const unique = [...new Map(candidates.map(item => [item.id, item])).values()]
+      .filter(item => due(Number(item.id)))
     if (!unique.length) { cursor = 0; return }
     if (cursor >= unique.length) cursor = 0
     const batch = unique.slice(cursor, cursor + BATCH_SIZE)
     cursor = (cursor + BATCH_SIZE) % unique.length
+    const now = Date.now()
+    for (const item of batch) {
+      const id = Number(item.id)
+      attempts.set(id, {at: now, tries: (attempts.get(id)?.tries ?? 0) + 1})
+    }
     const paths = new Map(batch.map(item => [Number(item.id), item.path]))
     const originalValues = new Map(targets().filter(item => paths.get(Number(item.id)) === item.path)
       .map(item => [item, Object.fromEntries(metadataFields.map(field => [field, item[field]]))]))
@@ -99,7 +119,7 @@ export function useCloudMetadataSync(enabled: Ref<boolean>) {
   }
 
   const reset = () => {
-    generation++; cursor = 0; thumbVersions.clear()
+    generation++; cursor = 0; thumbVersions.clear(); attempts.clear()
     controller?.abort(); controller = undefined
     clearInterval(timer); timer = undefined
     if (!enabled.value || !app.dbPath) return

@@ -15,7 +15,11 @@ vi.mock('../utils/ffmpeg', () => ({
   }),
 }))
 
+import {createMediaRepository} from '../db/repositories/media'
 import {
+  clearVideoThumbFailures,
+  ensureVideoPreviewThumb,
+  THUMB_RETRY_AFTER_MS,
   getVideoThumbPath,
   isUsableVideoThumbFile,
   isVideoThumbRequest,
@@ -143,6 +147,42 @@ describe('videoPreviewThumb', () => {
 
       expect(resolved).toBe(videoPath)
       expect(fs.existsSync(videoPath)).toBe(true)
+    })
+  })
+
+  describe('failed generation memory', () => {
+    const dbFor = (dir: string) => ({path: dir, drizzle: {}} as never)
+    const resolve = () => null
+
+    afterEach(() => {
+      vi.useRealTimers()
+      clearVideoThumbFailures()
+    })
+
+    it('does not retry generation on every request, and retries after the wait', async () => {
+      vi.useFakeTimers()
+      clearVideoThumbFailures()
+      const db = dbFor(makeTempDir())
+
+      expect(await ensureVideoPreviewThumb(7, db, resolve)).toBeNull()
+      expect(await ensureVideoPreviewThumb(7, db, resolve)).toBeNull()
+      expect(await ensureVideoPreviewThumb(7, db, resolve)).toBeNull()
+      expect(createMediaRepository).toHaveBeenCalledTimes(2)
+
+      vi.advanceTimersByTime(THUMB_RETRY_AFTER_MS + 1)
+      expect(await ensureVideoPreviewThumb(7, db, resolve)).toBeNull()
+      expect(createMediaRepository).toHaveBeenCalledTimes(4)
+    })
+
+    it('still serves a thumb that appears while a failure is remembered', async () => {
+      clearVideoThumbFailures()
+      const dir = makeTempDir()
+      const db = dbFor(dir)
+      expect(await ensureVideoPreviewThumb(8, db, resolve)).toBeNull()
+
+      const thumb = getVideoThumbPath(dir, 8)
+      writeValidJpegStub(thumb)
+      expect(await ensureVideoPreviewThumb(8, db, resolve)).toBe(thumb)
     })
   })
 })

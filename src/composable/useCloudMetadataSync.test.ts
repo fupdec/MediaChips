@@ -1,7 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {effectScope, reactive, ref, type EffectScope} from 'vue'
 import type {MediaItem} from '@/types/stores'
-import {CLOUD_METADATA_SYNC_MS, useCloudMetadataSync} from './useCloudMetadataSync'
+import {CLOUD_METADATA_SYNC_MS, cloudMetadataRetryDelayMs, useCloudMetadataSync} from './useCloudMetadataSync'
 
 const load = vi.hoisted(() => vi.fn())
 const refreshThumb = vi.hoisted(() => vi.fn())
@@ -86,6 +86,24 @@ describe('live cloud metadata cards', () => {
     start(); await advance(); expect(items.itemsOnPage[0].duration).toBe(0)
     await advance(); expect(items.itemsOnPage[0].duration).toBe(90)
     await advance(); expect(load).toHaveBeenCalledTimes(2)
+  })
+  it('backs off for a card whose snapshot never fills the missing fields', async () => {
+    items.itemsOnPage.push(cloud())
+    load.mockImplementation(async () => ({data: {items: [cloud()]}}))
+    start()
+    for (let i = 0; i < 12; i++) await advance()
+    expect(load).toHaveBeenCalledTimes(4)
+    expect([1, 2, 3, 4, 5].map(cloudMetadataRetryDelayMs)).toEqual([5000, 10_000, 20_000, 30_000, 30_000])
+  })
+  it('starts over after the library changes', async () => {
+    items.itemsOnPage.push(cloud())
+    load.mockImplementation(async () => ({data: {items: [cloud()]}}))
+    start()
+    for (let i = 0; i < 6; i++) await advance()
+    const before = load.mock.calls.length
+    app.dbPath = '/library-b'
+    await advance()
+    expect(load.mock.calls.length).toBe(before + 1)
   })
   it.each(['library', 'server', 'locked', 'disposed'] as const)('ignores delayed snapshots after the %s changes', async change => {
     items.itemsOnPage.push(cloud())
