@@ -334,6 +334,7 @@ function persistEmbeddings(db: ApiDb, mediaId: number, embeddings: ClipEmbedding
     updatedAt: nowIso(),
   })
   db.sqlite.prepare(text).run(...params)
+  invalidateEmbeddingCaches()
 }
 
 async function embedPreviewPath(db: ApiDb, previewPath: string): Promise<ClipEmbeddingVector[]> {
@@ -508,21 +509,80 @@ async function* iterateClipEmbeddingBackfill(
   }
 }
 
+type StoredEmbeddingCandidate = {id: number; embeddings: ClipEmbeddingVector[]}
+type StoredEmbeddingCacheEntry = {
+  rows: Array<StoredEmbeddingCandidate & {mediaTypeId: number | null}>
+  count: number
+  version: number
+  timer: ReturnType<typeof setTimeout>
+}
+
+/** Unpacked embeddings (hundreds of MB on big libraries) are kept only while CLIP search is in use. */
+const EMBEDDING_CACHE_IDLE_MS = Number(process.env.MEDIA_CHIPS_CLIP_CACHE_IDLE_MS) || 5 * 60 * 1000
+/** Strong map is fine: every entry frees itself after the idle timeout. */
+const embeddingCaches = new Map<object, StoredEmbeddingCacheEntry>()
+let embeddingWriteVersion = 0
+
+function dropEmbeddingCache(key: object) {
+  const entry = embeddingCaches.get(key)
+  if (!entry) return
+  clearTimeout(entry.timer)
+  embeddingCaches.delete(key)
+}
+
+function invalidateEmbeddingCaches() {
+  embeddingWriteVersion += 1
+  for (const key of [...embeddingCaches.keys()]) dropEmbeddingCache(key)
+}
+
 function loadStoredEmbeddings(
   db: ApiDb,
   mediaTypeId?: number | null,
   activeVideosOnly = false,
-): Array<{id: number; embeddings: ClipEmbeddingVector[]}> {
-  const typeClause = mediaTypeId != null && Number.isFinite(Number(mediaTypeId)) && Number(mediaTypeId) > 0
-    ? 'AND m.mediaTypeId = :mediaTypeId'
-    : ''
+): StoredEmbeddingCandidate[] {
+  const typeFilter = mediaTypeId != null && Number.isFinite(Number(mediaTypeId)) && Number(mediaTypeId) > 0
+    ? Number(mediaTypeId)
+    : null
+
+  if (activeVideosOnly) return queryStoredEmbeddings(db, typeFilter, true)
+
+  const key = db.sqlite as object
+  const countRow = queryGet<{count: number}>(db, 'SELECT COUNT(*) AS count FROM mediaClipEmbeddings')
+  const count = Number(countRow?.count || 0)
+  let entry = embeddingCaches.get(key)
+  if (entry && (entry.version !== embeddingWriteVersion || entry.count !== count)) {
+    dropEmbeddingCache(key)
+    entry = undefined
+  }
+  if (!entry) {
+    const rows = queryStoredEmbeddings(db, null, false) as StoredEmbeddingCacheEntry['rows']
+    entry = {rows, count, version: embeddingWriteVersion, timer: setTimeout(() => {}, 0)}
+    clearTimeout(entry.timer)
+    embeddingCaches.set(key, entry)
+  }
+
+  // Idle timer: every use pushes the release out; the timer never keeps the process alive.
+  clearTimeout(entry.timer)
+  entry.timer = setTimeout(() => dropEmbeddingCache(key), EMBEDDING_CACHE_IDLE_MS)
+  entry.timer.unref?.()
+
+  return typeFilter == null ? entry.rows : entry.rows.filter((row) => row.mediaTypeId === typeFilter)
+}
+
+function queryStoredEmbeddings(
+  db: ApiDb,
+  mediaTypeId: number | null,
+  activeVideosOnly: boolean,
+): Array<StoredEmbeddingCandidate & {mediaTypeId: number | null}> {
+  const typeClause = mediaTypeId != null ? 'AND m.mediaTypeId = :mediaTypeId' : ''
 
   const rows = queryAll<StoredEmbeddingRow & {mediaTypeId?: number}>(db, `
     SELECT
       e.mediaId AS mediaId,
       e.embedding AS embedding,
       e.dims AS dims,
-      e.model AS model
+      e.model AS model,
+      m.mediaTypeId AS mediaTypeId
     FROM mediaClipEmbeddings e
     INNER JOIN media m ON m.id = e.mediaId
     WHERE e.model = :model
@@ -532,12 +592,13 @@ function loadStoredEmbeddings(
       ${typeClause}
   `, {
     model: CLIP_EMBEDDING_INDEX_KEY,
-    ...(typeClause ? {mediaTypeId: Number(mediaTypeId)} : {}),
+    ...(typeClause ? {mediaTypeId} : {}),
   })
 
   return rows
     .map((row) => ({
       id: Number(row.mediaId),
+      mediaTypeId: row.mediaTypeId == null ? null : Number(row.mediaTypeId),
       embeddings: unpackFloat32Embeddings(row.embedding, Number(row.dims)),
     }))
     .filter((row) => row.id > 0 && row.embeddings.some((embedding) => embedding.length > 0))
