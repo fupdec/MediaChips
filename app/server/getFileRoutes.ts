@@ -47,14 +47,37 @@ const VIEWER_RESIZE_EXTS = new Set([
 ])
 
 const MISSING_FILE_LOG_INTERVAL_MS = 60_000
+/** A library with many missing thumbnails would otherwise print one line per file in a burst. */
+const MISSING_FILE_LOG_BURST_LIMIT = 5
 const missingFileLoggedAt = new Map<string, number>()
+let missingBurstStart = 0
+let missingBurstLogged = 0
+let missingBurstSuppressed = 0
 
-/** One line per missing file per minute: a card, the inspector and the copies list ask for the same one. */
+/**
+ * One line per missing file per minute, and at most a few distinct files per minute overall;
+ * the rest are counted and reported in one summary line when the next minute starts.
+ * Returns true when the file's own line was printed.
+ */
 export function logMissingFileOnce(filePath: string, now = Date.now()): boolean {
   const last = missingFileLoggedAt.get(filePath)
   if (last != null && now - last < MISSING_FILE_LOG_INTERVAL_MS) return false
   if (missingFileLoggedAt.size > 2000) missingFileLoggedAt.clear()
   missingFileLoggedAt.set(filePath, now)
+
+  if (now - missingBurstStart >= MISSING_FILE_LOG_INTERVAL_MS) {
+    if (missingBurstSuppressed > 0) {
+      console.error(`File not found: ${missingBurstSuppressed} more missing files in the last minute (not listed)`)
+    }
+    missingBurstStart = now
+    missingBurstLogged = 0
+    missingBurstSuppressed = 0
+  }
+  if (missingBurstLogged >= MISSING_FILE_LOG_BURST_LIMIT) {
+    missingBurstSuppressed += 1
+    return false
+  }
+  missingBurstLogged += 1
   console.error('File not found:', filePath)
   return true
 }

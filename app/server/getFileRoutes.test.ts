@@ -15,4 +15,15 @@ describe('logMissingFileOnce', () => {
     expect(logMissingFileOnce('/db/media/videos/thumbs/1.jpg', 62_000)).toBe(true)
     expect(spy).toHaveBeenCalledTimes(3)
   })
+
+  it('caps a burst of distinct missing files and reports the rest in one summary line', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const base = 10_000_000
+    for (let i = 0; i < 20; i++) logMissingFileOnce(`/db/meta/17/${i}_avatar.jpg`, base + i)
+    expect(spy).toHaveBeenCalledTimes(5)
+
+    logMissingFileOnce('/db/meta/17/next.jpg', base + 61_000)
+    expect(spy).toHaveBeenCalledTimes(7)
+    expect(String(spy.mock.calls[5][0])).toContain('15 more missing files')
+  })
 })
