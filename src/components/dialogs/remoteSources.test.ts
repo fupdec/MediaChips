@@ -56,6 +56,7 @@ import NasSources from './NasSources.vue'
 import GoogleDriveSource from './GoogleDriveSource.vue'
 import WebVideoImport from './WebVideoImport.vue'
 import {useAppStore} from '@/stores/app'
+import {useDialogsStore} from '@/stores/dialogs'
 import SettingsImportPlex from '@mediachips/plugin-plex/components/SettingsImportPlex.vue'
 import SettingsImportJellyfin from '@mediachips/plugin-jellyfin/components/SettingsImportJellyfin.vue'
 import SettingsImportEmby from '@mediachips/plugin-emby/components/SettingsImportEmby.vue'
@@ -473,5 +474,38 @@ describe('remote source import actions', () => {
       : {id: 81, title: 'Movie.mp4', created: true}})
     await importing
     expect(mocks.parseTags).not.toHaveBeenCalled()
+  })
+})
+
+describe('Pro gate on imports from existing NAS connections', () => {
+  const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString()
+  async function mountWithSelection(config: Record<string, string>) {
+    useAppStore().config = {proAccessSettled: '1', proFeaturesGrandfathered: '0', ...config} as never
+    const source = mountSource(NasSources)
+    await vi.waitFor(() => expect(source.state.selectedId).toBe(connection.id))
+    source.state.selectedPaths = ['/Медиа/file.mp4']
+    return source
+  }
+
+  it('blocks the import and opens the paywall once the trial has ended', async () => {
+    const source = await mountWithSelection({proTrialStartedAt: daysAgo(40)})
+    await source.submit()
+    expect(mocks.post).not.toHaveBeenCalled()
+    expect(useDialogsStore().paywall).toMatchObject({show: true, feature: 'nas_sources'})
+  })
+
+  it('imports normally while the trial is running', async () => {
+    const source = await mountWithSelection({proTrialStartedAt: daysAgo(5)})
+    mocks.post.mockResolvedValue({data: {results: [{ok: true, path: 'file.mp4', id: 1, title: 'file.mp4', created: true}]}})
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledTimes(1)
+    expect(useDialogsStore().paywall.show).toBe(false)
+  })
+
+  it('imports normally for grandfathered installs', async () => {
+    const source = await mountWithSelection({proFeaturesGrandfathered: '1', proTrialStartedAt: ''})
+    mocks.post.mockResolvedValue({data: {results: [{ok: true, path: 'file.mp4', id: 1, title: 'file.mp4', created: true}]}})
+    await source.submit()
+    expect(mocks.post).toHaveBeenCalledTimes(1)
   })
 })
