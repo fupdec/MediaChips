@@ -1561,6 +1561,11 @@ function getMatchedTags(item: GlobalSearchMedia | GlobalSearchTag, isMedia: bool
   return media.matchedTags
 }
 
+/** Matched-tag chips of a result row; empty for tag rows and for media without matched tags. */
+function rowMatchedTags(row: {item: GlobalSearchMedia | GlobalSearchTag; group: {is_media?: boolean}}): MatchedSearchTag[] {
+  return getMatchedTags(row.item, Boolean(row.group.is_media))
+}
+
 function openMatchedTag(tag: MatchedSearchTag) {
   openTag({
     id: tag.id,
@@ -2076,64 +2081,59 @@ function getNameHighlighted(text: string) {
                 ? openMedia(row.item as GlobalSearchMedia, row.group.mediaTypeId)
                 : openTag(row.item as Tag)"
             >
-              <template
-                v-for="matchedTags in [getMatchedTags(row.item, row.group.is_media)]"
-                :key="`${row.id}-matched`"
-              >
-                <v-icon size="14" class="text-medium-emphasis mr-2">
-                  mdi-{{ row.group.is_media ? 'file-outline' : 'tag-outline' }}
-                </v-icon>
+              <v-icon size="14" class="text-medium-emphasis mr-2">
+                mdi-{{ row.group.is_media ? 'file-outline' : 'tag-outline' }}
+              </v-icon>
 
-                <div class="global-search__item-title">
-                  <span v-if="matchedTags.length">{{ row.item.name }}</span>
-                  <span v-else v-html="getNameHighlighted(row.item.name ?? '')"/>
-                  <span
-                    v-if="shouldShowMatchedSynonyms(row.item, row.group.is_media)"
-                    class="global-search__synonyms text-medium-emphasis ml-1"
-                  >
-                    <span class="global-search__synonyms-label">{{ t('globalSearch.viaSynonym') }}</span>
-                    <span v-html="getNameHighlighted(getMatchedSynonymsText(row.item as GlobalSearchTag))"/>
-                  </span>
-                  <span
-                    v-if="shouldShowMatchedBookmark(row.item)"
-                    class="global-search__synonyms text-medium-emphasis ml-1"
-                  >
-                    <span class="global-search__synonyms-label">{{ t('globalSearch.viaBookmark') }}</span>
-                    <span v-html="getNameHighlighted(getMatchedBookmarkText(row.item))"/>
-                  </span>
-                  <span
-                    v-if="shouldShowMatchedContent(row.item)"
-                    class="global-search__synonyms text-medium-emphasis ml-1"
-                  >
-                    <span class="global-search__synonyms-label">{{ t('globalSearch.viaContent') }}</span>
-                    <span v-html="getNameHighlighted(getMatchedContentText(row.item))"/>
-                  </span>
-                </div>
-
-                <div
-                  v-if="matchedTags.length"
-                  class="global-search__matched-tags ml-2"
+              <div class="global-search__item-title">
+                <span v-if="rowMatchedTags(row).length">{{ row.item.name }}</span>
+                <span v-else v-html="getNameHighlighted(row.item.name ?? '')"/>
+                <span
+                  v-if="shouldShowMatchedSynonyms(row.item, row.group.is_media)"
+                  class="global-search__synonyms text-medium-emphasis ml-1"
                 >
-                  <v-chip
-                    size="x-small"
-                    variant="tonal"
-                    color="primary"
-                    prepend-icon="mdi-tag-outline"
-                    class="global-search__matched-tag"
-                    @click.stop="openMatchedTag(matchedTags[0])"
-                  >
-                    <span v-html="getNameHighlighted(getMatchedTagChipLabel(matchedTags[0]))"/>
-                  </v-chip>
-                  <v-chip
-                    v-if="matchedTags.length > 1"
-                    size="x-small"
-                    variant="text"
-                    class="global-search__matched-tag-more px-1"
-                  >
-                    +{{ matchedTags.length - 1 }}
-                  </v-chip>
-                </div>
-              </template>
+                  <span class="global-search__synonyms-label">{{ t('globalSearch.viaSynonym') }}</span>
+                  <span v-html="getNameHighlighted(getMatchedSynonymsText(row.item as GlobalSearchTag))"/>
+                </span>
+                <span
+                  v-if="shouldShowMatchedBookmark(row.item)"
+                  class="global-search__synonyms text-medium-emphasis ml-1"
+                >
+                  <span class="global-search__synonyms-label">{{ t('globalSearch.viaBookmark') }}</span>
+                  <span v-html="getNameHighlighted(getMatchedBookmarkText(row.item))"/>
+                </span>
+                <span
+                  v-if="shouldShowMatchedContent(row.item)"
+                  class="global-search__synonyms text-medium-emphasis ml-1"
+                >
+                  <span class="global-search__synonyms-label">{{ t('globalSearch.viaContent') }}</span>
+                  <span v-html="getNameHighlighted(getMatchedContentText(row.item))"/>
+                </span>
+              </div>
+
+              <div
+                v-if="rowMatchedTags(row).length"
+                class="global-search__matched-tags ml-2"
+              >
+                <v-chip
+                  size="x-small"
+                  variant="tonal"
+                  color="primary"
+                  prepend-icon="mdi-tag-outline"
+                  class="global-search__matched-tag"
+                  @click.stop="openMatchedTag(rowMatchedTags(row)[0])"
+                >
+                  <span v-html="getNameHighlighted(getMatchedTagChipLabel(rowMatchedTags(row)[0]))"/>
+                </v-chip>
+                <v-chip
+                  v-if="rowMatchedTags(row).length > 1"
+                  size="x-small"
+                  variant="text"
+                  class="global-search__matched-tag-more px-1"
+                >
+                  +{{ rowMatchedTags(row).length - 1 }}
+                </v-chip>
+              </div>
             </div>
           </template>
         </v-virtual-scroll>
