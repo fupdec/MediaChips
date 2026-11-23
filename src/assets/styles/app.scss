@@ -1001,7 +1001,7 @@ html.dev-text-selection body * {
       padding-bottom: 0;
     }
 
-    :deep(.v-selection-control) {
+    .v-selection-control {
       min-height: auto;
     }
   }

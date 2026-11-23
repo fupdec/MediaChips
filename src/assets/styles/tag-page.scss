@@ -685,7 +685,7 @@
     overflow: visible;
     padding: 2px 0;
 
-    :deep(.v-chip) {
+    .v-chip {
       margin: 0 !important;
     }
   }

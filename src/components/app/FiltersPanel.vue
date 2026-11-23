@@ -599,11 +599,11 @@ function dragItemKey(filter: FilterObject) {
   transform: scale(0.82);
   transform-origin: left center;
 
-  :deep(.v-selection-control) {
+  .v-selection-control {
     min-height: 28px;
   }
 
-  :deep(.v-switch__thumb) {
+  .v-switch__thumb {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -741,21 +741,21 @@ function dragItemKey(filter: FilterObject) {
     min-width: 220px;
     margin: 0 !important;
 
-    :deep(.v-input__control) {
+    .v-input__control {
       min-width: 0;
     }
 
-    :deep(.v-btn) {
+    .v-btn {
       border-radius: 8px !important;
     }
 
-    :deep(.v-field) {
+    .v-field {
       --v-input-control-height: 32px;
       border-radius: 8px !important;
       font-size: 0.75rem;
     }
 
-    :deep(.v-field__input) {
+    .v-field__input {
       min-height: 32px !important;
       max-height: 32px !important;
       padding-top: 0 !important;
@@ -768,7 +768,7 @@ function dragItemKey(filter: FilterObject) {
       align-items: center;
     }
 
-    :deep(.v-autocomplete__selection) {
+    .v-autocomplete__selection {
       max-width: 100%;
       overflow: hidden;
       white-space: nowrap;
@@ -778,35 +778,35 @@ function dragItemKey(filter: FilterObject) {
       margin-inline-end: 0;
     }
 
-    :deep(.v-autocomplete__selection .v-icon),
-    :deep(.v-autocomplete__selection .mr-1) {
+    .v-autocomplete__selection .v-icon,
+    .v-autocomplete__selection .mr-1 {
       font-size: 14px !important;
       width: 14px;
       height: 14px;
       margin-inline-end: 4px !important;
     }
 
-    :deep(.v-autocomplete__selection .text-body-2) {
+    .v-autocomplete__selection .text-body-2 {
       font-size: 0.75rem !important;
       line-height: 1.2 !important;
     }
 
-    :deep(.v-field__input input) {
+    .v-field__input input {
       min-width: 0 !important;
       font-size: 0.75rem !important;
     }
 
-    :deep(.v-field__append-inner .v-icon) {
+    .v-field__append-inner .v-icon {
       font-size: 16px !important;
     }
 
-    :deep(.v-input__append) {
+    .v-input__append {
       margin-inline-start: 4px !important;
       padding: 0 !important;
       align-self: center;
     }
 
-    :deep(.v-input__append .v-btn) {
+    .v-input__append .v-btn {
       width: 32px !important;
       height: 32px !important;
       min-width: 32px !important;
@@ -814,12 +814,12 @@ function dragItemKey(filter: FilterObject) {
       padding: 0 !important;
     }
 
-    :deep(.v-input__append .v-btn .v-icon) {
+    .v-input__append .v-btn .v-icon {
       margin: 0 !important;
       font-size: 16px !important;
     }
 
-    :deep(.v-label) {
+    .v-label {
       font-size: 0.6875rem;
     }
   }
