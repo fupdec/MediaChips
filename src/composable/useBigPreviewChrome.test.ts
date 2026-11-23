@@ -1,6 +1,16 @@
-import {describe, expect, it, vi, beforeEach, afterEach} from 'vitest'
+import {describe, expect, it, vi, beforeAll, afterAll, beforeEach, afterEach} from 'vitest'
 import {effectScope, nextTick, ref} from 'vue'
 import {BIG_PREVIEW_CHROME_IDLE_MS, useBigPreviewChromeIdle} from './useBigPreviewChrome'
+
+// The composable registers lifecycle hooks, but these tests call it outside a component on purpose.
+const nativeWarn = console.warn.bind(console)
+beforeAll(() => {
+  vi.spyOn(console, 'warn').mockImplementation((...args: unknown[]) => {
+    if (String(args[0]).includes('no active component instance')) return
+    nativeWarn(...args)
+  })
+})
+afterAll(() => vi.restoreAllMocks())
 
 function withChromeIdle(ready: ReturnType<typeof ref<boolean>>) {
   const scope = effectScope()

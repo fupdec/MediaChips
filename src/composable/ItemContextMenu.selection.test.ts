@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   items: {} as any,
   app: {} as any,
   dialogs: {confirm: {} as any, openMediaMerge: vi.fn()},
-  update: vi.fn(), close: vi.fn(), remove: vi.fn(), notify: vi.fn(), deleteOne: vi.fn(), deleteMany: vi.fn(), startJob: vi.fn(), stopJob: vi.fn(), resumeJob: vi.fn(), basics: vi.fn(),
+  update: vi.fn(), close: vi.fn(), remove: vi.fn(), notify: vi.fn(), deleteOne: vi.fn(), deleteMany: vi.fn(), startJob: vi.fn(), stopJob: vi.fn(), resumeJob: vi.fn(), basics: vi.fn(), stats: vi.fn(),
 }))
 vi.mock('@/stores/items', () => ({useItemsStore: () => mocks.items}))
 vi.mock('@/stores/app', () => ({useAppStore: () => mocks.app}))
@@ -28,11 +28,12 @@ vi.mock('@mediachips/plugin-adult/composables/useAutoScrapeBatch', () => ({useAu
 vi.mock('@mediachips/plugin-adult/composables/useAutoSceneScrapeBatch', () => ({useAutoSceneScrapeBatch: () => ({})}))
 vi.mock('@mediachips/plugin-tmdb/composables/useTmdbPersonAutoScrapeBatch', () => ({useTmdbPersonAutoScrapeBatch: () => ({})}))
 vi.mock('@/services/typedApi', () => ({typedApi: {
-  deleteEntityOne: mocks.deleteOne, deleteMediaMany: mocks.deleteMany, startMediaDeleteJob: mocks.startJob, stopMediaDeleteJob: mocks.stopJob, resumeMediaDeleteJob: mocks.resumeJob, getMediaDeleteJob: vi.fn(), getMediaBasics: mocks.basics,
+  deleteEntityOne: mocks.deleteOne, deleteMediaMany: mocks.deleteMany, startMediaDeleteJob: mocks.startJob, stopMediaDeleteJob: mocks.stopJob, resumeMediaDeleteJob: mocks.resumeJob, getMediaDeleteJob: vi.fn(), getMediaBasics: mocks.basics, getMediaSelectionStats: mocks.stats,
 }}))
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.stats.mockResolvedValue({data: {count: 0, filesize: 0, missing: 0, unknownSize: 0}})
   mocks.dialogs.confirm = {}
   mocks.app = {tags: [], playlists: [], mediaTypes: []}
   mocks.items = {isSelect: true, selection: [1, 2], entities: [], environment: {}}

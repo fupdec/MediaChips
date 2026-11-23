@@ -1,4 +1,4 @@
-import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {createServer} from 'node:http'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -8,6 +8,16 @@ import type {BuiltinRoutesOptions} from '../types/builtinRoutes'
 import {createExpressApp} from './createApp'
 import {registerBuiltinRoutes} from './builtinRoutes'
 import {createAuthMiddleware} from './auth'
+
+// The routes sync media paths after moves; there is no database in these tests.
+vi.mock('../../api/db/repositories/media', () => ({
+  createMediaRepository: () => ({
+    findByPaths: () => [],
+    findIdAndPathByLikePatterns: () => [],
+    updateById: () => undefined,
+    findById: () => undefined,
+  }),
+}))
 
 type TestServer = {
   baseUrl: string

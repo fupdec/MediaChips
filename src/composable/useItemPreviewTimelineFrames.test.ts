@@ -1,5 +1,15 @@
-import {describe, expect, it, vi} from 'vitest'
+import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest'
 import {nextTick, ref} from 'vue'
+
+// The composable registers lifecycle hooks, but these tests call it outside a component on purpose.
+const nativeWarn = console.warn.bind(console)
+beforeAll(() => {
+  vi.spyOn(console, 'warn').mockImplementation((...args: unknown[]) => {
+    if (String(args[0]).includes('no active component instance')) return
+    nativeWarn(...args)
+  })
+})
+afterAll(() => vi.restoreAllMocks())
 
 vi.mock('@/utils/thumbSource', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/utils/thumbSource')>()
