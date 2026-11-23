@@ -280,14 +280,14 @@ export const CheckFilesPayloadSchema = z.object({
 
 export const AddMediaRequestSchema = z.object({
   path: z.string().min(1),
-  type: z.union([z.string(), z.number(), z.record(z.unknown())]).optional(),
+  type: z.union([z.string(), z.number(), z.record(z.string(), z.unknown())]).optional(),
   is_check_duplicates: z.boolean().optional(),
 }).passthrough()
 
 /** Thin-row bulk import (skip probe/thumbs). Provide `files` and/or `roots`. */
 export const AddMediaBulkRequestSchema = z.object({
   mode: z.literal('lite').optional().default('lite'),
-  type: z.union([z.string(), z.number(), z.record(z.unknown())]),
+  type: z.union([z.string(), z.number(), z.record(z.string(), z.unknown())]),
   files: z.array(z.string().min(1)).max(5000).optional(),
   roots: z.array(z.string().min(1)).max(200).optional(),
   excluded: z.array(z.string()).optional(),
@@ -302,7 +302,7 @@ export const ParsePathTagsRequestSchema = z.object({
     path: z.string().optional(),
     mediaId: z.number(),
   }).passthrough()).optional().default([]),
-  settings: z.record(z.unknown()).optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
 }).passthrough()
 
 export const ApplyParseLibraryTagsRequestSchema = z.object({
@@ -487,7 +487,7 @@ export const SuggestTagsRequestSchema = z.object({
   limit: z.coerce.number().optional(),
   maxWords: z.coerce.number().optional(),
   excludeExisting: optionalCoercedBoolean,
-  settings: z.record(z.unknown()).optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
   mediaTypeId: z.coerce.number().optional(),
   mediaLimit: z.coerce.number().optional(),
   locale: z.string().optional(),

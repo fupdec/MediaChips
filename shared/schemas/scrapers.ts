@@ -76,7 +76,7 @@ export const CamGirlFinderSearchResponseSchema = z.object({
     fullImage: z.string().optional(),
     faceImage: z.string().optional(),
   }).passthrough().optional(),
-  data: z.array(z.record(z.unknown())).default([]),
+  data: z.array(z.record(z.string(), z.unknown())).default([]),
 }).passthrough()
 
 export const TmdbStatusSchema = z.object({
@@ -112,5 +112,5 @@ export const TmdbPersonSearchResponseSchema = z.object({
 }).passthrough()
 
 export const TmdbExtrasResponseSchema = z.object({
-  extras: z.record(z.unknown()).optional(),
+  extras: z.record(z.string(), z.unknown()).optional(),
 }).passthrough()

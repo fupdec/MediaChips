@@ -17,7 +17,7 @@ const FormatSchema = z.object({
   url: z.string(), ext: z.string().optional(), protocol: z.string().optional(),
   height: z.number().nullable().optional(), width: z.number().nullable().optional(),
   vcodec: z.string().nullable().optional(), acodec: z.string().nullable().optional(),
-  http_headers: z.record(z.string()).optional(),
+  http_headers: z.record(z.string(), z.string()).optional(),
   manifest_url: z.string().optional(),
   has_drm: z.boolean().nullable().optional(),
 })
@@ -25,7 +25,7 @@ const ExtractionSchema = z.object({
   thumbnail: z.string().nullish(),
   thumbnails: z.array(z.object({url: z.string()})).optional(),
   title: z.string(), duration: z.number().nullable().optional(),
-  formats: z.array(FormatSchema), http_headers: z.record(z.string()).optional(),
+  formats: z.array(FormatSchema), http_headers: z.record(z.string(), z.string()).optional(),
   _type: z.string().optional(),
 })
 const ExtractionEnvelopeSchema = z.object({

@@ -4438,6 +4438,9 @@ const pt = {
     paywall_feature_subtitle: '{feature} está incluído na chave vitalícia.',
     paywall_trial_left: 'Teste gratuito: restam {days} dias',
     paywall_trial_ended: 'Seu teste gratuito de 30 dias terminou.',
+    trial_label: 'Teste gratuito',
+    trial_days_left: 'restam {days} dias',
+    appbar_trial: 'Teste: {days} d',
     paywall_benefit_pro: 'Recursos Pro: fontes na nuvem e de rede, busca com IA, rostos, assistente, mesclagem automática, várias bibliotecas',
     pro_feature: {
       cloud_sources: 'Fontes na nuvem',

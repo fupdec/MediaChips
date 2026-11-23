@@ -4,7 +4,7 @@ import {parseDriveMediaPath} from '../../shared/cloudDrive'
 import {sourceOperationLocks} from './mediaSources/operationLocks'
 import {loadSimilarityItems, readDuplicatePolicy} from './duplicateSimilarity'
 import {compareSimilarity} from '../../shared/duplicateSimilarity'
-import {openCopySource, fingerprintCopy, TRUSTED_COPY_VERSION} from './mediaSources/copies'
+import {openCopySource, fingerprintCopy, canonicalPath, TRUSTED_COPY_VERSION} from './mediaSources/copies'
 import type {SourceWriteAdapter} from './mediaSources/adapter'
 import {verifyCopiesForMerge, remapVerifiedCopies} from './mediaSources/copies'
 import {pinSourceDb} from './mediaSources/context'
@@ -318,7 +318,7 @@ async function mergeMediaItemsTimed(
     const rows = loadSimilarityItems(db, null, [survivorId, ...sourceIds])
     // Use freshly read file evidence, not possibly stale database fingerprints.
     for (const row of rows) {
-      const copy = verification.copies.find(copy => copy.path === row.path)
+      const copy = verification.copies.find(copy => copy.path === canonicalPath(row.path))
       if (!copy) throw new MediaMergeError('copy_not_found')
       row.filesize = copy.size
       row.oshash = copy.oshash
@@ -331,7 +331,7 @@ async function mergeMediaItemsTimed(
   }
   lap('similarity')
   const primary = db.drizzle.select().from(media).where(eq(media.id, survivorId)).get()
-  const primaryCopy = verification.copies.find(copy => copy.path === primary?.path)
+  const primaryCopy = verification.copies.find(copy => copy.path === (primary && canonicalPath(primary.path)))
   if (!primaryCopy) throw new MediaMergeError('copy_not_found')
   const sameContent = (copy: typeof primaryCopy) => copy.size === primaryCopy.size && (
     copy.sha256 && primaryCopy.sha256 ? copy.sha256 === primaryCopy.sha256 : Boolean(copy.oshash && copy.oshash === primaryCopy.oshash))
@@ -380,7 +380,7 @@ async function mergeMediaItemsTimed(
   let primarySha256: Promise<string> | undefined
   const fullSha256 = async (path: string) => (await fingerprintCopy(db, path, 'sha256', signal, pinned.assertCurrent, openCopySource)).sha256
   for (const row of losers.filter(row => deleteIds.includes(row.id))) {
-    const copy = verification.copies.find(copy => copy.path === row.path)
+    const copy = verification.copies.find(copy => copy.path === canonicalPath(row.path))
     if (!copy || copy.path === primaryCopy.path || copy.availability === 'unavailable') continue
     if (copy.relationship === 'copy') {
       try {

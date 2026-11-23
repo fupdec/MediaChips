@@ -394,6 +394,17 @@ function mergeErrorText(err: unknown): string {
   const raw = data?.code || data?.message || (err instanceof Error ? err.message : String(err))
   return te(`copies.errors.${raw}`) ? t(`copies.errors.${raw}`) : raw
 }
+/** Per-group failures usually share one cause (e.g. a disconnected drive) but each names its own file; fold them into one line per cause with a count. */
+function summarizeMergeErrors(reasons: string[]): string[] {
+  const counts = new Map<string, number>()
+  for (const reason of reasons) {
+    // Node fs errors end with ", lstat '<path>'"; the path differs per group and only bloats the message.
+    const cause = reason.replace(/,\s*[a-z]+\s+'.*$/s, '').trim().slice(0, 200)
+    counts.set(cause, (counts.get(cause) ?? 0) + 1)
+  }
+  const lines = [...counts].map(([cause, count]) => (count > 1 ? `${cause} (×${count})` : cause))
+  return lines.length > 3 ? [...lines.slice(0, 3), '…'] : lines
+}
 const dialogsStore = useDialogsStore()
 const proGate = useProFeatureGate()
 const itemsStore = useItemsStore()
@@ -810,7 +821,7 @@ async function mergeAllSuggested(automatic = false) {
     error.value = ''
     let merged = 0
     let failed = 0
-    const reasons = new Set<string>()
+    const reasons: string[] = []
     try {
       const results: MergeResult[] = []
       let mergedKeys: string[] = []
@@ -836,7 +847,7 @@ async function mergeAllSuggested(automatic = false) {
         onFailure: (_group, err) => {
           console.error(err)
           failed += 1
-          reasons.add(mergeErrorText(err))
+          reasons.push(mergeErrorText(err))
           finished()
         },
       })
@@ -849,13 +860,13 @@ async function mergeAllSuggested(automatic = false) {
           ? t('media.dialogs.duplicate_review_bulk_failed')
           : t('media.dialogs.duplicate_review_bulk_done', {count: merged}),
         text: failed
-          ? [t('media.dialogs.duplicate_review_bulk_done', {count: merged}), ...reasons].join('\n')
+          ? [t('media.dialogs.duplicate_review_bulk_done', {count: merged}), ...summarizeMergeErrors(reasons)].join('\n')
           : undefined,
       })
       // Failed groups may have changed on the server; only then is a fresh search worth its time.
       if (failed) await reload()
       if (failed) {
-        error.value = [t('media.dialogs.duplicate_review_bulk_failed'), ...reasons].join(': ')
+        error.value = [t('media.dialogs.duplicate_review_bulk_failed'), ...summarizeMergeErrors(reasons)].join(': ')
       }
     } finally {
       merging.value = false

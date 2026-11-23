@@ -4438,6 +4438,9 @@ const de = {
     paywall_feature_subtitle: '{feature} ist im Lifetime-Schlüssel enthalten.',
     paywall_trial_left: 'Kostenlose Testphase: noch {days} Tage',
     paywall_trial_ended: 'Ihre 30-tägige kostenlose Testphase ist abgelaufen.',
+    trial_label: 'Kostenlose Testphase',
+    trial_days_left: 'noch {days} Tage',
+    appbar_trial: 'Test: {days} T.',
     paywall_benefit_pro: 'Pro-Funktionen: Cloud- und Netzwerkquellen, KI-Suche, Gesichter, Assistent, automatisches Zusammenführen, mehrere Bibliotheken',
     pro_feature: {
       cloud_sources: 'Cloud-Quellen',

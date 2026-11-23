@@ -4438,6 +4438,9 @@ const fr = {
     paywall_feature_subtitle: '{feature} est incluse avec la clé à vie.',
     paywall_trial_left: 'Essai gratuit : {days} jours restants',
     paywall_trial_ended: 'Votre essai gratuit de 30 jours est terminé.',
+    trial_label: 'Essai gratuit',
+    trial_days_left: '{days} jours restants',
+    appbar_trial: 'Essai : {days} j',
     paywall_benefit_pro: 'Fonctions Pro : sources cloud et réseau, recherche IA, visages, assistant, fusion automatique, plusieurs bibliothèques',
     pro_feature: {
       cloud_sources: 'Sources cloud',

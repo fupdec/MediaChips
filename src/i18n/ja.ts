@@ -4438,6 +4438,9 @@ const ja = {
     paywall_feature_subtitle: '{feature}は永久キーに含まれています。',
     paywall_trial_left: '無料トライアル：残り {days} 日',
     paywall_trial_ended: '30日間の無料トライアルは終了しました。',
+    trial_label: '無料トライアル',
+    trial_days_left: '残り {days} 日',
+    appbar_trial: 'トライアル：{days}日',
     paywall_benefit_pro: 'Pro 機能：クラウド・ネットワークソース、AI 検索、顔認識、アシスタント、重複の自動統合、複数ライブラリ',
     pro_feature: {
       cloud_sources: 'クラウドソース',

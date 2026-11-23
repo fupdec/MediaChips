@@ -4438,6 +4438,9 @@ const es = {
     paywall_feature_subtitle: '{feature} está incluida en la clave de por vida.',
     paywall_trial_left: 'Prueba gratuita: quedan {days} días',
     paywall_trial_ended: 'Tu prueba gratuita de 30 días ha terminado.',
+    trial_label: 'Prueba gratuita',
+    trial_days_left: 'quedan {days} días',
+    appbar_trial: 'Prueba: {days} d',
     paywall_benefit_pro: 'Funciones Pro: fuentes en la nube y de red, búsqueda con IA, rostros, asistente, fusión automática, varias bibliotecas',
     pro_feature: {
       cloud_sources: 'Fuentes en la nube',

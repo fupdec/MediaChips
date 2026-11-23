@@ -5076,6 +5076,9 @@ const ru = {
     paywall_feature_subtitle: '{feature} входит в ключ навсегда.',
     paywall_trial_left: 'Пробный период: осталось дней — {days}',
     paywall_trial_ended: '30-дневный пробный период закончился.',
+    trial_label: 'Пробный период',
+    trial_days_left: 'осталось дней: {days}',
+    appbar_trial: 'Триал: {days} дн.',
     paywall_benefit_pro: 'Функции Pro: облачные и сетевые источники, ИИ-поиск, лица, ассистент, автослияние дубликатов, несколько библиотек',
     pro_feature: {
       cloud_sources: 'Облачные источники',

@@ -38,6 +38,12 @@
           </v-chip>
         </td>
       </tr>
+      <tr v-if="!reg && trialDaysLeft != null">
+        <td>{{ t('registration.trial_label') }}</td>
+        <td>
+          <b>{{ trialDaysLeft > 0 ? t('registration.trial_days_left', {days: trialDaysLeft}) : t('registration.paywall_trial_ended') }}</b>
+        </td>
+      </tr>
       <tr v-if="savedLicenseCode">
         <td>{{ t('registration.activation_key') }}</td>
         <td><b>{{ savedLicenseCode }}</b></td>
@@ -357,6 +363,7 @@ import {ref, computed, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRegistrationStore, isAlreadyInactiveOnServerMessage} from '@/stores/registration'
 import {useNotificationsStore} from '@/stores/notifications'
+import {useProFeatureGate} from '@/composable/useProFeatureGate'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {isMsStoreBuild} from '@/utils/sfwBuild'
@@ -377,6 +384,7 @@ interface LicenseActionResponse {
 
 // Инициализация хранилищ
 const registrationStore = useRegistrationStore()
+const {trialDaysLeft} = useProFeatureGate()
 const notificationsStore = useNotificationsStore()
 const {t} = useI18n()
 const isStoreChannel = isMsStoreBuild()

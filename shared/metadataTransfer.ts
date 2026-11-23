@@ -7,7 +7,7 @@ const id = z.number().int().positive().safe()
 const scalar = z.union([z.string(), z.number().finite(), z.boolean(), z.null()])
 export type MetadataScalar = z.infer<typeof scalar>
 // Column names and column types are additionally checked against the server's schema.
-const row = z.record(scalar).and(z.object({id}))
+const row = z.record(z.string(), scalar).and(z.object({id}))
 const value = z.object({metaId: id, value: scalar, rawValue: z.string().nullable()}).strict()
 const rows = <T extends z.ZodTypeAny>(schema: T) => z.array(schema).max(100_000)
 export const MetadataBundleSchema = z.object({
@@ -42,7 +42,7 @@ export const MetadataSelectionSchema = z.object({mediaIds: z.array(id).min(1).ma
 export const MetadataImportSchema = z.object({
   bundle: MetadataBundleSchema,
   token: z.string().length(64),
-  resolutions: z.record(z.enum(['keep', 'replace'])),
+  resolutions: z.record(z.string(), z.enum(['keep', 'replace'])),
 }).strict()
 
 /** Preserve original SQLite spelling as well as native JSON numbers/booleans. */

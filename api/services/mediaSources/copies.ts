@@ -35,7 +35,8 @@ export const openCopySource: OpenCopySource = async (db, path, signal) => {
   return {adapter: createLocalOriginalAdapter(), key: localOriginalKey(path)}
 }
 const provider = (path: string): MediaCopy['provider'] => parseCloudMediaPath(path)?.provider || (parseNasMediaPath(path) ? 'nas' : parseDriveMediaPath(path) ? 'gdrive' : 'local')
-const canonicalPath = (path: string) => {
+/** NAS card paths carry a `?v=` revision; copies are keyed without it. */
+export const canonicalPath = (path: string) => {
   const nas = parseNasMediaPath(path)
   return nas ? nasMediaPath(nas.connectionId, nas.relativePath) : path
 }

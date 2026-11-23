@@ -106,7 +106,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     return {resourceKey, ext, kind}
   }
   const storeFile = async (db: ApiDb, connectionId: string, input: string, file: NasFile,
-    assertCurrent: () => void, signal: AbortSignal) => {
+    assertCurrent: () => void, signal: AbortSignal, session?: SourceReadAdapter) => {
     const {resourceKey, ext, kind} = importPath(input)
     if (file.isDirectory || !Number.isSafeInteger(file.size) || file.size <= 0) throw new NasError('invalid_file', 'Select a non-empty media file.')
     const repo = createMediaRepository(db.drizzle)
@@ -130,8 +130,13 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
       const row = connectionRow(db, connectionId)
       const config = NasConnectionSchema.parse(JSON.parse(row.config))
       const credentials = secrets.get(row.credentialRef)
+      // An SFTP session serves several bounded reads. Opening a fresh SSH login per sample costs a full
+      // handshake each (seconds over WAN) and trips connection throttling on routers. FTP ends its
+      // session after a bounded read, so it keeps fresh sessions.
+      const reusable = session && config.protocol !== 'ftp' && config.protocol !== 'ftps'
+        ? {...session, close() { /* The batch owns this session. */ }} as SourceReadAdapter : undefined
       const sampled = await computeSourceOshash(async sampleSignal => {
-        return createNasSourceAdapter(await connect(config, credentials, sampleSignal))
+        return reusable ?? createNasSourceAdapter(await connect(config, credentials, sampleSignal))
       }, resourceKey, {
         signal, assertCurrent,
         validate(current) {
@@ -230,7 +235,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
       const result = await withTransport(db, connectionId, async (transport, assertCurrent, signal) => {
         const file = await transport.stat(resourceKey, signal)
         assertCurrent()
-        return storeFile(db, connectionId, resourceKey, file, assertCurrent, signal)
+        return storeFile(db, connectionId, resourceKey, file, assertCurrent, signal, transport)
       })
       invalidateMediaDerivedCaches()
       return result
@@ -246,7 +251,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
               const {resourceKey} = importPath(input)
               const file = await transport.stat(resourceKey, importSignal)
               assertCurrent()
-              results.push({path: input, ok: true, ...await storeFile(db, connectionId, resourceKey, file, assertCurrent, importSignal)})
+              results.push({path: input, ok: true, ...await storeFile(db, connectionId, resourceKey, file, assertCurrent, importSignal, transport)})
             } catch (err) {
               assertCurrent()
               const error = normalizeNasError(err)

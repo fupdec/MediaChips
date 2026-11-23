@@ -5076,6 +5076,9 @@ const en = {
     paywall_feature_subtitle: '{feature} is included with a lifetime key.',
     paywall_trial_left: 'Free trial: {days} days left',
     paywall_trial_ended: 'Your 30-day free trial has ended.',
+    trial_label: 'Free trial',
+    trial_days_left: '{days} days left',
+    appbar_trial: 'Trial: {days} d',
     paywall_benefit_pro: 'Pro features: cloud and network sources, AI search, faces, assistant, auto-merge, multiple libraries',
     pro_feature: {
       cloud_sources: 'Cloud sources',

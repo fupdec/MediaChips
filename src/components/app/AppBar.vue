@@ -144,6 +144,15 @@
 
       <!-- RIGHT AREA -->
       <div v-show="!itemsStore.isSelect" class="d-flex align-center">
+        <v-chip v-if="showTrialChip"
+          class="mr-1"
+          size="small"
+          color="primary"
+          variant="tonal"
+          label
+          @click="openRegistrationPaywall">
+          {{ t('registration.appbar_trial', {days: trialDaysLeft}) }}
+        </v-chip>
         <v-tooltip v-if="showFreeLibraryLock"
           location="bottom">
           <template v-slot:activator="{ props: activatorProps }">
@@ -195,6 +204,7 @@ import {useRegistrationStore} from '@/stores/registration'
 import {useAppShell} from '@/composable/appShell'
 import {useSettingsStore} from '@/stores/settings'
 import {useFreeLibraryGate} from '@/composable/useFreeLibraryGate'
+import {useProFeatureGate} from '@/composable/useProFeatureGate'
 import {FREE_LIBRARY_CAP} from '@/utils/freeLibraryCap'
 import {useI18n} from 'vue-i18n'
 import {useItemsPageCommands} from '@/composable/itemsPageCommands'
@@ -261,6 +271,10 @@ const {
 } = useFreeLibraryGate()
 
 const showFreeLibraryLock = computed(() => !reg.value && !grandfathered.value)
+
+const {trialDaysLeft} = useProFeatureGate()
+// Visible reminder while a new install is in its 30-day trial.
+const showTrialChip = computed(() => !reg.value && (trialDaysLeft.value ?? 0) > 0)
 
 const lockTooltip = computed(() => {
   if (atCap.value) {

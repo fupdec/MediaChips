@@ -31,7 +31,7 @@ export const LocalAiChatRequestSchema = z.object({
   messages: z.array(LocalAiChatMessageSchema).optional(),
   context: z.unknown().optional(),
   system: z.string().optional(),
-  toolCall: z.record(z.unknown()).optional(),
+  toolCall: z.record(z.string(), z.unknown()).optional(),
   confirmTool: z.boolean().optional(),
 }).passthrough()
 
