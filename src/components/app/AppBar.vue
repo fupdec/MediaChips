@@ -147,7 +147,7 @@
         <v-chip v-if="showTrialChip"
           class="mr-1"
           size="small"
-          color="primary"
+          :color="(trialDaysLeft ?? 0) <= TRIAL_CHIP_URGENT_DAYS ? 'warning' : 'primary'"
           variant="tonal"
           label
           @click="openRegistrationPaywall">
@@ -273,8 +273,10 @@ const {
 const showFreeLibraryLock = computed(() => !reg.value && !grandfathered.value)
 
 const {trialDaysLeft} = useProFeatureGate()
-// Visible reminder while a new install is in its 30-day trial.
-const showTrialChip = computed(() => !reg.value && (trialDaysLeft.value ?? 0) > 0)
+// Reminder only near the end of the 30-day trial; earlier it is just noise.
+const TRIAL_CHIP_DAYS = 7
+const TRIAL_CHIP_URGENT_DAYS = 3
+const showTrialChip = computed(() => !reg.value && (trialDaysLeft.value ?? 0) > 0 && (trialDaysLeft.value ?? 0) <= TRIAL_CHIP_DAYS)
 
 const lockTooltip = computed(() => {
   if (atCap.value) {

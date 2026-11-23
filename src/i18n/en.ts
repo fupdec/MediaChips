@@ -136,6 +136,8 @@ const en = {
     auto_failed: 'Automatic merge failed: {reason}',
   },
   duplicateSimilarity: {
+    "autoMergeLockedTitle": "Automatic merging is locked",
+    "autoMergeLockedText": "Automatic duplicate merging is a Pro feature, so matches were left for manual review. Click to learn more.",
     "reliabilityTitle": "Verification and auto-discovery",
     "sectionHint": "Find copies and similar versions, then choose which files to keep.",
     "searchSimilarVideos": "Also find versions of a video in different quality",

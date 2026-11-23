@@ -4590,6 +4590,8 @@ const de = {
     auto_failed: 'Automatisches Zusammenführen fehlgeschlagen: {reason}',
   },
   duplicateSimilarity: {
+    "autoMergeLockedTitle": "Automatisches Zusammenführen gesperrt",
+    "autoMergeLockedText": "Das automatische Zusammenführen von Duplikaten ist eine Pro-Funktion, daher bleiben die Treffer zur manuellen Prüfung. Klicken Sie für Details.",
     reliabilityTitle: "Prüfung und automatische Suche",
     sectionHint: "Finden Sie Kopien und ähnliche Versionen und wählen Sie, welche Dateien Sie behalten möchten.",
     searchSimilarVideos: "Auch Versionen eines Videos in anderer Qualität finden",

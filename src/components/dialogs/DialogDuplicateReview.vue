@@ -407,6 +407,18 @@ function summarizeMergeErrors(reasons: string[]): string[] {
 }
 const dialogsStore = useDialogsStore()
 const proGate = useProFeatureGate()
+let autoMergeLockedNoticeShown = false
+/** Auto-merge is on but locked; say so once per session instead of silently leaving every match for review. */
+function notifyAutoMergeLocked() {
+  if (autoMergeLockedNoticeShown) return
+  autoMergeLockedNoticeShown = true
+  notificationsStore.setNotification({
+    type: 'info',
+    title: t('duplicateSimilarity.autoMergeLockedTitle'),
+    text: t('duplicateSimilarity.autoMergeLockedText'),
+    click: () => dialogsStore.openPaywall('duplicate_automerge'),
+  })
+}
 const itemsStore = useItemsStore()
 const appStore = useAppStore()
 const notificationsStore = useNotificationsStore()
@@ -1054,7 +1066,10 @@ async function reload(automatic = false) {
   // Auto-merge belongs to library-wide maintenance runs, not to cards opened from their context menu.
   const singleCard = dialogsStore.duplicateReview.targetMediaId != null
     || dialogsStore.duplicateReview.targetMediaIds != null
-  if (automatic && !singleCard && isSimilarity.value && policy.value.autoMerge && policy.value.files === 'keep' && proGate.hasPro.value) await mergeAllSuggested(true)
+  if (automatic && !singleCard && isSimilarity.value && policy.value.autoMerge && policy.value.files === 'keep') {
+    if (proGate.hasPro.value) await mergeAllSuggested(true)
+    else notifyAutoMergeLocked()
+  }
 }
 
 watch(

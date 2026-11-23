@@ -4590,6 +4590,8 @@ const fr = {
     auto_failed: 'Échec de la fusion automatique : {reason}',
   },
   duplicateSimilarity: {
+    "autoMergeLockedTitle": "Fusion automatique verrouillée",
+    "autoMergeLockedText": "La fusion automatique des doublons est une fonction Pro ; les correspondances sont laissées à la vérification manuelle. Cliquez pour en savoir plus.",
     reliabilityTitle: "Vérification et détection automatique",
     sectionHint: "Trouvez des copies et des versions similaires, puis choisissez les fichiers à conserver.",
     searchSimilarVideos: "Rechercher aussi les versions d’une vidéo de qualité différente",

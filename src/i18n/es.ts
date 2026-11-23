@@ -4590,6 +4590,8 @@ const es = {
     auto_failed: 'La fusión automática falló: {reason}',
   },
   duplicateSimilarity: {
+    "autoMergeLockedTitle": "Fusión automática bloqueada",
+    "autoMergeLockedText": "La fusión automática de duplicados es una función Pro, por lo que las coincidencias quedan para revisión manual. Haz clic para saber más.",
     reliabilityTitle: "Verificación y detección automática",
     sectionHint: "Busca copias y versiones similares y elige qué archivos conservar.",
     searchSimilarVideos: "Buscar también versiones de un vídeo con distinta calidad",

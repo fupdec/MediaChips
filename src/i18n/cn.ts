@@ -4590,6 +4590,8 @@ const cn = {
     auto_failed: '自动合并失败：{reason}',
   },
   duplicateSimilarity: {
+    "autoMergeLockedTitle": "自动合并已锁定",
+    "autoMergeLockedText": "重复项自动合并是 Pro 功能，因此匹配项已留待手动审核。点击了解详情。",
     reliabilityTitle: "验证与自动发现",
     sectionHint: "查找副本和相似版本，然后选择要保留的文件。",
     searchSimilarVideos: "同时查找同一视频的不同画质版本",

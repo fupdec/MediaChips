@@ -67,8 +67,8 @@ export async function persistProAccessConfig(
  *
  * If media stats cannot be read, skip for now and retry on a later launch.
  */
-export async function settleProAccessIfNeeded(): Promise<void> {
-  if (isProAccessSettled()) return
+export async function settleProAccessIfNeeded(): Promise<boolean> {
+  if (isProAccessSettled()) return true
 
   const registrationStore = useRegistrationStore()
   let libraryCount = 0
@@ -79,7 +79,7 @@ export async function settleProAccessIfNeeded(): Promise<void> {
     registrationStore.libraryCount = libraryCount
   } catch (error) {
     console.warn('Deferring Pro access settle until media stats are available:', error)
-    return
+    return false
   }
 
   const decision = decideProAccessMigration({
@@ -87,13 +87,35 @@ export async function settleProAccessIfNeeded(): Promise<void> {
     capWasSettled: isFreeLibraryCapSettled(),
     libraryCount,
   })
-  if (!decision.run) return
+  if (!decision.run) return true
 
   await persistProAccessConfig({
     proAccessSettled: '1',
     proFeaturesGrandfathered: decision.grandfathered ? '1' : '0',
     proTrialStartedAt: decision.trialStartedAt,
   })
+  return true
+}
+
+/** Waits before each retry of the settle when media stats are not readable yet (server still starting). */
+export const PRO_SETTLE_RETRY_DELAYS_MS = [5_000, 30_000, 120_000]
+
+/**
+ * Until the install is settled every Pro feature is open, so a settle that silently never happens would
+ * leave them open for good. Retry a few times with backoff; the next launch tries again after that.
+ *
+ * @returns true once the install is settled.
+ */
+export async function settleProAccessWithRetry(
+  delays: readonly number[] = PRO_SETTLE_RETRY_DELAYS_MS,
+  wait: (ms: number) => Promise<void> = ms => new Promise(resolve => setTimeout(resolve, ms)),
+): Promise<boolean> {
+  if (await settleProAccessIfNeeded()) return true
+  for (const delay of delays) {
+    await wait(delay)
+    if (await settleProAccessIfNeeded()) return true
+  }
+  return false
 }
 
 /**

@@ -4590,6 +4590,8 @@ const ja = {
     auto_failed: '自動統合に失敗しました: {reason}',
   },
   duplicateSimilarity: {
+    "autoMergeLockedTitle": "自動マージはロックされています",
+    "autoMergeLockedText": "重複の自動マージは Pro 機能のため、一致項目は手動確認用に残されました。クリックして詳細を確認してください。",
     reliabilityTitle: "検証と自動検出",
     sectionHint: "コピーや類似したバージョンを検索し、残すファイルを選びます。",
     searchSimilarVideos: "画質の異なる同じ動画のバージョンも検索",

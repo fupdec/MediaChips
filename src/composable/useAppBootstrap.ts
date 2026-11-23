@@ -588,17 +588,22 @@ export function useAppBootstrap({isPlayerWindow, appZoom}: UseAppBootstrapOption
 
   function settleFreeLibraryCapOnStartup(): void {
     // Pro access first: the cap migration marks fresh installs as settled, which would make them
-    // look like existing installs.
+    // look like existing installs. If Pro access could not be settled yet, the cap waits for the next launch.
     import('@/services/proAccessConfig')
-      .then(async ({settleProAccessIfNeeded, announceProTrialEndIfNeeded}) => {
-        await settleProAccessIfNeeded()
+      .then(async ({settleProAccessWithRetry, announceProTrialEndIfNeeded}) => {
+        if (!await settleProAccessWithRetry()) return false
         await announceProTrialEndIfNeeded()
+        return true
       })
       .catch((error) => {
         console.warn('Failed to settle Pro access:', error)
+        return false
       })
-      .then(() => import('@/services/freeLibraryCapConfig'))
-      .then(({settleFreeLibraryCapIfNeeded}) => settleFreeLibraryCapIfNeeded())
+      .then(async (proSettled) => {
+        if (!proSettled) return
+        const {settleFreeLibraryCapIfNeeded} = await import('@/services/freeLibraryCapConfig')
+        await settleFreeLibraryCapIfNeeded()
+      })
       .catch((error) => {
         console.warn('Failed to settle free library cap:', error)
       })
