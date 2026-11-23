@@ -3,7 +3,6 @@ import {useAppStore} from '@/stores/app'
 import {useDialogsStore} from '@/stores/dialogs'
 import {useNotificationsStore} from '@/stores/notifications'
 import {useSettingsStore} from '@/stores/settings'
-import {useEventBus} from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
@@ -21,7 +20,6 @@ export function useTmdbPersonAutoScrapeBatch() {
   const dialogsStore = useDialogsStore()
   const notificationsStore = useNotificationsStore()
   const settingsStore = useSettingsStore()
-  const eventBus = useEventBus()
   const listSync = useItemsListSync()
 
   async function runBatch(tags: Tag[], meta: Meta, {

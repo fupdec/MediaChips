@@ -166,7 +166,6 @@ import {getMetaName} from '@/utils/metaI18n'
 import {setNotification} from '@/services/notificationService'
 import {getApiErrorMessage} from '@/types/vue'
 import {useAppStore} from '@/stores/app'
-import {useEventBus} from '@/utils/eventBus'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {ensureSceneScraperMeta} from '../services/ensureSceneScraperMeta'
 import {
@@ -195,7 +194,6 @@ const emit = defineEmits<{
 }>()
 
 const appStore = useAppStore()
-const eventBus = useEventBus()
 const {xs} = useDisplay()
 const {t} = useI18n()
 

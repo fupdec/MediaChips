@@ -2,7 +2,6 @@ import { useItemsStore } from '@/stores/items'
 import { useScraperStore } from '../stores/scraper'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useSettingsStore } from '@/stores/settings'
-import { useEventBus } from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import translate, { type Locale } from '@/utils/translate'
@@ -14,7 +13,6 @@ export function useAutoScrapeBatch() {
   const scraperStore = useScraperStore()
   const notificationsStore = useNotificationsStore()
   const settingsStore = useSettingsStore()
-  const eventBus = useEventBus()
   const listSync = useItemsListSync()
 
   async function runBatch(tags: Tag[], meta: Meta, {

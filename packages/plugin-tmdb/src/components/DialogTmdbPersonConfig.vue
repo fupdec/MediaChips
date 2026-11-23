@@ -155,7 +155,6 @@ import {typedApi} from '@/services/typedApi'
 import {getIconDataType} from '@/services/metaTypeUtils'
 import {getMetaName} from '@/utils/metaI18n'
 import {setNotification} from '@/services/notificationService'
-import {useEventBus} from '@/utils/eventBus'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {ensureTmdbPersonMeta} from '../services/ensureTmdbPersonMeta'
 import type {AssignedMeta} from '@/types/stores'
@@ -180,7 +179,6 @@ const emit = defineEmits<{
   created: [meta: Meta]
 }>()
 
-const eventBus = useEventBus()
 const {xs} = useDisplay()
 const {t} = useI18n()
 

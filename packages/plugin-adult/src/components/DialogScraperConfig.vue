@@ -151,7 +151,6 @@ import {getIconDataType} from '@/services/metaTypeUtils'
 import DialogHeader from "@/components/elements/DialogHeader.vue";
 import ScraperFields from "../assets/ScraperFields";
 import {getMetaName} from "@/utils/metaI18n";
-import {useEventBus} from '@/utils/eventBus'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {useNotificationsStore} from '@/stores/notifications'
 import {ensurePerformerScraperMeta} from '../services/ensurePerformerScraperMeta'
@@ -185,7 +184,6 @@ const emit = defineEmits<{
 
 const {xs} = useDisplay()
 const {t} = useI18n()
-const eventBus = useEventBus()
 const notificationsStore = useNotificationsStore()
 
 const dialogOpen = ref(false)

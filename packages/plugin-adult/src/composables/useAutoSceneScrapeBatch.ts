@@ -3,7 +3,6 @@ import { useItemsStore } from '@/stores/items'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useSettingsStore } from '@/stores/settings'
 import { useSceneScraperStore } from '../stores/sceneScraper'
-import { useEventBus } from '@/utils/eventBus'
 import {useItemsListSync} from '@/composable/itemsListSync'
 import { resolveSelectedMediaItems } from '@/utils/resolveSelection'
 import { getCurrentMediaType, isVideoMediaType } from '@/utils/mediaType'
@@ -41,7 +40,6 @@ export function useAutoSceneScrapeBatch() {
   const notificationsStore = useNotificationsStore()
   const settingsStore = useSettingsStore()
   const appStore = useAppStore()
-  const eventBus = useEventBus()
   const listSync = useItemsListSync()
 
   async function runBatch(mediaItems: MediaItem[], {

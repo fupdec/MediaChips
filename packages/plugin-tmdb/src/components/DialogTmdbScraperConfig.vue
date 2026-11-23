@@ -155,7 +155,6 @@ import {getIconDataType} from '@/services/metaTypeUtils'
 import {getMetaName} from '@/utils/metaI18n'
 import {setNotification} from '@/services/notificationService'
 import {useAppStore} from '@/stores/app'
-import {useEventBus} from '@/utils/eventBus'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {ensureTmdbScraperMeta} from '../services/ensureTmdbScraperMeta'
 import {
@@ -184,7 +183,6 @@ const emit = defineEmits<{
 }>()
 
 const appStore = useAppStore()
-const eventBus = useEventBus()
 const {xs} = useDisplay()
 const {t} = useI18n()
 

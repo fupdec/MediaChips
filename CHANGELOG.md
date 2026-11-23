@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Pro features with a 30-day trial** — cloud and network (NAS) sources, Jellyfin/Plex/Emby import, AI search and assistant, face recognition, automatic duplicate merging and multiple libraries. Existing installs keep every feature; new installs get a 30-day trial, with a reminder chip in the last 7 days and a one-time notice when it ends. Pro access state is kept in `pro-access.json` next to `config.json`, so a lost or rebuilt config cannot restart the trial, and setting the system clock back does not extend it.
+- Duplicate review explains once per session when automatic merging is on but locked.
+
+### Changed
+
+- The free library limit is now 300 items (was 100).
+- Importing from a NAS or cloud account requires Pro once the trial is over; accounts already connected stay listed.
+- Duplicate merge errors that share a cause are folded into one line with a count.
+
+### Fixed
+
+- Merging duplicates on a NAS no longer fails to find a copy whose path carries a revision suffix.
+- NAS imports reuse one SFTP session instead of logging in again for every sample.
+- If media statistics are unavailable at startup, the Pro access setup is retried instead of leaving every feature open.
+
+### Security
+
+- Dependencies updated to clear `npm audit` findings.
+
 ## [2.1.0] - 2026-11-22
 
 ### Added
