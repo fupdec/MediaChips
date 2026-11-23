@@ -870,17 +870,13 @@ const apply = async () => {
   }
 
   const savedFilter = ITEMS.value.savedFilter
-  await addFilterRows(savedFilter?.id)
-
-  const removed_filters = filters.value.filter(i => i.removed)
-  for (const f of removed_filters) {
-    if (f.id) {
-      await typedApi.deleteFilterRow(f.id)
-    }
-  }
-
   const join = itemsStore.filtersJoin === 'or' ? 'or' : 'and'
-  if (savedFilter?.id) {
+
+  // Independent writes: run them together so the list reload doesn't wait for a
+  // chain of sequential round trips (one per filter row).
+  const removedIds = filters.value.filter(i => i.removed && i.id).map(i => i.id as number)
+  const saveJoin = async () => {
+    if (!savedFilter?.id) return
     try {
       await typedApi.updateSavedFilter(Number(savedFilter.id), {filtersJoin: join})
       itemsStore.updateState({
@@ -891,12 +887,18 @@ const apply = async () => {
       console.error('Error saving filtersJoin:', error)
     }
   }
+  await Promise.all([
+    addFilterRows(savedFilter?.id),
+    ...removedIds.map((id) => typedApi.deleteFilterRow(id)),
+    saveJoin(),
+  ])
 
   itemsStore.updateState({key: "filters", value: cloneFilters(filters.value)})
   await Promise.resolve(pageCommands.setFilters({filters: filters.value}))
 }
 
 const addFilterRows = async (filterId: number | null | undefined, isSavedFilter = false) => {
+  const jobs: Array<Promise<void>> = []
   for (let index = 0; index < filters.value.length; index++) {
     const filter = filters.value[index]
     if (filter.lock || filter.removed) continue
@@ -904,21 +906,24 @@ const addFilterRows = async (filterId: number | null | undefined, isSavedFilter 
     const payload = cloneFilters([{...filter, order: index}])[0]
     if (isSavedFilter) payload.id = null
 
-    try {
-      const response = await typedApi.createFilterRow({
-        filter: payload,
-        filterId: filterId,
-        rowId: isSavedFilter ? null : payload.id,
-      })
-      const created = response.data
-      if (!isSavedFilter && created?.id != null) {
-        filter.id = created.id
-        filter.order = index
+    jobs.push((async () => {
+      try {
+        const response = await typedApi.createFilterRow({
+          filter: payload,
+          filterId: filterId,
+          rowId: isSavedFilter ? null : payload.id,
+        })
+        const created = response.data
+        if (!isSavedFilter && created?.id != null) {
+          filter.id = created.id
+          filter.order = index
+        }
+      } catch (error) {
+        console.error('Error adding filter row:', error)
       }
-    } catch (error) {
-      console.error('Error adding filter row:', error)
-    }
+    })())
   }
+  await Promise.all(jobs)
 }
 
 const saveCurrentAsNamed = async (name: string, icon?: string) => {
