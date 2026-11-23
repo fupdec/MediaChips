@@ -1,5 +1,7 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { probeDisplayImageUrl, warmDisplayImageUrl } from '@/utils/probeImageUrl'
+
+afterEach(() => vi.unstubAllGlobals())
 
 describe('probeDisplayImageUrl', () => {
   beforeEach(() => {
@@ -19,6 +21,25 @@ describe('probeDisplayImageUrl', () => {
       '/api/get-file?url=test.jpg',
       expect.objectContaining({ method: 'HEAD' }),
     )
+  })
+
+  it('checks the loaded image URL before clearing it', async () => {
+    class FakeImage {
+      static instances: FakeImage[] = []
+      src = ''
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+      constructor() { FakeImage.instances.push(this) }
+    }
+    vi.stubGlobal('Image', FakeImage)
+    const result = probeDisplayImageUrl('file:///media/grid.jpg')
+    const [image] = FakeImage.instances
+    expect(image.src).toBe('file:///media/grid.jpg')
+    image.onload!()
+    await expect(result).resolves.toBe(true)
+    expect(image.src).toBe('')
+    expect(image.onload).toBeNull()
+    expect(image.onerror).toBeNull()
   })
 
   it('returns false for unavailable placeholders', async () => {

@@ -21,8 +21,9 @@ function probeWithImageElement(url: string, signal?: AbortSignal): Promise<boole
     }
 
     image.onload = () => {
+      const available = !isThumbUnavailable(image.src)
       cleanup()
-      resolve(!isThumbUnavailable(image.src))
+      resolve(available)
     }
     image.onerror = () => {
       cleanup()
