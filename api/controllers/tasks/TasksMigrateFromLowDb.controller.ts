@@ -7,6 +7,7 @@ import type {
 import type { ApiRequest, ApiResponse } from '../../types/http'
 import { apiErrorMessage, sendAsClientError, sendOk } from '../../types/errors'
 import fs from 'fs'
+import type {Readable} from 'stream'
 import fse from 'fs-extra'
 import path from 'path'
 import { rimraf } from 'rimraf'
@@ -111,7 +112,20 @@ export default function (db: ApiDb) {
     const output = fs.createWriteStream(pathBackup);
     const archive = archiver('zip')
     console.log('Archive initialized.')
+    // The archive and the output file can both fail, and a late 'close' can follow an error: answer once.
+    let answered = false
+    // A destroyed archive never finishes, so the handler must stop waiting for it once a failure was reported.
+    let stopWaiting!: () => void
+    const failed = new Promise<void>(resolve => { stopWaiting = resolve })
+    const fail = (err: unknown, message: string) => {
+      stopWaiting()
+      if (answered) return
+      answered = true
+      console.error(err)
+      sendAsClientError(res, err, message)
+    }
     output.on("close", async () => {
+      if (answered) return
       console.log('\x1b[36m%s\x1b[0m', 'archive had created successfully.', 'color: #bada55');
       if (req.body.is_copy_backups) {
         const pathBackupsOld = path.join(pathUserData, 'backups')
@@ -122,25 +136,31 @@ export default function (db: ApiDb) {
             fse.copySync(pathBackupsOld, pathBackupsNew, {overwrite: false})
             console.log('\x1b[36m%s\x1b[0m', 'Backups copied successfully.', 'color: #bada55');
           } catch (err) {
-            console.error(err)
-            sendAsClientError(res, err, 'Failed to copy legacy backups')
+            fail(err, 'Failed to copy legacy backups')
             return
           }
         }
       }
 
       // Keep legacy userfiles until migrateFromLowDb succeeds so a failed restore can be retried.
+      answered = true
       sendOk(res, backupName)
     });
+    // Without a listener a failed write (missing folder, full disk) is an uncaught exception that takes the server down.
+    output.on("error", (err: unknown) => {
+      // archiver's typings omit the stream methods it inherits.
+      (archive as unknown as Readable).destroy()
+      fail(err, 'Failed to write LowDB backup archive')
+    });
     archive.on("error", (err: unknown) => {
-      console.error(err);
-      sendAsClientError(res, err, 'Failed to create LowDB backup archive')
+      output.destroy()
+      fail(err, 'Failed to create LowDB backup archive')
     });
     archive.pipe(output);
     archive.directory(currentDB, "databases");
     archive.directory(currentFiles, "media");
     archive.file(settings, {name: "dbs.json"});
-    await archive.finalize();
+    await Promise.race([archive.finalize(), failed]);
   }
 
   // importing old database from JSON
