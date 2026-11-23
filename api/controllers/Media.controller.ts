@@ -398,7 +398,7 @@ export default function (db: ApiDb) {
           duplicates_by: f.duplicates_by || 'filesize',
           skipTotals: true,
         })
-        sendOk(res, getMediaSelectionStats(db, result.ids || []))
+        sendOk(res, getMediaSelectionStats(db, (result.ids || []).map(Number)))
         return
       }
       sendOk(res, getMediaSelectionStats(db, body.ids || []))
