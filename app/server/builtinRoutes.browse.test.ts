@@ -76,7 +76,7 @@ function post(server: TestServer, endpoint: string, body: unknown): Promise<Resp
   })
 }
 
-describe.sequential('builtin browse operation routes', () => {
+describe('builtin browse operation routes', {sequential: true}, () => {
   it('performs create, rename, copy, move, and delete against the filesystem', async () => {
     const server = await startServer()
     const source = path.join(mediaRoot, 'source.txt')
