@@ -140,8 +140,12 @@ export function buildGridSpriteSheetStyle(
     backgroundRepeat: 'no-repeat',
     width: `${GRID_SPRITE.cols * 100}%`,
     height: `${GRID_SPRITE.rows * 100}%`,
-    left: `${-col * 100}%`,
-    top: `${-row * 100}%`,
+    left: '0',
+    top: '0',
+    // Pick the tile with a transform (percentages are of the sheet itself, so one
+    // tile = 1/cols of it). Moving left/top changes geometry on every hover frame
+    // and is counted as a layout shift; transforms are not.
+    transform: `translate(${-col * (100 / GRID_SPRITE.cols)}%, ${-row * (100 / GRID_SPRITE.rows)}%)`,
   }
 }
 

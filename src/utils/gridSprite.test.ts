@@ -95,24 +95,21 @@ describe('gridSprite', () => {
     expect(isNearPreviewContainerAspect(21 / 9)).toBe(false)
   })
 
-  it('places the inner sheet by tile-box percentages', () => {
+  it('places the inner sheet with a transform, not left/top', () => {
     expect(buildGridSpriteSheetStyle('/grid.jpg', 0)).toEqual({
       backgroundImage: 'url("/grid.jpg")',
       backgroundSize: '100% 100%',
       backgroundRepeat: 'no-repeat',
       width: '300%',
       height: '300%',
-      left: '0%',
-      top: '0%',
+      left: '0',
+      top: '0',
+      transform: 'translate(0%, 0%)',
     })
-    expect(buildGridSpriteSheetStyle('/grid.jpg', 5)).toMatchObject({
-      left: '-200%',
-      top: '-100%',
-    })
-    expect(buildGridSpriteSheetStyle('/grid.jpg', 8)).toMatchObject({
-      left: '-200%',
-      top: '-200%',
-    })
+    const tile5 = buildGridSpriteSheetStyle('/grid.jpg', 5)
+    expect(tile5).toMatchObject({left: '0', top: '0'})
+    expect(tile5.transform).toMatch(/^translate\(-66\.6+\d*%, -33\.3+\d*%\)$/)
+    expect(buildGridSpriteSheetStyle('/grid.jpg', 8).transform).toMatch(/^translate\(-66\.6+\d*%, -66\.6+\d*%\)$/)
   })
 
   it('letterboxes portrait sprites inside a 16:9 preview block', () => {

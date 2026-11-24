@@ -14,10 +14,17 @@ export function useResponsiveGridLayout(
 ) {
   const containerWidth = ref(0)
 
-  const gridStyle = computed(() => getGridLayoutStyle({
-    ...layoutOptions.value,
-    containerWidth: containerWidth.value,
-  }))
+  const gridStyle = computed(() => {
+    const style = getGridLayoutStyle({
+      ...layoutOptions.value,
+      containerWidth: containerWidth.value,
+    })
+    // Until ResizeObserver reports a width the cards use a fallback size and would
+    // jump to the real one (a layout shift). Hidden boxes keep their layout but are
+    // not painted or counted; the measure arrives before the next paint. Reading
+    // clientWidth here instead would force a layout on mount.
+    return containerWidth.value > 0 ? style : {...style, visibility: 'hidden'}
+  })
 
 
   let resizeObserver: ResizeObserver | null = null

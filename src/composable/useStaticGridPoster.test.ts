@@ -60,7 +60,7 @@ describe('useStaticGridPoster', () => {
     expect(poster.tileIndex.value).toBe(7)
     expect(poster.showStaticGridPoster.value).toBe(true)
     expect(poster.sheetStyle.value?.backgroundImage).toContain('grids%2F2.jpg')
-    expect(poster.sheetStyle.value).toMatchObject({left: '-100%', top: '-200%'})
+    expect(poster.sheetStyle.value?.transform).toMatch(/^translate\(-33\.3+\d*%, -66\.6+\d*%\)$/)
   })
 
   it('falls back when the grid sprite is missing', async () => {

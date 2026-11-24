@@ -62,7 +62,7 @@
     <!-- Anchors load-more at the end of loaded data, not the filtered phantom tail. -->
     <div
       class="virtual-grid-data-end"
-      :style="{ top: `${dataEndTop}px` }"
+      :style="{ transform: `translateY(${dataEndTop}px)` }"
     >
       <slot name="after-data" />
     </div>
@@ -267,6 +267,9 @@ onBeforeUnmount(() => {
 .virtual-grid-data-end {
   position: absolute;
   left: 0;
+  /* Offset with a transform, not `top`: the end-of-data block moves every time a
+     page loads, and moving `top` is counted as a layout shift. */
+  top: 0;
   width: 100%;
   z-index: 1;
 }
