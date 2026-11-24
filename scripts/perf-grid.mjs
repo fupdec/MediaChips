@@ -26,6 +26,7 @@
  *   --keep-trace      also save each run's trace (.json.gz) to open in DevTools
  *   --headed          show the browser window
  *   --scroll-js       scroll the page container from script with the pointer parked away from the grid (no hover effects)
+ *   --hover           no scrolling: sweep the pointer over the cards instead (measures hover cost only)
  *   --cls             report which DOM elements cause layout shifts (top selectors by CLS)
  *   --static <dir>    serve the frontend from another build (vite build --outDir <dir>); API stays on the running server
  *   --setting k=v     override a setting in the test browser only, e.g. --setting virtualImageGrid=1
@@ -58,6 +59,7 @@ const config = {
   headed: has('headed'),
   clsReport: has('cls'),
   scrollJs: has('scroll-js'),
+  hover: has('hover'),
   staticDir: opt('static', '') ? resolve(opt('static', '')) : '',
   // --setting virtualImageGrid=1 (repeatable): overrides a setting in the test
   // browser only, by rewriting the GET /api/setting response. The server and
@@ -219,7 +221,17 @@ async function runOnce(browser, index) {
   }
   await page.waitForTimeout(config.settleMs)
 
-  if (config.scrollJs) {
+  if (config.hover) {
+    // Sweep the pointer across the visible cards in rows, with intermediate mousemoves.
+    for (let pass = 0; pass < config.steps; pass++) {
+      const y = 150 + (pass % 4) * 170
+      const fromX = pass % 2 ? 1000 : 120
+      const toX = pass % 2 ? 120 : 1000
+      await page.mouse.move(fromX, y)
+      await page.mouse.move(toX, y, {steps: 14})
+      await page.waitForTimeout(config.stepMs)
+    }
+  } else if (config.scrollJs) {
     // Pointer over the left rail, scroll by script: isolates hover-driven work.
     await page.mouse.move(8, 450)
     const handle = await page.evaluateHandle(() => {
