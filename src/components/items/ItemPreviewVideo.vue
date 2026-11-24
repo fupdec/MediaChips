@@ -8,7 +8,7 @@
       aria-hidden="true"
     >
       <v-img
-        :transition="false"
+        :transition="IMG_NO_TRANSITION"
         v-if="showThumbImage"
         :key="thumbDisplayKey"
         :src="thumb || undefined"
@@ -53,7 +53,7 @@
         </div>
       </div>
       <v-img
-        :transition="false"
+        :transition="IMG_NO_TRANSITION"
         v-else-if="showThumbImage"
         :key="thumbDisplayKey"
         :aspect-ratio="gridBigPreview.isVisual.value ? undefined : 16 / 9"
@@ -335,6 +335,7 @@
 </template>
 
 <script setup lang="ts">
+import {IMG_NO_TRANSITION} from '@/utils/imgTransition'
 import {isRemoteMediaPath} from '@shared/remoteMedia'
 import {resolveGridSpriteDisplayUrl} from '@/utils/thumbSource'
 import {ref, computed, watch, onBeforeUnmount} from 'vue'

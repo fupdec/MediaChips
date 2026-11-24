@@ -13,6 +13,7 @@
         </div>
       </v-responsive>
       <v-img
+        :transition="IMG_NO_TRANSITION"
         v-else
         :src="mainImageSrc"
         :aspect-ratio="meta?.imageAspectRatio"
@@ -25,6 +26,7 @@
 
       <template v-if="Number(ITEMS.view) === 1">
         <v-img
+        :transition="IMG_NO_TRANSITION"
           v-if="images.alt"
           :src="images.alt"
           :aspect-ratio="meta?.imageAspectRatio"
@@ -36,6 +38,7 @@
 
         <div v-if="images.custom1" class="custom1-img-button">1</div>
         <v-img
+        :transition="IMG_NO_TRANSITION"
           v-if="images.custom1"
           :src="images.custom1"
           class="custom1-img"
@@ -45,6 +48,7 @@
 
         <div v-if="images.custom2" class="custom2-img-button">2</div>
         <v-img
+        :transition="IMG_NO_TRANSITION"
           v-if="images.custom2"
           :src="images.custom2"
           class="custom2-img"
@@ -74,6 +78,7 @@
     class="tag-list-thumb"
   >
     <v-img
+        :transition="IMG_NO_TRANSITION"
       :src="mainImageSrc"
       :aspect-ratio="meta?.imageAspectRatio"
       class="main-img"
@@ -94,6 +99,7 @@
       @click="openTagPage"
     >
       <v-img
+        :transition="IMG_NO_TRANSITION"
         :src="avatar"
         cover
         @error="onChipImageError"
@@ -103,6 +109,7 @@
 </template>
 
 <script setup lang="ts">
+import {IMG_NO_TRANSITION} from '@/utils/imgTransition'
 import { reactive, computed, watch, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import path from 'path-browserify'

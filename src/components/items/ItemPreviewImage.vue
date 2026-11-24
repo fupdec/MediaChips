@@ -11,6 +11,7 @@
       @click.stop="openViewer"
     >
       <v-img
+        :transition="IMG_NO_TRANSITION"
         v-if="previewActive && thumb && !isThumbMissing"
         :src="thumb || undefined"
         :aspect-ratio="previewAspectRatio"
@@ -44,6 +45,7 @@
 </template>
 
 <script setup lang="ts">
+import {IMG_NO_TRANSITION} from '@/utils/imgTransition'
 import {ref, computed, watch, onMounted, onBeforeUnmount} from 'vue'
 import {useAppStore} from '@/stores/app'
 import {useItemsStore} from '@/stores/items'
