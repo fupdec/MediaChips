@@ -72,8 +72,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 96px);
-  min-height: calc(100dvh - 96px);
+  /* Pinned to the main area instead of flowing inside v-main's padding: the side
+     rail and drawers register after mount and change that padding, which moved this
+     full-size box by a few pixels and counted as the biggest startup layout shift. */
+  position: absolute;
+  inset: var(--app-content-offset-top, 48px) 0 0 0;
 }
 
 @keyframes app-startup-pulse {
