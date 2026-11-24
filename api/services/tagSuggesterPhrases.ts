@@ -22,6 +22,8 @@ export interface PathTokenCount {
   words: number
   /** Number of media paths that contained this phrase. */
   docs: number
+  /** Words merged into this suggestion by ML clustering (just the word itself otherwise). */
+  cluster?: string[]
 }
 
 export function getCandidatePhrases(
