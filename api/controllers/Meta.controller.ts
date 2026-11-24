@@ -151,10 +151,15 @@ export default function (db: ApiDb) {
   const deleteOne = function (req: ApiRequest, res: ApiResponse) {
     try {
       const id = Number(req.params.id)
+      // The id also names a folder that is removed recursively, so anything but a plain
+      // positive integer (e.g. ".." or "../x") must never get that far.
+      if (!Number.isInteger(id) || id <= 0) {
+        return sendBadRequest(res, 'Invalid category id')
+      }
       metaInMediaTypesRepo.deleteByMetaId(id)
       pinnedMetaRepo.deleteByMetaId(id)
       metaRepo.deleteById(id)
-      const dir = path.join(metaFolder, paramString(req.params.id))
+      const dir = path.join(metaFolder, String(id))
       fs.rmSync(dir, {
         recursive: true,
         force: true

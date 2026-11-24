@@ -97,7 +97,13 @@ export default function createTasksVideoPreviewController(shared: TaskController
       return
     }
 
-    const gridPath = path.join(gridsPath, req.body.output);
+    // `output` is a file name inside the grids folder; never let it point elsewhere.
+    const outputName = String(req.body.output ?? '')
+    if (!outputName || outputName === '.' || outputName === '..' || path.basename(outputName) !== outputName) {
+      sendBadRequest(res, 'Invalid output name')
+      return
+    }
+    const gridPath = path.join(gridsPath, outputName);
     const mediaId = resolveMediaIdFromGridRequest(req.body)
 
     const ensureVisualHash = async (force = false) => {

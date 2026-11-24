@@ -177,6 +177,18 @@ describe('Meta.controller', () => {
     expect(res.statusCode).toBe(200)
   })
 
+  it.each(['..', '../outside', 'abc', '0', '-1', '5.5', '../..'])('refuses to delete category id %j and removes nothing', (id) => {
+    const res = createResponse()
+
+    controller.deleteOne({params: {id}} as unknown as ApiRequest, res)
+
+    expect(res.statusCode).toBe(400)
+    expect(rmSync).not.toHaveBeenCalled()
+    expect(deleteById).not.toHaveBeenCalled()
+    expect(deleteMetaInMediaByMetaId).not.toHaveBeenCalled()
+    expect(deletePinnedByMetaId).not.toHaveBeenCalled()
+  })
+
   it('returns 500 when create fails', () => {
     create.mockImplementation(() => {
       throw new Error('insert failed')

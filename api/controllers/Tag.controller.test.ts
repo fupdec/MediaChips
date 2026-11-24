@@ -214,6 +214,46 @@ describe('Tag.controller', () => {
     expect(mapWithConcurrency).not.toHaveBeenCalled()
   })
 
+  describe('getThumbs file names', () => {
+    beforeEach(() => {
+      mapWithConcurrency.mockImplementation(async (items: unknown[], _limit: number, fn: (item: unknown) => unknown) =>
+        Promise.all(items.map(fn)))
+      readImageAsDataUrl.mockResolvedValue('data:image/jpeg;base64,AAAA')
+    })
+
+    it('reads the requested thumbnails from the meta folder', async () => {
+      const res = createResponse()
+      await controller.getThumbs({body: {metaId: 3, ids: [7, '8'], types: ['main', 'custom1']}} as ApiRequest, res)
+      expect(readImageAsDataUrl.mock.calls.map(([file]) => file).sort()).toEqual([
+        '/tmp/db/meta/3/7_custom1.jpg',
+        '/tmp/db/meta/3/7_main.jpg',
+        '/tmp/db/meta/3/8_custom1.jpg',
+        '/tmp/db/meta/3/8_main.jpg',
+      ])
+      expect(res.statusCode).toBe(200)
+    })
+
+    it('ignores ids and types that could point outside the meta folder', async () => {
+      const res = createResponse()
+      await controller.getThumbs({
+        body: {metaId: 3, ids: [7, '../../../x', '7/../..', ''], types: ['main', '../../../etc/secret', 'a/b', '..']},
+      } as ApiRequest, res)
+      const files = readImageAsDataUrl.mock.calls.map(([file]) => String(file))
+      expect(files).toEqual(['/tmp/db/meta/3/7_main.jpg'])
+      expect(files.every((file) => file.startsWith('/tmp/db/meta/3/'))).toBe(true)
+    })
+
+    it('does not fall back to the default types when every requested type is unsafe', async () => {
+      await controller.getThumbs({body: {metaId: 3, ids: [7], types: ['../x']}} as ApiRequest, createResponse())
+      expect(readImageAsDataUrl).not.toHaveBeenCalled()
+    })
+
+    it('still uses the default types when none are requested', async () => {
+      await controller.getThumbs({body: {metaId: 3, ids: [7]}} as ApiRequest, createResponse())
+      expect(readImageAsDataUrl).toHaveBeenCalledTimes(5)
+    })
+  })
+
   it('updates a tag with optional silent flag', () => {
     const req = {
       params: {id: '7'},

@@ -421,10 +421,12 @@ export default function (db: ApiDb) {
         return sendBadRequest(res, 'metaId is required')
       }
 
-      const ids = Array.isArray(body.ids) ? body.ids.filter(Boolean) : []
-      const types = Array.isArray(body.types) && body.types.length
-        ? body.types
-        : ['main', 'avatar', 'alt', 'custom1', 'custom2']
+      // Both end up in a file name inside the meta folder, so only plain tokens are allowed.
+      const ids = Array.isArray(body.ids) ? body.ids.filter((id) => /^\d+$/.test(String(id))) : []
+      const requestedTypes = Array.isArray(body.types) && body.types.length
+        ? body.types.filter((type) => /^[A-Za-z0-9_-]+$/.test(String(type)))
+        : null
+      const types = requestedTypes ?? ['main', 'avatar', 'alt', 'custom1', 'custom2']
       const metaDir = path.join(getDbPath(), 'meta', String(metaId))
 
       const entries = await mapWithConcurrency(ids, 6, async (id) => {

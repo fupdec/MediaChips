@@ -75,6 +75,22 @@ function createResponse() {
   return res as typeof res & ApiResponse
 }
 
+describe('TasksVideoPreviewController createGrid output name', () => {
+  it.each(['../escape.jpg', '../../etc/x.jpg', 'sub/dir.jpg', '/abs/path.jpg', '..', '.', ''])('rejects output %j', async (output) => {
+    const controller = createTasksVideoPreviewController({
+      db: {drizzle: {}} as never,
+      dbPath: '/tmp/db',
+      createThumbMiddle: vi.fn(),
+      createThumbCustom,
+      getImageMedia: vi.fn(),
+    } as never)
+    const res = createResponse()
+    await controller.createGrid({body: {input: '/tmp', output}} as ApiRequest, res)
+    expect(res.statusCode).toBe(400)
+    expect(res.body).toEqual({message: 'Invalid output name'})
+  })
+})
+
 describe('TasksVideoPreviewController createThumb errors', () => {
   beforeEach(() => {
     vi.clearAllMocks()
