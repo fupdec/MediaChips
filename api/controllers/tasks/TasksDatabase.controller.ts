@@ -32,8 +32,23 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
     }
   }
 
+  /**
+   * Folder of one library inside the databases folder, or null when the id could point anywhere
+   * else (`..`, nested paths) or there is no databases folder to resolve it against.
+   */
+  const resolveDatabaseDir = (id: unknown): string | null => {
+    const root = db.path_databases ?? ''
+    const key = String(id ?? '')
+    if (!root || !key || key === '.' || key === '..' || path.basename(key) !== key) return null
+    return path.join(root, key)
+  }
+
   const deleteDb = async function (req: ApiRequest, res: ApiResponse) {
-    const dbDir = path.join(db.path_databases ?? '', String(req.body.id))
+    const dbDir = resolveDatabaseDir(req.body.id)
+    if (!dbDir) {
+      sendBadRequest(res, 'Invalid database id')
+      return
+    }
     try {
       await rmrf(dbDir)
       sendOk(res, 'successfully deleted')
@@ -113,9 +128,10 @@ export default function createTasksDatabaseController(shared: TaskControllerShar
       const backupCounts: NonNullable<DatabaseSizesResponse['backupCounts']> = {}
       await Promise.all(ids.map(async (id) => {
         const key = String(id)
-        const dbDir = path.join(db.path_databases ?? '', key)
-        sizes![key] = await getDirectorySize(dbDir)
-        backupCounts[key] = countBackupArchives(dbDir)
+        const dbDir = resolveDatabaseDir(key)
+        // An id that is not a plain folder name never refers to a library: report it as empty.
+        sizes![key] = dbDir ? await getDirectorySize(dbDir) : 0
+        backupCounts[key] = dbDir ? countBackupArchives(dbDir) : 0
       }))
       const payload: DatabaseSizesResponse = { sizes, backupCounts }
       sendOk(res, payload)
