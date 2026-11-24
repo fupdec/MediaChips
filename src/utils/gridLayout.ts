@@ -174,6 +174,20 @@ export const LIST_ROW_HEIGHT: Record<number, number> = { 1: 36, 2: 40, 3: 44, 4:
 
 export const VIRTUAL_GRID_THRESHOLD = 48
 
+/** Cards in the result set from which "auto" virtual scroll switches on. */
+export const VIRTUAL_GRID_AUTO_MIN_ITEMS = 1000
+
+/**
+ * `virtualImageGrid` setting: '0' off, '1' always on, '2' (default) auto —
+ * virtual scroll only once the result set is large enough to need it.
+ */
+export function isVirtualGridWanted(mode: unknown, totalItems: number): boolean {
+  const value = Number(mode)
+  if (value === 1) return true
+  if (value === 2) return totalItems >= VIRTUAL_GRID_AUTO_MIN_ITEMS
+  return false
+}
+
 /** Extra mounted rows above/below the viewport (smoother fling scroll). */
 export const VIRTUAL_ROW_BUFFER = 4
 

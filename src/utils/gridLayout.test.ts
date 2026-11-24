@@ -25,6 +25,8 @@ import {
   shouldUseVirtualGrid,
   shouldUseVirtualMasonry,
   VIRTUAL_GRID_THRESHOLD,
+  VIRTUAL_GRID_AUTO_MIN_ITEMS,
+  isVirtualGridWanted,
 } from '@/utils/gridLayout'
 
 describe('shouldUseVirtualGrid', () => {
@@ -532,5 +534,22 @@ describe('card contents follow actual width', () => {
     expect(getCardSizeForWidth(100)).toBe(1)
     expect(getCardSizeForWidth(1000)).toBe(6)
     expect(getCardSizeForWidth(NaN)).toBe(3)
+  })
+})
+
+describe('isVirtualGridWanted', () => {
+  it('respects the explicit off and on modes regardless of size', () => {
+    expect(isVirtualGridWanted('0', 100_000)).toBe(false)
+    expect(isVirtualGridWanted('1', 1)).toBe(true)
+  })
+
+  it('auto switches on only for large result sets', () => {
+    expect(isVirtualGridWanted('2', VIRTUAL_GRID_AUTO_MIN_ITEMS - 1)).toBe(false)
+    expect(isVirtualGridWanted('2', VIRTUAL_GRID_AUTO_MIN_ITEMS)).toBe(true)
+  })
+
+  it('treats unknown values as off', () => {
+    expect(isVirtualGridWanted(undefined, 5000)).toBe(false)
+    expect(isVirtualGridWanted('', 5000)).toBe(false)
   })
 })

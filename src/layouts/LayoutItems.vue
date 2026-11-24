@@ -596,6 +596,7 @@ import Item from '@/components/items/Item.vue'
 import ItemsBrowseSkeleton from '@/components/items/ItemsBrowseSkeleton.vue'
 import ItemsMasonryGrid from '@/components/items/ItemsMasonryGrid.vue'
 import ItemsVirtualGrid from '@/components/items/ItemsVirtualGrid.vue'
+import {isVirtualGridWanted} from '@/utils/gridLayout'
 import {useInfiniteWindowSeek} from '@/composable/useInfiniteWindowSeek'
 import Filters from '@/components/app/Filters.vue'
 import SavedFilters from '@/components/elements/FiltersSaved.vue'
@@ -768,7 +769,7 @@ const infiniteScrollReachedEnd = computed(() => (
  * their own path and grouped sections stay fully rendered.
  */
 const useVirtualGrid = computed(() => (
-  Number(settingsStore.virtualImageGrid) === 1
+  isVirtualGridWanted(settingsStore.virtualImageGrid, Number(itemsStore.totalFiltered) || 0)
   && pageInitialized.value
   && itemsStore.itemsOnPage.length > 0
   && !isMasonryGrid.value

@@ -170,7 +170,7 @@ export type SettingsState = {
   imageSlideshowInterval: string
   /** '1' loops slideshow from the start after the last image. */
   imageSlideshowLoop: string
-  /** '1' enables virtualized media card/masonry grids for large lists. */
+  /** Virtualized media card grids: '0' off, '1' always on, '2' auto (large result sets only). */
   virtualImageGrid: string
   isPlayVideoInSystemPlayer: string
   typingFiltersDefault: string
@@ -347,7 +347,7 @@ export const defaultSettingsState = (): SettingsState => ({
   gapSize: '2',
   imageSlideshowInterval: '4',
   imageSlideshowLoop: '0',
-  virtualImageGrid: '0',
+  virtualImageGrid: '2',
   isPlayVideoInSystemPlayer: '0',
   typingFiltersDefault: '0',
   watchFolders: '0',

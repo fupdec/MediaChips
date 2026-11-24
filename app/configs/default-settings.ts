@@ -131,7 +131,7 @@ const Settings = [
   },
   {
     "option": "virtualImageGrid",
-    "value": 0
+    "value": 2
   },
   {
     "option": "isPlayVideoInSystemPlayer",
