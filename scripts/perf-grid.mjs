@@ -25,6 +25,7 @@
  *   --out <dir>       output dir (default output/perf)
  *   --keep-trace      also save each run's trace (.json.gz) to open in DevTools
  *   --headed          show the browser window
+ *   --scroll-js       scroll the page container from script with the pointer parked away from the grid (no hover effects)
  *   --cls             report which DOM elements cause layout shifts (top selectors by CLS)
  *   --static <dir>    serve the frontend from another build (vite build --outDir <dir>); API stays on the running server
  *   --setting k=v     override a setting in the test browser only, e.g. --setting virtualImageGrid=1
@@ -56,6 +57,7 @@ const config = {
   keepTrace: has('keep-trace'),
   headed: has('headed'),
   clsReport: has('cls'),
+  scrollJs: has('scroll-js'),
   staticDir: opt('static', '') ? resolve(opt('static', '')) : '',
   // --setting virtualImageGrid=1 (repeatable): overrides a setting in the test
   // browser only, by rewriting the GET /api/setting response. The server and
@@ -216,10 +218,28 @@ async function runOnce(browser, index) {
   }
   await page.waitForTimeout(config.settleMs)
 
-  await page.mouse.move(720, 450)
-  for (let i = 0; i < config.steps; i++) {
-    await page.mouse.wheel(0, config.stepPx)
-    await page.waitForTimeout(config.stepMs)
+  if (config.scrollJs) {
+    // Pointer over the left rail, scroll by script: isolates hover-driven work.
+    await page.mouse.move(8, 450)
+    const handle = await page.evaluateHandle(() => {
+      let best = null
+      for (const el of document.querySelectorAll('*')) {
+        const overflowY = getComputedStyle(el).overflowY
+        if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 500
+          && el.clientWidth > 600 && (!best || el.scrollHeight > best.scrollHeight)) best = el
+      }
+      return best
+    })
+    for (let i = 0; i < config.steps; i++) {
+      await handle.evaluate((el, px) => el.scrollBy({top: px, behavior: 'instant'}), config.stepPx)
+      await page.waitForTimeout(config.stepMs)
+    }
+  } else {
+    await page.mouse.move(720, 450)
+    for (let i = 0; i < config.steps; i++) {
+      await page.mouse.wheel(0, config.stepPx)
+      await page.waitForTimeout(config.stepMs)
+    }
   }
   await page.waitForTimeout(800)
   const wallMs = Date.now() - started
