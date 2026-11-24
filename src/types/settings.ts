@@ -239,6 +239,7 @@ export type SettingsState = {
   transcodeUnsupportedFormats: string
   transcodeMaxHeight: string
   transcodeCacheMaxGb: string
+  nativePlayer: string
   conversionCodec: string
   conversionResolution: string
   conversionQuality: string
@@ -406,6 +407,7 @@ export const defaultSettingsState = (): SettingsState => ({
   transcodeUnsupportedFormats: '1',
   transcodeMaxHeight: '1080',
   transcodeCacheMaxGb: '5',
+  nativePlayer: '0',
   conversionCodec: 'auto',
   conversionResolution: '1080',
   conversionQuality: 'balanced',

@@ -45,3 +45,13 @@ describe('codecCompatibility', () => {
     }, '/media/a.mkv', {audioOnly: true}).reason).toBe('container')
   })
 })
+
+describe('areCodecsBrowserCompatible', () => {
+  it('accepts native codecs and missing streams, rejects the rest', async () => {
+    const {areCodecsBrowserCompatible} = await import('./codecCompatibility')
+    expect(areCodecsBrowserCompatible('h264', 'aac')).toBe(true)
+    expect(areCodecsBrowserCompatible('h264', null)).toBe(true)
+    expect(areCodecsBrowserCompatible('hevc', 'aac')).toBe(false)
+    expect(areCodecsBrowserCompatible('h264', 'ac3')).toBe(false)
+  })
+})

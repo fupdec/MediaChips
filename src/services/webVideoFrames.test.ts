@@ -139,3 +139,50 @@ describe('frame capture failures', () => {
     expect(apiClient.post).not.toHaveBeenCalled()
   })
 })
+
+describe('live frame source ownership', () => {
+  afterEach(() => vi.restoreAllMocks())
+  it.each(['seeked', 'emptied', 'loadstart'])('does not save a new video frame or restore an old position after %s', async event => {
+    vi.mocked(apiClient.post).mockClear()
+    const video = document.createElement('video')
+    video.src = '/old-video'
+    video.currentTime = 10
+    Object.defineProperties(video, {
+      readyState: {value: 4}, duration: {value: 90}, paused: {value: false},
+      videoWidth: {value: 640}, videoHeight: {value: 360},
+    })
+    vi.spyOn(video, 'pause').mockImplementation(() => {})
+    const play = vi.spyOn(video, 'play').mockResolvedValue()
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({drawImage: vi.fn()} as never)
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/jpeg;base64,frame')
+    const pending = saveWebVideoCurrentFrame({video, mediaId: 3, markId: 7, expectedTime: 20})
+    video.src = '/new-video'
+    video.currentTime = 3
+    video.dispatchEvent(new Event(event))
+    expect(await pending).toBe(false)
+    expect(video.currentTime).toBe(3)
+    expect(play).not.toHaveBeenCalled()
+    expect(apiClient.post).not.toHaveBeenCalled()
+  })
+})
+
+it('does not save a marker frame or undo a newer seek at a different time', async () => {
+  vi.mocked(apiClient.post).mockClear()
+  const video = document.createElement('video')
+  video.src = '/same-video'
+  video.currentTime = 10
+  Object.defineProperties(video, {
+    readyState: {value: 4}, duration: {value: 90},
+    videoWidth: {value: 640}, videoHeight: {value: 360},
+  })
+  const context = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({drawImage: vi.fn()} as never)
+  const dataUrl = vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/jpeg;base64,wrong-frame')
+  try {
+    const pending = saveWebVideoCurrentFrame({video, mediaId: 3, markId: 7, expectedTime: 20})
+    video.currentTime = 45
+    video.dispatchEvent(new Event('seeked'))
+    expect(await pending).toBe(false)
+    expect(video.currentTime).toBe(45)
+    expect(apiClient.post).not.toHaveBeenCalled()
+  } finally { context.mockRestore(); dataUrl.mockRestore() }
+})

@@ -1128,6 +1128,7 @@ const it = {
       mounted_roots_hint: 'Sfoglia cartelle: fai clic su una radice per aprirla:',
       mounted_roots_empty: 'Nessuna radice di navigazione trovata. In Docker, associa le cartelle dell\'host a /media/.... In locale, imposta MEDIA_CHIPS_MEDIA_ROOTS oppure riavvia il server per usare la tua cartella home.',
       browser_up: 'Su',
+      browser_edit_path: 'Modifica percorso cartella',
       browser_select_folder: 'Seleziona questa cartella',
       browser_clear_selection: 'Cancella selezione',
       browser_select_all: 'Seleziona tutto',

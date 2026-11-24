@@ -1128,6 +1128,7 @@ const tr = {
       mounted_roots_hint: 'Klasörlere göz at — açmak için bir köke tıklayın:',
       mounted_roots_empty: 'Göz atılacak kök bulunamadı. Docker\'da ana makine klasörlerini /media/... altına eşleyin. Yerelde MEDIA_CHIPS_MEDIA_ROOTS ayarlayın veya ana klasörünüzü kullanmak için sunucuyu yeniden başlatın.',
       browser_up: 'Yukarı çık',
+      browser_edit_path: 'Klasör yolunu düzenle',
       browser_select_folder: 'Bu klasörü seç',
       browser_clear_selection: 'Seçimi temizle',
       browser_select_all: 'Tümünü seç',

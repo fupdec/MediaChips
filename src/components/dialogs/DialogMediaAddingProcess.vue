@@ -619,8 +619,8 @@
               :disabled="acceptingSuggestedTags"
               color="primary"
               rounded
+              size="small"
               variant="flat"
-              size="large"
             >
               <v-icon icon="mdi-tag-check-outline" start/>
               {{ t('media.adding.accept_all_suggested_tags_count', {
@@ -633,6 +633,7 @@
               @click="openSuggestedTags"
               color="primary"
               rounded
+              size="small"
               variant="outlined"
             >
               <v-icon icon="mdi-tag-plus-outline" start/>
@@ -659,6 +660,7 @@
               :disabled="task.parsingTags"
               color="primary"
               rounded
+              size="small"
               variant="outlined"
             >
               <v-icon icon="mdi-text-box-search-outline" start/>
@@ -677,6 +679,7 @@
               :disabled="faceModelDownloading || task.detectingFaces"
               color="secondary"
               rounded
+              size="small"
               variant="outlined"
             >
               <v-icon icon="mdi-download" start/>
@@ -690,6 +693,7 @@
               :disabled="task.detectingFaces"
               color="secondary"
               rounded
+              size="small"
               variant="flat"
             >
               <v-icon icon="mdi-face-recognition" start/>

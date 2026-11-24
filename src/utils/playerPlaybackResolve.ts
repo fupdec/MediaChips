@@ -89,8 +89,11 @@ export function shouldPreferDirectPlayback(input: {
   /** Whether automatic conversion is allowed by settings. */
   transcodeEnabled?: boolean
   audioUnsupported?: boolean
+  /** Browser cannot open the container but the server says codecs are native: remux right away. */
+  containerRemux?: boolean
 }): boolean {
   if (input.forceDirectPlayback || input.liveTranscodeDisabled || !input.transcodeEnabled) return true
+  if (input.containerRemux) return false
   // Missing audio often does not raise a media error, so handle a confirmed
   // unsupported audio track before silently starting the video without sound.
   return !input.audioUnsupported
@@ -377,6 +380,8 @@ export function resolveVideoSourcePlan(input: {
   liveTranscodeDisabled: boolean
   transcodeUnsupportedFormatsEnabled: boolean
   audioUnsupported?: boolean
+  /** Browser cannot open the container (checked via canPlayType before loading). */
+  containerUnsupported?: boolean
 }): VideoSourcePlan {
   if (input.playableMode === 'missing') return {kind: 'unsupported'}
 
@@ -389,6 +394,10 @@ export function resolveVideoSourcePlan(input: {
     needsRemux: input.needsRemux,
   })
 
+  const containerRemux = input.remuxCopy === true
+    && input.containerUnsupported === true
+    && input.reason === 'container'
+
   if (shouldPreferDirectPlayback({
     // Do not treat layout as "required" — try native first, offer fallback.
     transcodeRequired: Boolean(input.transcodeRequired),
@@ -398,6 +407,7 @@ export function resolveVideoSourcePlan(input: {
     needsRemux: input.needsRemux,
     transcodeEnabled: input.transcodeUnsupportedFormatsEnabled,
     audioUnsupported: input.audioUnsupported,
+    containerRemux,
   })) {
     const lockForcedDirect = input.forceDirectPlayback || input.liveTranscodeDisabled
     return {

@@ -1,9 +1,10 @@
 import {apiClient, getApiBaseUrl} from './apiClient'
 import {getAuthToken} from './authSession'
+import {useAppStore} from '@/stores/app'
 
 type Pending = {resolve: (paths: string[]) => void; reject: (error: unknown) => void}
 const pending = new Map<string, Map<number, Pending[]>>()
-const currentScope = () => `${getApiBaseUrl()}|${getAuthToken()}`
+const currentScope = () => JSON.stringify([getApiBaseUrl(), getAuthToken(), useAppStore().dbPath])
 
 /** Coalesce missing-original checks from cards mounted in the same frame. */
 export function queueMediaCopyPaths(id: number): Promise<string[]> {

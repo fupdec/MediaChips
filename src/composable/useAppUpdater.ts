@@ -57,19 +57,26 @@ export function useAppUpdater() {
       const updater = window.electronAPI!.updater!
       isSupported.value = await updater.isSupported()
 
-      updater.onStatus((payload: UpdaterStatus) => {
+      let receivedStatus = false
+      const unsubscribe = updater.onStatus((payload: UpdaterStatus) => {
+        receivedStatus = true
         applyUpdaterStatus({
           ...payload,
           manualCheck: lastCheckManual.value,
         })
       })
 
-      const initial = await updater.getState()
-      if (initial) {
-        applyUpdaterStatus({
-          ...initial,
-          manualCheck: lastCheckManual.value,
-        })
+      try {
+        const initial = await updater.getState()
+        if (initial && !receivedStatus) {
+          applyUpdaterStatus({
+            ...initial,
+            manualCheck: lastCheckManual.value,
+          })
+        }
+      } catch (error) {
+        unsubscribe()
+        throw error
       }
     })()
 

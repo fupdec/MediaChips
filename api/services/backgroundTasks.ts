@@ -18,23 +18,39 @@ const providers = new Set<BackgroundTaskProvider>()
 const providerFirstSeen = new Map<string, number>()
 let clock: () => number = Date.now
 
-/** Runs one unit of background work and counts it, whether it succeeds or throws. */
-export async function trackBackgroundWork<T>(kind: BackgroundTaskKind, work: () => Promise<T>): Promise<T> {
+/**
+ * Runs one unit of background work and counts it, whether it succeeds or throws.
+ * `counts` can say a finished unit did nothing real (a missing file); such a unit leaves no trace,
+ * so an idle retry does not keep the Tasks panel and its fast polling alive.
+ */
+export async function trackBackgroundWork<T>(kind: BackgroundTaskKind, work: () => Promise<T>, counts: (result: T) => boolean = () => true): Promise<T> {
   const now = clock()
   let run = runs.get(kind)
+  let created = false
   if (!run || (run.active === 0 && now - run.lastActivityAt > BACKGROUND_RUN_LINGER_MS)) {
     run = {active: 0, processed: 0, startedAt: now, lastActivityAt: now}
     runs.set(kind, run)
+    created = true
   }
   const current = run
+  const previousActivityAt = current.lastActivityAt
   current.active += 1
   current.lastActivityAt = now
+  let counted = true
   try {
-    return await work()
+    const result = await work()
+    counted = counts(result)
+    return result
   } finally {
     current.active -= 1
-    current.processed += 1
-    current.lastActivityAt = clock()
+    if (counted) {
+      current.processed += 1
+      current.lastActivityAt = clock()
+    } else if (created && current.active === 0 && current.processed === 0 && runs.get(kind) === current) {
+      runs.delete(kind)
+    } else if (!created) {
+      current.lastActivityAt = previousActivityAt
+    }
   }
 }
 

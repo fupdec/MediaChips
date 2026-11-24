@@ -1128,6 +1128,7 @@ const pl = {
       mounted_roots_hint: 'Przeglądaj foldery — kliknij katalog główny, aby otworzyć:',
       mounted_roots_empty: 'Nie znaleziono katalogów głównych do przeglądania. W Dockerze zmapuj foldery hosta na /media/.... Lokalnie ustaw MEDIA_CHIPS_MEDIA_ROOTS lub uruchom serwer ponownie, aby użyć folderu domowego.',
       browser_up: 'W górę',
+      browser_edit_path: 'Edytuj ścieżkę folderu',
       browser_select_folder: 'Wybierz ten folder',
       browser_clear_selection: 'Wyczyść zaznaczenie',
       browser_select_all: 'Zaznacz wszystko',

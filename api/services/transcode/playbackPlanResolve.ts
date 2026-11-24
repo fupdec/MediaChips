@@ -7,6 +7,10 @@ export type PlayabilityResult = {
   audioCodec: string | null
   duration: number
   needsRemux?: boolean
+  /** ffprobe format_name of the real container (may differ from the file extension). */
+  container?: string | null
+  /** Codecs are browser-native; only the container blocks playback, so stream-copy remux works. */
+  remuxable?: boolean
 }
 
 export type PlaybackPlan = {
@@ -53,6 +57,7 @@ export function resolvePlaybackPlanFromPlayability(input: {
     error: null,
     reason: playability.needsRemux ? 'container_layout' : playability.reason,
     playability,
+    ...(playability.remuxable ? {remuxCopy: true} : {}),
   }
 }
 
@@ -64,9 +69,11 @@ export function resolveLiveStreamCopyCodecs(input: {
   requestedCopy: boolean
   playable: boolean
   needsRemux?: boolean
+  /** Container-only mismatch: codecs are browser-native, so copy is safe. */
+  remuxable?: boolean
   streamStart: number
 }): boolean {
-  const codecsCopySafe = Boolean(input.playable && !input.needsRemux)
+  const codecsCopySafe = Boolean((input.playable || input.remuxable) && !input.needsRemux)
   return Boolean(input.requestedCopy)
     && codecsCopySafe
     && !input.needsRemux

@@ -86,6 +86,10 @@ const isNearTime = (video: HTMLVideoElement, time: number) => (
 /** Seeks the live player to `time`, grabs the frame and puts the playhead back where it was. */
 async function captureFrameAtTime(video: HTMLVideoElement, time: number): Promise<string | null> {
   if (!Number.isFinite(time) || time < 0 || video.readyState < 1 || !Number.isFinite(video.duration) || time > video.duration) return null
+  const source = video.src
+  let sourceChanged = false
+  let seekChanged = false
+  const ownsSource = () => !sourceChanged && video.src === source
   const previousTime = video.currentTime
   const wasPlaying = !video.paused && !video.ended
   if (wasPlaying) video.pause()
@@ -96,25 +100,45 @@ async function captureFrameAtTime(video: HTMLVideoElement, time: number): Promis
         window.clearTimeout(timeout)
         video.removeEventListener('seeked', onSeeked)
         video.removeEventListener('error', onError)
+        video.removeEventListener('emptied', onSourceChange)
+        video.removeEventListener('loadstart', onSourceChange)
         if (error) reject(error)
         else resolve()
       }
-      const onSeeked = () => { if (video.readyState >= 2) finish() }
+      const onSeeked = () => {
+        if (!ownsSource()) finish(new Error('Video source changed.'))
+        else if (!video.seeking && video.readyState >= 2) {
+          if (Math.abs(video.currentTime - time) > 0.05) {
+            seekChanged = true
+            finish(new Error('Video position changed.'))
+          } else finish()
+        }
+      }
+      const onSourceChange = () => { sourceChanged = true; finish(new Error('Video source changed.')) }
       const onError = () => finish(new Error('Seek failed.'))
       video.addEventListener('seeked', onSeeked)
       video.addEventListener('error', onError)
+      video.addEventListener('emptied', onSourceChange)
+      video.addEventListener('loadstart', onSourceChange)
       try {
         video.currentTime = time
       } catch (error) {
         finish(error instanceof Error ? error : new Error('Seek failed.'))
       }
     })
+    if (!ownsSource()) return null
+    if (video.seeking || Math.abs(video.currentTime - time) > 0.05) {
+      seekChanged = true
+      return null
+    }
     return captureVideoFrame(video)
   } catch {
     return null
   } finally {
-    video.currentTime = previousTime
-    if (wasPlaying) void video.play().catch(() => {})
+    if (ownsSource() && !seekChanged) {
+      video.currentTime = previousTime
+      if (wasPlaying) void video.play().catch(() => {})
+    }
   }
 }
 

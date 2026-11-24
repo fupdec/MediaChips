@@ -3,9 +3,10 @@ import {invalidateHomeMediaCache, useHomeMedia} from './useHomeMedia'
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(), thumbs: vi.fn(),
-  store: {dbPath: 'a', mediaPath: '/a', mediaTypes: []},
+  store: {localhost: 'server-a', dbPath: 'a', mediaPath: '/a', mediaTypes: []},
 }))
 vi.mock('@/services/typedApi', () => ({typedApi: {getHomeMedia: mocks.get}}))
+vi.mock('@/services/apiClient', () => ({getApiBaseUrl: () => mocks.store.localhost}))
 vi.mock('@/stores/app', () => ({useAppStore: () => mocks.store}))
 vi.mock('@/utils/homeMediaThumbs', () => ({loadHomeMediaThumbs: mocks.thumbs}))
 const options = {limits: {favorites: 12}, loadContinue: false, loadFavorites: true, loadTopViews: false}
@@ -20,6 +21,7 @@ beforeEach(() => {
   invalidateHomeMediaCache()
   vi.resetAllMocks()
   mocks.store.dbPath = 'a'
+  mocks.store.localhost = 'server-a'
   mocks.thumbs.mockResolvedValue(undefined)
 })
 describe('home media request ownership', () => {
@@ -99,4 +101,27 @@ it('does not overwrite newer shuffled favorites with an older full-page response
   await loadingPage
   expect(home.favorites.value.map(item => item.id)).toEqual([2])
   expect(home.continueWatching.value.map(item => item.id)).toEqual([3])
+})
+
+
+it.each(['page', 'shuffle'])('ignores a pending %s response after changing server with the same library path', async kind => {
+  const pending = deferred()
+  mocks.get.mockReturnValue(pending.promise)
+  const home = useHomeMedia()
+  const loading = kind === 'page' ? home.loadHomeMedia(options) : home.reshuffleFavorites()
+  mocks.store.localhost = 'server-b'
+  pending.resolve(response(1))
+  await loading
+  expect(home.favorites.value).toEqual([])
+  expect(mocks.thumbs).not.toHaveBeenCalled()
+})
+
+it('loads a fresh page after changing server even when the library path is the same', async () => {
+  mocks.get.mockResolvedValueOnce(response(1)).mockResolvedValueOnce(response(2))
+  const home = useHomeMedia()
+  await home.loadHomeMedia(options)
+  mocks.store.localhost = 'server-b'
+  await home.loadHomeMedia(options)
+  expect(mocks.get).toHaveBeenCalledTimes(2)
+  expect(home.favorites.value.map(item => item.id)).toEqual([2])
 })

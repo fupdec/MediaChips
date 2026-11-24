@@ -52,7 +52,7 @@ export function createRemoteFingerprintBackground(db: ApiDb, options: {
           let seen = attempted.get(current.sqlite)
           if (!seen) { seen = new Set(); attempted.set(current.sqlite, seen) }
           const hash = (row: Parameters<typeof backfillMediaFingerprint>[1]) => trackBackgroundWork('remoteFingerprint', async () => {
-            await (options.backfill || backfillMediaFingerprint)(current, row, {
+            const result = await (options.backfill || backfillMediaFingerprint)(current, row, {
               signal: controller.signal,
               assertCurrent: () => {
                 pinned.assertCurrent()
@@ -60,7 +60,8 @@ export function createRemoteFingerprintBackground(db: ApiDb, options: {
               },
             })
             pinned.assertCurrent()
-          })
+            return result
+          }, result => (result as {status?: string} | undefined)?.status !== 'missing')
           let processed = 0
           const minBytes = readDuplicatePolicy(current).sizeCandidateMinBytes ?? DEFAULT_SIZE_CANDIDATE_MIN_BYTES
           if (minBytes > 0) {

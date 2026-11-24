@@ -1128,6 +1128,7 @@ const ko = {
       mounted_roots_hint: '폴더 찾아보기 — 루트를 클릭하여 열기:',
       mounted_roots_empty: '찾아볼 루트가 없습니다. Docker에서는 호스트 폴더를 /media/...에 매핑하세요. 로컬에서는 MEDIA_CHIPS_MEDIA_ROOTS를 설정하거나 서버를 다시 시작하여 홈 폴더를 사용하세요.',
       browser_up: '상위로',
+      browser_edit_path: '폴더 경로 편집',
       browser_select_folder: '이 폴더 선택',
       browser_clear_selection: '선택 해제',
       browser_select_all: '모두 선택',

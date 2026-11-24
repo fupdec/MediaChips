@@ -19,7 +19,7 @@ import {buildLocalFileUrl, checkFileExists} from '@/services/fileService'
 import {setNotification} from '@/services/notificationService'
 import {ensureMarkThumb, getMarkImagePath} from '@/utils/markThumb'
 import {isIgnorablePlaybackError} from '@/utils/playerBuffer'
-import {hasUnsupportedBrowserAudio} from '@/utils/browserPlaybackSupport'
+import {hasUnsupportedBrowserAudio, hasUnsupportedBrowserContainer} from '@/utils/browserPlaybackSupport'
 import {
   buildLiveStreamUrl,
   buildVideoStreamUrl,
@@ -38,7 +38,8 @@ import {
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
 import {isRemoteMediaPath} from '@shared/remoteMedia'
 
-import {attachWebVideo, disposeWebVideo, prepareWebVideoPlayback} from '@/services/webVideoPlayback'
+import {startNativeAt} from '@/services/nativePlayer'
+import {attachNativeWebVideo, attachWebVideo, disposeWebVideo, prepareWebVideoPlayback} from '@/services/webVideoPlayback'
 import {
   isLoadSrcSessionStale,
   metadataNumber,
@@ -67,7 +68,7 @@ interface PlayerLoadSrcOptions extends Pick<
 > {
   state: PlayerPlaybackSharedState
   liveSession: PlayerLiveSession
-  ensureVideoElement: () => Promise<HTMLVideoElement | null>
+  ensureVideoElement: (options?: {preferNative?: boolean}) => Promise<HTMLVideoElement | null>
 }
 
 export function createPlayerLoadSrc({
@@ -150,14 +151,44 @@ export function createPlayerLoadSrc({
     playerStore.media = media
   }
 
+  /** Same state reset as the native branch of `resolveVideoSource`, for a file mpv opens by path. */
+  const prepareNativeLocalSource = async (filePath: string) => {
+    await liveSession.clearLiveTranscodeHandlers()
+    liveSession.resetTranscodeState()
+    playerStore.usesLiveTranscode = false
+    playerStore.liveTranscodeStarted = false
+    playerStore.isLiveStreamSeeking = false
+    playerStore.isStreamWaiting = false
+    playerStore.clearBackgroundStatus()
+    state.liveStreamAccurateSeek = false
+    state.forceDirectPlayback = true
+    playerStore.liveTranscodeDisabled = true
+    playerStore.liveTranscodeOfferable = false
+    return filePath
+  }
+
   const resolveVideoSource = async (
     mediaId: number,
     startTime = 0,
     _options: {accurateStart?: boolean} = {},
   ) => {
     await liveSession.clearLiveTranscodeHandlers()
+    if (playerStore.nativeEngine) {
+      // mpv opens the original over HTTP, so no remux, transcode or fallback is involved.
+      liveSession.resetTranscodeState()
+      playerStore.usesLiveTranscode = false
+      playerStore.liveTranscodeStarted = false
+      playerStore.isLiveStreamSeeking = false
+      playerStore.isStreamWaiting = false
+      playerStore.clearBackgroundStatus()
+      state.liveStreamAccurateSeek = false
+      state.forceDirectPlayback = true
+      playerStore.liveTranscodeDisabled = true
+      playerStore.liveTranscodeOfferable = false
+      return buildVideoStreamUrl(buildApiUrl, mediaId, 'direct')
+    }
     const playable = await fetchPlayableInfo(mediaId).catch(() => ({mode: 'direct'} as Awaited<ReturnType<typeof fetchPlayableInfo>>))
-    const playability = playable.playability as {playable?: boolean; needsRemux?: boolean; audioCodec?: string | null} | undefined
+    const playability = playable.playability as {playable?: boolean; needsRemux?: boolean; audioCodec?: string | null; container?: string | null} | undefined
     state.directPlaybackFallbackCandidate = playability?.playable === false
       || playable.reason === 'container_layout' || playability?.needsRemux === true
     const plan = resolveVideoSourcePlan({
@@ -171,6 +202,7 @@ export function createPlayerLoadSrc({
       liveTranscodeDisabled: playerStore.liveTranscodeDisabled,
       transcodeUnsupportedFormatsEnabled: settingsStore.transcodeUnsupportedFormats === '1',
       audioUnsupported: Boolean(playerStore.player && hasUnsupportedBrowserAudio(playerStore.player, playability?.audioCodec)),
+      containerUnsupported: Boolean(playerStore.player && hasUnsupportedBrowserContainer(playerStore.player, playability?.container)),
     })
     if (plan.kind === 'unsupported') throw new UnsupportedPlaybackError()
     playerStore.liveTranscodeOfferable = plan.liveTranscodeOfferable
@@ -298,7 +330,9 @@ export function createPlayerLoadSrc({
         return
       }
 
-      const videoEl = await ensureVideoElement()
+      const videoEl = await ensureVideoElement({
+        preferNative: !isAudioFilePath(media.path || ''),
+      })
       if (isLoadSrcStale(session)) return
       if (!videoEl) {
         console.error('Player: Video element is not available')
@@ -359,6 +393,8 @@ export function createPlayerLoadSrc({
       playerStore.currentTime = targetStartTime
 
       try {
+        // Native mpv opens at the saved position itself (see MpvMediaElement.startAt).
+        if (playerStore.nativeEngine) startNativeAt(videoEl, targetStartTime)
         if (usesCopyOrRemoteSource(media)) {
           videoEl.autoplay = !options.paused
           const source = await prepareWebVideoPlayback(media.id, {quality: options.webQuality, fresh: options.webFresh,
@@ -369,20 +405,30 @@ export function createPlayerLoadSrc({
           playerStore.webVideoAdaptive = source.adaptive
           playerStore.usesLiveTranscode = false
           playerStore.liveStreamOffset = 0
-          await attachWebVideo(videoEl, source, () => isLoadSrcStale(session), (error) => {
-            if (isLoadSrcStale(session)) return
-            playerStore.transcodeError = remoteSourceErrorMessage(error, t)
-            playerStore.playbackError = true
-            isReady.value = true
-          }, targetStartTime)
+          if (playerStore.nativeEngine) {
+            attachNativeWebVideo(videoEl, source)
+          } else {
+            await attachWebVideo(videoEl, source, () => isLoadSrcStale(session), (error) => {
+              if (isLoadSrcStale(session)) return
+              playerStore.transcodeError = remoteSourceErrorMessage(error, t)
+              playerStore.playbackError = true
+              isReady.value = true
+            }, targetStartTime)
+          }
         } else {
           videoEl.removeAttribute('crossorigin')
-          const source = media.id === 0
-            ? buildLocalFileUrl(media.path || '', true)
-            : await resolveVideoSource(media.id, targetStartTime)
+          // mpv reads a local file straight from disk: over HTTP ffmpeg turns every small seek
+          // while probing the container into a separate request (dozens per jump).
+          const nativeLocalPath = playerStore.nativeEngine && media.id > 0 && playerStore.is_file_exists
+            && media.path && media.path.startsWith('/') ? media.path : ''
+          const source = nativeLocalPath
+            ? await prepareNativeLocalSource(nativeLocalPath)
+            : media.id === 0
+              ? buildLocalFileUrl(media.path || '', true)
+              : await resolveVideoSource(media.id, targetStartTime)
           if (isLoadSrcStale(session)) return
           videoEl.src = source
-          if (media.id > 0 && !playerStore.usesLiveTranscode) liveSession.armDirectSeekStallWatch()
+          if (media.id > 0 && !playerStore.usesLiveTranscode && !playerStore.nativeEngine) liveSession.armDirectSeekStallWatch()
         }
       } catch (error) {
         if (isLoadSrcStale(session)) return

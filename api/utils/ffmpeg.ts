@@ -276,7 +276,7 @@ async function ffprobePlayability(filePath: string) {
       '-analyzeduration',
       '5000000',
       '-show_entries',
-      'stream=codec_type,codec_name:format=duration',
+      'stream=codec_type,codec_name:format=duration,format_name',
       '-of',
       'json',
       filePath,

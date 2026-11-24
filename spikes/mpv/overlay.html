@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>mpv spike</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; color: #fff; font: 13px -apple-system, sans-serif; overflow: hidden; user-select: none; }
+  #drag { position: absolute; inset: 0 0 auto 0; height: 32px; -webkit-app-region: drag; background: linear-gradient(#000a, #0000); }
+  #close { position: absolute; top: 6px; right: 10px; -webkit-app-region: no-drag; cursor: pointer; padding: 2px 8px; background: #0008; border-radius: 4px; }
+  #bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 14px; background: linear-gradient(#0000, #000c); display: flex; gap: 12px; align-items: center; }
+  #seek { flex: 1; }
+  button { background: #fff2; color: #fff; border: 0; border-radius: 4px; padding: 4px 12px; cursor: pointer; }
+  #info { position: absolute; left: 12px; top: 40px; background: #000a; border-radius: 6px; padding: 6px 10px; line-height: 1.5; white-space: pre; }
+  #log { position: absolute; left: 12px; top: 120px; max-width: 70%; background: #000a; border-radius: 6px; padding: 6px 10px; font: 11px ui-monospace, monospace; white-space: pre-wrap; max-height: 40%; overflow: hidden; }
+</style>
+</head>
+<body>
+  <div id="drag"></div>
+  <div id="close">✕</div>
+  <div id="info"></div>
+  <div id="log"></div>
+  <div id="bar">
+    <button id="play">Play</button>
+    <input id="seek" type="range" min="0" max="1000" value="0">
+    <span id="time">0:00 / 0:00</span>
+  </div>
+<script>
+  const $ = id => document.getElementById(id)
+  const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') }
+  let current = {pause: true, timePos: 0, duration: 0}
+  let scrubbing = false
+
+  window.spike.onState(state => {
+    current = state
+    $('play').textContent = state.pause ? 'Play' : 'Pause'
+    $('time').textContent = fmt(state.timePos) + ' / ' + fmt(state.duration)
+    if (!scrubbing && state.duration > 0) $('seek').value = String(Math.round(state.timePos / state.duration * 1000))
+    $('info').textContent = `video: ${state.videoCodec || '-'}\naudio: ${state.audioCodec || '-'}\nhwdec: ${state.hwdec || 'no'}`
+  })
+  window.spike.onLog(message => {
+    const el = $('log')
+    el.textContent = (el.textContent + '\n' + message).split('\n').slice(-12).join('\n')
+  })
+
+  const toggle = () => window.spike.command(['cycle', 'pause'])
+  $('play').onclick = toggle
+  $('close').onclick = () => window.spike.close()
+  $('seek').oninput = () => { scrubbing = true }
+  $('seek').onchange = () => {
+    scrubbing = false
+    window.spike.command(['seek', String(current.duration * Number($('seek').value) / 1000), 'absolute+exact'])
+  }
+  window.addEventListener('keydown', event => {
+    if (event.code === 'Space') { event.preventDefault(); toggle() }
+    if (event.code === 'ArrowRight') window.spike.command(['seek', '5', 'relative'])
+    if (event.code === 'ArrowLeft') window.spike.command(['seek', '-5', 'relative'])
+    if (event.code === 'Escape') window.spike.close()
+  })
+</script>
+</body>
+</html>

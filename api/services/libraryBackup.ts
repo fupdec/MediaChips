@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
+import {randomUUID} from 'node:crypto'
 import type {Readable} from 'node:stream'
 import {pipeline} from 'node:stream/promises'
 import Database from 'better-sqlite3'
@@ -10,7 +11,7 @@ import StreamZip from 'node-stream-zip'
 /** SQLite's online backup includes committed WAL pages without copying live sidecars. */
 export async function createLibraryBackup(sqlite: Database.Database, root: string, destination: string) {
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-backup-'))
-  const partial = `${destination}.partial`
+  const partial = `${destination}.${randomUUID()}.partial`
   try {
     await sqlite.backup(path.join(temporary, 'db.sqlite'))
     fs.mkdirSync(path.dirname(destination), {recursive: true})

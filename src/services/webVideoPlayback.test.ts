@@ -2,7 +2,7 @@ import {beforeEach, afterEach, describe, expect, it, vi} from 'vitest'
 import {WebVideoPlayableSchema} from '@shared/webVideo'
 import {apiClient} from './apiClient'
 import Hls from 'hls.js'
-import {attachWebVideo, disposeWebVideo, prepareWebVideoPlayback, hlsFailureCode, hlsFailure, getRemotePlaybackTransfer, getHlsDownloadSpeed} from './webVideoPlayback'
+import {attachNativeWebVideo, attachWebVideo, disposeWebVideo, prepareWebVideoPlayback, hlsFailureCode, hlsFailure, getRemotePlaybackTransfer, getHlsDownloadSpeed} from './webVideoPlayback'
 
 vi.mock('./apiClient', () => ({apiClient: {get: vi.fn()}, buildApiUrl: (url: string) => `http://localhost:12321${url}`}))
 vi.mock('./authSession', () => ({getAuthToken: () => 'test token'}))
@@ -211,5 +211,24 @@ describe('remote download speed lifecycle', () => {
     expect(getHlsDownloadSpeed(video)).toBeNull()
     disposeWebVideo(video)
     expect(getHlsDownloadSpeed(video)).toBeNull()
+  })
+})
+
+describe('attachNativeWebVideo', () => {
+  it('hands the stream url to the player with a transfer id for /stream endpoints', () => {
+    const video = {src: ''} as unknown as HTMLVideoElement
+    attachNativeWebVideo(video, {url: 'http://localhost:12321/api/drive/files/abc/stream?token=t', kind: 'mp4'})
+    const url = new URL(video.src)
+    expect(url.pathname).toBe('/api/drive/files/abc/stream')
+    expect(url.searchParams.get('token')).toBe('t')
+    expect(url.searchParams.get('playbackTransfer')).toBeTruthy()
+    expect(getRemotePlaybackTransfer(video)).toBe(url.searchParams.get('playbackTransfer'))
+  })
+
+  it('leaves HLS and non-stream urls untouched and never creates an hls.js player', () => {
+    const video = {src: ''} as unknown as HTMLVideoElement
+    attachNativeWebVideo(video, {url: 'http://localhost:12321/api/web-video/1/stream.m3u8?session=a', kind: 'hls'})
+    expect(video.src).toBe('http://localhost:12321/api/web-video/1/stream.m3u8?session=a')
+    expect(getRemotePlaybackTransfer(video)).toBeUndefined()
   })
 })

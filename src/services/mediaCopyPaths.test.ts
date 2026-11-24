@@ -1,11 +1,12 @@
 import {beforeEach, afterEach, describe, expect, it, vi} from 'vitest'
 const post = vi.hoisted(() => vi.fn())
-const context = vi.hoisted(() => ({base: '', token: ''}))
+const context = vi.hoisted(() => ({base: '', token: '', dbPath: 'library-a'}))
 vi.mock('./apiClient', () => ({apiClient: {post}, getApiBaseUrl: () => context.base}))
+vi.mock('@/stores/app', () => ({useAppStore: () => context}))
 vi.mock('./authSession', () => ({getAuthToken: () => context.token}))
 import {queueMediaCopyPaths} from './mediaCopyPaths'
 
-beforeEach(() => {context.base = ''; context.token = ''})
+beforeEach(() => {context.base = ''; context.token = ''; context.dbPath = 'library-a'})
 
 afterEach(() => {vi.useRealTimers(); post.mockReset()})
 describe('copy path batching', () => {
@@ -32,7 +33,7 @@ describe('copy path batching', () => {
 })
 
 
-it.each(['base', 'token'] as const)('does not send queued IDs after the %s changes', async field => {
+it.each(['base', 'token', 'dbPath'] as const)('does not send queued IDs after the %s changes', async field => {
   vi.useFakeTimers()
   post.mockResolvedValue({data: {paths: {1: ['/wrong-library']}}})
   const queued = queueMediaCopyPaths(1)
@@ -50,5 +51,17 @@ it('discards copy paths when the server changes during a request', async () => {
   await vi.advanceTimersByTimeAsync(32)
   context.base = 'new-server'
   finish({data: {paths: {1: ['/old-library']}}})
+  expect(await queued).toEqual([])
+})
+
+
+it('discards copy paths from a previously selected library on the same server', async () => {
+  vi.useFakeTimers()
+  let finish!: (value: unknown) => void
+  post.mockReturnValue(new Promise(resolve => { finish = resolve }))
+  const queued = queueMediaCopyPaths(1)
+  await vi.advanceTimersByTimeAsync(32)
+  context.dbPath = 'library-b'
+  finish({data: {paths: {1: ['/library-a/copy.mp4']}}})
   expect(await queued).toEqual([])
 })

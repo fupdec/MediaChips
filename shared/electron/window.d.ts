@@ -39,8 +39,21 @@ export interface MediaDragAPI {
   startDrag(payload: MediaDragStartPayload): void
 }
 
+/** Native mpv playback bridge (macOS, opt-in). See electron/mpvNative.ts. */
+export interface MpvBridgeAPI {
+  availability(): Promise<{available: boolean; supported?: boolean; reason?: string}>
+  init(options?: {above?: boolean}): Promise<{ok: boolean; error?: string}>
+  destroy(): Promise<void>
+  tracks(): Promise<Array<{id: number; type: 'video' | 'audio' | 'sub'; lang: string; title: string; codec: string; selected: boolean; default: boolean; forced: boolean; external: boolean}>>
+  command(command: string[]): Promise<number>
+  setProperty(name: string, value: string | number | boolean): Promise<number>
+  setRect(rect: Record<string, number>): void
+  onEvent(callback: (event: Record<string, unknown>) => void): () => void
+}
+
 declare global {
   interface Window {
+    mpvAPI?: MpvBridgeAPI
     electronAPI?: ElectronBridgeAPI
     mediaDragAPI?: MediaDragAPI
     $electronOperable?: ElectronOperableAPI

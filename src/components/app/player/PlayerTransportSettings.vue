@@ -42,6 +42,40 @@
           </div>
         </section>
 
+        <section v-if="audioTracks.length > 1" class="player-menu__section">
+          <div class="player-menu__label">{{ t('player.controls.audio_track') }}</div>
+          <div class="player-menu__chips">
+            <button
+              v-for="track in audioTracks"
+              :key="`a${track.id}`"
+              @click="selectTrack('aid', track.id)"
+              :class="{'is-active': track.selected}"
+              type="button"
+              class="player-menu__chip"
+            >{{ labelOf(track) }}</button>
+          </div>
+        </section>
+
+        <section v-if="subtitleTracks.length > 0" class="player-menu__section">
+          <div class="player-menu__label">{{ t('player.controls.subtitle_track') }}</div>
+          <div class="player-menu__chips">
+            <button
+              @click="selectTrack('sid', 'no')"
+              :class="{'is-active': !subtitleTracks.some(track => track.selected)}"
+              type="button"
+              class="player-menu__chip"
+            >{{ t('player.controls.track_off') }}</button>
+            <button
+              v-for="track in subtitleTracks"
+              :key="`s${track.id}`"
+              @click="selectTrack('sid', track.id)"
+              :class="{'is-active': track.selected}"
+              type="button"
+              class="player-menu__chip"
+            >{{ labelOf(track) }}</button>
+          </div>
+        </section>
+
         <section v-if="showWebQuality" class="player-menu__section">
           <div class="player-menu__label">{{ t('player.controls.web_video_quality') }}</div>
           <div class="player-menu__chips">
@@ -103,10 +137,12 @@
 </template>
 
 <script setup lang="ts">
-import {computed, inject, ref} from 'vue'
+import {computed, inject, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {PLAYER_TRANSPORT_KEY} from '@/composable/playerTransportKey'
 import PlayerPictureSections from '@/components/app/player/PlayerPictureSections.vue'
+import {fetchNativeTracks, selectNativeTrack, type NativeTrack} from '@/services/nativePlayer'
+import {audioTracksOf, subtitleTracksOf, trackLabel} from '@/utils/mpvTracks'
 const {t} = useI18n()
 const menuOpen = ref(false)
 const {
@@ -130,13 +166,27 @@ const showWebQuality = computed(() => (
   isWebVideo.value && !player.value.webVideoLoading && player.value.webVideoQualities.length > 1
 ))
 const showRefresh = computed(() => isWebVideo.value && !player.value.webVideoLoading)
-const showPip = computed(() => !isAudioMode.value)
+// Native mpv draws below the web layer, so the browser's picture-in-picture is not available.
+const showPip = computed(() => !isAudioMode.value && !playerStore.nativeEngine)
 const showTranscodeMenu = computed(() => (
   !isAudioMode.value
   && !isWebVideo.value
   // Only while live is active, or after the user turned it off (so they can re-enable).
   && (playerStore.usesLiveTranscode || playerStore.liveTranscodeDisabled)
 ))
+
+// Native mpv knows the file's audio and subtitle tracks; read them whenever the menu opens.
+const nativeTracks = ref<NativeTrack[]>([])
+const audioTracks = computed(() => playerStore.nativeEngine ? audioTracksOf(nativeTracks.value) : [])
+const subtitleTracks = computed(() => playerStore.nativeEngine ? subtitleTracksOf(nativeTracks.value) : [])
+const refreshTracks = async () => { nativeTracks.value = await fetchNativeTracks() }
+watch(menuOpen, open => { if (open && playerStore.nativeEngine) void refreshTracks() })
+const labelOf = (track: NativeTrack) => trackLabel(track, id => t('player.controls.track_number', {n: id}))
+const selectTrack = (kind: 'aid' | 'sid', id: number | 'no') => {
+  selectNativeTrack(kind, id)
+  // mpv applies the change asynchronously; read the list again once it has.
+  setTimeout(() => { void refreshTracks() }, 200)
+}
 
 const refresh = () => {
   menuOpen.value = false

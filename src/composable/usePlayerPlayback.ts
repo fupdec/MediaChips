@@ -32,6 +32,7 @@ import {
 } from '@/composable/usePlayerLiveSession'
 import {createPlayerLoadSrc} from '@/composable/usePlayerLoadSrc'
 import {maybeRefillSimilarRadio} from '@/services/similarRadio'
+import {acquireNativeElement, isNativeElement, isNativePlayerAvailable, stopNativePlayback} from '@/services/nativePlayer'
 
 export {
   getLiveChunkRelativeTime,
@@ -352,6 +353,9 @@ export function usePlayerPlayback({
 
   const bindVideoElement = (el: HTMLVideoElement | null) => {
     if (!el) return
+    // The hidden <video> mounts and re-binds on its own (ref callback, onMounted); while mpv owns
+    // playback that must not replace it, or pause / seek would go to an element nobody sees.
+    if (playerStore.nativeEngine && !isNativeElement(el)) return
     if (playerStore.player && playerStore.player !== el) {
       delete playerStore.player.dataset.playerBound
     }
@@ -359,7 +363,20 @@ export function usePlayerPlayback({
     initPlayer()
   }
 
-  const ensureVideoElement = async () => {
+  const ensureVideoElement = async (options: {preferNative?: boolean} = {}) => {
+    if (options.preferNative && await isNativePlayerAvailable()) {
+      const native = await acquireNativeElement()
+      if (native) {
+        if (playerStore.player !== native) bindVideoElement(native)
+        playerStore.nativeEngine = true
+        return native
+      }
+    }
+    if (playerStore.nativeEngine) {
+      stopNativePlayback()
+      playerStore.nativeEngine = false
+      if (videoPlayer.value) bindVideoElement(videoPlayer.value)
+    }
     if (playerStore.player) return playerStore.player
     await nextTick()
     bindVideoElement(videoPlayer.value)

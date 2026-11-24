@@ -22,6 +22,7 @@ import { createMainWindowController } from './electron/mainWindow'
 import { createPlayerWindowController } from './electron/playerWindow'
 import { registerShellIpc } from './electron/shellIpc'
 import { registerBridgeIpc } from './electron/bridgeIpc'
+import { createMpvNativeController, isNativePlayerEnabled } from './electron/mpvNative'
 import { registerWindowChromeIpc } from './electron/windowChromeIpc'
 import {
   createWindowBoundsPersistence,
@@ -288,7 +289,17 @@ const {
   bindMainWindowLoadedHandler,
 } = loadingWindow
 
+const nativePlayerEnabled = isNativePlayerEnabled(shellConfig as unknown as Record<string, unknown>)
+const mpvNative = createMpvNativeController({
+  enabled: nativePlayerEnabled,
+  appRoot,
+  resourcesPath: process.resourcesPath,
+})
+mpvNative.registerIpc()
+app.on('before-quit', () => mpvNative.destroyAll())
+
 const mainWindow = createMainWindowController({
+  transparentWindow: nativePlayerEnabled,
   isWindows,
   useWinElectronFrame,
   isDevelopment,
@@ -340,6 +351,7 @@ if (typeof appTray.installWindowsJumpList === 'function') {
 }
 
 const playerWindow = createPlayerWindowController({
+  transparentWindow: nativePlayerEnabled,
   isWindows,
   getAppRoot: () => appRoot,
   getRendererUrl,

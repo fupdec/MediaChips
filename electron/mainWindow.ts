@@ -37,6 +37,8 @@ export function createMainWindowController(deps: {
   bindMainWindowLoadedHandler: (mainWindow: BrowserWindow) => void
   waitForBackend: (port: number, timeoutMs?: number) => Promise<void>
   getBackendPort: () => number
+  /** Native video sits under the web view, so the window must be transparent. */
+  transparentWindow?: boolean
 }): MainWindowController {
   let win: BrowserWindow | null = null
 
@@ -55,7 +57,8 @@ export function createMainWindowController(deps: {
       autoHideMenuBar: useWinElectronFrame,
       titleBarStyle: (os.type() === 'Darwin' && !useWinElectronFrame ? 'hidden' : 'default') as 'hidden' | 'default',
       trafficLightPosition: os.type() === 'Darwin' && !useWinElectronFrame ? {x: 18, y: 15} : undefined,
-      backgroundColor: '#333',
+      backgroundColor: deps.transparentWindow ? '#00000000' : '#333',
+      ...(deps.transparentWindow ? {transparent: true} : {}),
       icon: resolveWindowIconPath(appRoot),
       webPreferences: {
         preload: path.join(appRoot, 'electron/preload.js'),

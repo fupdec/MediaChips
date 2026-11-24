@@ -35,6 +35,7 @@ export interface ServerConfig {
   transcodeUnsupportedFormats?: string
   transcodeMaxHeight?: string
   transcodeCacheMaxGb?: string
+  nativePlayer?: string
   zoom?: string
   databases: ServerDatabaseEntry[]
 }

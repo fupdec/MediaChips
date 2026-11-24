@@ -327,6 +327,7 @@ export function usePlayerSession() {
   }
 
   const togglePictureInPicture = async () => {
+    if (playerStore.nativeEngine) return
     showControls()
     if (playerStore.fullscreen) {
       await document.exitFullscreen()

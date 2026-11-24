@@ -121,7 +121,6 @@
         </div>
 
         <ItemPinnedMeta
-          v-if="advancedUi"
           muted-tags
           :item="item"
           :tags="item.tags"
@@ -180,7 +179,7 @@
         />
 
         <ItemPinnedMeta
-          v-if="advancedUi && !lean"
+          v-if="!lean"
           muted-tags
           :item="item"
           :tags="item.tags"
@@ -380,7 +379,8 @@ const emit = defineEmits<{
 const itemsStore = useItemsStore()
 const settingsStore = useSettingsStore()
 // Simple mode keeps the card to preview + title: rating/favorite appear on hover (the "off"
-// layout of ratingAndFavoriteInCard), and tag chips, synonyms and the bookmark are hidden.
+// layout of ratingAndFavoriteInCard), and synonyms and the bookmark are hidden. Pinned tag
+// chips stay in every mode: they only render for meta the user marked visible.
 const advancedUi = computed(() => settingsStore.advancedUi === '1')
 const ratingFavoriteInCard = computed(() => settingsStore.ratingAndFavoriteInCard == '1' && advancedUi.value)
 const dialogsStore = useDialogsStore()

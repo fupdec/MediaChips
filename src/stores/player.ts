@@ -20,6 +20,8 @@ type IntervalHandle = ReturnType<typeof setInterval>
 export const usePlayerStore = defineStore('player', {
   state: () => ({
     player: null as HTMLVideoElement | null,
+    /** True while playback runs through native mpv instead of the <video> element. */
+    nativeEngine: false,
     active: false,
     fullscreen: false,
     statusText: '',

@@ -166,63 +166,67 @@ export async function* iterateTrackedHttpDownload(
       progressState.done = true
     })
 
-  let lastPercent = -1
-  let lastEtaBucket = -1
-  while (!progressState.done) {
-    if (input.shouldStop?.()) {
-      signal.aborted = true
-      await downloadPromise.catch(() => undefined)
-      throw new Error('aborted')
-    }
-    const percent = resolveDownloadPercent({
-      loaded: progressState.loaded,
-      total: progressState.total,
-      expectedBytes: input.expectedBytes,
-    })
-    const etaSeconds = estimateDownloadEtaSeconds({
-      loaded: progressState.loaded,
-      total: progressState.total,
-      expectedBytes: input.expectedBytes,
-      elapsedMs: Date.now() - startedAt,
-    })
-    const etaBucket = etaSeconds == null ? -1 : Math.round(etaSeconds / 5)
-    if (percent !== lastPercent || etaBucket !== lastEtaBucket) {
-      lastPercent = percent
-      lastEtaBucket = etaBucket
-      yield {
-        type: 'status',
-        phase: 'downloading',
-        message: buildProgressMessage({
-          label: input.label,
+  try {
+    let lastPercent = -1
+    let lastEtaBucket = -1
+    while (!progressState.done) {
+      if (input.shouldStop?.()) {
+        signal.aborted = true
+        await downloadPromise.catch(() => undefined)
+        throw new Error('aborted')
+      }
+      const percent = resolveDownloadPercent({
+        loaded: progressState.loaded,
+        total: progressState.total,
+        expectedBytes: input.expectedBytes,
+      })
+      const etaSeconds = estimateDownloadEtaSeconds({
+        loaded: progressState.loaded,
+        total: progressState.total,
+        expectedBytes: input.expectedBytes,
+        elapsedMs: Date.now() - startedAt,
+      })
+      const etaBucket = etaSeconds == null ? -1 : Math.round(etaSeconds / 5)
+      if (percent !== lastPercent || etaBucket !== lastEtaBucket) {
+        lastPercent = percent
+        lastEtaBucket = etaBucket
+        yield {
+          type: 'status',
+          phase: 'downloading',
+          message: buildProgressMessage({
+            label: input.label,
+            percent,
+            loaded: progressState.loaded,
+            total: progressState.total,
+            expectedBytes: input.expectedBytes,
+            etaSeconds,
+          }),
           percent,
           loaded: progressState.loaded,
           total: progressState.total,
-          expectedBytes: input.expectedBytes,
           etaSeconds,
-        }),
-        percent,
-        loaded: progressState.loaded,
-        total: progressState.total,
-        etaSeconds,
+        }
       }
+      await new Promise((resolve) => setTimeout(resolve, pollMs))
     }
-    await new Promise((resolve) => setTimeout(resolve, pollMs))
-  }
 
-  if (progressState.error) {
-    if (progressState.error.message === 'aborted' || input.shouldStop?.()) {
-      throw new Error('aborted')
+    if (progressState.error) {
+      if (progressState.error.message === 'aborted' || input.shouldStop?.()) {
+        throw new Error('aborted')
+      }
+      throw progressState.error
     }
-    throw progressState.error
-  }
 
-  yield {
-    type: 'status',
-    phase: 'downloading',
-    message: `Downloading ${input.label}… 100%`,
-    percent: 100,
-    loaded: progressState.loaded || input.expectedBytes,
-    total: progressState.total ?? input.expectedBytes,
-    etaSeconds: 0,
+    yield {
+      type: 'status',
+      phase: 'downloading',
+      message: `Downloading ${input.label}… 100%`,
+      percent: 100,
+      loaded: progressState.loaded || input.expectedBytes,
+      total: progressState.total ?? input.expectedBytes,
+      etaSeconds: 0,
+    }
+  } finally {
+    if (!progressState.done) signal.aborted = true
   }
 }

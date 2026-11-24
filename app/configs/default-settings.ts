@@ -261,6 +261,7 @@ const Settings = [
     "option": "transcodeCacheMaxGb",
     "value": "5"
   },
+  { "option": "nativePlayer", "value": "0" },
   { "option": "conversionCodec", "value": "auto" },
   { "option": "conversionResolution", "value": "1080" },
   { "option": "conversionQuality", "value": "balanced" },

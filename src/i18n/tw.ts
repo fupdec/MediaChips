@@ -1128,6 +1128,7 @@ const tw = {
       mounted_roots_hint: '瀏覽資料夾 — 點擊根目錄以開啟：',
       mounted_roots_empty: '找不到可瀏覽的根目錄。在 Docker 中，請將主機資料夾對應到 /media/...。在本機執行時，請設定 MEDIA_CHIPS_MEDIA_ROOTS，或重新啟動伺服器以使用您的家目錄。',
       browser_up: '上一層',
+      browser_edit_path: '編輯資料夾路徑',
       browser_select_folder: '選取此資料夾',
       browser_clear_selection: '清除選取',
       browser_select_all: '全選',

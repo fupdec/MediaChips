@@ -86,7 +86,17 @@ function analyzeProbeResult(
   }
 }
 
+/**
+ * Codecs Chromium decodes natively, so only the container is in the way and a
+ * stream-copy remux (no re-encode) is enough. A missing stream counts as fine.
+ */
+function areCodecsBrowserCompatible(videoCodec: string | null | undefined, audioCodec: string | null | undefined): boolean {
+  return (!videoCodec || BROWSER_VIDEO_CODECS.has(videoCodec))
+    && (!audioCodec || BROWSER_AUDIO_CODECS.has(audioCodec))
+}
+
 export {
+  areCodecsBrowserCompatible,
   DIRECT_VIDEO_CONTAINERS,
   DIRECT_AUDIO_CONTAINERS,
   BROWSER_VIDEO_CODECS,

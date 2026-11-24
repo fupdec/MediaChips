@@ -12,6 +12,7 @@ node_modules
 /.backend-build
 /.main-build
 /.scripts-build
+/.mpv-build
 /.cache
 /app/**/*.js
 /api/**/*.js

@@ -470,6 +470,29 @@ contextBridge.exposeInMainWorld('operableAPI', {
   setNotification: (notification: unknown) => ipcRenderer.invoke('setNotification', notification)
 });
 
+// Native mpv playback (opt-in, macOS). The renderer falls back to <video> when unavailable.
+contextBridge.exposeInMainWorld('mpvAPI', {
+  availability: () => ipcRenderer.invoke('mpv:availability'),
+  init: (options?: { above?: boolean }) => ipcRenderer.invoke('mpv:init', options),
+  destroy: () => ipcRenderer.invoke('mpv:destroy'),
+  tracks: () => ipcRenderer.invoke('mpv:tracks'),
+  command: (command: string[]) => ipcRenderer.invoke('mpv:command', command),
+  setProperty: (name: string, value: string | number | boolean) =>
+    ipcRenderer.invoke('mpv:set-property', name, value),
+  setRect: (rect: Record<string, number>) => ipcRenderer.send('mpv:rect', rect),
+  onEvent: (callback: (event: Record<string, unknown>) => void) => {
+    const listener = (_event: unknown, json: string) => {
+      try {
+        callback(JSON.parse(json))
+      } catch {
+        // Ignore malformed events.
+      }
+    }
+    ipcRenderer.on('mpv:event', listener)
+    return () => ipcRenderer.removeListener('mpv:event', listener)
+  },
+});
+
 contextBridge.exposeInMainWorld('readableAPI', {
   getDateForDB: () => ipcRenderer.invoke('getDateForDB')
 });

@@ -68,6 +68,22 @@ export async function prepareWebVideoPlayback(mediaId: number, options: {quality
   return {...data, url: token ? `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}` : url}
 }
 
+/**
+ * Native mpv opens the same HTTP stream itself (Range, HLS and redirects are handled by libmpv),
+ * so there is no hls.js or MediaSource involved. The transfer id still lets the speed
+ * indicator find this playback.
+ */
+export function attachNativeWebVideo(video: HTMLVideoElement, source: {url: string; kind?: string}) {
+  disposeWebVideo(video)
+  const url = new URL(source.url, window.location.href)
+  if (source.kind === 'mp4' && url.pathname.startsWith('/api/') && url.pathname.endsWith('/stream')) {
+    const id = createPlaybackTransferId()
+    transferIds.set(video, id)
+    url.searchParams.set('playbackTransfer', id)
+  }
+  video.src = url.href
+}
+
 export function hlsFailureCode(error: {type?: string; details?: string; response?: {code?: number}}): string {
   const status = error.response?.code
   if (status === 404) return 'not_found'

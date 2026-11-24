@@ -68,3 +68,23 @@ it('waits for background writes before replacing assets and releases the barrier
   expect(fs.readFileSync(path.join(root, 'db.sqlite'), 'utf8')).toBe('previous')
   expect(isLibraryRestoring()).toBe(false)
 })
+
+it('does not delete a partial file owned by another backup when snapshot creation fails', async () => {
+  const root = temp()
+  const destination = path.join(root, 'backup.zip')
+  fs.writeFileSync(destination + '.partial', 'another-running-backup')
+  const sqlite = {backup: async () => { throw new Error('snapshot failed') }} as unknown as Database.Database
+  await expect(createLibraryBackup(sqlite, root, destination)).rejects.toThrow('snapshot failed')
+  expect(fs.readFileSync(destination + '.partial', 'utf8')).toBe('another-running-backup')
+})
+
+it('uses its own partial file when another backup has a partial file at the same destination', async () => {
+  const root = temp()
+  const destination = path.join(root, 'backup.zip')
+  fs.writeFileSync(destination + '.partial', 'another-running-backup')
+  const sqlite = {backup: async (file: string) => { fs.writeFileSync(file, 'snapshot') }} as unknown as Database.Database
+  await createLibraryBackup(sqlite, root, destination)
+  expect(fs.readFileSync(destination + '.partial', 'utf8')).toBe('another-running-backup')
+  expect(fs.statSync(destination).size).toBeGreaterThan(0)
+  expect(fs.readdirSync(root).sort()).toEqual(['backup.zip', 'backup.zip.partial'])
+})

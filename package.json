@@ -21,6 +21,10 @@
     "server:lan": "node scripts/run-server.mjs --lan",
     "server:dev": "nodemon --watch app --watch api --watch shared --ext ts --delay 1 --ignore shared/sfwCompiled.ts --ignore shared/msStoreCompiled.ts --exec \"node scripts/run-server.mjs --prepare && node .backend-build/app/server.js\"",
     "electron": "node scripts/electron-dev.mjs",
+    "spike:mpv": "electron spikes/mpv/main.js",
+    "spike:mpv-native": "electron spikes/mpv-native/main.js",
+    "mpv:bundle": "node scripts/bundle-libmpv.mjs",
+    "spike:mpv-native:build": "node scripts/build-mpv-addon.mjs",
     "electron:built": "node scripts/electron-built.mjs",
     "pack": "node scripts/dist.mjs --dir",
     "dist": "node scripts/dist.mjs",
@@ -260,6 +264,16 @@
       ]
     },
     "mac": {
+      "extraResources": [
+        {
+          "from": ".mpv-build/${arch}",
+          "to": "mpv",
+          "filter": [
+            "**/*",
+            "!README.txt"
+          ]
+        }
+      ],
       "icon": "public/icons/icons.icns",
       "category": "public.app-category.utilities",
       "identity": "-",

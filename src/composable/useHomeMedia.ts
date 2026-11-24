@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { typedApi } from '@/services/typedApi'
+import {getApiBaseUrl} from '@/services/apiClient'
 import { useAppStore } from '@/stores/app'
 import { loadHomeMediaThumbs } from '@/utils/homeMediaThumbs'
 import type { HomeWidgetLimits } from '@/types/widgets'
@@ -24,9 +25,9 @@ let lastOptionsKey = ''
 let loadGeneration = 0
 let favoritesGeneration = 0
 
-function buildOptionsKey(options: HomeMediaLoadOptions, dbPath: string) {
+function buildOptionsKey(options: HomeMediaLoadOptions, context: string) {
   return [
-    dbPath,
+    context,
     options.loadContinue ? options.limits.continue ?? 12 : 0,
     options.loadFavorites ? options.limits.favorites ?? 12 : 0,
     options.loadTopViews ? options.limits.topViews ?? 12 : 0,
@@ -53,6 +54,7 @@ export function invalidateHomeMediaCache() {
 
 export function useHomeMedia() {
   const store = useAppStore()
+  const currentContext = () => JSON.stringify([store.dbPath, getApiBaseUrl(store)])
   const favoritesLoading = ref(false)
   let shuffleGeneration = 0
 
@@ -70,17 +72,17 @@ export function useHomeMedia() {
       return
     }
 
-    const optionsKey = buildOptionsKey(options, store.dbPath || '')
+    const optionsKey = buildOptionsKey(options, currentContext())
     if (loadPromise && optionsKey === lastOptionsKey) {
       return loadPromise
     }
 
     const generation = ++loadGeneration
     const favoritesRequestGeneration = ++favoritesGeneration
-    const dbPath = store.dbPath
+    const context = currentContext()
     const mediaTypes = store.mediaTypes
     const mediaPath = store.mediaPath
-    const isCurrent = () => generation === loadGeneration && dbPath === store.dbPath
+    const isCurrent = () => generation === loadGeneration && context === currentContext()
     lastOptionsKey = optionsKey
     isLoading.value = true
     loadPromise = (async () => {
@@ -127,10 +129,10 @@ export function useHomeMedia() {
   async function reshuffleFavorites(limit = 12) {
     const shuffle = ++shuffleGeneration
     const generation = ++favoritesGeneration
-    const dbPath = store.dbPath
+    const context = currentContext()
     const mediaTypes = store.mediaTypes
     const mediaPath = store.mediaPath
-    const isCurrent = () => generation === favoritesGeneration && dbPath === store.dbPath
+    const isCurrent = () => generation === favoritesGeneration && context === currentContext()
     favoritesLoading.value = true
     try {
       const response = await typedApi.getHomeMedia({

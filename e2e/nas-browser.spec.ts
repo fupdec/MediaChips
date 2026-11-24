@@ -43,6 +43,26 @@ async function setup(page: Page, directories: Record<string, NasEntry[]>, delayB
   return {browser, batches}
 }
 
+test('opens a manually entered folder path and cancels path edits with Escape', async ({page}) => {
+  const {browser} = await setup(page, {'': [folder('Кино')], 'Кино': [file('Кино/movie.mp4')]})
+  const edit = browser.getByRole('button', {name: /^(Edit folder path|Редактировать путь к папке)$/})
+  const input = browser.getByRole('textbox', {name: /^(Edit folder path|Редактировать путь к папке)$/})
+  await edit.click()
+  await expect(input).toBeFocused()
+  await input.fill('/video/Кино')
+  await input.press('Enter')
+  await expect(browser.getByText('movie.mp4', {exact: true})).toBeVisible()
+  await expect(input).toBeHidden()
+  await edit.click()
+  await expect(input).toHaveValue('/video/Кино')
+  await input.fill('cancelled-folder')
+  await input.press('Escape')
+  await expect(input).toBeHidden()
+  await expect(browser.getByText('movie.mp4', {exact: true})).toBeVisible()
+  await edit.click()
+  await expect(input).toHaveValue('/video/Кино')
+})
+
 test('editing NAS credentials shows saved status, preserves an untouched password and reveals a replacement', async ({page}) => {
   await setup(page, {'': [file('video.mp4')]})
   const updates: Record<string, unknown>[] = []

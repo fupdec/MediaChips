@@ -9,9 +9,21 @@ export function registerCloudMetadataBackfill(app: Express, db: ApiDb) {
   const worker = createCloudMetadataBackfill(db)
   const fingerprints = createRemoteFingerprintBackground(db)
   const nas = getNasMediaAssets(db)
-  const tick = () => { void fingerprints.tick().catch(() => {}); void worker.tick().catch(() => {}); void nas.tick().catch(() => {}) }
-  const initial = setTimeout(tick, 5000)
-  const timer = setInterval(tick, 10_000)
-  initial.unref(); timer.unref()
-  app.once('cloud-metadata:dispose', () => { clearTimeout(initial); clearInterval(timer); worker.dispose(); fingerprints.dispose(); nas.dispose() })
+  // Each worker runs a synchronous scan; separate phases keep their stalls from adding up on the event loop.
+  const workers = [
+    {run: () => fingerprints.tick(), offset: 5000},
+    {run: () => worker.tick(), offset: 8500},
+    {run: () => nas.tick(), offset: 12000},
+  ]
+  const timeouts: ReturnType<typeof setTimeout>[] = []
+  const intervals: ReturnType<typeof setInterval>[] = []
+  for (const {run, offset} of workers) {
+    const tick = () => { void run().catch(() => {}) }
+    const initial = setTimeout(() => { tick(); intervals.push(setInterval(tick, 10_000).unref()) }, offset)
+    timeouts.push(initial.unref())
+  }
+  app.once('cloud-metadata:dispose', () => {
+    timeouts.forEach(clearTimeout); intervals.forEach(clearInterval)
+    worker.dispose(); fingerprints.dispose(); nas.dispose()
+  })
 }

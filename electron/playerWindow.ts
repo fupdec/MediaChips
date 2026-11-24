@@ -34,6 +34,8 @@ export function createPlayerWindowController(deps: {
   bindZoomChangedListener: (browserWindow: BrowserWindow) => void
   isPlayerMaximizedPreferred: () => boolean
   isMainWindowRevealed: () => boolean
+  /** Native video sits under the web view, so the window must be transparent. */
+  transparentWindow?: boolean
 }): PlayerWindowController {
   let player: BrowserWindow | null = null
   let pendingPlayerPayload: unknown = null
@@ -54,7 +56,8 @@ export function createPlayerWindowController(deps: {
       width: bounds.width,
       titleBarStyle: 'hidden',
       trafficLightPosition: os.type() === 'Darwin' ? {x: 12, y: 8} : undefined,
-      backgroundColor: '#000000',
+      backgroundColor: deps.transparentWindow ? '#00000000' : '#000000',
+      ...(deps.transparentWindow ? {transparent: true} : {}),
       icon: resolveWindowIconPath(appRoot),
       webPreferences: {
         preload: path.join(appRoot, 'electron/preload.js'),
@@ -71,12 +74,22 @@ export function createPlayerWindowController(deps: {
     }
   }
 
+  /**
+   * Show the window, restoring the maximized state. `maximize()` also shows a hidden window, so it
+   * must not run for the warm-up window created in the background (it would pop up on its own).
+   */
+  function showPlayerWindow(browserWindow: BrowserWindow) {
+    if (browserWindow.isVisible()) return
+    if (deps.isPlayerMaximizedPreferred() && !browserWindow.isMaximized()) browserWindow.maximize()
+    browserWindow.show()
+  }
+
   function deliverPlayerPayload(data: unknown) {
     if (!player || player.isDestroyed()) return
 
     deps.sendConfigToWindow(player)
     player.webContents.send('play-video', data)
-    if (!player.isVisible()) player.show()
+    showPlayerWindow(player)
     player.focus()
   }
 
@@ -137,9 +150,6 @@ export function createPlayerWindowController(deps: {
 
     isPlayerRendererReady = false
     player = new BrowserWindow(getPlayerWindowOptions())
-    if (deps.isPlayerMaximizedPreferred()) {
-      player.maximize()
-    }
     setupPlayerWindowEvents(player)
     deps.bindRendererLoadRetry(player.webContents, () => deps.getRendererUrl('?player=true'))
     player.loadURL(deps.getRendererUrl('?player=true'))
@@ -204,7 +214,7 @@ export function createPlayerWindowController(deps: {
       }
 
       pendingPlayerPayload = data
-      if (!player.isVisible()) player.show()
+      showPlayerWindow(player)
     })
 
     ipcMain.on('stop-playing-video', () => {

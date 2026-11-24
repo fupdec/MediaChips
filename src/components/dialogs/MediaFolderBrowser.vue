@@ -81,7 +81,24 @@
             </button>
           </div>
 
+          <form
+            v-if="editingPath"
+            class="media-folder-browser__path-editor"
+            @submit.prevent="submitPath"
+          >
+            <input
+              ref="pathInput"
+              class="media-folder-browser__path-input"
+              :aria-label="t('media.adding.browser_edit_path')"
+              :disabled="loading || disabled"
+              autocomplete="off"
+              spellcheck="false"
+              @keydown.esc.stop.prevent="editingPath = false"
+              @blur="editingPath = false"
+            />
+          </form>
           <nav
+            v-else
             class="media-folder-browser__path"
             :aria-label="t('navigation.folders')"
           >
@@ -107,6 +124,16 @@
               </button>
             </template>
           </nav>
+          <button
+            type="button"
+            class="media-folder-browser__nav-btn media-folder-browser__edit-path"
+            :disabled="loading || disabled"
+            :aria-label="t('media.adding.browser_edit_path')"
+            v-tooltip:top="t('media.adding.browser_edit_path')"
+            @click="startPathEditing"
+          >
+            <v-icon size="16" icon="mdi-pencil-outline"/>
+          </button>
         </div>
 
         <div
@@ -545,7 +572,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue'
 import {loadFolderFavorites, saveFolderFavorites, type FolderFavorite} from '@/services/folderFavorites'
 import {useAppStore} from '@/stores/app'
 import {useI18n} from 'vue-i18n'
@@ -659,6 +686,26 @@ const truncated = ref(false)
 const parentPath = ref<string | null>(null)
 const rootPath = ref<string | null>(null)
 const currentPath = ref('')
+const editingPath = ref(false)
+const pathInput = ref<HTMLInputElement | null>(null)
+
+async function startPathEditing() {
+  if (loading.value || props.disabled) return
+  editingPath.value = true
+  await nextTick()
+  // Keep typing local to the input: reactive text would rerender the file list
+  // on every keystroke. Read the final value only when submitting.
+  if (pathInput.value) pathInput.value.value = props.path || currentPath.value
+  pathInput.value?.focus()
+  pathInput.value?.select()
+}
+
+function submitPath() {
+  const targetPath = pathInput.value?.value.trim()
+  if (!targetPath || loading.value || props.disabled) return
+  editingPath.value = false
+  navigateTo(targetPath)
+}
 const entries = ref<BrowseDirectoryEntry[]>([])
 const hideInLibrary = ref(false)
 const hideNonMedia = ref(false)
@@ -1119,6 +1166,31 @@ watch(showHidden, value => emit('showHidden', value))
   overflow-x: auto;
   scrollbar-width: thin;
   padding: 2px;
+}
+
+.media-folder-browser__path-editor {
+  flex: 1;
+  min-width: 0;
+}
+
+.media-folder-browser__path-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid rgb(var(--v-theme-primary));
+  border-radius: 8px;
+  background: rgb(var(--v-theme-surface));
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.media-folder-browser__path-input:focus-visible {
+  outline: 2px solid rgba(var(--v-theme-primary), 0.45);
+}
+
+.media-folder-browser__edit-path {
+  flex-shrink: 0;
 }
 
 .media-folder-browser__path-sep {

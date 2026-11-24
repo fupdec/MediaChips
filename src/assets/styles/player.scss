@@ -2974,3 +2974,48 @@ $player-track-inactive-thickness: 4px;
     pointer-events: none;
   }
 }
+
+// Native mpv video sits below the web layer, so everything above it must be see-through there.
+html.mpv-native-active {
+  .player .video-wrapper {
+    background: transparent !important;
+  }
+
+  // The whole player surface (picture, timeline and controls) must stay hittable: a transparent
+  // window lets macOS send clicks on near-empty pixels through to whatever lies behind it, which
+  // broke click-to-pause and timeline seeking. ~8/255 is invisible over video but is reliably hit.
+  .player {
+    background: rgba(0, 0, 0, 0.03) !important;
+  }
+
+  // The video is a separate native surface that is not part of the window's own backing store.
+  // A fully transparent web layer lets macOS send clicks on the picture through the window, so the
+  // area gets a barely visible alpha: clicks and gestures reach the page again.
+  .native-video-host {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.03);
+  }
+}
+
+// Standalone player window: nothing is stacked under the video, the whole page is transparent.
+html.mpv-native-window {
+  &,
+  body,
+  #app,
+  .v-application,
+  .v-application__wrap,
+  .player-standalone {
+    background: transparent !important;
+  }
+}
+
+// Player dialog in the main window: the app UI and the dialog scrim lie between the video and the
+// viewer, so they are cut out exactly over the picture (--mpv-hole is set by useNativeVideoRect).
+html.mpv-native-embedded {
+  #app,
+  .v-overlay__scrim {
+    clip-path: var(--mpv-hole, none);
+  }
+}

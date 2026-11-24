@@ -124,6 +124,19 @@ run('node', ['.scripts-build/download-face-models.js'], childEnv)
 run('node', ['scripts/ensure-electron-native.mjs', '--force'], childEnv)
 pruneNativeBinaries(target)
 
+// Native mpv player (macOS): build the addon and bundle libmpv per architecture. Best effort — a
+// missing Homebrew libmpv or an architecture without libraries just ships the app without it.
+if (process.platform === 'darwin' && (target === 'mac' || readFlag('--mac') || readFlag('--dir'))) {
+  const hostArch = process.arch === 'arm64' ? 'arm64' : 'x64'
+  const flagged = ['arm64', 'x64'].filter(name => readFlag(`--${name}`))
+  const macArchs = flagged.length ? flagged : readFlag('--dir') ? [hostArch] : ['arm64', 'x64']
+  const addon = spawnSync('npm', ['run', 'spike:mpv-native:build'], {cwd: root, stdio: 'inherit', shell: true, env: childEnv})
+  if (addon.status !== 0) console.warn('[dist] mpvview.node build failed; the native player will not be bundled')
+  for (const name of macArchs) {
+    spawnSync('node', ['scripts/bundle-libmpv.mjs', '--optional', '--arch', name], {cwd: root, stdio: 'inherit', env: childEnv})
+  }
+}
+
 const builderArgs = ['electron-builder']
 const publish = readOption('--publish', 'never')
 

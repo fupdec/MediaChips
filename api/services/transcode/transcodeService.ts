@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { ffprobe, ffprobePlayability, resolveFfprobeDuration } from '../../utils/ffmpeg'
 import { isUsableDuration } from '../../utils/ffprobeMath'
-import {analyzeProbeResult} from './codecCompatibility'
+import {analyzeProbeResult, areCodecsBrowserCompatible} from './codecCompatibility'
 import { needsBrowserRemuxForMp4 } from './mp4ContainerLayout'
 import {
   resolveExistingCache,
@@ -120,6 +120,12 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
         reason = 'container_layout'
       }
 
+      const rawFormatName = (probe.format as {format_name?: unknown} | undefined)?.format_name
+      const formatName = typeof rawFormatName === 'string' ? rawFormatName : null
+      const remuxable = !analyzed.playable
+        && analyzed.reason === 'container'
+        && areCodecsBrowserCompatible(analyzed.videoCodec, analyzed.audioCodec)
+
       const result: PlayabilityResult = {
         playable: analyzed.playable,
         reason,
@@ -127,6 +133,8 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
         audioCodec: analyzed.audioCodec ?? null,
         duration,
         needsRemux,
+        container: formatName,
+        remuxable,
       }
       setPlayabilityCacheEntry(cacheKey, result)
       return result
@@ -246,6 +254,7 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
       requestedCopy: Boolean(options.copyCodecs),
       playable: playability.playable,
       needsRemux: playability.needsRemux,
+      remuxable: playability.remuxable,
       streamStart,
     })
 
@@ -264,6 +273,7 @@ function createTranscodeManager({databasesPath, getActiveDbId, db}: TranscodeMan
       audioOnly,
       maxHeight: copyCodecs ? null : maxHeight,
       copyCodecs,
+      audioCodec: playability.audioCodec,
     })
   }
 

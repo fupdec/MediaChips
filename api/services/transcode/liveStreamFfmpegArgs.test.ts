@@ -46,3 +46,13 @@ describe('liveStreamFfmpegArgs', () => {
     expect(args[preInputSs + 1]).toBe('621')
   })
 })
+
+describe('buildFfmpegLiveArgs remux of ADTS AAC', () => {
+  it('adds aac_adtstoasc only when copying AAC', async () => {
+    const {buildFfmpegLiveArgs} = await import('./liveStreamFfmpegArgs')
+    const copy = buildFfmpegLiveArgs({inputPath: 'a.ts', copyCodecs: true, audioCodec: 'aac'})
+    expect(copy).toContain('aac_adtstoasc')
+    expect(buildFfmpegLiveArgs({inputPath: 'a.ts', copyCodecs: true, audioCodec: 'mp3'})).not.toContain('aac_adtstoasc')
+    expect(buildFfmpegLiveArgs({inputPath: 'a.ts', audioCodec: 'aac'})).not.toContain('aac_adtstoasc')
+  })
+})

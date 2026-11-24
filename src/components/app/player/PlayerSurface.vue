@@ -75,7 +75,15 @@
             </filter>
           </svg>
 
+          <div
+            v-if="playerStore.nativeEngine"
+            ref="nativeHostEl"
+            class="native-video-host"
+            aria-hidden="true"
+          />
+
           <video
+            v-show="!playerStore.nativeEngine"
             :ref="setVideoPlayerRef"
             :style="videoStyle"
             :class="{ 'audio-hidden': isAudioMode }"
@@ -224,7 +232,9 @@
 </template>
 
 <script setup lang="ts">
-import {computed, inject, shallowRef} from 'vue'
+import {computed, inject, onBeforeUnmount, ref, shallowRef, watch} from 'vue'
+import {useNativeVideoRect} from '@/composable/useNativeVideoRect'
+import {useNativePlayerProps} from '@/composable/useNativePlayerProps'
 import {useRemotePlaybackSpeed} from '@/composable/useRemotePlaybackSpeed'
 import {useAppStore} from '@/stores/app'
 import {resolveMediaThumbDisplayUrl} from '@/utils/thumbSource'
@@ -368,6 +378,23 @@ const {videoStyle, gammaFilterExponent, sharpenKernelMatrix, size: surfaceSize} 
 const {panning, onPointerDown: panPointerDown, onClickCapture: panClickCapture} = usePlayerVideoPan(playerStore, surfaceSize)
 usePlayerAbLoop(playerStore)
 usePlayerEqualizer(playerStore)
+
+// Native mpv draws below the web layer: reserve its rectangle and let the page show through.
+const nativeHostEl = ref<HTMLElement | null>(null)
+useNativeVideoRect(
+  nativeHostEl,
+  computed(() => playerStore.nativeEngine && !isAudioMode.value),
+  computed(() => !isPlayerWindow.value),
+)
+useNativePlayerProps(playerStore, surfaceSize)
+// The standalone window is transparent as a whole; in the main window only the video area is cut out.
+watch([() => playerStore.nativeEngine, isPlayerWindow], ([on, standalone]) => {
+  const classes = document.documentElement.classList
+  classes.toggle('mpv-native-active', on)
+  classes.toggle('mpv-native-window', on && standalone)
+  classes.toggle('mpv-native-embedded', on && !standalone)
+}, {immediate: true})
+onBeforeUnmount(() => document.documentElement.classList.remove('mpv-native-active', 'mpv-native-window', 'mpv-native-embedded'))
 
 const setVideoPlayerRef = (el: unknown) => {
   const video = el as HTMLVideoElement | null

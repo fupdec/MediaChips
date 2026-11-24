@@ -52,6 +52,7 @@ describe('globalAppConfig', () => {
       transcodeUnsupportedFormats: '1',
       transcodeMaxHeight: '1080',
       transcodeCacheMaxGb: '5',
+      nativePlayer: '0',
       conversionCodec: 'auto',
       conversionResolution: '1080',
       conversionQuality: 'balanced',

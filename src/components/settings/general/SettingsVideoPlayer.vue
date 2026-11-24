@@ -11,10 +11,13 @@ import {getReadableFileSize} from '@/services/formatUtils'
 import {setNotification} from '@/services/notificationService'
 import {computed, onMounted, ref} from 'vue'
 import {setOption} from '@/services/settingsService'
+import {isMacOS} from '@/utils/playerWheel'
 
 const SETTINGS = useSettingsStore()
 const appStore = useAppStore()
 const {t} = useI18n()
+// Offered only when this build actually ships libmpv (macOS Electron app).
+const nativePlayerSupported = ref(false)
 const clearingCache = ref(false)
 const cacheBytes = ref(0)
 
@@ -60,6 +63,10 @@ const clearTranscodeCache = async () => {
 }
 
 onMounted(loadCacheStats)
+onMounted(async () => {
+  if (!window.mpvAPI || !isMacOS()) return
+  nativePlayerSupported.value = Boolean((await window.mpvAPI.availability().catch(() => null))?.supported)
+})
 </script>
 
 <template>
@@ -82,6 +89,13 @@ onMounted(loadCacheStats)
       :title="$t('settings_labels.video_player.open_separate_window')"
       :hint="$t('settings_labels.video_player.open_separate_window_hint')"
       :disabled="SETTINGS.isPlayVideoInSystemPlayer === '1'"
+    />
+
+    <settings-switch
+      v-if="nativePlayerSupported"
+      option="nativePlayer"
+      :title="$t('settings_labels.video_player.native_player')"
+      :hint="$t('settings_labels.video_player.native_player_hint')"
     />
 
     <settings-switch

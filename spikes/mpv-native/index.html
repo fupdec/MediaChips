@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>mpv native spike</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: transparent; font: 13px -apple-system, sans-serif; color: #e8e8e8; overflow: hidden; }
+  .app { display: grid; grid-template-columns: 200px 1fr; height: 100%; }
+  body.window .app { display: block; }
+  body.window .side, body.window .head, body.window .filler { display: none; }
+  .side { background: #202225; padding: 44px 12px 12px; -webkit-app-region: drag; }
+  .side div { padding: 6px 8px; border-radius: 6px; color: #aaa; }
+  .side div.on { background: #33363b; color: #fff; }
+  .main { position: relative; background: transparent; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+  body.window .main { background: transparent; height: 100%; }
+  .head { height: 40px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; background: #17181a; z-index: 5; -webkit-app-region: drag; }
+  .head button { -webkit-app-region: no-drag; }
+  .scroll { flex: 1; overflow-y: auto; background: transparent; }
+  body.window .scroll { overflow: hidden; }
+  .filler { margin: 0; background: #25272b; padding: 24px 20px; color: #888; border: 14px solid #17181a; border-width: 14px 20px; }
+  .prow { display: flex; border-left: 20px solid #17181a; border-right: 20px solid #17181a; }
+  body.window .prow { border: 0; height: 100%; }
+  #player { position: relative; flex: 1; min-width: 0; width: 100%; aspect-ratio: 16 / 9; max-height: 520px; background: transparent; border-radius: 0; }
+  body.window #player { width: 100%; height: 100%; aspect-ratio: auto; max-height: none; }
+  .overlay { position: absolute; inset: 0; }
+  body.window .info { top: 40px; }
+  .info { position: absolute; left: 10px; top: 10px; padding: 6px 10px; border-radius: 6px; background: rgba(0,0,0,.6); line-height: 1.5; white-space: pre; }
+  .bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 12px; display: flex; gap: 10px; align-items: center; background: linear-gradient(transparent, rgba(0,0,0,.75)); }
+  .bar input[type=range] { flex: 1; }
+  button { background: rgba(255,255,255,.14); color: #fff; border: 0; border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+  button:hover { background: rgba(255,255,255,.24); }
+  .menu { position: absolute; right: 12px; bottom: 54px; width: 210px; background: rgba(30,31,34,.97); border: 1px solid #44474d; border-radius: 8px; padding: 6px; display: none; }
+  .menu.open { display: block; }
+  .menu div { padding: 6px 8px; border-radius: 4px; cursor: default; }
+  .menu div:hover { background: rgba(255,255,255,.12); }
+  #status { position: absolute; left: 10px; bottom: 54px; max-width: 70%; padding: 6px 10px; border-radius: 6px; background: rgba(0,0,0,.7); font: 11px ui-monospace, monospace; white-space: pre-wrap; display: none; }
+  .winonly { display: none; }
+  body.window .winonly { display: block; }
+  .dragstrip { position: absolute; left: 0; right: 0; top: 0; height: 32px; -webkit-app-region: drag; }
+  #closeWin { position: absolute; right: 10px; top: 8px; -webkit-app-region: no-drag; }
+  .toast { position: fixed; right: 16px; top: 52px; padding: 8px 12px; background: #3b5bdb; border-radius: 8px; z-index: 10; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="side"><div class="on">Library</div><div>Playlists</div><div>Tags</div><div>Settings</div></div>
+  <div class="main">
+    <div class="head"><span>Embedded player test</span><span><button id="win">Open in window</button> <button id="close">Close</button></span></div>
+    <div class="scroll" id="scroll">
+      <div class="filler">Scroll this page: the video must move with its block, stay clipped by the header and never draw over the sidebar.</div>
+      <div class="prow"><div id="player">
+        <div class="overlay">
+          <div class="dragstrip winonly"></div>
+          <button id="closeWin" class="winonly" aria-label="Close window">✕</button>
+          <div class="info" id="info">loading…</div>
+          <div id="status"></div>
+          <div class="menu" id="menu">
+            <div data-cmd="cycle audio">Next audio track</div>
+            <div data-cmd="cycle sub">Next subtitle track</div>
+            <div data-cmd="add video-zoom 0.1">Zoom in</div>
+            <div data-cmd="set video-zoom 0">Reset zoom</div>
+          </div>
+          <div class="bar">
+            <button id="play">Play</button>
+            <input id="seek" type="range" min="0" max="1000" value="0">
+            <span id="time">0:00 / 0:00</span>
+            <button id="menuBtn">Menu</button>
+          </div>
+        </div>
+      </div></div>
+      <div class="filler">More content below the player.</div>
+      <div class="filler">More content below the player.</div>
+      <div class="filler">More content below the player.</div>
+      <div class="filler">More content below the player.</div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" style="display:none">HTML overlay above the video</div>
+<script>
+  const $ = id => document.getElementById(id)
+  const params = new URLSearchParams(location.search)
+  document.body.classList.toggle('window', params.get('mode') === 'window')
+  const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') }
+  const state = {pause: true, pos: 0, dur: 0, codec: '', hw: ''}
+  let scrubbing = false
+
+  function render() {
+    $('play').textContent = state.pause ? 'Play' : 'Pause'
+    $('time').textContent = fmt(state.pos) + ' / ' + fmt(state.dur)
+    if (!scrubbing && state.dur > 0) $('seek').value = String(Math.round(state.pos / state.dur * 1000))
+    $('info').textContent = `video: ${state.codec || '-'}\nhwdec: ${state.hw || 'no'}`
+  }
+
+  mpv.onEvent(e => {
+    if (e.event === 'property-change') {
+      if (e.name === 'pause') state.pause = Boolean(e.data)
+      if (e.name === 'time-pos') state.pos = e.data || 0
+      if (e.name === 'duration') state.dur = e.data || 0
+      if (e.name === 'video-codec') state.codec = e.data || ''
+      if (e.name === 'hwdec-current') state.hw = e.data || ''
+      render()
+    } else if (e.event === 'end-file' && e.error) {
+      $('status').style.display = 'block'
+      $('status').textContent = 'end-file error: ' + e.error
+    }
+  })
+
+  // Keep the native view glued to #player. Runs every frame but only sends on change.
+  let last = ''
+  function syncRect() {
+    const r = $('player').getBoundingClientRect()
+    const c = $('scroll').getBoundingClientRect()
+    const isWindow = document.body.classList.contains('window')
+    const bound = isWindow ? {left: 0, top: 0, right: innerWidth, bottom: innerHeight} : c
+    const cx = Math.max(r.left, bound.left)
+    const cy = Math.max(r.top, bound.top)
+    const cr = Math.min(r.right, bound.right)
+    const cb = Math.min(r.bottom, bound.bottom)
+    const rect = {x: r.left, y: r.top, w: r.width, h: r.height, cx, cy, cw: Math.max(0, cr - cx), ch: Math.max(0, cb - cy)}
+    const key = JSON.stringify(rect, (_k, v) => typeof v === 'number' ? Math.round(v * 10) / 10 : v)
+    if (key !== last) { last = key; mpv.rect(rect) }
+    requestAnimationFrame(syncRect)
+  }
+
+  $('play').onclick = () => mpv.command(['cycle', 'pause'])
+  $('seek').oninput = () => { scrubbing = true }
+  $('seek').onchange = () => { scrubbing = false; mpv.command(['seek', String(state.dur * $('seek').value / 1000), 'absolute+exact']) }
+  $('menuBtn').onclick = () => { $('menu').classList.toggle('open'); $('toast').style.display = $('menu').classList.contains('open') ? 'block' : 'none' }
+  $('menu').onclick = e => { const cmd = e.target.dataset.cmd; if (cmd) mpv.command(cmd.split(' ')) }
+  $('win').onclick = () => mpv.openWindow()
+  $('close').onclick = () => mpv.close()
+  $('closeWin').onclick = () => mpv.close()
+  addEventListener('keydown', e => {
+    if (e.code === 'Escape' && document.body.classList.contains('window')) mpv.close()
+    if (e.code === 'Space') { e.preventDefault(); mpv.command(['cycle', 'pause']) }
+    if (e.code === 'ArrowRight') mpv.command(['seek', '5', 'relative'])
+    if (e.code === 'ArrowLeft') mpv.command(['seek', '-5', 'relative'])
+  })
+
+  mpv.init().then(result => {
+    if (result.error) {
+      $('status').style.display = 'block'
+      $('status').textContent = result.error
+      $('info').textContent = 'init failed'
+    } else {
+      $('status').style.display = 'block'
+      $('status').textContent = `libmpv: ${result.libPath}\nlayer: ${result.above ? 'ABOVE web view' : 'BELOW web view'}`
+      setTimeout(() => { $('status').style.display = 'none' }, 4000)
+    }
+    requestAnimationFrame(syncRect)
+  })
+</script>
+</body>
+</html>

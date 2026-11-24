@@ -420,6 +420,34 @@ describe('resolveVideoSourcePlan', () => {
     })
   })
 
+  it('remuxes immediately when the browser cannot open a container with native codecs', () => {
+    expect(resolveVideoSourcePlan({
+      playableMode: 'direct',
+      transcodeRequired: false,
+      remuxCopy: true,
+      reason: 'container',
+      containerUnsupported: true,
+      startTime: 0,
+      forceDirectPlayback: false,
+      liveTranscodeDisabled: false,
+      transcodeUnsupportedFormatsEnabled: true,
+    })).toMatchObject({kind: 'live', copyCompatible: true})
+  })
+
+  it('tries the original when the browser accepts the container', () => {
+    expect(resolveVideoSourcePlan({
+      playableMode: 'direct',
+      transcodeRequired: false,
+      remuxCopy: true,
+      reason: 'container',
+      containerUnsupported: false,
+      startTime: 0,
+      forceDirectPlayback: false,
+      liveTranscodeDisabled: false,
+      transcodeUnsupportedFormatsEnabled: true,
+    })).toMatchObject({kind: 'direct'})
+  })
+
   it('tries the original even for a server codec warning', () => {
     expect(resolveVideoSourcePlan({
       playableMode: 'stream',

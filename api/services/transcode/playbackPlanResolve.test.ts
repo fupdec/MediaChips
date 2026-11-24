@@ -50,6 +50,22 @@ describe('resolvePlaybackPlanFromPlayability', () => {
     expect(plan.playability?.needsRemux).toBe(true)
   })
 
+  it('flags a container-only mismatch as stream-copy remuxable', () => {
+    const plan = resolvePlaybackPlanFromPlayability({
+      playability: playability({playable: false, reason: 'container', remuxable: true, container: 'mpegts'}),
+      transcodeEnabled: true,
+    })
+    expect(plan).toMatchObject({mode: 'direct', reason: 'container', remuxCopy: true})
+  })
+
+  it('does not offer remux when a codec is the blocker', () => {
+    const plan = resolvePlaybackPlanFromPlayability({
+      playability: playability({playable: false, reason: 'video_codec', videoCodec: 'hevc'}),
+      transcodeEnabled: true,
+    })
+    expect(plan.remuxCopy).toBeUndefined()
+  })
+
   it('returns direct for browser-playable files', () => {
     expect(resolvePlaybackPlanFromPlayability({
       playability: playability(),
@@ -139,5 +155,16 @@ describe('isPlayabilityProbeIncomplete', () => {
     expect(isPlayabilityProbeIncomplete({
       streams: [{codec_type: 'audio', codec_name: 'aac'}],
     }, {audioOnly: true})).toBe(false)
+  })
+})
+
+describe('resolveLiveStreamCopyCodecs remux', () => {
+  it('allows stream copy for a remuxable container at the start of the file', () => {
+    expect(resolveLiveStreamCopyCodecs({requestedCopy: true, playable: false, remuxable: true, streamStart: 0})).toBe(true)
+  })
+  it('refuses copy for non-remuxable files, mid-file starts and layout problems', () => {
+    expect(resolveLiveStreamCopyCodecs({requestedCopy: true, playable: false, streamStart: 0})).toBe(false)
+    expect(resolveLiveStreamCopyCodecs({requestedCopy: true, playable: false, remuxable: true, streamStart: 30})).toBe(false)
+    expect(resolveLiveStreamCopyCodecs({requestedCopy: true, playable: false, remuxable: true, needsRemux: true, streamStart: 0})).toBe(false)
   })
 })

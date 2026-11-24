@@ -10,6 +10,8 @@ export interface LiveStreamOptions {
   maxHeight?: number | null
   /** Remux with stream copy when codecs are already browser-compatible. */
   copyCodecs?: boolean
+  /** Source audio codec; ADTS AAC (MPEG-TS/AAC files) needs a bitstream fix to copy into MP4. */
+  audioCodec?: string | null
   /** Frame-accurate start for clip marks (uses keyframe+output skip when possible). */
   accurateSeek?: boolean
   /** Explicit input demuxer seek (seconds). */
@@ -25,6 +27,7 @@ export function buildFfmpegLiveArgs({
   audioOnly,
   maxHeight,
   copyCodecs = false,
+  audioCodec = null,
   accurateSeek: _accurateSeek = false,
   inputSeekTime,
   outputSeekTime,
@@ -73,6 +76,7 @@ export function buildFfmpegLiveArgs({
   if (audioOnly) {
     if (copyCodecs) {
       args.push('-vn', '-c:a', 'copy')
+      if (audioCodec === 'aac') args.push('-bsf:a', 'aac_adtstoasc')
     } else {
       args.push('-vn', '-c:a', 'aac', '-b:a', '192k')
       if (useAbsoluteTimelineSeek) {
@@ -82,6 +86,7 @@ export function buildFfmpegLiveArgs({
   } else if (copyCodecs) {
     // Container remux only — used when Chromium rejects a "compatible" MP4.
     args.push('-c', 'copy')
+    if (audioCodec === 'aac') args.push('-bsf:a', 'aac_adtstoasc')
   } else {
     args.push(
       '-c:v', 'libx264',
