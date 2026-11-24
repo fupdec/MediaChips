@@ -72,6 +72,7 @@ const TRACE_CATEGORIES = [
   '-*',
   'devtools.timeline',
   'disabled-by-default-devtools.timeline',
+  'disabled-by-default-devtools.timeline.stack',
   'loading',
   'blink.user_timing',
 ]
