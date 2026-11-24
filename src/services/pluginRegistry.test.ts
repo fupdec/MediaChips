@@ -1,4 +1,4 @@
-import {describe, expect, it, beforeEach} from 'vitest'
+import {describe, expect, it, beforeEach, vi} from 'vitest'
 import {
   BUILTIN_PLUGIN_IDS,
   createBundledPluginCatalog,
@@ -20,6 +20,11 @@ import {
   resolveEnabledPluginsForBootstrap,
   resetPluginHostForTests,
 } from '@/services/pluginHost'
+
+// bootstrapPlugins asks the server for installed user plugins; there is no server or Pinia here.
+vi.mock('@/services/typedApi', () => ({
+  typedApi: {listPlugins: vi.fn(async () => ({data: []}))},
+}))
 
 describe('pluginRegistry', () => {
   beforeEach(() => {
