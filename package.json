@@ -31,6 +31,7 @@
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
     "bench:media-fixture": "tsx scripts/seed-media-fixture.ts",
+    "perf:grid": "node scripts/perf-grid.mjs",
     "test:scale-bulk": "MC_SCALE_BULK=1 node scripts/ensure-sqlite-tests.mjs && MC_SCALE_BULK=1 vitest run api/services/bulkSelectionScale.test.ts --disableConsoleIntercept",
     "test:scale": "MC_SCALE=1 node scripts/ensure-sqlite-tests.mjs && MC_SCALE=1 vitest run api/services/mediaScaleFixture.test.ts",
     "test": "node scripts/ensure-sqlite-tests.mjs && vitest run",

@@ -65,3 +65,7 @@ pnpm-debug.log*
 *.sln
 *.sw?
 /docker-data
+
+# Perf benchmark output and raw Chrome traces
+output/perf/
+output/Trace-*.json.gz
