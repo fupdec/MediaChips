@@ -817,13 +817,6 @@ async function onMetaDeleted() {
   margin-inline-end: auto;
 }
 
-.all-tags-board__hint {
-  padding: 10px 12px;
-  margin-bottom: 12px;
-  border-radius: 8px;
-  background: rgba(var(--v-theme-on-surface), 0.035);
-}
-
 .all-tags-board__pane-header {
   display: flex;
   align-items: center;

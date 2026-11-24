@@ -750,10 +750,6 @@ defineExpose({
   min-width: 0;
 }
 
-.filter__hint-chip {
-  flex: 0 0 auto;
-}
-
 /* Quick actions only exist in the top panel layout (FiltersPanel shows them). */
 .filter__row-actions {
   display: none;

@@ -177,12 +177,12 @@ defineExpose({busy, canSubmit: computed(() => !!activeImport.value?.canSubmit), 
 .sources-panel :deep(.google-drive-source > :first-child),
 .sources-panel :deep(.cloud-accounts-source > :first-child) { margin-top: 16px; }
 .sources-panel__cloud-picker :deep(.v-select) { min-width: 0; }
-.sources-panel__cloud-picker :deep(.v-field), .sources-panel__add-account { border-radius: 12px !important; }
+.sources-panel__cloud-picker :deep(.v-field) { border-radius: 12px !important; }
 .sources-panel__cloud-picker :deep(.v-select__selection) { width: 100%; max-width: 100%; flex-wrap: nowrap; }
 .sources-panel__account-status { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; padding-left: 12px; font-size: 12px; white-space: nowrap; color: rgba(var(--v-theme-on-surface), .55); }
 .sources-panel__status-light { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: rgba(var(--v-theme-on-surface), .35); }
 .sources-panel__account-status--connected .sources-panel__status-light { background: rgb(var(--v-theme-success)); box-shadow: 0 0 5px rgba(var(--v-theme-success), .4); }
-.sources-panel__account-actions, .sources-panel__add-account { flex-shrink: 0; }
+.sources-panel__account-actions { flex-shrink: 0; }
 .sources-panel__account-actions { display: contents; }
 .sources-panel__account-actions :deep(.google-drive-source__connection-bar),
 .sources-panel__account-actions :deep(.google-drive-source__connection-actions) { display: contents; }

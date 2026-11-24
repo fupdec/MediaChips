@@ -741,10 +741,6 @@ watch(databases, loadDatabaseSizes)
   gap: 10px 12px;
 }
 
-.databases__toolbar-actions {
-  margin-left: auto;
-}
-
 .databases__list {
   display: grid;
   gap: 10px;
@@ -950,10 +946,6 @@ watch(databases, loadDatabaseSizes)
 
   .databases-card__actions {
     margin-left: auto;
-  }
-
-  .databases__toolbar-actions {
-    margin-left: 0;
   }
 }
 </style>

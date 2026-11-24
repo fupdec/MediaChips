@@ -547,10 +547,6 @@ onMounted(async () => {
   gap: 8px;
 }
 
-.meta-empty {
-  text-align: center;
-}
-
 .settings-empty {
   border-radius: 22px;
   border: 1px dashed rgba(var(--v-theme-on-surface), 0.14);
@@ -577,9 +573,5 @@ onMounted(async () => {
 
 .meta-type-filters .v-chip {
   cursor: pointer;
-}
-
-.meta-field-chip--hidden {
-  opacity: 0.55;
 }
 </style>

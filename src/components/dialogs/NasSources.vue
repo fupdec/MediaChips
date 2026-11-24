@@ -531,17 +531,6 @@ defineExpose({refreshConnections: loadConnections, canSubmit, busy: computed(() 
   }
 }
 
-.nas-sources__title {
-  min-height: 46px;
-  padding: 10px 14px;
-  font-size: 0.875rem;
-  font-weight: 600;
-
-  &.v-expansion-panel-title--active {
-    min-height: 46px;
-  }
-}
-
 .nas-sources__connection-bar,
 .nas-sources__connection-actions,
 .nas-sources__import-bar,

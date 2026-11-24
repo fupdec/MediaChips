@@ -944,8 +944,4 @@ onBeforeUnmount(() => {
     color: inherit;
   }
 }
-
-.nl-mix-example {
-  cursor: pointer;
-}
 </style>

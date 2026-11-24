@@ -473,11 +473,6 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.scrollable {
-  overflow-x: auto;
-  max-width: 60vw;
-}
-
 .extension-tabs {
   padding-inline: 8px;
   min-height: 28px;
@@ -485,11 +480,6 @@ onUnmounted(() => {
   width: 100%;
   display: flex;
   justify-content: flex-start;
-}
-
-.scrollable-child {
-  display: flex;
-  align-items: center;
 }
 </style>
 

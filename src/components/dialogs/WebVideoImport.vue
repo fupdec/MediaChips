@@ -160,13 +160,6 @@ defineExpose({canSubmit, busy, selectionCount, submit: importVideo})
   }
 }
 
-.web-video-import__title {
-  min-height: 46px;
-  padding: 10px 14px;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
 .web-video-import__input-row {
   display: flex;
   align-items: center;
@@ -180,19 +173,9 @@ defineExpose({canSubmit, busy, selectionCount, submit: importVideo})
   min-width: 0;
 }
 
-.web-video-import__hint {
-  margin-top: 8px;
-  font-size: 0.6875rem;
-  line-height: 1.5;
-}
-
 .web-video-import__notice {
   margin-top: 8px;
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
-}
-
-.web-video-import__progress {
-  margin-top: 10px;
 }
 </style>
