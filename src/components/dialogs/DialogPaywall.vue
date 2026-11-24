@@ -26,6 +26,9 @@
         <p v-else-if="trialDaysLeft === 0" class="mb-4 text-medium-emphasis">
           {{ t('registration.paywall_trial_ended') }}
         </p>
+        <p v-if="feature" class="mb-4 text-medium-emphasis">
+          {{ t('registration.paywall_data_safe') }}
+        </p>
 
         <ul class="paywall-benefits mb-6">
           <li>{{ t('registration.paywall_benefit_unlimited') }}</li>

@@ -59,6 +59,26 @@
       </tbody>
     </v-table>
 
+    <div v-if="!reg" class="pro-features mb-4">
+      <div class="text-subtitle-2 mb-1">{{ t('registration.pro_features_title') }}</div>
+      <div v-if="!hasPro" class="text-caption text-medium-emphasis mb-2">
+        {{ t('registration.paywall_data_safe') }}
+      </div>
+      <ul class="pro-features__list">
+        <li v-for="feature in PRO_FEATURES" :key="feature" class="pro-features__item">
+          <v-icon
+            :icon="hasPro ? 'mdi-lock-open-variant-outline' : 'mdi-lock-outline'"
+            :color="hasPro ? 'success' : undefined"
+            size="18"
+          />
+          <span class="pro-features__name">{{ t(`registration.pro_feature.${feature}`) }}</span>
+          <span class="text-caption text-medium-emphasis">
+            {{ hasPro ? t('registration.pro_feature_unlocked') : t('registration.pro_feature_locked') }}
+          </span>
+        </li>
+      </ul>
+    </div>
+
     <div class="mb-4">
       <v-btn @click="openDialog" color="primary" rounded variant="flat">
         <v-icon start>mdi-key</v-icon>
@@ -364,6 +384,7 @@ import {useI18n} from 'vue-i18n'
 import {useRegistrationStore, isAlreadyInactiveOnServerMessage} from '@/stores/registration'
 import {useNotificationsStore} from '@/stores/notifications'
 import {useProFeatureGate} from '@/composable/useProFeatureGate'
+import {PRO_FEATURES} from '@/utils/proAccess'
 import DialogConfirm from '@/components/dialogs/DialogConfirm.vue'
 import SettingsCategoryDivider from '@/components/ui/SettingsCategoryDivider.vue'
 import {isMsStoreBuild} from '@/utils/sfwBuild'
@@ -384,7 +405,7 @@ interface LicenseActionResponse {
 
 // Инициализация хранилищ
 const registrationStore = useRegistrationStore()
-const {trialDaysLeft} = useProFeatureGate()
+const {trialDaysLeft, hasPro} = useProFeatureGate()
 const notificationsStore = useNotificationsStore()
 const {t} = useI18n()
 const isStoreChannel = isMsStoreBuild()
@@ -710,6 +731,24 @@ watch(() => registrationStore.keyEntryRequestToken, (token, previous) => {
 </script>
 
 <style scoped>
+.pro-features__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pro-features__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+}
+
+.pro-features__name {
+  flex: 1;
+  min-width: 0;
+}
+
 .user-select {
   user-select: text;
   -webkit-user-select: text;
