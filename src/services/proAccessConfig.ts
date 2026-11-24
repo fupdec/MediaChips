@@ -1,4 +1,5 @@
 import {useAppStore} from '@/stores/app'
+import {typedApi} from '@/services/typedApi'
 import {updateConfig} from '@/services/configService'
 import {useRegistrationStore} from '@/stores/registration'
 import {isFreeLibraryCapSettled} from '@/services/freeLibraryCapConfig'
@@ -73,7 +74,6 @@ export async function settleProAccessIfNeeded(): Promise<boolean> {
   const registrationStore = useRegistrationStore()
   let libraryCount = 0
   try {
-    const {typedApi} = await import('@/services/typedApi')
     const response = await typedApi.getMediaStats()
     libraryCount = Number(response.data?.total) || 0
     registrationStore.libraryCount = libraryCount

@@ -1,6 +1,8 @@
 import { getElectronAPI } from '@/services/electronBridge'
 import { isAppWindowFocused } from '@/utils/windowFocus'
 import type { NotificationInput } from '@/services/notificationService'
+import { useNotificationsStore } from '@/stores/notifications'
+import { useTasksStore } from '@/stores/tasks'
 
 let lastBadge = -1
 let lastProgress: number | null | undefined = undefined
@@ -139,9 +141,6 @@ export async function syncDesktopChromeNow(): Promise<void> {
   if (!getApi()?.invoke) return
 
   try {
-    const { useNotificationsStore } = await import('@/stores/notifications')
-    const { useTasksStore } = await import('@/stores/tasks')
-
     const notifications = useNotificationsStore()
     const tasks = useTasksStore()
 

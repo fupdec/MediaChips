@@ -71,6 +71,7 @@ registerVuetifyForLocales(vuetify)
 
 // ============ GLOBAL EVENTS ============
 import eventBus from '@/utils/eventBus'
+import { openOnboarding } from '@/composable/useOnboarding'
 
 // ============ PINIA STORE ============
 import { useAppStore } from '@/stores/app'
@@ -120,9 +121,7 @@ router.isReady().then(async () => {
   app.mount('#app')
 
   // Console helper (all builds): window.__openOnboarding() reopens the welcome dialog.
-  import('@/composable/useOnboarding').then(({openOnboarding}) => {
-    ;(window as Window & {__openOnboarding?: () => void}).__openOnboarding = openOnboarding
-  })
+  ;(window as Window & {__openOnboarding?: () => void}).__openOnboarding = openOnboarding
 
   void import('@/services/registerPwa').then(({registerPwa}) => {
     void registerPwa()

@@ -1,3 +1,5 @@
+import { typedApi } from '@/services/typedApi'
+
 type PendingEntry = {
   resolve: (exists: boolean) => void
   reject: (error: unknown) => void
@@ -11,7 +13,6 @@ let flushTimer: ReturnType<typeof setTimeout> | null = null
 let flushPromise: Promise<void> | null = null
 
 async function defaultBatchChecker(paths: string[]): Promise<Record<string, boolean>> {
-  const { typedApi } = await import('@/services/typedApi')
   const response = await typedApi.checkFilesExist(paths)
   return response.data.results
 }
