@@ -212,7 +212,9 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
     int y = origin.y + static_cast<int>(std::lround(v[1] * scale));
     int w = static_cast<int>(std::lround(v[2] * scale));
     int h = static_cast<int>(std::lround(v[3] * scale));
-    SetWindowPos(host_, nullptr, x, y, w, h, SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW);
+    // Insert the host right behind the Electron window: changing the owner does not reorder
+    // existing windows, so without this the host can end up covering the web UI.
+    SetWindowPos(host_, electron_, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
     return info.Env().Undefined();
   }
 

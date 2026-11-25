@@ -11,12 +11,11 @@ import {getReadableFileSize} from '@/services/formatUtils'
 import {setNotification} from '@/services/notificationService'
 import {computed, onMounted, ref} from 'vue'
 import {setOption} from '@/services/settingsService'
-import {isMacOS} from '@/utils/playerWheel'
 
 const SETTINGS = useSettingsStore()
 const appStore = useAppStore()
 const {t} = useI18n()
-// Offered only when this build actually ships libmpv (macOS Electron app).
+// Offer the setting whenever the native backend reports libmpv support.
 const nativePlayerSupported = ref(false)
 const clearingCache = ref(false)
 const cacheBytes = ref(0)
@@ -64,7 +63,7 @@ const clearTranscodeCache = async () => {
 
 onMounted(loadCacheStats)
 onMounted(async () => {
-  if (!window.mpvAPI || !isMacOS()) return
+  if (!window.mpvAPI) return
   nativePlayerSupported.value = Boolean((await window.mpvAPI.availability().catch(() => null))?.supported)
 })
 </script>
