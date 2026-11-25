@@ -2977,6 +2977,11 @@ $player-track-inactive-thickness: 4px;
 
 // Native mpv video sits below the web layer, so everything above it must be see-through there.
 html.mpv-native-active {
+  // Chromium's fullscreen backdrop sits above the native video surface.
+  .player:fullscreen::backdrop {
+    background: transparent;
+  }
+
   .player .video-wrapper {
     background: transparent !important;
   }

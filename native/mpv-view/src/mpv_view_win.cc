@@ -193,13 +193,6 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
       DwmSetWindowAttribute(electron_, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, &roundCorners, sizeof(roundCorners));
     }
 
-    if (frame_) {
-      // Keep the UI window exactly over the frame's client area, synchronously and in physical
-      // pixels, from the frame's own window procedure (no round trip through JS events).
-      frameSubclassed_ = SetWindowSubclass(frame_, FrameSubclassProc, 1, reinterpret_cast<DWORD_PTR>(this)) != FALSE;
-      SyncOverlay();
-    }
-
     handle_ = api_.mpv_create();
     if (!handle_) {
       Napi::Error::New(env, "mpv_create failed").ThrowAsJavaScriptException();
@@ -219,6 +212,17 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
       return;
     }
 
+    if (frame_) {
+      // Follow the frame in physical pixels while Windows runs its move/resize loop.
+      frameSubclassed_ = SetWindowSubclass(frame_, FrameSubclassProc, 1, reinterpret_cast<DWORD_PTR>(this)) != FALSE;
+      if (!frameSubclassed_) {
+        Teardown();
+        Napi::Error::New(env, "Could not track the player frame").ThrowAsJavaScriptException();
+        return;
+      }
+      SyncFrame();
+    }
+
     alive_ = std::make_shared<std::atomic<bool>>(true);
     worker_ = std::thread([this, alive = alive_]() { EventLoop(alive); });
   }
@@ -228,16 +232,22 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
  private:
   friend LRESULT CALLBACK FrameSubclassProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
 
-  void SyncOverlay() {
+  void SyncFrame() {
     if (!frame_ || !IsWindow(frame_) || !IsWindow(electron_) || IsIconic(frame_)) return;
     RECT client;
-    GetClientRect(frame_, &client);
+    if (!GetClientRect(frame_, &client)) return;
     POINT origin = {0, 0};
-    ClientToScreen(frame_, &origin);
+    if (!ClientToScreen(frame_, &origin)) return;
     int w = client.right - client.left;
     int h = client.bottom - client.top;
     if (w <= 0 || h <= 0) return;
-    SetWindowPos(electron_, nullptr, origin.x, origin.y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+    RECT overlay;
+    if (GetWindowRect(electron_, &overlay) &&
+        (origin.x != overlay.left || origin.y != overlay.top ||
+         w != overlay.right - overlay.left || h != overlay.bottom - overlay.top)) {
+      SetWindowPos(electron_, nullptr, origin.x, origin.y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    if (host_ && videoRect_[2] > 0 && videoRect_[3] > 0) ApplyRect(w, h);
   }
 
   double Scale() const {
@@ -246,31 +256,48 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
   }
 
   // setRect(x, y, w, h, clipX, clipY, clipW, clipH, radius?) - DIPs, origin top-left of the window's
-  // client area. A rectangle without area hides the host. `radius` rounds the video's corners.
+  // client area. A rectangle without area hides the host. The optional fit flags follow the
+  // frame client size on the corresponding axis.
   Napi::Value SetRect(const Napi::CallbackInfo& info) {
     if (!host_ || info.Length() < 8) return info.Env().Undefined();
-    double v[4];
-    for (int i = 0; i < 4; i++) v[i] = info[i].ToNumber().DoubleValue();
-    if (v[2] <= 0 || v[3] <= 0 || !IsWindow(electron_)) {
+    for (int i = 0; i < 4; i++) videoRect_[i] = info[i].ToNumber().DoubleValue();
+    radius_ = info.Length() > 8 ? info[8].ToNumber().DoubleValue() : 0;
+    fitWidth_ = info.Length() > 9 && info[9].ToBoolean().Value();
+    fitHeight_ = info.Length() > 10 && info[10].ToBoolean().Value();
+    if (videoRect_[2] <= 0 || videoRect_[3] <= 0 || !IsWindow(electron_)) {
       if (shown_) ShowWindow(host_, SW_HIDE);
       shown_ = false;
-      return info.Env().Undefined();
+    } else if (frame_) {
+      SyncFrame();
+    } else {
+      ApplyRect(0, 0);
     }
+    return info.Env().Undefined();
+  }
+
+  void ApplyRect(int clientWidth, int clientHeight) {
     double scale = Scale();
-    // With a frame the video is a child window: coordinates are relative to the frame's client
-    // area, which the UI window covers exactly.
     POINT origin = {0, 0};
     if (!frame_) ClientToScreen(electron_, &origin);
-    int x = origin.x + static_cast<int>(std::lround(v[0] * scale));
-    int y = origin.y + static_cast<int>(std::lround(v[1] * scale));
-    int w = static_cast<int>(std::lround(v[2] * scale));
-    int h = static_cast<int>(std::lround(v[3] * scale));
+    int x = origin.x + static_cast<int>(std::lround(videoRect_[0] * scale));
+    int y = origin.y + static_cast<int>(std::lround(videoRect_[1] * scale));
+    int w = static_cast<int>(std::lround(videoRect_[2] * scale));
+    int h = static_cast<int>(std::lround(videoRect_[3] * scale));
+    // A viewport-filling axis follows the frame immediately, even if Chromium is still laying out.
+    if (frame_ && fitWidth_) {
+      x = 0;
+      w = clientWidth;
+    }
+    if (frame_ && fitHeight_) {
+      y = 0;
+      h = clientHeight;
+    }
     // Insert the host right behind the Electron window: changing the owner does not reorder
     // existing windows, so without this the host can end up covering the web UI.
     // Skip identical requests (the main process re-sends the rectangle on every window move):
     // repeated SetWindowPos / z-order changes make the video flicker.
     if (!shown_ || x != lastX_ || y != lastY_ || w != lastW_ || h != lastH_) {
-      SetWindowPos(host_, frame_ ? HWND_TOP : electron_, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+      if (!SetWindowPos(host_, frame_ ? HWND_TOP : electron_, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW)) return;
       shown_ = true;
       lastX_ = x;
       lastY_ = y;
@@ -278,7 +305,7 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
       lastH_ = h;
     }
 
-    int radius = info.Length() > 8 ? static_cast<int>(std::lround(info[8].ToNumber().DoubleValue() * scale)) : 0;
+    int radius = static_cast<int>(std::lround(radius_ * scale));
     if (radius != appliedRadius_ || w != appliedW_ || h != appliedH_) {
       appliedRadius_ = radius;
       appliedW_ = w;
@@ -287,7 +314,6 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
       HRGN region = radius > 0 ? CreateRoundRectRgn(0, 0, w + 1, h + 1, radius * 2, radius * 2) : nullptr;
       SetWindowRgn(host_, region, TRUE);  // the system owns the region from here on
     }
-    return info.Env().Undefined();
   }
 
   // command(["loadfile", path]) - array of strings.
@@ -440,6 +466,9 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
   bool owned_ = false;
   int appliedRadius_ = -1, appliedW_ = 0, appliedH_ = 0;
   bool shown_ = false;
+  double videoRect_[4] = {};
+  double radius_ = 0;
+  bool fitWidth_ = false, fitHeight_ = false;
   int lastX_ = 0, lastY_ = 0, lastW_ = 0, lastH_ = 0;
   std::shared_ptr<std::atomic<bool>> alive_;
   std::thread worker_;
@@ -450,7 +479,9 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
 
 static LRESULT CALLBACK FrameSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR id, DWORD_PTR ref) {
   LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
-  if (msg == WM_WINDOWPOSCHANGED || msg == WM_SIZE) reinterpret_cast<MpvView*>(ref)->SyncOverlay();
+  if (msg == WM_WINDOWPOSCHANGED || msg == WM_SIZE || msg == WM_EXITSIZEMOVE || msg == WM_DPICHANGED) {
+    reinterpret_cast<MpvView*>(ref)->SyncFrame();
+  }
   return result;
 }
 

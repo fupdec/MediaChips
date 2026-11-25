@@ -45,10 +45,14 @@ export function useNativeVideoRect(
     if (el) {
       const r = el.getBoundingClientRect()
       const radius = roundedCornerRadius(el)
-      const key = [r.left, r.top, r.width, r.height, window.innerWidth, window.innerHeight, radius].map(Math.round).join(',')
+      // Compare against the renderer's own viewport, so delayed IPC still describes the layout
+      // correctly while the native frame is already at a different size.
+      const fitWidth = Number(Math.abs(r.left) < 1 && Math.abs(r.right - window.innerWidth) < 1)
+      const fitHeight = Number(Math.abs(r.top) < 1 && Math.abs(r.bottom - window.innerHeight) < 1)
+      const key = [r.left, r.top, r.width, r.height, window.innerWidth, window.innerHeight, radius, fitWidth, fitHeight].map(Math.round).join(',')
       if (key !== last) {
         last = key
-        setNativeVideoRect({x: r.left, y: r.top, w: r.width, h: r.height, cx: r.left, cy: r.top, cw: r.width, ch: r.height, r: radius})
+        setNativeVideoRect({x: r.left, y: r.top, w: r.width, h: r.height, cx: r.left, cy: r.top, cw: r.width, ch: r.height, r: radius, fitWidth, fitHeight})
         setHole({x: r.left, y: r.top, w: r.width, h: r.height, r: radius})
       }
     }

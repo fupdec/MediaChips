@@ -16,7 +16,7 @@ import {getPlayerFrame} from './playerFrame'
  */
 
 type MpvViewInstance = {
-  setRect: (x: number, y: number, w: number, h: number, cx: number, cy: number, cw: number, ch: number, radius?: number) => void
+  setRect: (x: number, y: number, w: number, h: number, cx: number, cy: number, cw: number, ch: number, radius?: number, fitWidth?: boolean, fitHeight?: boolean) => void
   command: (args: string[]) => number
   setProperty: (name: string, value: string) => number
   observe: (name: string, kind: 'double' | 'flag' | 'string') => void
@@ -191,6 +191,7 @@ export function createMpvNativeController(deps: {
   const views = new Map<number, MpvViewInstance>()
   /** Last rectangle (CSS px) each renderer asked for; re-applied when the window moves (Windows). */
   const lastRects = new Map<number, Record<string, number>>()
+  const viewFrames = new Map<number, NonNullable<ReturnType<typeof getPlayerFrame>>>()
   let ViewClass: MpvViewConstructor | null = null
   let loadError = ''
 
@@ -225,7 +226,8 @@ export function createMpvNativeController(deps: {
     const view = views.get(webContentsId)
     if (!view) return
     views.delete(webContentsId)
-    const owner = BrowserWindow.getAllWindows().map(candidate => getPlayerFrame(candidate)).find(Boolean)
+    const owner = viewFrames.get(webContentsId)
+    viewFrames.delete(webContentsId)
     if (owner) owner.nativeSync = false
     try {
       view.destroy()
@@ -239,33 +241,11 @@ export function createMpvNativeController(deps: {
     const view = views.get(contentsId)
     if (!view || !rect) return
     const z = zoom || 1
-    view.setRect(rect.x * z, rect.y * z, rect.w * z, rect.h * z, rect.cx * z, rect.cy * z, rect.cw * z, rect.ch * z, (rect.r ?? 0) * z)
-  }
-
-  /**
-   * Windows only: the video host is a separate top-level window, so it does not follow the Electron
-   * window by itself. Hide it while that window is minimized or hidden and re-place it after moves.
-   */
-  /**
-   * Windows frame mode: while the frame is resized by hand the page needs a few frames to lay out
-   * again, and the video would trail behind the window edge. If the video filled the client area,
-   * keep it filling it straight away instead of waiting for the renderer.
-   */
-  function trackFrame(frameWindow: BrowserWindow, win: BrowserWindow, contentsId: number) {
-    let previous = frameWindow.getContentBounds()
-    frameWindow.on('resize', () => {
-      if (frameWindow.isDestroyed() || win.isDestroyed() || !views.has(contentsId)) return
-      const bounds = frameWindow.getContentBounds()
-      const rect = lastRects.get(contentsId)
-      const zoom = win.webContents.getZoomFactor() || 1
-      if (rect && Math.abs(rect.x) < 2 && Math.abs(rect.y) < 2
-        && Math.abs(rect.w * zoom - previous.width) < 3 && Math.abs(rect.h * zoom - previous.height) < 3) {
-        const next = {...rect, w: bounds.width / zoom, h: bounds.height / zoom, cw: bounds.width / zoom, ch: bounds.height / zoom}
-        lastRects.set(contentsId, next)
-        applyRect(contentsId, zoom, next)
-      }
-      previous = bounds
-    })
+    view.setRect(
+      rect.x * z, rect.y * z, rect.w * z, rect.h * z,
+      rect.cx * z, rect.cy * z, rect.cw * z, rect.ch * z, (rect.r ?? 0) * z,
+      rect.fitWidth === 1, rect.fitHeight === 1,
+    )
   }
 
   function trackWindow(win: BrowserWindow, contentsId: number) {
@@ -316,7 +296,7 @@ export function createMpvNativeController(deps: {
       // Release the view while the window is still alive; `closed` is a fallback.
       if (frame) {
         frame.nativeSync = true
-        trackFrame(frame.window, win, contentsId)
+        viewFrames.set(contentsId, frame)
       }
       else trackWindow(win, contentsId)
       win.once('close', () => destroyView(contentsId))

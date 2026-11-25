@@ -92,7 +92,7 @@ export function createPlayerWindowController(deps: {
       if (frameWindow.isVisible() && browserWindow.isVisible()) return
       if (deps.isPlayerMaximizedPreferred() && !frameWindow.isMaximized()) frameWindow.maximize()
       frameWindow.show()
-      browserWindow.setBounds(frameWindow.getContentBounds())
+      if (!frame.nativeSync) browserWindow.setBounds(frameWindow.getContentBounds())
       browserWindow.show()
       return
     }

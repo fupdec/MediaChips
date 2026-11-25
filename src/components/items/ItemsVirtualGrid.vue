@@ -147,14 +147,10 @@ const resolvedLayoutOptions = computed<GridLayoutOptions>(() => ({
 
 const { gridStyle, containerWidth } = useResponsiveGridLayout(layoutRef, resolvedLayoutOptions)
 
-/** Timeline and compact list rows keep measured heights; every card grid has one fixed stride. */
-const isMeasuredRowGrid = computed(() => Boolean(
-  props.lineGrid || props.listGrid
-  || resolvedLayoutOptions.value.lineGrid || resolvedLayoutOptions.value.listGrid,
+// Card metadata wraps and expands, so use the same measured rows as the list and timeline.
+const lockRowHeight = computed(() => Boolean(
+  resolvedLayoutOptions.value.imageOnly || resolvedLayoutOptions.value.chipsGrid,
 ))
-
-/** Cards, minimalism, chips: fixed stride (equal-height cards, no measuring). */
-const lockRowHeight = computed(() => !isMeasuredRowGrid.value)
 
 const layoutOptions = computed(() => ({
   size: Number(props.size),
