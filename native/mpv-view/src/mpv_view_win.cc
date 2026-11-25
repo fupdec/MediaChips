@@ -12,6 +12,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include <commctrl.h>
 #include <dwmapi.h>
 
 #include <atomic>
@@ -52,6 +53,8 @@ struct MpvApi {
 };
 
 static const wchar_t* kHostClass = L"MediaChipsMpvHost";
+
+static LRESULT CALLBACK FrameSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR id, DWORD_PTR ref);
 
 static LRESULT CALLBACK HostProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
   switch (msg) {
@@ -190,6 +193,13 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
       DwmSetWindowAttribute(electron_, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, &roundCorners, sizeof(roundCorners));
     }
 
+    if (frame_) {
+      // Keep the UI window exactly over the frame's client area, synchronously and in physical
+      // pixels, from the frame's own window procedure (no round trip through JS events).
+      frameSubclassed_ = SetWindowSubclass(frame_, FrameSubclassProc, 1, reinterpret_cast<DWORD_PTR>(this)) != FALSE;
+      SyncOverlay();
+    }
+
     handle_ = api_.mpv_create();
     if (!handle_) {
       Napi::Error::New(env, "mpv_create failed").ThrowAsJavaScriptException();
@@ -216,6 +226,20 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
   ~MpvView() { Teardown(); }
 
  private:
+  friend LRESULT CALLBACK FrameSubclassProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
+
+  void SyncOverlay() {
+    if (!frame_ || !IsWindow(frame_) || !IsWindow(electron_) || IsIconic(frame_)) return;
+    RECT client;
+    GetClientRect(frame_, &client);
+    POINT origin = {0, 0};
+    ClientToScreen(frame_, &origin);
+    int w = client.right - client.left;
+    int h = client.bottom - client.top;
+    if (w <= 0 || h <= 0) return;
+    SetWindowPos(electron_, nullptr, origin.x, origin.y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
+  }
+
   double Scale() const {
     UINT dpi = GetDpiForWindow(frame_ ? frame_ : electron_);
     return dpi > 0 ? dpi / 96.0 : 1.0;
@@ -386,6 +410,10 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
       api_.mpv_terminate_destroy(handle_);
       handle_ = nullptr;
     }
+    if (frameSubclassed_ && frame_ && IsWindow(frame_)) {
+      RemoveWindowSubclass(frame_, FrameSubclassProc, 1);
+      frameSubclassed_ = false;
+    }
     if (owned_ && IsWindow(electron_)) {
       SetWindowLongPtrW(electron_, GWLP_HWNDPARENT, 0);
       owned_ = false;
@@ -407,6 +435,7 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
   mpv_handle* handle_ = nullptr;
   HWND electron_ = nullptr;
   HWND frame_ = nullptr;
+  bool frameSubclassed_ = false;
   HWND host_ = nullptr;
   bool owned_ = false;
   int appliedRadius_ = -1, appliedW_ = 0, appliedH_ = 0;
@@ -418,6 +447,12 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
   bool tsfnReady_ = false;
   std::mutex tsfnMutex_;
 };
+
+static LRESULT CALLBACK FrameSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR id, DWORD_PTR ref) {
+  LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
+  if (msg == WM_WINDOWPOSCHANGED || msg == WM_SIZE) reinterpret_cast<MpvView*>(ref)->SyncOverlay();
+  return result;
+}
 
 static Napi::Object InitModule(Napi::Env env, Napi::Object exports) {
   return MpvView::Init(env, exports);

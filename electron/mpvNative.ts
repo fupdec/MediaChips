@@ -225,6 +225,8 @@ export function createMpvNativeController(deps: {
     const view = views.get(webContentsId)
     if (!view) return
     views.delete(webContentsId)
+    const owner = BrowserWindow.getAllWindows().map(candidate => getPlayerFrame(candidate)).find(Boolean)
+    if (owner) owner.nativeSync = false
     try {
       view.destroy()
     } catch (error) {
@@ -312,7 +314,10 @@ export function createMpvNativeController(deps: {
       views.set(contentsId, view)
       console.log(`[mpv] view created for window ${contentsId}`)
       // Release the view while the window is still alive; `closed` is a fallback.
-      if (frame) trackFrame(frame.window, win, contentsId)
+      if (frame) {
+        frame.nativeSync = true
+        trackFrame(frame.window, win, contentsId)
+      }
       else trackWindow(win, contentsId)
       win.once('close', () => destroyView(contentsId))
       win.once('closed', () => destroyView(contentsId))

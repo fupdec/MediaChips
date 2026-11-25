@@ -15,6 +15,8 @@ export interface PlayerFrame {
   window: BrowserWindow
   /** Set before destroying the window or quitting; otherwise the close button only hides it. */
   allowClose: boolean
+  /** The native addon keeps the overlay over the frame itself (set while a video view exists). */
+  nativeSync?: boolean
 }
 
 export function getPlayerFrame(overlay: BrowserWindow | null | undefined): PlayerFrame | null {
@@ -65,7 +67,7 @@ export function bindPlayerFrame(overlay: BrowserWindow, frame: PlayerFrame, onUs
   const sync = () => {
     if (win.isDestroyed() || overlay.isDestroyed() || win.isMinimized()) return
     // While the overlay is fullscreen on its own (HTML fullscreen) Electron owns its bounds.
-    if (overlay.isFullScreen()) return
+    if (overlay.isFullScreen() || frame.nativeSync) return
     const bounds = win.getContentBounds()
     const current = overlay.getBounds()
     if (current.x !== bounds.x || current.y !== bounds.y || current.width !== bounds.width || current.height !== bounds.height) {
