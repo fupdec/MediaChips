@@ -1,4 +1,5 @@
 import os from 'os'
+import {bindCaptionDoubleClick} from './captionDoubleClick'
 import path from 'path'
 import {
   BrowserWindow,
@@ -151,6 +152,7 @@ export function createPlayerWindowController(deps: {
     isPlayerRendererReady = false
     player = new BrowserWindow(getPlayerWindowOptions())
     setupPlayerWindowEvents(player)
+    bindCaptionDoubleClick(player, Boolean(deps.transparentWindow))
     deps.bindRendererLoadRetry(player.webContents, () => deps.getRendererUrl('?player=true'))
     player.loadURL(deps.getRendererUrl('?player=true'))
     return player
