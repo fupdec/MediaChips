@@ -85,6 +85,10 @@ onBeforeUnmount(() => stopPlayerUiSync())
   }
 }
 
+html.native-frame .player-standalone--win {
+  --player-window-radius: 0px;
+}
+
 .not-macos {
   .player-standalone {
     .status-text {

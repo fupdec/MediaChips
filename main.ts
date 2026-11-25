@@ -352,7 +352,7 @@ if (typeof appTray.installWindowsJumpList === 'function') {
 }
 
 const playerWindow = createPlayerWindowController({
-  transparentWindow: nativePlayerEnabled,
+  transparentWindow: nativePlayerEnabled && (!isWindows || mpvNative.getAvailability().available),
   isWindows,
   getAppRoot: () => appRoot,
   getRendererUrl,
