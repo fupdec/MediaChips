@@ -5,6 +5,16 @@ import {nativeVideoHolePath} from '@/utils/nativeVideoHole'
 const HIDDEN = {x: 0, y: 0, w: 0, h: 0, cx: 0, cy: 0, cw: 0, ch: 0}
 const HOLE_VAR = '--mpv-hole'
 
+/** The host is usually square inside a rounded, clipping player: use the nearest rounded ancestor. */
+function roundedCornerRadius(el: HTMLElement): number {
+  let node: HTMLElement | null = el
+  for (let depth = 0; node && depth < 6; depth++, node = node.parentElement) {
+    const radius = parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0
+    if (radius > 0) return radius
+  }
+  return 0
+}
+
 /**
  * Keeps the native mpv view glued to a DOM block. The view lives below the web layer, so the
  * block only reserves the space; it is polled every frame because layout changes (resize, panels
@@ -34,7 +44,7 @@ export function useNativeVideoRect(
     const el = hostEl.value
     if (el) {
       const r = el.getBoundingClientRect()
-      const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0
+      const radius = roundedCornerRadius(el)
       const key = [r.left, r.top, r.width, r.height, window.innerWidth, window.innerHeight, radius].map(Math.round).join(',')
       if (key !== last) {
         last = key
