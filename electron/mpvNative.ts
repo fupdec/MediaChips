@@ -244,6 +244,28 @@ export function createMpvNativeController(deps: {
    * Windows only: the video host is a separate top-level window, so it does not follow the Electron
    * window by itself. Hide it while that window is minimized or hidden and re-place it after moves.
    */
+  /**
+   * Windows frame mode: while the frame is resized by hand the page needs a few frames to lay out
+   * again, and the video would trail behind the window edge. If the video filled the client area,
+   * keep it filling it straight away instead of waiting for the renderer.
+   */
+  function trackFrame(frameWindow: BrowserWindow, win: BrowserWindow, contentsId: number) {
+    let previous = frameWindow.getContentBounds()
+    frameWindow.on('resize', () => {
+      if (frameWindow.isDestroyed() || win.isDestroyed() || !views.has(contentsId)) return
+      const bounds = frameWindow.getContentBounds()
+      const rect = lastRects.get(contentsId)
+      const zoom = win.webContents.getZoomFactor() || 1
+      if (rect && Math.abs(rect.x) < 2 && Math.abs(rect.y) < 2
+        && Math.abs(rect.w * zoom - previous.width) < 3 && Math.abs(rect.h * zoom - previous.height) < 3) {
+        const next = {...rect, w: bounds.width / zoom, h: bounds.height / zoom, cw: bounds.width / zoom, ch: bounds.height / zoom}
+        lastRects.set(contentsId, next)
+        applyRect(contentsId, zoom, next)
+      }
+      previous = bounds
+    })
+  }
+
   function trackWindow(win: BrowserWindow, contentsId: number) {
     if (process.platform !== 'win32') return
     const hidden = {x: 0, y: 0, w: 0, h: 0, cx: 0, cy: 0, cw: 0, ch: 0}
@@ -290,7 +312,8 @@ export function createMpvNativeController(deps: {
       views.set(contentsId, view)
       console.log(`[mpv] view created for window ${contentsId}`)
       // Release the view while the window is still alive; `closed` is a fallback.
-      if (!frame) trackWindow(win, contentsId)
+      if (frame) trackFrame(frame.window, win, contentsId)
+      else trackWindow(win, contentsId)
       win.once('close', () => destroyView(contentsId))
       win.once('closed', () => destroyView(contentsId))
       return {ok: true}
