@@ -59,6 +59,8 @@ export function overlayWindowOptions(frame: PlayerFrame): BrowserWindowConstruct
 export function bindPlayerFrame(overlay: BrowserWindow, frame: PlayerFrame, onUserClose: () => void): void {
   frames.set(overlay, frame)
   const win = frame.window
+  overlay.setResizable(true)
+  overlay.setMinimumSize(0, 0)
 
   const sync = () => {
     if (win.isDestroyed() || overlay.isDestroyed() || win.isMinimized()) return
@@ -68,6 +70,17 @@ export function bindPlayerFrame(overlay: BrowserWindow, frame: PlayerFrame, onUs
     const current = overlay.getBounds()
     if (current.x !== bounds.x || current.y !== bounds.y || current.width !== bounds.width || current.height !== bounds.height) {
       overlay.setBounds(bounds)
+      const applied = overlay.getBounds()
+      if (applied.width !== bounds.width || applied.height !== bounds.height) {
+        // The overlay refused the size (a size constraint, or a non-resizable window): force it.
+        console.warn(`[frame] overlay ${applied.width}x${applied.height} != frame client ${bounds.width}x${bounds.height}, retrying`)
+        overlay.setResizable(true)
+        overlay.setMinimumSize(0, 0)
+        overlay.setMaximumSize(0, 0)
+        overlay.setBounds(bounds)
+        const retry = overlay.getBounds()
+        console.warn(`[frame] after retry ${retry.width}x${retry.height}`)
+      }
     }
   }
   const syncAndFocus = () => {
