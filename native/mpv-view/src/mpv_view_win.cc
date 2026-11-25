@@ -12,6 +12,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include <dwmapi.h>
 
 #include <atomic>
 #include <cmath>
@@ -164,6 +165,11 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
                  SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
     owned_ = true;
 
+    // Windows 11 rounds the corners of ordinary top-level windows; ask for it explicitly (a no-op
+    // on Windows 10 and on windows the system treats as layered).
+    const DWORD roundCorners = 2;  // DWMWCP_ROUND
+    DwmSetWindowAttribute(electron_, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, &roundCorners, sizeof(roundCorners));
+
     handle_ = api_.mpv_create();
     if (!handle_) {
       Napi::Error::New(env, "mpv_create failed").ThrowAsJavaScriptException();
@@ -195,8 +201,8 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
     return dpi > 0 ? dpi / 96.0 : 1.0;
   }
 
-  // setRect(x, y, w, h, clipX, clipY, clipW, clipH) - DIPs, origin top-left of the window's client
-  // area. A rectangle without area hides the host.
+  // setRect(x, y, w, h, clipX, clipY, clipW, clipH, radius?) - DIPs, origin top-left of the window's
+  // client area. A rectangle without area hides the host. `radius` rounds the video's corners.
   Napi::Value SetRect(const Napi::CallbackInfo& info) {
     if (!host_ || info.Length() < 8) return info.Env().Undefined();
     double v[4];
@@ -215,6 +221,16 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
     // Insert the host right behind the Electron window: changing the owner does not reorder
     // existing windows, so without this the host can end up covering the web UI.
     SetWindowPos(host_, electron_, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+
+    int radius = info.Length() > 8 ? static_cast<int>(std::lround(info[8].ToNumber().DoubleValue() * scale)) : 0;
+    if (radius != appliedRadius_ || w != appliedW_ || h != appliedH_) {
+      appliedRadius_ = radius;
+      appliedW_ = w;
+      appliedH_ = h;
+      // The region is in window coordinates; the extra pixel keeps the right/bottom edge inside it.
+      HRGN region = radius > 0 ? CreateRoundRectRgn(0, 0, w + 1, h + 1, radius * 2, radius * 2) : nullptr;
+      SetWindowRgn(host_, region, TRUE);  // the system owns the region from here on
+    }
     return info.Env().Undefined();
   }
 
@@ -360,6 +376,7 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
   HWND electron_ = nullptr;
   HWND host_ = nullptr;
   bool owned_ = false;
+  int appliedRadius_ = -1, appliedW_ = 0, appliedH_ = 0;
   std::shared_ptr<std::atomic<bool>> alive_;
   std::thread worker_;
   Napi::ThreadSafeFunction tsfn_;

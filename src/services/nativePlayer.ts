@@ -83,6 +83,6 @@ export function setNativeProperty(name: string, value: string | number | boolean
 }
 
 /** Move the native view; a zero-size rect hides it. */
-export function setNativeVideoRect(rect: {x: number; y: number; w: number; h: number; cx: number; cy: number; cw: number; ch: number}): void {
+export function setNativeVideoRect(rect: {x: number; y: number; w: number; h: number; cx: number; cy: number; cw: number; ch: number; r?: number}): void {
   window.mpvAPI?.setRect(rect)
 }

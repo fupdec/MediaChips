@@ -14,7 +14,7 @@ import {BrowserWindow, ipcMain, type IpcMainEvent, type IpcMainInvokeEvent} from
  */
 
 type MpvViewInstance = {
-  setRect: (x: number, y: number, w: number, h: number, cx: number, cy: number, cw: number, ch: number) => void
+  setRect: (x: number, y: number, w: number, h: number, cx: number, cy: number, cw: number, ch: number, radius?: number) => void
   command: (args: string[]) => number
   setProperty: (name: string, value: string) => number
   observe: (name: string, kind: 'double' | 'flag' | 'string') => void
@@ -235,7 +235,7 @@ export function createMpvNativeController(deps: {
     const view = views.get(contentsId)
     if (!view || !rect) return
     const z = zoom || 1
-    view.setRect(rect.x * z, rect.y * z, rect.w * z, rect.h * z, rect.cx * z, rect.cy * z, rect.cw * z, rect.ch * z)
+    view.setRect(rect.x * z, rect.y * z, rect.w * z, rect.h * z, rect.cx * z, rect.cy * z, rect.cw * z, rect.ch * z, (rect.r ?? 0) * z)
   }
 
   /**

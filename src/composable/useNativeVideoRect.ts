@@ -18,7 +18,7 @@ export function useNativeVideoRect(
   active: Ref<boolean>,
   punchHole?: Ref<boolean>,
 ) {
-  const setHole = (rect: {x: number; y: number; w: number; h: number} | null) => {
+  const setHole = (rect: {x: number; y: number; w: number; h: number; r?: number} | null) => {
     const root = document.documentElement
     if (rect && punchHole?.value) {
       root.style.setProperty(HOLE_VAR, nativeVideoHolePath({width: window.innerWidth, height: window.innerHeight}, rect))
@@ -34,11 +34,12 @@ export function useNativeVideoRect(
     const el = hostEl.value
     if (el) {
       const r = el.getBoundingClientRect()
-      const key = [r.left, r.top, r.width, r.height, window.innerWidth, window.innerHeight].map(Math.round).join(',')
+      const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0
+      const key = [r.left, r.top, r.width, r.height, window.innerWidth, window.innerHeight, radius].map(Math.round).join(',')
       if (key !== last) {
         last = key
-        setNativeVideoRect({x: r.left, y: r.top, w: r.width, h: r.height, cx: r.left, cy: r.top, cw: r.width, ch: r.height})
-        setHole({x: r.left, y: r.top, w: r.width, h: r.height})
+        setNativeVideoRect({x: r.left, y: r.top, w: r.width, h: r.height, cx: r.left, cy: r.top, cw: r.width, ch: r.height, r: radius})
+        setHole({x: r.left, y: r.top, w: r.width, h: r.height, r: radius})
       }
     }
     frame = requestAnimationFrame(tick)
