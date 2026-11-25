@@ -70,6 +70,8 @@ export function createPlayerWindowController(deps: {
         contextIsolation: true,
         sandbox: false,
         backgroundThrottling: false,
+        // Windows frame mode: fullscreen is applied to the frame, not to this window.
+        disableHtmlFullscreenWindowResize: useFrame,
       },
     }
   }

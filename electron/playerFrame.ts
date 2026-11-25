@@ -101,14 +101,17 @@ export function bindPlayerFrame(overlay: BrowserWindow, frame: PlayerFrame, onUs
     onUserClose()
   })
 
-  // HTML fullscreen is applied to the overlay; mirror it on the frame so the video fills the screen.
-  overlay.on('enter-full-screen', () => {
+  // HTML fullscreen (the player's fullscreen button) must not put the transparent overlay into
+  // fullscreen on its own: that would fight the frame. The overlay's web preferences disable the
+  // window resize, so the page only enters its fullscreen layout and we fullscreen the frame instead
+  // (the overlay then follows the frame's client area like in any other resize).
+  overlay.webContents.on('enter-html-full-screen', () => {
     if (!win.isDestroyed() && !win.isFullScreen()) win.setFullScreen(true)
   })
-  overlay.on('leave-full-screen', () => {
+  overlay.webContents.on('leave-html-full-screen', () => {
     if (!win.isDestroyed() && win.isFullScreen()) win.setFullScreen(false)
-    setTimeout(sync, 0)
   })
+  win.on('enter-full-screen', () => setTimeout(() => { if (!overlay.isDestroyed()) overlay.moveTop() }, 50))
 
   overlay.on('page-title-updated', (_event, title) => {
     if (!win.isDestroyed()) win.setTitle(title)
