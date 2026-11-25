@@ -119,7 +119,6 @@ router.isReady().then(async () => {
   }
 
   app.mount('#app')
-  void import('@/utils/nativeWindowCorners').then(({initNativeWindowCorners}) => initNativeWindowCorners())
 
   // Console helper (all builds): window.__openOnboarding() reopens the welcome dialog.
   ;(window as Window & {__openOnboarding?: () => void}).__openOnboarding = openOnboarding

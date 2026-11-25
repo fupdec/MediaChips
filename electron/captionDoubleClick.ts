@@ -10,7 +10,9 @@ const WM_NCLBUTTONDBLCLK = 0x00a3
 export function bindCaptionDoubleClick(win: BrowserWindow, enabled: boolean): void {
   if (process.platform !== 'win32' || !enabled) return
   win.hookWindowMessage(WM_NCLBUTTONDBLCLK, () => {
-    if (win.isDestroyed() || !win.isMaximizable()) return
+    // A transparent window reports itself as not maximizable, but maximize() still works.
+    if (win.isDestroyed()) return
+    console.log('[window] title-bar double-click')
     if (win.isFullScreen()) win.setFullScreen(false)
     else if (win.isMaximized()) win.unmaximize()
     else win.maximize()

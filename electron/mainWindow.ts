@@ -7,6 +7,7 @@ import {
   type BrowserWindowConstructorOptions,
 } from 'electron'
 import {bindCaptionDoubleClick} from './captionDoubleClick'
+import {bindRoundedWindow} from './roundedWindow'
 import {emitMainWindowUserFacingState} from './windowFocus'
 import type {WindowBoundsKind} from './windowBounds'
 import {resolveWindowIconPath} from './windowIcon'
@@ -130,6 +131,7 @@ export function createMainWindowController(deps: {
     }
     setupMainWindowEvents(win)
     bindCaptionDoubleClick(win, Boolean(deps.transparentWindow))
+    bindRoundedWindow(win, Boolean(deps.transparentWindow))
     deps.bindRendererLoadRetry(win.webContents, () => deps.getRendererUrl())
     win.loadURL(deps.getRendererUrl())
     return win

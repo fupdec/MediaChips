@@ -208,7 +208,8 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
     double v[4];
     for (int i = 0; i < 4; i++) v[i] = info[i].ToNumber().DoubleValue();
     if (v[2] <= 0 || v[3] <= 0 || !IsWindow(electron_)) {
-      ShowWindow(host_, SW_HIDE);
+      if (shown_) ShowWindow(host_, SW_HIDE);
+      shown_ = false;
       return info.Env().Undefined();
     }
     double scale = Scale();
@@ -220,7 +221,16 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
     int h = static_cast<int>(std::lround(v[3] * scale));
     // Insert the host right behind the Electron window: changing the owner does not reorder
     // existing windows, so without this the host can end up covering the web UI.
-    SetWindowPos(host_, electron_, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    // Skip identical requests (the main process re-sends the rectangle on every window move):
+    // repeated SetWindowPos / z-order changes make the video flicker.
+    if (!shown_ || x != lastX_ || y != lastY_ || w != lastW_ || h != lastH_) {
+      SetWindowPos(host_, electron_, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+      shown_ = true;
+      lastX_ = x;
+      lastY_ = y;
+      lastW_ = w;
+      lastH_ = h;
+    }
 
     int radius = info.Length() > 8 ? static_cast<int>(std::lround(info[8].ToNumber().DoubleValue() * scale)) : 0;
     if (radius != appliedRadius_ || w != appliedW_ || h != appliedH_) {
@@ -377,6 +387,8 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
   HWND host_ = nullptr;
   bool owned_ = false;
   int appliedRadius_ = -1, appliedW_ = 0, appliedH_ = 0;
+  bool shown_ = false;
+  int lastX_ = 0, lastY_ = 0, lastW_ = 0, lastH_ = 0;
   std::shared_ptr<std::atomic<bool>> alive_;
   std::thread worker_;
   Napi::ThreadSafeFunction tsfn_;
