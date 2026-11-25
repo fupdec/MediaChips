@@ -3019,3 +3019,8 @@ html.mpv-native-embedded {
     clip-path: var(--mpv-hole, none);
   }
 }
+
+// Windows native player window: the OS frame is the window, so the page itself stays square.
+html.native-frame .player {
+  border-radius: 0;
+}

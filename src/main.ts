@@ -4,6 +4,11 @@ import App from '@/App.vue'
 import router from '@/router'
 import { i18n, registerVuetifyForLocales, loadLocale } from '@/i18n/loadLocale'
 
+// Windows native player window: the OS draws the frame (title bar, borders) around the page.
+if (new URLSearchParams(window.location.search).get('frame') === 'native') {
+  document.documentElement.classList.add('native-frame')
+}
+
 // ============ VUETIFY SETUP ============
 import '@mdi/font/css/materialdesignicons.min.css'
 import 'vuetify/styles'

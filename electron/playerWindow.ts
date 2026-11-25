@@ -1,6 +1,7 @@
 import os from 'os'
 import {bindCaptionDoubleClick} from './captionDoubleClick'
 import {bindRoundedWindow} from './roundedWindow'
+import {bindPlayerFrame, createPlayerFrame, overlayWindowOptions, type PlayerFrame} from './playerFrame'
 import path from 'path'
 import {
   BrowserWindow,
@@ -40,6 +41,9 @@ export function createPlayerWindowController(deps: {
   transparentWindow?: boolean
 }): PlayerWindowController {
   let player: BrowserWindow | null = null
+  /** Windows native player: the system-decorated window the transparent player window sits on. */
+  const useFrame = deps.isWindows && Boolean(deps.transparentWindow)
+  let frame: PlayerFrame | null = null
   let pendingPlayerPayload: unknown = null
   let isPlayerRendererReady = false
   let playerWarmupTimer: ReturnType<typeof setTimeout> | null = null
@@ -81,6 +85,15 @@ export function createPlayerWindowController(deps: {
    * must not run for the warm-up window created in the background (it would pop up on its own).
    */
   function showPlayerWindow(browserWindow: BrowserWindow) {
+    if (frame && !frame.window.isDestroyed()) {
+      const frameWindow = frame.window
+      if (frameWindow.isVisible() && browserWindow.isVisible()) return
+      if (deps.isPlayerMaximizedPreferred() && !frameWindow.isMaximized()) frameWindow.maximize()
+      frameWindow.show()
+      browserWindow.setBounds(frameWindow.getContentBounds())
+      browserWindow.show()
+      return
+    }
     if (browserWindow.isVisible()) return
     if (deps.isPlayerMaximizedPreferred() && !browserWindow.isMaximized()) browserWindow.maximize()
     browserWindow.show()
@@ -107,7 +120,7 @@ export function createPlayerWindowController(deps: {
   }
 
   function setupPlayerWindowEvents(browserWindow: BrowserWindow) {
-    deps.bindWindowBoundsPersistence('player', browserWindow)
+    deps.bindWindowBoundsPersistence('player', frame && !frame.window.isDestroyed() ? frame.window : browserWindow)
 
     browserWindow.on('maximize', () => {
       browserWindow.webContents.send('maximize')
@@ -123,6 +136,7 @@ export function createPlayerWindowController(deps: {
 
     browserWindow.on('closed', () => {
       player = null
+      frame = null
       isPlayerRendererReady = false
       pendingPlayerPayload = null
       if (suppressPlayerWarmup) {
@@ -151,12 +165,33 @@ export function createPlayerWindowController(deps: {
     if (player && !player.isDestroyed()) return player
 
     isPlayerRendererReady = false
-    player = new BrowserWindow(getPlayerWindowOptions())
+    const search = useFrame ? '?player=true&frame=native' : '?player=true'
+    if (useFrame) {
+      const bounds = deps.readStoredWindowBounds('player', 1280, 720)
+      frame = createPlayerFrame({
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+        title: 'MediaChips',
+        icon: resolveWindowIconPath(deps.getAppRoot()),
+      })
+      player = new BrowserWindow({
+        ...getPlayerWindowOptions(),
+        ...overlayWindowOptions(frame),
+        ...frame.window.getContentBounds(),
+      })
+      bindPlayerFrame(player, frame, () => closePlayer())
+    } else {
+      player = new BrowserWindow(getPlayerWindowOptions())
+    }
     setupPlayerWindowEvents(player)
-    bindCaptionDoubleClick(player, Boolean(deps.transparentWindow))
-    bindRoundedWindow(player, Boolean(deps.transparentWindow))
-    deps.bindRendererLoadRetry(player.webContents, () => deps.getRendererUrl('?player=true'))
-    player.loadURL(deps.getRendererUrl('?player=true'))
+    if (!useFrame) {
+      bindCaptionDoubleClick(player, Boolean(deps.transparentWindow))
+      bindRoundedWindow(player, Boolean(deps.transparentWindow))
+    }
+    deps.bindRendererLoadRetry(player.webContents, () => deps.getRendererUrl(search))
+    player.loadURL(deps.getRendererUrl(search))
     return player
   }
 
@@ -168,11 +203,14 @@ export function createPlayerWindowController(deps: {
 
     stopPlayerPlayback()
 
+    if (frame) frame.allowClose = true
     if (player && !player.isDestroyed()) {
       suppressPlayerWarmup = true
       player.destroy()
     }
+    if (frame && !frame.window.isDestroyed()) frame.window.destroy()
 
+    frame = null
     player = null
     isPlayerRendererReady = false
     pendingPlayerPayload = null
@@ -183,6 +221,7 @@ export function createPlayerWindowController(deps: {
     if (player && !player.isDestroyed()) {
       player.hide()
     }
+    if (frame && !frame.window.isDestroyed()) frame.window.hide()
   }
 
   function registerIpc() {

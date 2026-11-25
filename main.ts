@@ -299,7 +299,8 @@ mpvNative.registerIpc()
 app.on('before-quit', () => mpvNative.destroyAll())
 
 const mainWindow = createMainWindowController({
-  transparentWindow: nativePlayerEnabled,
+  // Windows plays natively only in the player window, so the main window stays an ordinary opaque window.
+  transparentWindow: nativePlayerEnabled && !isWindows,
   isWindows,
   useWinElectronFrame,
   isDevelopment,

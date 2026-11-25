@@ -1,13 +1,15 @@
 import fs from 'fs'
 import path from 'path'
 import {BrowserWindow, ipcMain, type IpcMainEvent, type IpcMainInvokeEvent} from 'electron'
+import {getPlayerFrame} from './playerFrame'
 
 /**
  * Native mpv playback (macOS and Windows).
  *
  * macOS: libmpv renders into an NSView placed under Chromium's web view.
- * Windows: mpv plays into a separate window under the transparent Electron window (which is an
- * owned window of it), so the main process also re-applies the rectangle when the window moves.
+ * Windows: mpv plays into a child window of the player's system-decorated frame window; the
+ * transparent Electron window with the HTML UI is an owned window kept above it (see playerFrame.ts).
+ * Only the standalone player window plays natively there; the main window keeps the web player.
  * The renderer keeps the rectangle in sync with a DOM block (see native/mpv-view). Everything here
  * is opt-in: the addon and libmpv are loaded lazily, and any failure leaves the regular <video>
  * player untouched.
@@ -23,7 +25,7 @@ type MpvViewInstance = {
   destroy: () => void
 }
 
-type MpvViewConstructor = new (handle: Buffer, libPath: string, options?: {above?: boolean}) => MpvViewInstance
+type MpvViewConstructor = new (handle: Buffer, libPath: string, options?: {above?: boolean; frame?: Buffer}) => MpvViewInstance
 
 /** `supported`: the addon and libmpv are present (the setting can be offered); `available`: also switched on. */
 export type MpvAvailability = {available: boolean; supported: boolean; reason?: string}
@@ -261,11 +263,16 @@ export function createMpvNativeController(deps: {
     const win = BrowserWindow.fromWebContents(event.sender)
     const libPath = resolveLibmpvPath(deps.resourcesPath)
     if (!win || !libPath || !ViewClass) return {ok: false, error: 'no window'}
+    const frame = getPlayerFrame(win)
+    if (process.platform === 'win32' && !frame) return {ok: false, error: 'native playback runs in the player window on Windows'}
 
     const contentsId = event.sender.id
     destroyView(contentsId)
     try {
-      const view = new ViewClass(win.getNativeWindowHandle(), libPath, {above: Boolean(options?.above)})
+      const view = new ViewClass(win.getNativeWindowHandle(), libPath, {
+        above: Boolean(options?.above),
+        frame: frame ? frame.window.getNativeWindowHandle() : undefined,
+      })
       const send = (json: string) => {
         if (!event.sender.isDestroyed()) event.sender.send('mpv:event', json)
       }
@@ -283,7 +290,7 @@ export function createMpvNativeController(deps: {
       views.set(contentsId, view)
       console.log(`[mpv] view created for window ${contentsId}`)
       // Release the view while the window is still alive; `closed` is a fallback.
-      trackWindow(win, contentsId)
+      if (!frame) trackWindow(win, contentsId)
       win.once('close', () => destroyView(contentsId))
       win.once('closed', () => destroyView(contentsId))
       return {ok: true}
@@ -299,7 +306,15 @@ export function createMpvNativeController(deps: {
       const availability = getAvailability()
       console.log(`[mpv] native player enabled; available=${availability.available}${availability.reason ? ` (${availability.reason})` : ''}`)
     }
-    ipcMain.handle('mpv:availability', () => getAvailability())
+    ipcMain.handle('mpv:availability', (event: IpcMainInvokeEvent) => {
+      const availability = getAvailability()
+      // Windows: only the player window (which has a frame) plays natively.
+      if (process.platform === 'win32' && availability.available
+        && !getPlayerFrame(BrowserWindow.fromWebContents(event.sender))) {
+        return {available: false, supported: true, reason: 'native playback runs in the player window on Windows'}
+      }
+      return availability
+    })
     ipcMain.handle('mpv:init', init)
     ipcMain.handle('mpv:tracks', (event: IpcMainInvokeEvent) => {
       const view = views.get(event.sender.id)

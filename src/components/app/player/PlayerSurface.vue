@@ -12,7 +12,7 @@
     id="player"
   >
     <SystemBarPlayer
-      v-if="isPlayerWindow"
+      v-if="isPlayerWindow && !hasNativeFrame"
       v-show="!player.fullscreen"
     />
 
@@ -248,6 +248,8 @@ import Controls from '@/components/app/player/Controls.vue'
 import Playlist from '@/components/app/player/Playlist.vue'
 import Marks from '@/components/app/player/Marks.vue'
 import SystemBarPlayer from '@/components/app/SystemBarPlayer.vue'
+
+const hasNativeFrame = document.documentElement.classList.contains('native-frame')
 import {PLAYER_SESSION_KEY} from '@/composable/usePlayerSession'
 import {usePlayerSurfaceGestures} from '@/composable/usePlayerSurfaceGestures'
 import {usePlayerVideoGeometry} from '@/composable/usePlayerVideoGeometry'

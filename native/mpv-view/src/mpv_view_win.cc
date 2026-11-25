@@ -147,10 +147,26 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
       return;
     }
 
+    // options.frame: handle of a system-decorated window. The video then lives in a child window of
+    // it and `electron_` (the transparent UI window) is already owned by it, so nothing is re-parented.
+    if (info.Length() > 2 && info[2].IsObject()) {
+      Napi::Value frameOption = info[2].As<Napi::Object>().Get("frame");
+      if (frameOption.IsBuffer()) {
+        auto frameBuffer = frameOption.As<Napi::Buffer<uint8_t>>();
+        if (frameBuffer.Length() >= sizeof(HWND)) frame_ = *reinterpret_cast<HWND*>(frameBuffer.Data());
+        if (frame_ && !IsWindow(frame_)) frame_ = nullptr;
+      }
+    }
+
     RegisterHostClass();
-    host_ = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, kHostClass, L"MediaChips video",
-                            WS_POPUP | WS_CLIPCHILDREN, 0, 0, 16, 16, nullptr, nullptr,
-                            GetModuleHandleW(nullptr), nullptr);
+    if (frame_) {
+      host_ = CreateWindowExW(0, kHostClass, L"MediaChips video", WS_CHILD | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
+                              0, 0, 16, 16, frame_, nullptr, GetModuleHandleW(nullptr), nullptr);
+    } else {
+      host_ = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW, kHostClass, L"MediaChips video",
+                              WS_POPUP | WS_CLIPCHILDREN, 0, 0, 16, 16, nullptr, nullptr,
+                              GetModuleHandleW(nullptr), nullptr);
+    }
     if (!host_) {
       Napi::Error::New(env, "CreateWindowEx failed (" + std::to_string(GetLastError()) + ")").ThrowAsJavaScriptException();
       return;
@@ -158,17 +174,21 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
 
     // The Electron window becomes an owned window of the host: it stays above it. An owned window
     // loses its taskbar button unless it asks for one, so WS_EX_APPWINDOW keeps it.
-    SetWindowLongPtrW(electron_, GWLP_HWNDPARENT, reinterpret_cast<LONG_PTR>(host_));
-    LONG_PTR ex = GetWindowLongPtrW(electron_, GWL_EXSTYLE);
-    SetWindowLongPtrW(electron_, GWL_EXSTYLE, ex | WS_EX_APPWINDOW);
-    SetWindowPos(electron_, nullptr, 0, 0, 0, 0,
-                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-    owned_ = true;
+    if (!frame_) {
+      SetWindowLongPtrW(electron_, GWLP_HWNDPARENT, reinterpret_cast<LONG_PTR>(host_));
+      LONG_PTR ex = GetWindowLongPtrW(electron_, GWL_EXSTYLE);
+      SetWindowLongPtrW(electron_, GWL_EXSTYLE, ex | WS_EX_APPWINDOW);
+      SetWindowPos(electron_, nullptr, 0, 0, 0, 0,
+                   SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+      owned_ = true;
+    }
 
     // Windows 11 rounds the corners of ordinary top-level windows; ask for it explicitly (a no-op
     // on Windows 10 and on windows the system treats as layered).
-    const DWORD roundCorners = 2;  // DWMWCP_ROUND
-    DwmSetWindowAttribute(electron_, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, &roundCorners, sizeof(roundCorners));
+    if (!frame_) {
+      const DWORD roundCorners = 2;  // DWMWCP_ROUND
+      DwmSetWindowAttribute(electron_, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, &roundCorners, sizeof(roundCorners));
+    }
 
     handle_ = api_.mpv_create();
     if (!handle_) {
@@ -197,7 +217,7 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
 
  private:
   double Scale() const {
-    UINT dpi = GetDpiForWindow(electron_);
+    UINT dpi = GetDpiForWindow(frame_ ? frame_ : electron_);
     return dpi > 0 ? dpi / 96.0 : 1.0;
   }
 
@@ -213,8 +233,10 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
       return info.Env().Undefined();
     }
     double scale = Scale();
+    // With a frame the video is a child window: coordinates are relative to the frame's client
+    // area, which the UI window covers exactly.
     POINT origin = {0, 0};
-    ClientToScreen(electron_, &origin);
+    if (!frame_) ClientToScreen(electron_, &origin);
     int x = origin.x + static_cast<int>(std::lround(v[0] * scale));
     int y = origin.y + static_cast<int>(std::lround(v[1] * scale));
     int w = static_cast<int>(std::lround(v[2] * scale));
@@ -224,7 +246,7 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
     // Skip identical requests (the main process re-sends the rectangle on every window move):
     // repeated SetWindowPos / z-order changes make the video flicker.
     if (!shown_ || x != lastX_ || y != lastY_ || w != lastW_ || h != lastH_) {
-      SetWindowPos(host_, electron_, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+      SetWindowPos(host_, frame_ ? HWND_TOP : electron_, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
       shown_ = true;
       lastX_ = x;
       lastY_ = y;
@@ -384,6 +406,7 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
   MpvApi api_;
   mpv_handle* handle_ = nullptr;
   HWND electron_ = nullptr;
+  HWND frame_ = nullptr;
   HWND host_ = nullptr;
   bool owned_ = false;
   int appliedRadius_ = -1, appliedW_ = 0, appliedH_ = 0;

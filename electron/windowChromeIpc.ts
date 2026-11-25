@@ -8,6 +8,7 @@ import {
 } from 'electron'
 import {emitMainWindowUserFacingState, isBrowserWindowUserFacing} from './windowFocus'
 import {resolveRelaunchExecPath} from './relaunchExecPath'
+import {resolveChromeWindow} from './playerFrame'
 
 export {emitMainWindowUserFacingState, isBrowserWindowUserFacing}
 export {resolveRelaunchExecPath}
@@ -43,7 +44,7 @@ export function registerWindowChromeIpc(deps: {
 
   ipcMain.handle('maximize', (_event: IpcMainInvokeEvent, args: unknown) => {
     if (args === 'player') {
-      deps.getPlayerWindow()?.maximize()
+      resolveChromeWindow(deps.getPlayerWindow())?.maximize()
     } else {
       deps.getMainWindow()?.maximize()
     }
@@ -51,7 +52,7 @@ export function registerWindowChromeIpc(deps: {
 
   ipcMain.handle('unmaximize', (_event: IpcMainInvokeEvent, args: unknown) => {
     if (args === 'player') {
-      deps.getPlayerWindow()?.unmaximize()
+      resolveChromeWindow(deps.getPlayerWindow())?.unmaximize()
     } else {
       deps.getMainWindow()?.unmaximize()
     }
@@ -59,7 +60,7 @@ export function registerWindowChromeIpc(deps: {
 
   ipcMain.handle('minimize', (_event: IpcMainInvokeEvent, args: unknown) => {
     if (args === 'player') {
-      deps.getPlayerWindow()?.minimize()
+      resolveChromeWindow(deps.getPlayerWindow())?.minimize()
     } else {
       deps.getMainWindow()?.minimize()
     }
