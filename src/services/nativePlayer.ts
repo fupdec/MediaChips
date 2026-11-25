@@ -10,6 +10,21 @@ let availability: Promise<boolean> | null = null
 let element: HTMLVideoElement | null = null
 let initializing: Promise<HTMLVideoElement | null> | null = null
 
+let playerWindowOnly = false
+
+/**
+ * Windows plays natively only in the separate player window. Ask once at startup so that opening
+ * a video from the main window goes there regardless of the "separate window" setting.
+ */
+export async function detectNativePlayerMode(): Promise<void> {
+  const result = await window.mpvAPI?.availability().catch(() => null)
+  playerWindowOnly = Boolean(result?.playerWindowOnly)
+}
+
+export function nativePlayerNeedsWindow(): boolean {
+  return playerWindowOnly
+}
+
 export function isNativePlayerAvailable(): Promise<boolean> {
   const api = window.mpvAPI
   if (!api) return Promise.resolve(false)

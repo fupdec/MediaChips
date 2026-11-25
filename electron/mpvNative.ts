@@ -28,7 +28,13 @@ type MpvViewInstance = {
 type MpvViewConstructor = new (handle: Buffer, libPath: string, options?: {above?: boolean; frame?: Buffer}) => MpvViewInstance
 
 /** `supported`: the addon and libmpv are present (the setting can be offered); `available`: also switched on. */
-export type MpvAvailability = {available: boolean; supported: boolean; reason?: string}
+export type MpvAvailability = {
+  available: boolean
+  supported: boolean
+  reason?: string
+  /** Windows main window: native playback exists, but only in the separate player window. */
+  playerWindowOnly?: boolean
+}
 
 export type MpvTrack = {
   id: number
@@ -319,7 +325,7 @@ export function createMpvNativeController(deps: {
       // Windows: only the player window (which has a frame) plays natively.
       if (process.platform === 'win32' && availability.available
         && !getPlayerFrame(BrowserWindow.fromWebContents(event.sender))) {
-        return {available: false, supported: true, reason: 'native playback runs in the player window on Windows'}
+        return {available: false, supported: true, playerWindowOnly: true, reason: 'native playback runs in the player window on Windows'}
       }
       return availability
     })

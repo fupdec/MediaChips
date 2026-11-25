@@ -9,6 +9,7 @@ import {reloadTagsCatalog} from '@/composable/appCatalogs'
 import {reloadMetaCatalog} from '@/composable/metaCatalog'
 import {getDuplicatesGroupKey} from '@/utils/mediaSortFilter'
 import {openSeparatePlayer, canOpenSeparatePlayer} from '@/utils/playerWindow'
+import {nativePlayerNeedsWindow} from '@/services/nativePlayer'
 import {typedApi} from '@/services/typedApi'
 import {checkFileExists} from '@/services/fileService'
 import {isMediaFileAvailable, hasUsableMediaCopy} from '@/services/mediaCopyAvailability'
@@ -433,7 +434,7 @@ export const useItemsStore = defineStore('items', {
       };
 
       if (
-        !inline && settingsStore.open_player_in_separate_window == '1' &&
+        !inline && (settingsStore.open_player_in_separate_window == '1' || nativePlayerNeedsWindow()) &&
         canOpenSeparatePlayer()
       ) {
         if (openSeparatePlayer(data)) {

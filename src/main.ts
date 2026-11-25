@@ -124,6 +124,7 @@ router.isReady().then(async () => {
   }
 
   app.mount('#app')
+  void import('@/services/nativePlayer').then(({detectNativePlayerMode}) => detectNativePlayerMode())
 
   // Console helper (all builds): window.__openOnboarding() reopens the welcome dialog.
   ;(window as Window & {__openOnboarding?: () => void}).__openOnboarding = openOnboarding
