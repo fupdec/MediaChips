@@ -232,6 +232,26 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
  private:
   friend LRESULT CALLBACK FrameSubclassProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
 
+  // While the user drags a window edge, the UI window (a separate Chromium surface) repaints later
+  // than the frame and the video, which reads as a desync. Hide it for the duration of the drag; the
+  // video keeps following the frame natively (see SyncFrame / ApplyRect) and the UI comes back on release.
+  void OnFrameMessage(UINT msg) {
+    if (msg == WM_SIZING) {
+      if (!sizing_) {
+        sizing_ = true;
+        if (IsWindow(electron_)) ShowWindow(electron_, SW_HIDE);
+      }
+      return;
+    }
+    if (msg == WM_EXITSIZEMOVE && sizing_) {
+      sizing_ = false;
+      SyncFrame();
+      if (IsWindow(electron_)) ShowWindow(electron_, SW_SHOWNA);
+      return;
+    }
+    SyncFrame();
+  }
+
   void SyncFrame() {
     if (!frame_ || !IsWindow(frame_) || !IsWindow(electron_) || IsIconic(frame_)) return;
     RECT client;
@@ -469,6 +489,7 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
   double videoRect_[4] = {};
   double radius_ = 0;
   bool fitWidth_ = false, fitHeight_ = false;
+  bool sizing_ = false;
   int lastX_ = 0, lastY_ = 0, lastW_ = 0, lastH_ = 0;
   std::shared_ptr<std::atomic<bool>> alive_;
   std::thread worker_;
@@ -479,8 +500,8 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
 
 static LRESULT CALLBACK FrameSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR id, DWORD_PTR ref) {
   LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
-  if (msg == WM_WINDOWPOSCHANGED || msg == WM_SIZE || msg == WM_EXITSIZEMOVE || msg == WM_DPICHANGED) {
-    reinterpret_cast<MpvView*>(ref)->SyncFrame();
+  if (msg == WM_WINDOWPOSCHANGED || msg == WM_SIZE || msg == WM_SIZING || msg == WM_EXITSIZEMOVE || msg == WM_DPICHANGED) {
+    reinterpret_cast<MpvView*>(ref)->OnFrameMessage(msg);
   }
   return result;
 }

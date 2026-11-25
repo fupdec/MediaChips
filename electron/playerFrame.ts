@@ -97,6 +97,9 @@ export function bindPlayerFrame(overlay: BrowserWindow, frame: PlayerFrame, onUs
     win.on(name as 'show', syncAndFocus)
   }
 
+  // The overlay is hidden natively while an edge is dragged; give it the keyboard back afterwards.
+  win.on('resized', () => { if (!overlay.isDestroyed() && win.isFocused()) overlay.focus() })
+
   win.on('close', (event) => {
     if (frame.allowClose) return
     event.preventDefault()
