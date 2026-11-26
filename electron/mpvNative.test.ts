@@ -52,8 +52,8 @@ describe('bundled native player resolution', () => {
   it('uses MPV_LIB first, then the bundled copy', () => {
     const override = touch('custom', 'libmpv.dylib')
     const bundled = touch('Resources', 'mpv', 'libmpv.2.dylib')
-    expect(resolveLibmpvPath(path.join(dir, 'Resources'), {MPV_LIB: override})).toBe(override)
-    expect(resolveLibmpvPath(path.join(dir, 'Resources'), {})).toBe(bundled)
+    expect(resolveLibmpvPath(path.join(dir, 'Resources'), {MPV_LIB: override}, 'darwin')).toBe(override)
+    expect(resolveLibmpvPath(path.join(dir, 'Resources'), {}, 'darwin')).toBe(bundled)
   })
   it('looks for libmpv-2.dll on Windows', () => {
     const override = touch('custom', 'libmpv-2.dll')

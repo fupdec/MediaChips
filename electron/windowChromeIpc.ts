@@ -10,6 +10,9 @@ import {emitMainWindowUserFacingState, isBrowserWindowUserFacing} from './window
 import {resolveRelaunchExecPath} from './relaunchExecPath'
 import {resolveChromeWindow} from './playerFrame'
 
+/** Exit code scripts/electron-dev.mjs treats as "start Electron again" (keep in sync with it). */
+const DEV_RELAUNCH_EXIT_CODE = 75
+
 export {emitMainWindowUserFacingState, isBrowserWindowUserFacing}
 export {resolveRelaunchExecPath}
 
@@ -158,6 +161,13 @@ export function registerWindowChromeIpc(deps: {
       deps.beforeRelaunch?.()
     } catch (error) {
       console.warn('beforeRelaunch failed:', error)
+    }
+    // Under `npm run electron` the dev launcher owns the process (and Vite): ask it to start Electron
+    // again instead of relaunching on our own, which would leave the new instance without Vite.
+    if (process.env.MEDIA_CHIPS_DEV_LAUNCHER === '1') {
+      app.once('will-quit', () => app.exit(DEV_RELAUNCH_EXIT_CODE))
+      app.quit()
+      return
     }
     app.relaunch({
       execPath: resolveRelaunchExecPath(),

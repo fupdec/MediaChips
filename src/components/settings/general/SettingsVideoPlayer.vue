@@ -17,6 +17,21 @@ const appStore = useAppStore()
 const {t} = useI18n()
 // Offer the setting whenever the native backend reports libmpv support.
 const nativePlayerSupported = ref(false)
+// Whether this session actually runs mpv: the main process reads the setting only at startup.
+const nativePlayerRunning = ref(false)
+const relaunching = ref(false)
+const nativePlayerNeedsRestart = computed(() =>
+  nativePlayerSupported.value && (SETTINGS.nativePlayer === '1') !== nativePlayerRunning.value,
+)
+const relaunchApp = async () => {
+  if (relaunching.value || !window.electronAPI?.invoke) return
+  relaunching.value = true
+  try {
+    await window.electronAPI.invoke('relaunch')
+  } catch {
+    relaunching.value = false
+  }
+}
 const clearingCache = ref(false)
 const cacheBytes = ref(0)
 
@@ -64,7 +79,9 @@ const clearTranscodeCache = async () => {
 onMounted(loadCacheStats)
 onMounted(async () => {
   if (!window.mpvAPI) return
-  nativePlayerSupported.value = Boolean((await window.mpvAPI.availability().catch(() => null))?.supported)
+  const availability = await window.mpvAPI.availability().catch(() => null)
+  nativePlayerSupported.value = Boolean(availability?.supported)
+  nativePlayerRunning.value = Boolean(availability?.available)
 })
 </script>
 
@@ -96,6 +113,28 @@ onMounted(async () => {
       :title="$t('settings_labels.video_player.native_player')"
       :hint="$t('settings_labels.video_player.native_player_hint')"
     />
+
+    <v-alert
+      v-if="nativePlayerNeedsRestart"
+      type="info"
+      variant="tonal"
+      density="compact"
+      class="native-player-restart"
+    >
+      <div class="d-flex align-center flex-wrap ga-3">
+        <span>{{ $t('settings_labels.video_player.native_player_restart_hint') }}</span>
+        <v-btn
+          size="small"
+          variant="flat"
+          color="primary"
+          prepend-icon="mdi-restart"
+          :loading="relaunching"
+          @click="relaunchApp"
+        >
+          {{ $t('settings_labels.video_player.native_player_restart_now') }}
+        </v-btn>
+      </div>
+    </v-alert>
 
     <settings-switch
       option="restorePlaybackTime"
@@ -182,6 +221,10 @@ onMounted(async () => {
 <style scoped>
 .video-player-settings {
   container-type: inline-size;
+}
+
+.native-player-restart {
+  margin: 4px 0 12px;
 }
 
 .conversion-settings {

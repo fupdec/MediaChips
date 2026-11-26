@@ -10,6 +10,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 ensurePreferredNodeOrExit(root)
 
 const vitePort = Number(process.env.VITE_DEV_SERVER_PORT || 3000)
+/** Exit code electron/windowChromeIpc.ts uses to ask for a relaunch (keep in sync with it). */
+const DEV_RELAUNCH_EXIT_CODE = 75
 const watchPaths = [
   'main.ts',
   'electron/**/*.ts',
@@ -91,6 +93,7 @@ function startElectron() {
       ...process.env,
       NODE_ENV: 'development',
       MEDIA_CHIPS_VITE_DEV: '1',
+      MEDIA_CHIPS_DEV_LAUNCHER: '1',
       VITE_DEV_SERVER_PORT: String(vitePort),
     },
   })
@@ -98,6 +101,12 @@ function startElectron() {
   electronProc.on('exit', (code, signal) => {
     electronProc = null
     if (shuttingDown || restartPending) return
+    // The app asked to be relaunched (electron/windowChromeIpc.ts): start it again, keep Vite.
+    if (code === DEV_RELAUNCH_EXIT_CODE) {
+      console.log('[electron-dev] relaunch requested by the app, restarting electron...')
+      startElectron()
+      return
+    }
     if (signal === 'SIGTERM' || signal === 'SIGINT') return
     cleanup(code ?? 0)
   })
@@ -232,6 +241,7 @@ async function main() {
   runSync('node', ['scripts/compile.mjs', 'backend'])
   runSync('node', ['scripts/compile.mjs', '--parallel', 'electron', 'main'])
   runSync('node', ['scripts/ensure-electron-native.mjs'])
+  runSync('node', ['scripts/ensure-mpv-addon.mjs'])
 
   console.log(`[electron-dev] starting Vite on port ${vitePort}...`)
   startVite()
