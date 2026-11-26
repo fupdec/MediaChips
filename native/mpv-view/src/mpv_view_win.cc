@@ -55,6 +55,9 @@ struct MpvApi {
 static const wchar_t* kHostClass = L"MediaChipsMpvHost";
 
 static LRESULT CALLBACK FrameSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR id, DWORD_PTR ref);
+static LRESULT CALLBACK OverlaySubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR id, DWORD_PTR ref);
+static BOOL CALLBACK SubclassOverlayChild(HWND child, LPARAM ref);
+static BOOL CALLBACK UnsubclassOverlayChild(HWND child, LPARAM);
 
 static LRESULT CALLBACK HostProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
   switch (msg) {
@@ -220,6 +223,9 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
         Napi::Error::New(env, "Could not track the player frame").ThrowAsJavaScriptException();
         return;
       }
+      // The UI window's own resize border resizes the frame instead (see OverlaySubclassProc).
+      overlaySubclassed_ = SetWindowSubclass(electron_, OverlaySubclassProc, 2, reinterpret_cast<DWORD_PTR>(this)) != FALSE;
+      EnumChildWindows(electron_, SubclassOverlayChild, reinterpret_cast<LPARAM>(this));
       SyncFrame();
     }
 
@@ -231,10 +237,12 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
 
  private:
   friend LRESULT CALLBACK FrameSubclassProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
+  friend LRESULT CALLBACK OverlaySubclassProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
 
   // While the user drags a window edge, the UI window (a separate Chromium surface) repaints later
-  // than the frame and the video, which reads as a desync. Hide it for the duration of the drag; the
-  // video keeps following the frame natively (see SyncFrame / ApplyRect) and the UI comes back on release.
+  // than the frame and the video, which reads as a desync: the UI visibly lags behind the edge even
+  // when it is resized as early as WM_SIZING. Hide it for the duration of the drag; the video keeps
+  // following the frame natively (see SyncFrame / ApplyRect) and the UI comes back on release.
   void OnFrameMessage(UINT msg) {
     if (msg == WM_SIZING) {
       if (!sizing_) {
@@ -460,6 +468,11 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
       RemoveWindowSubclass(frame_, FrameSubclassProc, 1);
       frameSubclassed_ = false;
     }
+    if (overlaySubclassed_ && IsWindow(electron_)) {
+      RemoveWindowSubclass(electron_, OverlaySubclassProc, 2);
+      EnumChildWindows(electron_, UnsubclassOverlayChild, 0);
+      overlaySubclassed_ = false;
+    }
     if (owned_ && IsWindow(electron_)) {
       SetWindowLongPtrW(electron_, GWLP_HWNDPARENT, 0);
       owned_ = false;
@@ -482,6 +495,7 @@ class MpvView : public Napi::ObjectWrap<MpvView> {
   HWND electron_ = nullptr;
   HWND frame_ = nullptr;
   bool frameSubclassed_ = false;
+  bool overlaySubclassed_ = false;
   HWND host_ = nullptr;
   bool owned_ = false;
   int appliedRadius_ = -1, appliedW_ = 0, appliedH_ = 0;
@@ -504,6 +518,49 @@ static LRESULT CALLBACK FrameSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LP
     reinterpret_cast<MpvView*>(ref)->OnFrameMessage(msg);
   }
   return result;
+}
+
+static bool IsSizingHitTest(WPARAM hit) { return hit >= HTLEFT && hit <= HTBOTTOMRIGHT; }
+
+// The UI window is a resizable frameless window (so it can follow the frame), and Chromium gives it
+// a resize border just inside its edges, i.e. inside the frame's client area. Grabbing that border
+// resized the UI window alone: stretched UI, unchanged video. Turn a press on it into a resize of
+// the frame (which the UI window and the video follow) on the same edge; when the frame cannot be
+// resized (maximized, fullscreen) the border is plain client area.
+// Installed on the UI window and on Chromium's child HWND inside it, which answers hit-tests itself.
+static LRESULT CALLBACK OverlaySubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR id, DWORD_PTR ref) {
+  HWND frame = reinterpret_cast<MpvView*>(ref)->frame_;
+  bool frameResizable = frame && IsWindow(frame) && !IsZoomed(frame) && !IsIconic(frame) &&
+                        (GetWindowLongPtrW(frame, GWL_STYLE) & WS_THICKFRAME) != 0;
+  switch (msg) {
+    case WM_NCHITTEST: {
+      LRESULT hit = DefSubclassProc(hwnd, msg, wParam, lParam);
+      return IsSizingHitTest(static_cast<WPARAM>(hit)) && !frameResizable ? HTCLIENT : hit;
+    }
+    case WM_NCLBUTTONDOWN:
+      if (!IsSizingHitTest(wParam)) break;
+      if (frameResizable) {
+        ReleaseCapture();
+        // SC_SIZE + WMSZ_* runs the system sizing loop on that edge of the frame.
+        // WMSZ_LEFT (1) .. WMSZ_BOTTOMRIGHT (8) follow HTLEFT (10) .. HTBOTTOMRIGHT (17) in the same order.
+        SendMessageW(frame, WM_SYSCOMMAND, SC_SIZE | static_cast<WPARAM>(wParam - HTLEFT + WMSZ_LEFT), lParam);
+      }
+      return 0;
+    case WM_NCLBUTTONDBLCLK:
+      if (IsSizingHitTest(wParam)) return 0;  // would maximize the UI window alone (top edge)
+      break;
+  }
+  return DefSubclassProc(hwnd, msg, wParam, lParam);
+}
+
+static BOOL CALLBACK SubclassOverlayChild(HWND child, LPARAM ref) {
+  SetWindowSubclass(child, OverlaySubclassProc, 2, static_cast<DWORD_PTR>(ref));
+  return TRUE;
+}
+
+static BOOL CALLBACK UnsubclassOverlayChild(HWND child, LPARAM) {
+  RemoveWindowSubclass(child, OverlaySubclassProc, 2);
+  return TRUE;
 }
 
 static Napi::Object InitModule(Napi::Env env, Napi::Object exports) {

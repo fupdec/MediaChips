@@ -63,6 +63,10 @@ export function bindPlayerFrame(overlay: BrowserWindow, frame: PlayerFrame, onUs
   const win = frame.window
   overlay.setResizable(true)
   overlay.setMinimumSize(0, 0)
+  // The overlay stays resizable so it can follow the frame, but the user must never resize it on its
+  // own (its edge lies inside the frame's client area): that stretches the UI and leaves the video.
+  // While a video plays the native addon turns a press on that border into a frame resize; this covers the rest.
+  overlay.on('will-resize', (event) => event.preventDefault())
 
   const sync = () => {
     if (win.isDestroyed() || overlay.isDestroyed() || win.isMinimized()) return
