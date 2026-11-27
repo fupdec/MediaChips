@@ -133,20 +133,19 @@ export function buildDockMenuTemplate(
 
 export type TraySilhouetteFill = 'black' | 'white'
 
-function resolveTraySourcePath(appRoot: string): string {
-  const iconDir = path.join(appRoot, 'dist/icons')
-  const templatePath = path.join(iconDir, 'trayTemplate.png')
-  const pngPath = path.join(iconDir, 'icon.png')
-  const png32Path = path.join(iconDir, 'favicon-32x32.png')
-  const png16Path = path.join(iconDir, 'favicon-16x16.png')
-  const icoPath = path.join(iconDir, 'favicon.ico')
-
-  // Prefer the dedicated monochrome outline tray asset on every platform.
-  if (fs.existsSync(templatePath)) return templatePath
-  if (fs.existsSync(pngPath)) return pngPath
-  if (fs.existsSync(png32Path)) return png32Path
-  if (fs.existsSync(png16Path)) return png16Path
-  return icoPath
+export function resolveTraySourcePath(appRoot: string, exists: (file: string) => boolean = fs.existsSync): string {
+  // dist/icons is what a build ships; public/icons is its source. Under `npm run electron` the UI
+  // comes from Vite and dist/ can be an old build without newer icons, so look in both.
+  const iconDirs = [path.join(appRoot, 'dist/icons'), path.join(appRoot, 'public/icons')]
+  // Prefer the dedicated monochrome outline tray asset on every platform; the other files are
+  // colored logos that only make a filled silhouette.
+  for (const name of ['trayTemplate.png', 'icon.png', 'favicon-32x32.png', 'favicon-16x16.png']) {
+    for (const dir of iconDirs) {
+      const candidate = path.join(dir, name)
+      if (exists(candidate)) return candidate
+    }
+  }
+  return path.join(iconDirs[0], 'favicon.ico')
 }
 
 function resolveTrayIcon(
@@ -161,6 +160,13 @@ function resolveTrayIcon(
   if (platform === 'darwin') {
     // macOS menu-bar templates are auto-tinted by the OS (light/dark menu bar).
     image = toMacMenuBarTemplateImage(image)
+  } else if (platform === 'win32') {
+    // Windows picks a poor representation out of a multi-scale nativeImage and stretches it (a thick,
+    // blurry glyph). An .ico with every tray size lets the shell take the exact one for the DPI.
+    // The tray shows the colored app logo.
+    const colorPath = writeWindowsColorTrayIco(appRoot)
+    if (colorPath) return {image: nativeImage.createEmpty(), iconPath: colorPath}
+    image = toTraySilhouetteImage(image, options.preferLightGlyph ? 'white' : 'black')
   } else {
     // Windows / Linux have no template icons — pick a fixed glyph color from OS theme.
     const fill: TraySilhouetteFill = options.preferLightGlyph ? 'white' : 'black'
@@ -186,23 +192,29 @@ export function applyMacTrayTemplateBitmap(
     const maxChannel = Math.max(r, g, b)
 
     const isLogo = a >= 128 && maxChannel >= 40
-    bitmap[i] = channel
-    bitmap[i + 1] = channel
-    bitmap[i + 2] = channel
+    // nativeImage bitmaps are premultiplied: a transparent pixel must be 0,0,0,0 whatever the fill.
+    const value = isLogo ? channel : 0
+    bitmap[i] = value
+    bitmap[i + 1] = value
+    bitmap[i + 2] = value
     bitmap[i + 3] = isLogo ? 255 : 0
   }
 }
 
-/** Keep RGB solid after smooth resize; preserve antialiased alpha. */
+/**
+ * Keep RGB solid after smooth resize; preserve antialiased alpha.
+ * nativeImage bitmaps are premultiplied BGRA, so white is written as RGB = alpha (255,255,255,0
+ * is not "transparent white": Skia turns such pixels into an opaque white square).
+ */
 export function keepBlackPreserveAlpha(
   bitmap: Buffer,
   fill: TraySilhouetteFill = 'black',
 ): void {
-  const channel = fill === 'white' ? 255 : 0
   for (let i = 0; i < bitmap.length; i += 4) {
-    bitmap[i] = channel
-    bitmap[i + 1] = channel
-    bitmap[i + 2] = channel
+    const value = fill === 'white' ? (bitmap[i + 3] ?? 0) : 0
+    bitmap[i] = value
+    bitmap[i + 1] = value
+    bitmap[i + 2] = value
   }
 }
 
@@ -232,8 +244,8 @@ function solidSmoothTraySize(
 ): NativeImage {
   const resized = mask.resize({width: size, height: size, quality: 'best'})
   const bitmap = Buffer.from(resized.toBitmap())
-  keepBlackPreserveAlpha(bitmap, fill)
   strengthenTrayAlpha(bitmap)
+  keepBlackPreserveAlpha(bitmap, fill)  // after the alpha is final: premultiplied white follows it
   return nativeImage.createFromBitmap(bitmap, {width: size, height: size})
 }
 
@@ -314,6 +326,52 @@ export function toTraySilhouetteImage(
     buffer: img32.toPNG(),
   })
   return image
+}
+
+/** Tray icon sizes Windows asks for at 100%-400% scaling (16 px * scale). */
+const WINDOWS_TRAY_SIZES = [16, 20, 24, 32, 40, 48, 64]
+
+/** The colored app icon at every Windows tray size, as an .ico in userData; null on failure. */
+export function writeWindowsColorTrayIco(appRoot: string): string | null {
+  try {
+    const source = [path.join(appRoot, 'dist/icons/icon.png'), path.join(appRoot, 'public/icons/icon.png')]
+      .find(candidate => fs.existsSync(candidate))
+    if (!source) return null
+    const image = nativeImage.createFromPath(source)
+    if (image.isEmpty()) return null
+    const ico = buildIco(WINDOWS_TRAY_SIZES.map(size => ({
+      size,
+      png: image.resize({width: size, height: size, quality: 'best'}).toPNG(),
+    })))
+    const file = path.join(app.getPath('userData'), 'tray-color.ico')
+    fs.writeFileSync(file, ico)
+    return file
+  } catch (error) {
+    console.warn('Failed to build the colored Windows tray icon:', error)
+    return null
+  }
+}
+
+/** An .ico file holding the given PNG images (PNG entries are supported since Windows Vista). */
+export function buildIco(images: Array<{size: number; png: Buffer}>): Buffer {
+  const header = Buffer.alloc(6 + images.length * 16)
+  header.writeUInt16LE(0, 0)  // reserved
+  header.writeUInt16LE(1, 2)  // type: icon
+  header.writeUInt16LE(images.length, 4)
+  let offset = header.length
+  images.forEach(({size, png}, index) => {
+    const entry = 6 + index * 16
+    header.writeUInt8(size >= 256 ? 0 : size, entry)      // width (0 means 256)
+    header.writeUInt8(size >= 256 ? 0 : size, entry + 1)  // height
+    header.writeUInt8(0, entry + 2)                       // palette size
+    header.writeUInt8(0, entry + 3)                       // reserved
+    header.writeUInt16LE(1, entry + 4)                    // color planes
+    header.writeUInt16LE(32, entry + 6)                   // bits per pixel
+    header.writeUInt32LE(png.length, entry + 8)
+    header.writeUInt32LE(offset, entry + 12)
+    offset += png.length
+  })
+  return Buffer.concat([header, ...images.map(image => image.png)])
 }
 
 function trayPrefersLightGlyph(): boolean {

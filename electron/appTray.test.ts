@@ -10,7 +10,41 @@ import {
   buildDockMenuTemplate,
   buildTrayMenuTemplate,
   isTraySupportedPlatform,
+  resolveTraySourcePath,
+  buildIco,
 } from './appTray'
+import path from 'path'
+
+describe('buildIco', () => {
+  it('writes an icon directory followed by the PNG entries', () => {
+    const a = Buffer.from([1, 2, 3])
+    const b = Buffer.from([4, 5])
+    const ico = buildIco([{size: 16, png: a}, {size: 256, png: b}])
+    expect(ico.readUInt16LE(2)).toBe(1)  // icon
+    expect(ico.readUInt16LE(4)).toBe(2)  // two images
+    expect(ico.readUInt8(6)).toBe(16)
+    expect(ico.readUInt8(22)).toBe(0)  // 256 is stored as 0
+    expect(ico.readUInt32LE(6 + 8)).toBe(3)
+    expect(ico.readUInt32LE(6 + 12)).toBe(38)  // 6 + 2 * 16
+    expect(ico.readUInt32LE(22 + 12)).toBe(41)
+    expect([...ico.subarray(38)]).toEqual([1, 2, 3, 4, 5])
+  })
+})
+
+describe('resolveTraySourcePath', () => {
+  const root = path.join('app')
+  const file = (dir: string, name: string) => path.join(root, dir, 'icons', name)
+
+  it('prefers the outline tray asset from the build', () => {
+    const present = new Set([file('dist', 'trayTemplate.png'), file('public', 'trayTemplate.png'), file('dist', 'icon.png')])
+    expect(resolveTraySourcePath(root, candidate => present.has(candidate))).toBe(file('dist', 'trayTemplate.png'))
+  })
+
+  it('takes the outline asset from public/ when an older dist/ lacks it, not the colored logo', () => {
+    const present = new Set([file('dist', 'icon.png'), file('public', 'trayTemplate.png')])
+    expect(resolveTraySourcePath(root, candidate => present.has(candidate))).toBe(file('public', 'trayTemplate.png'))
+  })
+})
 
 describe('applyMacTrayTemplateBitmap', () => {
   it('makes a solid black silhouette with binary alpha', () => {
@@ -32,7 +66,8 @@ describe('applyMacTrayTemplateBitmap', () => {
       255, 255, 255, 255,
     ])
     applyMacTrayTemplateBitmap(bitmap, 'white')
-    expect([...bitmap.slice(0, 4)]).toEqual([255, 255, 255, 0])
+    // Premultiplied: transparent stays 0,0,0,0 (255,255,255,0 renders as an opaque white square).
+    expect([...bitmap.slice(0, 4)]).toEqual([0, 0, 0, 0])
     expect([...bitmap.slice(4, 8)]).toEqual([255, 255, 255, 255])
   })
 })
@@ -44,10 +79,10 @@ describe('keepBlackPreserveAlpha', () => {
     expect([...bitmap]).toEqual([0, 0, 0, 180])
   })
 
-  it('can keep white RGB with alpha', () => {
-    const bitmap = Buffer.from([10, 20, 30, 180])
+  it('writes premultiplied white: RGB follows alpha', () => {
+    const bitmap = Buffer.from([10, 20, 30, 180, 9, 9, 9, 0])
     keepBlackPreserveAlpha(bitmap, 'white')
-    expect([...bitmap]).toEqual([255, 255, 255, 180])
+    expect([...bitmap]).toEqual([180, 180, 180, 180, 0, 0, 0, 0])
   })
 })
 
