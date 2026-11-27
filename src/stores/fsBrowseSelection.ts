@@ -1,5 +1,5 @@
 import {defineStore} from 'pinia'
-import {computed, ref} from 'vue'
+import {computed, ref, shallowRef} from 'vue'
 import type {FolderBrowseTileModel} from '@/components/folders/FolderBrowseTile.vue'
 import type {FsBrowseEntry} from '@/components/folders/FsBrowseEntry'
 
@@ -10,9 +10,10 @@ export type SelectedFsEntry =
 export type MixedGridEntry = {kind: 'media'; id: number} | SelectedFsEntry
 
 export const useFsBrowseSelection = defineStore('fsBrowseSelection', () => {
-  const gridEntries = ref<MixedGridEntry[]>([])
+  // Replaced wholesale and only searched; deep proxies of thousands of entries are pure overhead.
+  const gridEntries = shallowRef<MixedGridEntry[]>([])
   const isSelectMode = ref(false)
-  const selectedMap = ref(new Map<string, SelectedFsEntry>())
+  const selectedMap = shallowRef(new Map<string, SelectedFsEntry>())
 
   function toggleSelectMode(force?: boolean) {
     isSelectMode.value = force ?? !isSelectMode.value

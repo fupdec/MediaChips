@@ -794,7 +794,7 @@
             </span>
             <template v-else>
               <v-chip
-                v-for="entry in clipboardChips"
+                v-for="entry in clipboardRenderedChips"
                 :key="entry.key"
                 size="x-small"
                 variant="tonal"
@@ -810,9 +810,9 @@
                 variant="tonal"
                 label
                 class="folders-page__clipboard-entry folders-page__clipboard-entry--more"
-                :class="{'folders-page__clipboard-entry--more-hidden': clipboardOverflowCount <= 0}"
+                :class="{'folders-page__clipboard-entry--more-hidden': clipboardMoreCount <= 0}"
               >
-                +{{ clipboardOverflowCount || '0' }}
+                +{{ clipboardMoreCount || '0' }}
               </v-chip>
             </template>
           </div>
@@ -1193,12 +1193,19 @@ const addablePendingCount = computed(() =>
   pendingFiles.value.filter((entry) => entry.addable && !entry.inLibrary).length,
 )
 
-const selectedAddableCount = computed(() =>
-  fsSelection.selectedEntries.filter((entry) => {
-    if (entry.kind !== 'fs-file') return false
-    return pendingFiles.value.some((file) => file.path === entry.path && file.addable)
-  }).length,
-)
+const addablePendingPaths = computed(() => {
+  const paths = new Set<string>()
+  for (const file of pendingFiles.value) if (file.addable) paths.add(file.path)
+  return paths
+})
+
+const selectedAddableCount = computed(() => {
+  let count = 0
+  for (const entry of fsSelection.selectedEntries) {
+    if (entry.kind === 'fs-file' && addablePendingPaths.value.has(entry.path)) count++
+  }
+  return count
+})
 
 const filtered = computed(() => {
   let result = filterAndSortFolderBrowse(
@@ -1309,6 +1316,13 @@ const clipboardChips = computed<ClipboardChip[]>(() => {
 })
 
 const clipboardTotalCount = computed(() => clipboardChips.value.length)
+
+/** Rendering a Vuetify chip per selected entry makes each click O(selection); the "+N" chip covers the rest. */
+const CLIPBOARD_CHIP_RENDER_LIMIT = 40
+const clipboardRenderedChips = computed(() => clipboardChips.value.slice(0, CLIPBOARD_CHIP_RENDER_LIMIT))
+const clipboardMoreCount = computed(() =>
+  clipboardOverflowCount.value + Math.max(0, clipboardChips.value.length - CLIPBOARD_CHIP_RENDER_LIMIT),
+)
 
 function clearClipboardSelection() {
   fsSelection.clearSelection()

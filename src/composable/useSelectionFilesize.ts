@@ -8,12 +8,23 @@ export function useSelectionFilesize() {
   const loading = ref(false)
 
   watch(
-    () => ({
-      type: itemsStore.type,
-      ids: [...new Set(itemsStore.selection)],
-      revision: itemsStore.selectionRevision,
-      loaded: itemsStore.entities.map(item => ({id: item.id, filesize: item.filesize})),
-    }),
+    () => {
+      const ids = [...new Set(itemsStore.selection)]
+      // Filesystem-only selections have no media ids: skip walking every loaded entity.
+      const wanted = new Set(ids)
+      const loaded: {id: number; filesize: number | null | undefined}[] = []
+      if (wanted.size) {
+        for (const item of itemsStore.entities) {
+          if (wanted.has(item.id)) loaded.push({id: item.id, filesize: item.filesize})
+        }
+      }
+      return {
+        type: itemsStore.type,
+        ids,
+        revision: itemsStore.selectionRevision,
+        loaded,
+      }
+    },
     ({type, ids, loaded, revision}, _, onCleanup) => {
       filesize.value = null
       loading.value = false
