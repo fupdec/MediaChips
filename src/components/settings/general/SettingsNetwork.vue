@@ -34,6 +34,17 @@
         <LanPhoneAccessHints v-if="SETTINGS.allowLanAccess === '1'"/>
       </v-alert>
 
+      <v-alert
+        v-if="SETTINGS.allowLanAccess === '1' && SETTINGS.passwordProtection !== '1'"
+        type="error"
+        variant="tonal"
+        density="compact"
+        class="text-body-2 mb-3"
+        rounded="xl"
+      >
+        {{ t('settings_labels.general.lan_without_password_warning') }}
+      </v-alert>
+
       <settings-switch
         option="allowLanAccess"
         :title="t('settings_labels.general.allow_lan_access')"

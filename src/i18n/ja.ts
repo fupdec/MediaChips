@@ -2095,6 +2095,7 @@ const ja = {
       allow_lan_access: 'ローカルネットワークからのアクセスを許可する',
       allow_lan_access_hint: '有効にすると、Wi-Fi または LAN 上の他のデバイスは、以下のアドレスを使用してブラウザでアプリを開くことができます。',
       allow_lan_access_env_locked: 'このオプションは、サーバー上の MEDIA_CHIPS_ALLOW_LAN 環境変数によって制御されます。',
+      lan_without_password_warning: 'パスワードが未設定のため、ネットワーク上の誰でもこのアプリを開き、ライブラリのファイルを閲覧・変更・削除できます。設定 → セキュリティでパスワード保護を有効にしてください。',
       copy_link: 'リンクをコピー',
       phone_access_hint: 'スマートフォンでこのリンクを開くと、閲覧、再生、お気に入り、タグ付けができます。ホーム画面に追加するとアプリのようなコンパニオンとして使えます。',
       add_to_home_screen_hint: 'スマートフォン: ブラウザーメニュー → ホーム画面に追加。Chrome の Install ボタンには HTTPS (または reverse proxy) が必要です。',

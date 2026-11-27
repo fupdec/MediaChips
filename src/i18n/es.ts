@@ -2095,6 +2095,7 @@ const es = {
       allow_lan_access: 'Permitir acceso desde la red local',
       allow_lan_access_hint: 'Si está activado, otros dispositivos en su Wi‑Fi o LAN pueden abrir la aplicación en el navegador con la dirección de abajo.',
       allow_lan_access_env_locked: 'Esta opción está controlada por la variable de entorno MEDIA_CHIPS_ALLOW_LAN en el servidor.',
+      lan_without_password_warning: 'Sin contraseña, cualquiera en tu red puede abrir esta app y leer, modificar o eliminar los archivos de tu biblioteca. Activa la protección con contraseña en Ajustes → Seguridad.',
       copy_link: 'Copiar enlace',
       phone_access_hint: 'Abre este enlace en tu teléfono para explorar, reproducir, marcar favoritos y etiquetar. Añádelo a la pantalla de inicio como compañero tipo app.',
       add_to_home_screen_hint: 'En el teléfono: menú del navegador → Añadir a pantalla de inicio. El botón Instalar de Chrome requiere HTTPS (o un proxy inverso).',

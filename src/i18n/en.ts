@@ -2735,6 +2735,7 @@ const en = {
       allow_lan_access: 'Allow access from local network',
       allow_lan_access_hint: 'When enabled, other devices on your Wi‑Fi or LAN can open the app in a browser using the address below.',
       allow_lan_access_env_locked: 'This option is controlled by the MEDIA_CHIPS_ALLOW_LAN environment variable on the server.',
+      lan_without_password_warning: 'Anyone on your network can open this app and read, change or delete your library files because no password is set. Turn on password protection in Settings → Security.',
       copy_link: 'Copy link',
       phone_access_hint: 'Open this link on your phone to browse, play, favorite, and tag. Add it to the home screen for an app-like companion.',
       add_to_home_screen_hint: 'On the phone: browser menu → Add to Home Screen. Chrome’s Install button needs HTTPS (or a reverse proxy).',

@@ -2095,6 +2095,7 @@ const cn = {
       allow_lan_access: '允许局域网访问',
       allow_lan_access_hint: '启用后，同一 Wi‑Fi/局域网中的其他设备可通过下方地址在浏览器中打开应用。',
       allow_lan_access_env_locked: '此选项由服务器上的 MEDIA_CHIPS_ALLOW_LAN 环境变量控制。',
+      lan_without_password_warning: '由于未设置密码，网络中的任何人都可以打开此应用，并读取、修改或删除您的媒体库文件。请在 设置 → 安全 中启用密码保护。',
       copy_link: '复制链接',
       phone_access_hint: '在手机上打开此链接以浏览、播放、收藏和打标签。添加到主屏幕可获得类似应用的体验。',
       add_to_home_screen_hint: '在手机上：浏览器菜单 → 添加到主屏幕。Chrome 的「安装」按钮需要 HTTPS（或反向代理）。',

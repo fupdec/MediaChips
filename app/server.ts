@@ -222,7 +222,7 @@ async function bootstrapServer() {
 async function warnIfLanWithoutPassword(): Promise<void> {
   try {
     if (isLanAccessEnabled() && !(await authService.isAuthRequired())) {
-      console.warn('\x1b[33m%s\x1b[0m', '⚠️  LAN access is on without a password: anyone on this network can browse and change your library. Enable password protection in Settings → Security.')
+      console.warn('\x1b[33m%s\x1b[0m', '⚠️  LAN access is on without a password: anyone on this network can browse, change and delete your library files. Enable password protection in Settings → Security.')
     }
   } catch {
     // diagnostics only

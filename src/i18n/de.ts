@@ -2095,6 +2095,7 @@ const de = {
       allow_lan_access: 'Zugriff aus lokalem Netzwerk erlauben',
       allow_lan_access_hint: 'Wenn diese Option aktiviert ist, können andere Geräte in Ihrem WLAN oder LAN die App über die unten stehende Adresse in einem Browser öffnen.',
       allow_lan_access_env_locked: 'Diese Option wird durch die Umgebungsvariable MEDIA_CHIPS_ALLOW_LAN auf dem Server gesteuert.',
+      lan_without_password_warning: 'Ohne Passwort kann jeder in Ihrem Netzwerk diese App öffnen und Ihre Bibliotheksdateien lesen, ändern oder löschen. Aktivieren Sie den Passwortschutz unter Einstellungen → Sicherheit.',
       copy_link: 'Link kopieren',
       phone_access_hint: 'Öffnen Sie diesen Link auf dem Telefon zum Durchsuchen, Abspielen, Favorisieren und Taggen. Fügen Sie ihn zum Startbildschirm hinzu — wie eine Begleit-App.',
       add_to_home_screen_hint: 'Auf dem Telefon: Browsermenü → Zum Startbildschirm. Chromes Install-Schaltfläche benötigt HTTPS (oder Reverse Proxy).',

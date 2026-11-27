@@ -2095,6 +2095,7 @@ const fr = {
       allow_lan_access: 'Autoriser l\'accès depuis le réseau local',
       allow_lan_access_hint: 'Lorsqu\'il est activé, d\'autres appareils sur votre Wi‑Fi ou LAN peuvent ouvrir l\'application dans un navigateur en utilisant l\'adresse ci-dessous.',
       allow_lan_access_env_locked: 'Cette option est contrôlée par la variable d\'environnement MEDIA_CHIPS_ALLOW_LAN sur le serveur.',
+      lan_without_password_warning: 'Sans mot de passe, toute personne de votre réseau peut ouvrir cette application et lire, modifier ou supprimer les fichiers de votre bibliothèque. Activez la protection par mot de passe dans Paramètres → Sécurité.',
       copy_link: 'Copier le lien',
       phone_access_hint: 'Ouvrez ce lien sur votre téléphone pour parcourir, lire, mettre en favori et taguer. Ajoutez-le à l\'écran d\'accueil pour une expérience compagnon.',
       add_to_home_screen_hint: 'Sur le téléphone : menu du navigateur → Ajouter à l\'écran d\'accueil. Le bouton Installer de Chrome nécessite HTTPS (ou un reverse proxy).',
