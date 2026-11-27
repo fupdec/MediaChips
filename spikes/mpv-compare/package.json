@@ -1,0 +1,9 @@
+{
+  "name": "mediachips-mpv-compare",
+  "productName": "MediaChips mpv compare",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prototype: compare mpv playback in its own window with mpv frames drawn into the web page.",
+  "main": "main.js",
+  "license": "GPL-3.0-or-later"
+}

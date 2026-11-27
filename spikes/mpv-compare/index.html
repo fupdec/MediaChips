@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MediaChips - mpv playback comparison</title>
+<style>
+  :root { color-scheme: dark; --bg: #111; --panel: #1b1b1f; --line: #2c2c33; --text: #e8e8ea; --muted: #9a9aa3; --accent: #8b7cf6; --bad: #f26d6d; --good: #5fd19b; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.4 "Segoe UI", system-ui, sans-serif; }
+  body { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+  header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header .file { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  button, select, input[type=number] { font: inherit; color: var(--text); background: #2a2a31; border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg label { padding: 5px 10px; cursor: pointer; }
+  .seg input { display: none; }
+  .seg input:checked + span { color: #fff; }
+  .seg label:has(input:checked) { background: var(--accent); }
+  #status { margin-left: auto; color: var(--muted); }
+  #status.error { color: var(--bad); }
+  main { display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
+  #stage { position: relative; background: #000; min-width: 0; min-height: 0; overflow: hidden; }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #stage .hint { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); text-align: center; padding: 24px; pointer-events: none; }
+  /* HTML drawn over the video: in texture mode it must stay glued to the picture during resize. */
+  #overlay { position: absolute; left: 12px; right: 12px; bottom: 12px; display: none; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: rgba(20,20,24,.72); pointer-events: none; }
+  #overlay .bar { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,.25); overflow: hidden; }
+  #overlay .bar div { height: 100%; width: 0; background: #fff; }
+  #side { overflow: auto; border-left: 1px solid var(--line); background: var(--panel); padding: 10px 12px; }
+  h3 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 2px 0; vertical-align: top; }
+  td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  .run { border: 1px solid var(--line); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+  .run .title { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 4px; }
+  .run .rate { display: grid; grid-template-columns: 1fr auto; gap: 4px; margin-top: 6px; color: var(--muted); }
+  .muted { color: var(--muted); }
+  textarea { width: 100%; min-height: 54px; font: inherit; color: var(--text); background: #2a2a31; border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <button id="pick">Open video…</button>
+  <span class="file" id="file">No file</span>
+  <span class="seg" title="How the video reaches the screen">
+    <label><input type="radio" name="mode" value="native" checked><span>Native window</span></label>
+    <label><input type="radio" name="mode" value="texture"><span>Texture → canvas</span></label>
+  </span>
+  <button id="play" disabled>Play</button>
+  <button id="pause" disabled>Pause</button>
+  <span class="muted">Test</span>
+  <input id="seconds" type="number" min="10" max="600" value="60" style="width:64px"> <span class="muted">s</span>
+  <button id="compare" class="primary" disabled>Compare both modes</button>
+  <button id="save" disabled>Save report…</button>
+  <span id="status">Open a video to start</span>
+</header>
+<main>
+  <div id="stage">
+    <canvas id="canvas"></canvas>
+    <div class="hint" id="hint">Open a video, then Play (manual) or Compare both modes (automatic test).<br>
+      Resize the window while playing to see how the controls below follow the video.</div>
+    <div id="overlay"><span id="ovTime">0:00</span><div class="bar"><div id="ovBar"></div></div><span id="ovMode"></span></div>
+  </div>
+  <div id="side">
+    <h3>Live</h3>
+    <table id="live"></table>
+    <h3>Test results</h3>
+    <div id="runs" class="muted">No test run yet.</div>
+    <h3>Comment for the report</h3>
+    <textarea id="comment" placeholder="What did you notice? Stutter, tearing, lag of the controls while resizing…"></textarea>
+    <h3>Environment</h3>
+    <table id="env"></table>
+  </div>
+</main>
+<script>
+const {ipcRenderer, sharedTexture} = require('electron')
+const $ = id => document.getElementById(id)
+
+const state = {file: null, mode: 'native', running: false, test: null, runs: [], system: null}
+
+// ---- texture mode: frames from the main process ----------------------------------------------
+const canvas = $('canvas')
+const ctx = canvas.getContext('2d', {alpha: false, desynchronized: false})
+const frames = {received: 0, superseded: 0, drawn: 0, intervals: [], lastDraw: 0}
+let pending = null
+let rafQueued = false
+
+sharedTexture.setSharedTextureReceiver(async ({importedSharedTexture}) => {
+  const videoFrame = importedSharedTexture.getVideoFrame()
+  frames.received++
+  if (pending) {
+    // A newer frame arrived before the previous one reached the screen: it is never shown.
+    pending.videoFrame.close()
+    pending.imported.release()
+    frames.superseded++
+  }
+  pending = {videoFrame, imported: importedSharedTexture}
+  if (!rafQueued) {
+    rafQueued = true
+    requestAnimationFrame(drawPending)
+  }
+})
+
+function drawPending(now) {
+  rafQueued = false
+  if (!pending) return
+  ctx.drawImage(pending.videoFrame, 0, 0, canvas.width, canvas.height)
+  pending.videoFrame.close()
+  pending.imported.release()
+  pending = null
+  frames.drawn++
+  if (frames.lastDraw) frames.intervals.push(now - frames.lastDraw)
+  frames.lastDraw = now
+}
+
+function resetFrameStats() {
+  frames.received = frames.superseded = frames.drawn = 0
+  frames.intervals = []
+  frames.lastDraw = 0
+}
+
+// ---- geometry ----------------------------------------------------------------------------------
+function syncGeometry() {
+  const stage = $('stage')
+  const dpr = window.devicePixelRatio || 1
+  const box = stage.getBoundingClientRect()
+  const width = Math.max(16, Math.round(box.width * dpr))
+  const height = Math.max(16, Math.round(box.height * dpr))
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width
+    canvas.height = height
+  }
+  if (!state.running) return
+  if (state.mode === 'native') {
+    ipcRenderer.send('rect', {x: Math.round(box.left * dpr), y: Math.round(box.top * dpr), width, height})
+  } else {
+    ipcRenderer.send('size', {width, height})
+  }
+}
+new ResizeObserver(syncGeometry).observe($('stage'))
+
+// ---- playback ------------------------------------------------------------------------------------
+let loadedResolve = null
+ipcRenderer.on('mpv-event', (_event, event) => {
+  if (event.event === 'file-loaded' && loadedResolve) loadedResolve(true)
+  if (event.event === 'error') setStatus(event.message, true)
+  if (event.event === 'end-file' && event.error) setStatus(`mpv: ${event.error}`, true)
+})
+ipcRenderer.on('status', (_event, {error}) => setStatus(error, true))
+
+function setStatus(text, error = false) {
+  $('status').textContent = text
+  $('status').classList.toggle('error', error)
+}
+
+async function startPlayback(mode) {
+  state.mode = mode
+  state.running = false
+  ctx.fillStyle = '#000'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  resetFrameStats()
+  const loaded = new Promise(resolve => {
+    loadedResolve = resolve
+    setTimeout(() => resolve(false), 15000)
+  })
+  const result = await ipcRenderer.invoke('start', {mode, file: state.file})
+  if (!result.ok) {
+    setStatus(result.error, true)
+    return false
+  }
+  state.running = true
+  $('hint').style.display = 'none'
+  // In native mode mpv's own window covers the stage, so the HTML overlay is only shown for textures.
+  $('overlay').style.display = mode === 'texture' ? 'flex' : 'none'
+  $('ovMode').textContent = mode
+  syncGeometry()
+  setStatus(`Playing (${mode === 'native' ? 'native window' : 'texture → canvas'})`)
+  updateButtons()
+  return loaded
+}
+
+async function stopPlayback() {
+  state.running = false
+  await ipcRenderer.invoke('stop')
+  $('overlay').style.display = 'none'
+  updateButtons()
+}
+
+function updateButtons() {
+  const busy = Boolean(state.test)
+  $('play').disabled = !state.file || busy
+  $('pause').disabled = !state.running || busy
+  $('compare').disabled = !state.file || busy
+  $('save').disabled = busy || (!state.runs.length && !$('comment').value)
+  document.querySelectorAll('input[name=mode]').forEach(input => { input.disabled = busy })
+}
+
+$('pick').onclick = async () => {
+  const file = await ipcRenderer.invoke('pick-file')
+  if (!file) return
+  state.file = file
+  $('file').textContent = file.split(/[\\/]/).pop()
+  $('file').title = file
+  setStatus('Ready')
+  updateButtons()
+}
+document.querySelectorAll('input[name=mode]').forEach(input => input.onchange = async () => {
+  if (state.running && !state.test) await startPlayback(input.value)
+})
+$('play').onclick = () => startPlayback(document.querySelector('input[name=mode]:checked').value)
+$('pause').onclick = () => ipcRenderer.invoke('command', ['cycle', 'pause'])
+$('comment').oninput = updateButtons
+window.addEventListener('keydown', event => {
+  if (event.code === 'Space' && state.running && event.target.tagName !== 'TEXTAREA') {
+    event.preventDefault()
+    ipcRenderer.invoke('command', ['cycle', 'pause'])
+  }
+})
+
+// ---- stats ---------------------------------------------------------------------------------------
+const num = value => (value == null || value === '' ? null : Number(value))
+const fmt = (value, digits = 1) => (value == null || Number.isNaN(value) ? '–' : Number(value).toFixed(digits))
+
+function summarizeIntervals(intervals, videoFps) {
+  if (intervals.length < 2) return null
+  const sorted = [...intervals].sort((a, b) => a - b)
+  const mean = intervals.reduce((sum, v) => sum + v, 0) / intervals.length
+  const variance = intervals.reduce((sum, v) => sum + (v - mean) ** 2, 0) / intervals.length
+  const expected = videoFps ? 1000 / videoFps : mean
+  return {
+    count: intervals.length,
+    meanMs: mean,
+    stdevMs: Math.sqrt(variance),
+    p95Ms: sorted[Math.floor(sorted.length * 0.95)],
+    maxMs: sorted[sorted.length - 1],
+    // A gap of 1.5 frame periods or more means a frame was shown late or a frame was skipped.
+    longGaps: intervals.filter(v => v >= expected * 1.5).length,
+    expectedMs: expected,
+  }
+}
+
+async function pollStats() {
+  const stats = await ipcRenderer.invoke('stats')
+  if (!stats) return null
+  const p = stats.props
+  const time = num(p['time-pos']) || 0
+  const duration = num(p.duration) || 0
+  $('ovTime').textContent = `${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, '0')}`
+  $('ovBar').style.width = duration ? `${(time / duration) * 100}%` : '0'
+  const rows = [
+    ['Mode', stats.mode],
+    ['Video', `${p['video-codec'] || '–'} ${p.width || ''}×${p.height || ''}`],
+    ['Video fps (container / est.)', `${fmt(num(p['container-fps']), 3)} / ${fmt(num(p['estimated-vf-fps']), 2)}`],
+    ['Display fps', fmt(num(p['display-fps']), 2)],
+    ['hwdec', p['hwdec-current'] || '–'],
+    ['VO / video-sync', `${p['current-vo'] || '–'} / ${p['video-sync'] || '–'}`],
+    ['Dropped (vo / decoder)', `${p['frame-drop-count'] ?? '–'} / ${p['decoder-frame-drop-count'] ?? '–'}`],
+    ['Delayed / mistimed', `${p['vo-delayed-frame-count'] ?? '–'} / ${p['mistimed-frame-count'] ?? '–'}`],
+    ['A/V sync (s)', fmt(num(p.avsync), 4)],
+  ]
+  if (stats.mode === 'texture') {
+    const m = stats.main
+    const recent = summarizeIntervals(frames.intervals.slice(-240), num(p['estimated-vf-fps']) || num(p['container-fps']))
+    rows.push(
+      ['Frames rendered / drawn', `${m.framesRendered} / ${frames.drawn}`],
+      ['Superseded before paint', String(frames.superseded)],
+      ['mpv render+wait ms (avg / max)', `${fmt(m.renderMsTotal / Math.max(1, m.framesRendered), 2)} / ${fmt(m.renderMsMax, 1)}`],
+      ['GPU finish ms (avg / max)', `${fmt(m.gpuMsTotal / Math.max(1, m.framesRendered), 2)} / ${fmt(m.gpuMsMax, 1)}`],
+      ['Transfer ms (avg / max)', `${fmt(m.sendMsTotal / Math.max(1, m.framesRendered), 2)} / ${fmt(m.sendMsMax, 1)}`],
+      ['Paint interval ms (mean ± sd)', recent ? `${fmt(recent.meanMs)} ± ${fmt(recent.stdevMs)}` : '–'],
+      ['Long gaps (last 240)', recent ? String(recent.longGaps) : '–'],
+    )
+  }
+  $('live').innerHTML = rows.map(([k, v]) => `<tr><td class="muted">${k}</td><td>${v}</td></tr>`).join('')
+  return stats
+}
+setInterval(() => { if (state.running) pollStats() }, 500)
+
+// ---- automatic comparison ------------------------------------------------------------------------
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+async function runOne(mode, seconds) {
+  setStatus(`Testing ${mode}: loading…`)
+  const loaded = await startPlayback(mode)
+  if (!loaded) {
+    setStatus(`${mode}: the file did not start`, true)
+    await stopPlayback()
+    return {mode, error: $('status').textContent}
+  }
+  await sleep(1500)  // warm-up: decoder and hwdec init are not part of the measurement
+  const before = await pollStats()
+  resetFrameStats()
+  for (let left = seconds; left > 0; left--) {
+    setStatus(`Testing ${mode}: ${left} s left (you may resize the window)`)
+    await sleep(1000)
+  }
+  const after = await pollStats()
+  const delta = name => {
+    const a = num(after?.props[name]), b = num(before?.props[name])
+    return a == null || b == null ? null : a - b
+  }
+  const videoFps = num(after?.props['estimated-vf-fps']) || num(after?.props['container-fps'])
+  const run = {
+    mode,
+    seconds,
+    video: {
+      codec: after?.props['video-codec'], width: num(after?.props.width), height: num(after?.props.height),
+      containerFps: num(after?.props['container-fps']), estimatedFps: num(after?.props['estimated-vf-fps']),
+    },
+    hwdec: after?.props['hwdec-current'],
+    vo: after?.props['current-vo'],
+    videoSync: after?.props['video-sync'],
+    displayFps: num(after?.props['display-fps']),
+    mpv: {
+      droppedFrames: delta('frame-drop-count'),
+      decoderDroppedFrames: delta('decoder-frame-drop-count'),
+      delayedFrames: delta('vo-delayed-frame-count'),
+      mistimedFrames: delta('mistimed-frame-count'),
+      avsyncAtEnd: num(after?.props.avsync),
+    },
+  }
+  if (mode === 'texture') {
+    const m = after?.main || {}
+    run.texture = {
+      framesRenderedTotal: m.framesRendered,
+      framesReceived: frames.received,
+      framesDrawn: frames.drawn,
+      framesSuperseded: frames.superseded,
+      // mpv_render_context_render waits for the frame's display time, so this is pacing, not cost.
+      renderWaitMsAvg: m.renderMsTotal / Math.max(1, m.framesRendered),
+      renderWaitMsMax: m.renderMsMax,
+      gpuMsAvg: m.gpuMsTotal / Math.max(1, m.framesRendered),
+      gpuMsMax: m.gpuMsMax,
+      transferMsAvg: m.sendMsTotal / Math.max(1, m.framesRendered),
+      transferMsMax: m.sendMsMax,
+      transferErrors: m.sendErrors,
+      importErrors: m.importErrors,
+      paintIntervals: summarizeIntervals(frames.intervals, videoFps),
+    }
+  }
+  await stopPlayback()
+  return run
+}
+
+$('compare').onclick = async () => {
+  const seconds = Math.max(10, Math.min(600, Number($('seconds').value) || 60))
+  state.test = true
+  updateButtons()
+  const results = []
+  for (const mode of ['native', 'texture']) results.push(await runOne(mode, seconds))
+  state.runs.push(...results.map(run => ({...run, file: state.file.split(/[\\/]/).pop(), at: new Date().toISOString(), ratings: {}})))
+  state.test = null
+  renderRuns()
+  setStatus('Test finished. Rate both modes on the right, then Save report…')
+  updateButtons()
+}
+
+function renderRuns() {
+  if (!state.runs.length) return
+  $('runs').classList.remove('muted')
+  $('runs').innerHTML = ''
+  state.runs.forEach((run, index) => {
+    const el = document.createElement('div')
+    el.className = 'run'
+    const t = run.texture
+    const rows = run.error ? [['Error', run.error]] : [
+      ['Video', `${run.video.codec || '–'} ${run.video.width}×${run.video.height} @ ${fmt(run.video.estimatedFps || run.video.containerFps, 2)}`],
+      ['hwdec / vo', `${run.hwdec || '–'} / ${run.vo || '–'}`],
+      ['Dropped (vo / dec)', `${run.mpv.droppedFrames ?? '–'} / ${run.mpv.decoderDroppedFrames ?? '–'}`],
+      ['Delayed / mistimed', `${run.mpv.delayedFrames ?? '–'} / ${run.mpv.mistimedFrames ?? '–'}`],
+      ...(t ? [
+        ['Drawn / superseded', `${t.framesDrawn} / ${t.framesSuperseded}`],
+        ['Paint interval mean ± sd', t.paintIntervals ? `${fmt(t.paintIntervals.meanMs)} ± ${fmt(t.paintIntervals.stdevMs)} ms` : '–'],
+        ['Long gaps', t.paintIntervals ? String(t.paintIntervals.longGaps) : '–'],
+        ['GPU / transfer avg', `${fmt(t.gpuMsAvg, 2)} / ${fmt(t.transferMsAvg, 2)} ms`],
+      ] : []),
+    ]
+    el.innerHTML = `<div class="title"><span>${run.mode === 'native' ? 'Native window' : 'Texture → canvas'}</span><span class="muted">${run.file}</span></div>
+      <table>${rows.map(([k, v]) => `<tr><td class="muted">${k}</td><td>${v}</td></tr>`).join('')}</table>
+      <div class="rate"><span>Smoothness (1-5)</span><select data-k="smoothness"><option value="">–</option>${[1, 2, 3, 4, 5].map(n => `<option>${n}</option>`).join('')}</select>
+      <span>Controls follow video on resize (1-5)</span><select data-k="resizeSync"><option value="">–</option>${[1, 2, 3, 4, 5].map(n => `<option>${n}</option>`).join('')}</select></div>`
+    el.querySelectorAll('select').forEach(select => {
+      select.value = run.ratings[select.dataset.k] ?? ''
+      select.onchange = () => { state.runs[index].ratings[select.dataset.k] = select.value ? Number(select.value) : null }
+    })
+    $('runs').appendChild(el)
+  })
+}
+
+const buildReport = () => ({
+  tool: 'MediaChips mpv playback comparison',
+  version: 1,
+  createdAt: new Date().toISOString(),
+  system: state.system,
+  runs: state.runs,
+  comment: $('comment').value,
+})
+
+$('save').onclick = async () => {
+  const saved = await ipcRenderer.invoke('save-report', buildReport())
+  if (saved) setStatus(`Saved ${saved}`)
+}
+
+// ---- environment ---------------------------------------------------------------------------------
+;(async () => {
+  const env = await ipcRenderer.invoke('environment')
+  state.system = await ipcRenderer.invoke('system-info')
+  const gpuList = state.system.gpuDevices || []
+  const gpu = (gpuList.some(d => d.active) ? gpuList.filter(d => d.active) : gpuList).map(d => `${d.vendorId?.toString(16)}:${d.deviceId?.toString(16)} ${d.driverVersion || ''}`).join(', ')
+  const display = state.system.displays.find(d => d.primary) || state.system.displays[0]
+  const rows = [
+    ['OS', state.system.os],
+    ['CPU', state.system.cpu],
+    ['GPU (vendor:device driver)', gpu || '–'],
+    ['Display', display ? `${display.size.width}×${display.size.height} @ ${display.displayFrequency} Hz ×${display.scaleFactor}` : '–'],
+    ['Electron', state.system.electron],
+    ['libmpv', env.libmpvPath ? 'found' : 'MISSING'],
+  ]
+  $('env').innerHTML = rows.map(([k, v]) => `<tr><td class="muted">${k}</td><td>${v}</td></tr>`).join('')
+  if (!env.libmpvPath || !env.addonPath) setStatus(!env.addonPath ? 'mpvcompare.node missing' : 'libmpv-2.dll missing', true)
+  if (env.file) {
+    state.file = env.file
+    $('file').textContent = env.file.split(/[\\/]/).pop()
+    if (env.mode) document.querySelector(`input[name=mode][value=${env.mode}]`).checked = true
+    updateButtons()
+    if (env.compareSeconds) {
+      $('seconds').value = env.compareSeconds
+      await $('compare').onclick()
+      if (env.reportOut) await ipcRenderer.invoke('write-report', env.reportOut, buildReport())
+    } else if (env.autoplay) {
+      startPlayback(env.mode || 'native')
+    }
+  }
+})()
+</script>
+</body>
+</html>
