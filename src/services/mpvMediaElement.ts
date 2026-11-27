@@ -18,6 +18,10 @@ type TimeRanges = {length: number; start: (index: number) => number; end: (index
 const TIME_UPDATE_INTERVAL_MS = 100
 const PROGRESS_INTERVAL_MS = 500
 
+/** Playing, but the position has not moved for this long: report it as a stall (loading animation). */
+const STALL_AFTER_MS = 1200
+const STALL_CHECK_MS = 400
+
 /** mpv rejects `seek` (rc < 0) while a file is still opening; retry for up to ~20 s. */
 const SEEK_RETRY_MS = 250
 const SEEK_RETRY_LIMIT = 80
@@ -63,11 +67,32 @@ export class MpvMediaElement extends EventTarget {
   private seekRetryTimer: ReturnType<typeof setTimeout> | null = null
   private lastTimeUpdate = 0
   private lastProgress = 0
+  /** Last time the playback position moved (or playback was started); drives the stall watchdog. */
+  private lastAdvance = Date.now()
+  private stalled = false
+  private stallTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(bridge: MpvBridge) {
     super()
     this.bridge = bridge
     this.unsubscribe = bridge.onEvent(event => this.handleEvent(event))
+    this.stallTimer = setInterval(() => this.checkStall(), STALL_CHECK_MS)
+  }
+
+  /** The element is "waiting" whenever it should be playing but the position stands still. */
+  private checkStall() {
+    if (this.stalled || this.pausedValue || this.ended_ || this.errorValue || !this.sourceUrl) return
+    if (this.ready >= HAVE_METADATA && (this.seekingValue || this.starved)) return // already reported
+    if (Date.now() - this.lastAdvance < STALL_AFTER_MS) return
+    this.stalled = true
+    this.fire('waiting')
+  }
+
+  private markAdvanced() {
+    this.lastAdvance = Date.now()
+    if (!this.stalled) return
+    this.stalled = false
+    if (!this.pausedValue && !this.starved) this.fire('playing')
   }
 
   get src(): string { return this.sourceUrl }
@@ -84,6 +109,8 @@ export class MpvMediaElement extends EventTarget {
     this.durationValue = NaN
     this.ended_ = false
     this.errorValue = null
+    this.stalled = false
+    this.lastAdvance = Date.now()
     if (this.sourceUrl) {
       // Opening at the saved position directly avoids playing (and saving) the first seconds
       // while a slow remote source finishes a separate seek.
@@ -92,6 +119,8 @@ export class MpvMediaElement extends EventTarget {
         : ['loadfile', this.sourceUrl]
       this.seekingValue = start > 0
       void this.bridge.command(command)
+      // The file is still opening: show the loading state right away instead of a frozen player.
+      this.fire('waiting')
     } else {
       this.seekingValue = false
       void this.bridge.command(['stop'])
@@ -122,7 +151,7 @@ export class MpvMediaElement extends EventTarget {
   get paused(): boolean { return this.pausedValue }
   get seeking(): boolean { return this.seekingValue }
   get ended(): boolean { return this.ended_ }
-  get readyState(): number { return this.starved && this.ready >= HAVE_ENOUGH_DATA ? 2 : this.ready }
+  get readyState(): number { return (this.starved || this.stalled) && this.ready >= HAVE_ENOUGH_DATA ? 2 : this.ready }
   get videoWidth(): number { return this.widthValue }
   get videoHeight(): number { return this.heightValue }
   get error(): {code: number; message: string} | null { return this.errorValue }
@@ -218,6 +247,8 @@ export class MpvMediaElement extends EventTarget {
   /** Stop playback and detach from the bridge; the element is unusable afterwards. */
   dispose(): void {
     this.cancelSeek()
+    if (this.stallTimer) clearInterval(this.stallTimer)
+    this.stallTimer = null
     this.unsubscribe()
     void this.bridge.command(['stop'])
   }
@@ -255,6 +286,7 @@ export class MpvMediaElement extends EventTarget {
           this.seekingValue = false
           this.fire('seeked')
         }
+        this.lastAdvance = Date.now()
         if (!this.pausedValue) this.fire('playing')
         break
       case 'end-file': {
@@ -281,6 +313,7 @@ export class MpvMediaElement extends EventTarget {
           // Until the seek lands, time-pos events still carry the old position and would pull the
           // progress bar back to it for a moment; currentTime already holds the target.
           if (this.seekingValue) break
+          if (Math.abs(data - this.timePos) > 0.001) this.markAdvanced()
           this.timePos = data
           this.playedPos = data
           const now = Date.now()
@@ -301,7 +334,11 @@ export class MpvMediaElement extends EventTarget {
         if (paused !== this.pausedValue) {
           this.pausedValue = paused
           this.fire(paused ? 'pause' : 'play')
-          if (!paused) this.fire('playing')
+          if (!paused) {
+            this.lastAdvance = Date.now()
+            // Before the file is open there is nothing playing yet: stay in the loading state.
+            if (this.ready >= HAVE_METADATA && !this.starved) this.fire('playing')
+          }
         }
         break
       }
@@ -314,6 +351,7 @@ export class MpvMediaElement extends EventTarget {
         break
       case 'paused-for-cache':
         this.starved = data === true
+        if (data !== true) this.lastAdvance = Date.now()
         this.fire(data === true ? 'waiting' : 'playing')
         break
       case 'seeking':

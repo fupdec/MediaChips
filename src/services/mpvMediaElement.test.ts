@@ -55,7 +55,7 @@ describe('MpvMediaElement', () => {
     expect(element.currentTime).toBe(12.5)
     expect(element.paused).toBe(true)
     expect([element.videoWidth, element.videoHeight]).toEqual([1080, 1920])
-    expect(seen).toEqual(['durationchange', 'timeupdate', 'play', 'playing', 'pause'])
+    expect(seen).toEqual(['durationchange', 'timeupdate', 'play', 'pause'])
   })
 
   it('seeks with an exact absolute seek and finishes on playback-restart', () => {

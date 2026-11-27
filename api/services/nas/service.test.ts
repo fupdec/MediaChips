@@ -407,7 +407,7 @@ describe('NAS library and HTTP playback', () => {
     expect(connect).not.toHaveBeenCalled()
   })
   it('streams exact bytes with 206, suffix ranges, HEAD, ETag and 416 without leaking credentials', async () => {
-    const {item} = await add(db, service)
+    const {connection, item} = await add(db, service)
     const plan = await service.prepare(db, item.id)
     expect(JSON.stringify(plan)).not.toMatch(/nas\.example|do-not-expose/)
     const response = await fetch(base + plan.url, {headers: {Range: 'bytes=4-9'}})
@@ -427,6 +427,8 @@ describe('NAS library and HTTP playback', () => {
     const download = await fetch(base + plan.url + '&download=1')
     expect(download.headers.get('content-disposition')).toBe("attachment; filename*=UTF-8''video.mp4")
     expect(await download.text()).toBe(bytes.toString())
+    // Idle SFTP connections are pooled for the next Range request; disconnecting releases them.
+    service.disconnect(db, connection.id)
     expect(closed).toBeGreaterThanOrEqual(7)
   })
   it('disconnects without losing media and invalidates playback sessions', async () => {

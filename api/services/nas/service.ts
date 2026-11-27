@@ -43,7 +43,43 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     requests.add(controller); activeRequests.set(id, requests)
     return () => { requests.delete(controller); if (!requests.size) activeRequests.delete(id) }
   }
+  // An SFTP handshake costs seconds, and a player issues several Range requests per seek/open.
+  // Idle SFTP connections are kept briefly and reused by the next stream request of the same NAS.
+  const idleStreams = new Map<string, Array<{transport: NasTransport; timer: ReturnType<typeof setTimeout>}>>()
+  const transportLife = new WeakMap<NasTransport, AbortController>()
+  const openPooled = async (config: NasConnectionInput, credentialRef: string) => {
+    const life = new AbortController()
+    const opened = await connect(config, secrets.get(credentialRef), life.signal)
+    transportLife.set(opened, life)
+    return opened
+  }
+  const closePooled = (transport: NasTransport) => { transportLife.get(transport)?.abort(); transport.close() }
+  const takeIdle = (id: string) => {
+    const entry = idleStreams.get(id)?.pop()
+    if (!entry) return undefined
+    clearTimeout(entry.timer)
+    if (!idleStreams.get(id)?.length) idleStreams.delete(id)
+    return entry.transport
+  }
+  const putIdle = (id: string, transport: NasTransport) => {
+    const list = idleStreams.get(id) || []
+    if (list.length >= 4) { closePooled(transport); return }
+    const timer = setTimeout(() => {
+      const current = idleStreams.get(id)
+      const index = current?.findIndex(entry => entry.transport === transport) ?? -1
+      if (current && index >= 0) { current.splice(index, 1); if (!current.length) idleStreams.delete(id) }
+      closePooled(transport)
+    }, 60_000)
+    timer.unref?.()
+    list.push({transport, timer})
+    idleStreams.set(id, list)
+  }
+  const closeIdle = (id: string) => {
+    for (const entry of idleStreams.get(id) || []) { clearTimeout(entry.timer); closePooled(entry.transport) }
+    idleStreams.delete(id)
+  }
   const invalidateConnection = (id: string) => {
+    closeIdle(id)
     for (const [key, session] of sessions) if (session.connectionId === id) sessions.delete(key)
     for (const controller of activeRequests.get(id) || []) controller.abort()
   }
@@ -73,7 +109,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     const hasPrivateKey = Boolean(credentials.privateKey)
     return {...config, id: row.id, hasCredentials: hasPassword || hasPrivateKey, hasPassword, hasPrivateKey, capabilities: NAS_SOURCE_CAPABILITIES}
   }
-  const withTransport = async <T>(db: ApiDb, id: string, action: (transport: SourceReadAdapter, assertCurrent: () => void, signal: AbortSignal) => Promise<T>, signal?: AbortSignal) => {
+  const withTransport = async <T>(db: ApiDb, id: string, action: (transport: SourceReadAdapter, assertCurrent: () => void, signal: AbortSignal) => Promise<T>, signal?: AbortSignal, options: {pool?: boolean} = {}) => {
     const library = libraryKey(db)
     const sqlite = db.sqlite
     const row = connectionRow(db, id)
@@ -89,13 +125,31 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     const untrack = track(id, controller)
     let timer = setTimeout(() => controller.abort(), 30_000)
     let transport: NasTransport | undefined
+    let done = false
     try {
-      transport = await connect(NasConnectionSchema.parse(JSON.parse(row.config)), secrets.get(row.credentialRef), controller.signal)
+      const config = NasConnectionSchema.parse(JSON.parse(row.config))
+      // Playback preparation hands its SFTP connection to the stream requests that follow at once.
+      const pooled = Boolean(options.pool) && config.protocol === 'sftp'
+      let reused = pooled ? takeIdle(id) : undefined
+      transport = reused ?? (pooled ? await openPooled(config, row.credentialRef) : await connect(config, secrets.get(row.credentialRef), controller.signal))
       assertCurrent()
-      const result = await action(createNasSourceAdapter(transport), assertCurrent, controller.signal)
+      let result: T
+      try { result = await action(createNasSourceAdapter(transport), assertCurrent, controller.signal) }
+      catch (err) {
+        // An idle connection may have been dropped by the NAS: retry once on a fresh one.
+        if (!reused || controller.signal.aborted) throw err
+        closePooled(transport); reused = undefined
+        transport = await openPooled(config, row.credentialRef)
+        assertCurrent()
+        result = await action(createNasSourceAdapter(transport), assertCurrent, controller.signal)
+      }
       assertCurrent()
+      done = true
       return result
-    } finally { clearTimeout(timer); signal?.removeEventListener('abort', abort); untrack(); transport?.close() }
+    } finally {
+      clearTimeout(timer); signal?.removeEventListener('abort', abort); untrack()
+      if (transport) { if (transportLife.has(transport)) { if (done) putIdle(id, transport); else closePooled(transport) } else transport.close() }
+    }
   }
 
   const importPath = (input: string) => {
@@ -264,7 +318,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
     },
     async preparePreview(db: ApiDb, connectionId: string, input: string, signal?: AbortSignal) {
       const {resourceKey} = importPath(input)
-      const file = await withTransport(db, connectionId, transport => transport.stat(resourceKey), signal)
+      const file = await withTransport(db, connectionId, transport => transport.stat(resourceKey), signal, {pool: true})
       if (file.isDirectory || !Number.isSafeInteger(file.size) || file.size <= 0) throw new NasError('invalid_file', 'Select a non-empty media file.')
       return playbackPlan(db, {mediaId: null, mediaPath: null, locationId: null, connectionId,
         path: resourceKey, size: file.size, version: fileVersion(file)}, path.posix.basename(resourceKey))
@@ -280,7 +334,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
       if (resolved.provider !== 'nas') throw new NasError('not_found', 'NAS file is unavailable.', 404)
       const location = resolved.location
       const originalPath = media.path
-      const file = await withTransport(db, location.connectionId, transport => transport.stat(location.resourceKey), signal)
+      const file = await withTransport(db, location.connectionId, transport => transport.stat(location.resourceKey), signal, {pool: true})
       if (file.isDirectory || !Number.isSafeInteger(file.size) || file.size <= 0) throw new NasError('not_found', 'NAS file is unavailable.', 404)
       const current = createMediaRepository(db.drizzle).findById(mediaId)
       if (!current || current.deletedAt || current.path !== originalPath) throw new NasError('media_changed', 'The file changed. Open it again.', 409)
@@ -329,14 +383,31 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
       res.once('close', onClose)
       let transport: NasTransport | undefined
       let body: Awaited<ReturnType<NasTransport['read']>> | undefined
-      let timer = setTimeout(() => controller.abort(), 30_000)
+      let clientClosed = false
+      let failed = true
+      res.once('close', () => { clientClosed = true })
+      let stalled = false
+      const stall = () => { stalled = true; controller.abort() }
+      let timer = setTimeout(stall, 30_000)
       const touch = () => {
         if (session.library !== libraryKey(db)) controller.abort()
-        clearTimeout(timer); timer = setTimeout(() => controller.abort(), 30_000)
+        clearTimeout(timer); timer = setTimeout(stall, 30_000)
       }
       try {
-        transport = await connect(NasConnectionSchema.parse(JSON.parse(row.config)), secrets.get(row.credentialRef), controller.signal)
-        const file = await createNasSourceAdapter(transport).stat(session.path, controller.signal)
+        const config = NasConnectionSchema.parse(JSON.parse(row.config))
+        const pooled = config.protocol === 'sftp'
+        const open = () => pooled ? openPooled(config, row.credentialRef) : connect(config, secrets.get(row.credentialRef), controller.signal)
+        let reused = pooled ? takeIdle(session.connectionId) : undefined
+        transport = reused ?? await open()
+        let file
+        try { file = await createNasSourceAdapter(transport).stat(session.path, controller.signal) }
+        catch (err) {
+          // An idle connection may have been dropped by the NAS: reconnect once.
+          if (!reused || controller.signal.aborted) throw err
+          closePooled(transport); reused = undefined
+          transport = await open()
+          file = await createNasSourceAdapter(transport).stat(session.path, controller.signal)
+        }
         if (fileVersion(file) !== session.version) throw new NasError('file_changed', 'The NAS file changed. Open the new version.', 409)
         if (session.library !== libraryKey(db) || !sessions.has(id)) throw new NasError('expired_session', 'Playback session expired.', 410)
         if (mediaId != null) {
@@ -354,7 +425,7 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
         }
         res.setHeader('Content-Length', range.end - range.start + 1)
         if (range.partial) res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${session.size}`)
-        if (req.method === 'HEAD') { res.end(); return }
+        if (req.method === 'HEAD') { failed = false; res.end(); return }
         const downloaded = await createNasSourceAdapter(transport).read(session.path, range.partial ? `bytes=${range.start}-${range.end}` : undefined, controller.signal)
         body = Buffer.isBuffer(downloaded.body) ? Readable.from([downloaded.body]) : downloaded.body
         const cancelBody = () => body?.destroy(new NasError('cancelled', 'Playback request cancelled.', 499))
@@ -362,8 +433,12 @@ export function createNasService(options: {connect?: Connector; credentials?: Na
         if (controller.signal.aborted) cancelBody()
         body.on('data', touch)
         await pipeline(body, res)
+        failed = false
       } finally {
-        clearTimeout(timer); untrack(); res.removeListener('close', onClose); controller.abort(); body?.destroy(); transport?.close()
+        // A seek makes the player drop the previous response mid-body; that is not a connection fault.
+        const reusable = Boolean(transport && transportLife.has(transport) && (!failed || (clientClosed && !stalled)))
+        clearTimeout(timer); untrack(); res.removeListener('close', onClose); controller.abort(); body?.destroy()
+        if (transport) { if (reusable) putIdle(session.connectionId, transport); else if (transportLife.has(transport)) closePooled(transport); else transport.close() }
       }
     },
   }

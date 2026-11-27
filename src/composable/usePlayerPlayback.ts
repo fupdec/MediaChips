@@ -270,7 +270,7 @@ export function usePlayerPlayback({
     })
     // A verified-copy stream (NAS/cloud) keeps its original path, so it is not a
     // "web video", but it stalls on the network just the same and needs the spinner.
-    const isCopyStream = () => playerStore.usesCopySource && !playerStore.isWebVideo
+    const isCopyStream = () => (playerStore.usesCopySource || playerStore.nativeEngine) && !playerStore.isWebVideo
     // True while the element has no data for the current position, i.e. playback
     // really cannot continue until the next piece arrives.
     const hasDataAhead = () => {
