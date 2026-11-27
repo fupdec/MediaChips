@@ -22,6 +22,8 @@ import { upsertClipEmbeddingForMedia } from '../../services/mediaClipEmbeddings'
 import { formatMarkTimestamp } from '../../../shared/markTimestamp'
 import { ensureVideoGrid } from '../../services/videoGrid'
 import { resolveMediaIdFromGridRequest } from '../../services/videoGridRequest'
+import { resolveGeneratedImageOutput } from '../../utils/realPathContainment'
+import { evaluateFileServe } from '../../services/fileServePolicy'
 import { isUsableVideoThumbFile, parseVideoThumbMediaId } from '../../services/videoPreviewThumb'
 
 export default function createTasksVideoPreviewController(shared: TaskControllerShared) {
@@ -60,9 +62,9 @@ export default function createTasksVideoPreviewController(shared: TaskController
         return
       }
 
-      const outputPath = path.normalize(String(req.body.outputPath || ''))
+      const outputPath = resolveGeneratedImageOutput(req.body.outputPath, dbPath)
       if (!outputPath) {
-        sendBadRequest(res, 'No output path provided.')
+        sendBadRequest(res, 'Invalid output path.')
         return
       }
 
@@ -172,14 +174,19 @@ export default function createTasksVideoPreviewController(shared: TaskController
   const createImage = async function (req: ApiRequest, res: ApiResponse) {
     try {
       const {url, sizes, image} = req.body
-      const outputPath = path.normalize(String(req.body.outputPath || ''))
+      const outputPath = resolveGeneratedImageOutput(req.body.outputPath, dbPath)
+      if (!outputPath) {
+        sendBadRequest(res, 'Invalid output path.')
+        return
+      }
       const downloadUrl = url
         || (typeof image === 'string' && /^https?:\/\//i.test(image.trim()) ? image.trim() : null)
       let buf: Buffer
 
       if (downloadUrl) {
         buf = await downloadRemoteImage(downloadUrl)
-      } else if (typeof image === 'string' && path.isAbsolute(image) && fs.existsSync(image)) {
+      } else if (typeof image === 'string' && path.isAbsolute(image) && fs.existsSync(image)
+        && evaluateFileServe(image, {trustedRoots: [dbPath]}).allowed) {
         buf = await fs.promises.readFile(image)
       } else if (typeof image === 'string') {
         const bundled = resolveBundledPublicFile(image)

@@ -111,7 +111,7 @@ describe('TasksVideoPreviewController createThumb errors', () => {
       {
         body: {
           inputPath: '/tmp/video.mp4',
-          outputPath: '/tmp/out.jpg',
+          outputPath: '/tmp/db/out.jpg',
           timestamp: '00:00:01',
           width: 320,
           overwrite: true,

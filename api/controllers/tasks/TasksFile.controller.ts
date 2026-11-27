@@ -19,6 +19,10 @@ import {
 } from '../../services/openPathInFileManager'
 import { checkFilesExist } from '../../services/checkFilesExist'
 import { normalizeMediaPath } from '../../utils/normalizeUserPath'
+import { isRealPathInside } from '../../utils/realPathContainment'
+import { listMediaRoots } from '../../services/mediaRoots'
+import { evaluateFileServe } from '../../services/fileServePolicy'
+import { createMediaRepository } from '../../db/repositories/media'
 import { unlinkResolvedPath } from '../../services/localAssetCleanup'
 import {
   moveFile,
@@ -39,7 +43,8 @@ import {
 } from '../../services/zipGallery'
 
 export default function createTasksFileController(shared: TaskControllerShared) {
-  const { db } = shared
+  const { db, dbPath } = shared
+  const mediaRepo = createMediaRepository(db.drizzle)
   const marksRepo = createMarksRepository(db.drizzle)
 
   const checkFileExists = async function (req: ApiRequest, res: ApiResponse) {
@@ -226,13 +231,30 @@ export default function createTasksFileController(shared: TaskControllerShared) 
     }
   }
 
+  /**
+   * Only files the app owns or manages may be deleted: generated assets in the data
+   * folder, files tracked in the library, or files under the configured media roots.
+   * Symlinks are resolved so a link cannot smuggle the target outside those places.
+   */
+  const isDeletableLocalFile = (target: string) => {
+    if (!evaluateFileServe(target, {trustedRoots: [dbPath]}).allowed) return false
+    if (isRealPathInside(dbPath, target)) return true
+    if (mediaRepo.findByPathVariants([target])) return true
+    return listMediaRoots().some((root) => isRealPathInside(root.path, target))
+  }
+
   const deleteFile = async function (req: ApiRequest, res: ApiResponse) {
     try {
       if (isVirtualZipPath(String(req.body.path || ''))) {
         return sendBadRequest(res, 'Files inside ZIP archives are read-only')
       }
 
-      const deleted = await unlinkResolvedPath(req.body.path)
+      const target = await resolveExistingPath(normalizeMediaPath(req.body.path))
+      if (target && !isDeletableLocalFile(target)) {
+        return sendBadRequest(res, 'This file cannot be deleted through the API')
+      }
+
+      const deleted = await unlinkResolvedPath(target ?? req.body.path)
 
       if (!deleted) {
         return sendNotFound(res, 'File not found.')
