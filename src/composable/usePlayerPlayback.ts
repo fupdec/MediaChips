@@ -196,24 +196,30 @@ export function usePlayerPlayback({
     if (!playerStore.player || playerStore.player.dataset.playerBound === '1') return
     playerStore.player.dataset.playerBound = '1'
     isReady.value = false
-    playerStore.player.addEventListener('loadedmetadata', () => {
+    const applyElementDuration = () => {
       const videoEl = playerStore.player
       if (!videoEl) return
+      const storedDuration = metadataNumber(playerStore.metadata, 'duration')
       const duration = resolveDurationOnLoadedMetadata({
         usesLiveTranscode: playerStore.usesLiveTranscode,
-        metadataDuration: metadataNumber(playerStore.metadata, 'duration'),
+        metadataDuration: storedDuration,
         elementDuration: videoEl.duration,
       })
       if (duration != null) playerStore.duration = duration
       const media = playerStore.media
-      if (media && isNasMediaPath(media.path) && Number.isFinite(videoEl.duration) && videoEl.duration > 0
-        && (!metadataNumber(playerStore.metadata, 'duration') || !metadataNumber(playerStore.metadata, 'width'))) {
-        const metadata = {duration: videoEl.duration, width: videoEl.videoWidth, height: videoEl.videoHeight}
+      const actual = Number(videoEl.duration)
+      // A NAS card may carry a missing or wrong probed duration (e.g. 1 s): the opened file is the truth.
+      if (media && isNasMediaPath(media.path) && !playerStore.usesLiveTranscode && Number.isFinite(actual) && actual > 0
+        && (!storedDuration || Math.abs(storedDuration - actual) > 1 || !metadataNumber(playerStore.metadata, 'width'))) {
+        const metadata = {duration: actual, width: videoEl.videoWidth || metadataNumber(playerStore.metadata, 'width') || 0, height: videoEl.videoHeight || metadataNumber(playerStore.metadata, 'height') || 0}
         playerStore.metadata = {...playerStore.metadata, ...metadata}
         if (media.id > 0) void typedApi.updateVideoMetadata(media.id, metadata).catch(() => {})
       }
       playerStore.syncPlaybackState()
-    })
+    }
+    playerStore.player.addEventListener('loadedmetadata', applyElementDuration)
+    // mpv learns the duration after the file is opened (and can refine it while streaming).
+    playerStore.player.addEventListener('durationchange', applyElementDuration)
     playerStore.player.addEventListener('timeupdate', () => {
       if (playerStore.webVideoLoading) return
       playerStore.syncPlaybackState()
