@@ -42,6 +42,7 @@ import {
 } from '@shared/schemas'
 import { validated } from './validate'
 import type {MediaRelinkCandidate, MediaRelinkInput} from '@shared/mediaRelink'
+import type {DetachCopiesQuery, DetachCopiesPreview, DetachCopiesResult} from '@shared/mediaCopiesBulk'
 
 export type MediaFolderBrowseRequest = {
   path?: string | null
@@ -66,6 +67,12 @@ export const mediaApi = {
 
   applyMediaRelinks(matches: MediaRelinkInput[]) {
     return apiClient.post<{updated: number}>('/api/Media/relink/apply', {matches})
+  },
+  previewDetachCopies(body: DetachCopiesQuery) {
+    return apiClient.post<DetachCopiesPreview>('/api/Media/copies-bulk/detach/preview', body)
+  },
+  applyDetachCopies(body: DetachCopiesQuery & {expectedCopies: number}) {
+    return apiClient.post<DetachCopiesResult>('/api/Media/copies-bulk/detach/apply', body)
   },
   getCatalogSources() {
     return apiClient.get<Array<{value: string; name: string}>>('/api/Media/catalogSources')

@@ -38,7 +38,7 @@
               v-model="extensions"
               :hide-no-data="!search"
               :items="[]"
-              :rules="[v => v.length > 0 || t('common.extension_required')]"
+              :rules="[v => v.length > 0 || t('validation.extension_required')]"
               v-model:search="search"
               hide-selected
               :label="t('media.type.extensions')"

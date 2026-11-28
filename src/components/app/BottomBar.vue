@@ -261,7 +261,7 @@ onUnmounted(() => {
 
       <v-menu v-if="overflowEntries.length" v-model="hiddenMetaMenu" location="top" :offset="8" content-class="bottom-more-menu">
         <template #activator="{props}">
-          <button v-bind="props" type="button" :class="{'bottom-menu__button--active': overflowEntries.some(entryActive)}" class="bottom-menu__button btn-hidden" :aria-label="t('actions.more')">
+          <button v-bind="props" type="button" :class="{'bottom-menu__button--active': overflowEntries.some(entryActive)}" class="bottom-menu__button btn-hidden" :aria-label="t('common.more')">
             <v-icon>{{ hiddenMetaMenu ? 'mdi-chevron-down' : 'mdi-chevron-up' }}</v-icon>
           </button>
         </template>

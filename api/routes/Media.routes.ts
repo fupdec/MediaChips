@@ -31,6 +31,7 @@ import {
   MediaFolderBrowseRequestSchema,
 } from '../../shared/schemas/requests'
 import createMediaController from '../controllers/Media.controller'
+import {createMediaCopiesBulkController, DetachCopiesQuerySchema, DetachCopiesApplySchema} from '../controllers/MediaCopiesBulk.controller'
 import {createMediaSubtitlesController} from '../controllers/MediaSubtitles.controller'
 import {listCatalogSources} from '../services/mediaCatalogSources'
 
@@ -49,6 +50,9 @@ export default function registerRoutes(app: Express, db: ApiDb) {
     relinkItem.omit({confirmedOriginal: true}),
     z.object({oldRoot: z.string().trim().min(1), newRoot: z.string().trim().min(1)}),
   ])), relink.preview)
+  const copiesBulk = createMediaCopiesBulkController(db)
+  router.post('/copies-bulk/detach/preview', validateBody(DetachCopiesQuerySchema), copiesBulk.preview)
+  router.post('/copies-bulk/detach/apply', validateBody(DetachCopiesApplySchema), copiesBulk.apply)
   router.post('/relink/apply', validateBody(z.object({matches: z.array(relinkItem).min(1)})), relink.apply)
 
   router.get('/numberOfMediaWithTag', validateQuery(MediaTagCountQuerySchema), Media.numberOfMediaWithTag)

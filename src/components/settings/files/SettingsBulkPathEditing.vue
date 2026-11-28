@@ -25,6 +25,10 @@
         <v-icon icon="mdi-folder-move-outline" start />{{ t('media.relink.change_root') }}
       </v-btn>
       <DialogRelinkMedia v-model="rootDialog" @applied="onRelinkApplied" />
+      <v-btn color="primary" rounded variant="tonal" @click="detachDialog = true">
+        <v-icon icon="mdi-link-variant-off" start />{{ t('media.detach_copies.title') }}
+      </v-btn>
+      <DialogDetachCopies v-model="detachDialog" />
       <v-dialog
         v-model="dialog"
         :fullscreen="xs"
@@ -249,6 +253,7 @@
 
 <script setup lang="ts">
 import DialogRelinkMedia from '@/components/dialogs/DialogRelinkMedia.vue'
+import DialogDetachCopies from '@/components/dialogs/DialogDetachCopies.vue'
 import {useItemsStore} from '@/stores/items'
 import {parseMediaFilePath} from '@shared/mediaPath'
 import type {MediaRelinkCandidate} from '@shared/mediaRelink'
@@ -276,6 +281,7 @@ const {xs, xl} = useDisplay()
 const {t} = useI18n()
 
 const rootDialog = ref(false)
+const detachDialog = ref(false)
 const itemsStore = useItemsStore()
 function onRelinkApplied(matches: MediaRelinkCandidate[]) {
   for (const item of matches) {
