@@ -19,7 +19,7 @@
       <div
         @click="collapsed = !collapsed"
         class="notification__text"
-        v-html="displayText"
+        v-html="sanitizeInlineHtml(displayText)"
       ></div>
       <div v-if="isHidden && hasDownloadProgress" class="notification__progress">
         <v-progress-linear
@@ -107,6 +107,7 @@
 </template>
 
 <script setup lang="ts">
+import {sanitizeInlineHtml} from '@/utils/sanitizeHtml'
 import {ref, computed, onMounted, onUnmounted, watch} from 'vue'
 import {useSettingsStore} from '@/stores/settings'
 import {useNotificationsStore} from '@/stores/notifications'

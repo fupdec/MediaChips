@@ -1,3 +1,4 @@
+import {sanitizeInlineHtml} from '@/utils/sanitizeHtml'
 import type { FilterCondition, FilterObject, ReadableFileSize } from '@/types/common'
 import {checkColorForDarkText, hexToRgba as hexToRgbaFromHeader, isNearWhiteColor} from '@/utils/headerColorUtils'
 import {tokenMatchesQueryPart} from '@shared/globalSearchMatch'
@@ -188,6 +189,10 @@ export function getDateForDB(ms?: number | null): string {
 export {foundByChars} from '@shared/tagAutocompleteMatch'
 
 export function highlightChars(string: string, query: string, is_default?: boolean): string {
+  return sanitizeInlineHtml(highlightCharsRaw(string, query, is_default))
+}
+
+function highlightCharsRaw(string: string, query: string, is_default?: boolean): string {
   const highlight = (str: string, q: string): string => {
     if (!q) return str
     const lower = str.toLowerCase()
@@ -233,6 +238,10 @@ function wrapGlobalSearchHighlight(text: string): string {
  * prefer a contiguous query match, otherwise highlight matching word prefixes.
  */
 export function highlightGlobalSearchText(text: string, rawQuery: string): string {
+  return sanitizeInlineHtml(highlightGlobalSearchTextRaw(text, rawQuery))
+}
+
+function highlightGlobalSearchTextRaw(text: string, rawQuery: string): string {
   const source = String(text || '')
   const query = String(rawQuery || '').trim()
   if (!source || !query) return source

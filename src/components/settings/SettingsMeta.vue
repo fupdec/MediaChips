@@ -125,7 +125,7 @@
               @contextmenu.prevent.stop="showMetaChipMenu($event, m)"
             >
               <v-icon size="20" start>mdi-{{ m.icon }}</v-icon>
-              <span v-html="highlightChars(m.name ?? '', search ?? '')"/>
+              <span v-html="sanitizeInlineHtml(highlightChars(m.name ?? '', search ?? ''))"/>
             </v-chip>
           </v-chip-group>
         </div>
@@ -140,7 +140,7 @@
           @contextmenu.prevent.stop="showMetaChipMenu($event, m)"
         >
           <v-icon size="20" start>mdi-{{ m.icon }}</v-icon>
-          <span v-html="highlightChars(m.name ?? '', search ?? '')"/>
+          <span v-html="sanitizeInlineHtml(highlightChars(m.name ?? '', search ?? ''))"/>
         </v-chip>
       </v-chip-group>
     </template>
@@ -176,6 +176,7 @@
 </template>
 
 <script setup lang="ts">
+import {sanitizeInlineHtml} from '@/utils/sanitizeHtml'
 import {ref, computed, onMounted, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {useRouter} from 'vue-router'

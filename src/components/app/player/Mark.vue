@@ -19,9 +19,9 @@
         <div v-if="mark.type !== 'favorite'" class="mark-name">
           <span class="mark-name__swatch"/>
           <div class="name">
-            <span v-if="mark.type === 'meta'" v-html="mark['tag.name'] || mark.tag?.name"/>
-            <span v-else-if="mark.text" v-html="mark.text" :title="mark.text"/>
-            <span v-else v-html="mark.name"/>
+            <span v-if="mark.type === 'meta'" v-html="sanitizeInlineHtml(mark['tag.name'] || mark.tag?.name)"/>
+            <span v-else-if="mark.text" v-html="sanitizeInlineHtml(mark.text)" :title="mark.text"/>
+            <span v-else v-html="sanitizeInlineHtml(mark.name)"/>
           </div>
         </div>
 
@@ -53,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import {sanitizeInlineHtml} from '@/utils/sanitizeHtml'
 import {computed, ref} from 'vue'
 import {usePlayerMark} from '@/composable/usePlayerMark'
 import {applyPlayerEdgeShift} from '@/utils/playerEdgeClamp'

@@ -111,7 +111,7 @@
           <!-- Основной контент -->
           <div class="content-body">
             <!-- Отображение различных типов контента -->
-            <div v-if="selectedItem.contentType === 'html'" v-html="selectedItem.content" />
+            <div v-if="selectedItem.contentType === 'html'" v-html="sanitizeInlineHtml(selectedItem.content)" />
 
             <div v-else-if="selectedItem.contentType === 'component'">
               <component :is="selectedItem.component" v-bind="selectedItem.props || {}" />
@@ -170,6 +170,7 @@
 </template>
 
 <script setup lang="ts">
+import {sanitizeInlineHtml} from '@/utils/sanitizeHtml'
 import { ref, computed, onMounted, type Component } from 'vue'
 
 type TreeViewListEntry = {

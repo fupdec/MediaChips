@@ -34,8 +34,34 @@ function isAllowedOrigin(origin: string | string[] | undefined): boolean {
   }
 }
 
+/** Hostname part of a Host header value ("localhost:3000", "[::1]:3000"). */
+function hostnameFromHostHeader(host: string | undefined): string {
+  if (!host) return ''
+  const value = host.trim().toLowerCase()
+  if (value.startsWith('[')) {
+    const end = value.indexOf(']')
+    return end > 0 ? value.slice(1, end) : ''
+  }
+  return value.split(':')[0]
+}
+
+/**
+ * With LAN access off the server is loopback-only, so every legitimate request
+ * names a loopback host. Anything else is a DNS-rebinding attempt: a hostile
+ * page re-pointing its own domain at 127.0.0.1 to read the library as same-origin.
+ */
+function isAllowedHostHeader(host: string | undefined): boolean {
+  // A browser always sends Host; a missing one is a bare HTTP/1.0 or in-process caller.
+  if (!host || getAllowLan()) return true
+  return isLoopbackHost(hostnameFromHostHeader(host))
+}
+
 function createCorsMiddleware() {
   return (req: Request, res: Response, next: NextFunction) => {
+    if (!isAllowedHostHeader(req.headers.host)) {
+      return res.status(403).json({error: 'Host is not allowed'})
+    }
+
     const origin = req.headers.origin
     if (!isAllowedOrigin(origin)) {
       return res.status(403).json({error: 'Origin is not allowed'})
@@ -65,5 +91,6 @@ export {
   isLoopbackHost,
   isPrivateIpv4,
   isAllowedOrigin,
+  isAllowedHostHeader,
   createCorsMiddleware,
 }

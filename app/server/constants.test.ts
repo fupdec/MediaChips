@@ -31,4 +31,19 @@ describe('media stream CORS', () => {
     expect(headers.has('Access-Control-Allow-Origin')).toBe(false)
     expect(next).not.toHaveBeenCalled()
   })
+
+  it('rejects a rebound foreign Host while LAN access is off', () => {
+    const {res} = response()
+    const next = vi.fn()
+    createCorsMiddleware()({method: 'GET', headers: {host: 'evil.example:3000'}} as Request, res, next)
+    expect(res.status).toHaveBeenCalledWith(403)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it.each(['localhost:3000', '127.0.0.1:3000', '[::1]:3000'])('accepts loopback Host %s', (host) => {
+    const {res} = response()
+    const next = vi.fn()
+    createCorsMiddleware()({method: 'GET', headers: {host}} as Request, res, next)
+    expect(next).toHaveBeenCalled()
+  })
 })

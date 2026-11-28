@@ -401,7 +401,7 @@
                 </span>
                 <span
                   class="inspector-view__value inspector-view__text"
-                  v-html="tagSynonyms"
+                  v-html="sanitizeInlineHtml(tagSynonyms)"
                 />
               </div>
 
@@ -547,6 +547,7 @@
 </template>
 
 <script setup lang="ts">
+import {sanitizeInlineHtml} from '@/utils/sanitizeHtml'
 import {getApiErrorMessage} from '@/types/vue'
 import {computed, defineAsyncComponent, onUnmounted, ref, watch} from 'vue'
 import path from 'path-browserify'

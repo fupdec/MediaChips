@@ -30,19 +30,19 @@
           v-if="mark.type == 'meta'"
           class="mark-item__name"
           v-tooltip="playerTooltip(markLabel)"
-          v-html="mark['tag.name'] || mark.tag?.name"
+          v-html="sanitizeInlineHtml(mark['tag.name'] || mark.tag?.name)"
         />
         <span
           v-else-if="mark.text"
           class="mark-item__name"
           v-tooltip="playerTooltip(markLabel)"
-          v-html="mark.text"
+          v-html="sanitizeInlineHtml(mark.text)"
         />
         <span
           v-else
           class="mark-item__name"
           v-tooltip="playerTooltip(markLabel)"
-          v-html="mark.name"
+          v-html="sanitizeInlineHtml(mark.name)"
         />
       </div>
       <div class="mark-item__meta">
@@ -69,6 +69,7 @@
 </template>
 
 <script setup lang="ts">
+import {sanitizeInlineHtml} from '@/utils/sanitizeHtml'
 import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import type {PlayerMark} from '@/types/player'

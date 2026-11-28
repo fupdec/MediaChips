@@ -30,7 +30,7 @@
               <v-icon :color="item.color"> mdi-{{ item.icon }}</v-icon>
             </template>
 
-            <v-list-item-title v-html="item.name" class="text-subtitle-1"/>
+            <v-list-item-title v-html="sanitizeInlineHtml(item.name)" class="text-subtitle-1"/>
           </v-list-item>
 
           <div
@@ -101,6 +101,7 @@
 </template>
 
 <script setup lang="ts">
+import {sanitizeInlineHtml} from '@/utils/sanitizeHtml'
 import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue'
 import {useDisplay} from 'vuetify'
 import {useContextMenu} from '@/stores/contextMenu'

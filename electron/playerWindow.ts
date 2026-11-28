@@ -1,5 +1,6 @@
 import os from 'os'
 import {bindCaptionDoubleClick} from './captionDoubleClick'
+import {bindNavigationGuard} from './navigationGuard'
 import {bindRoundedWindow} from './roundedWindow'
 import {bindPlayerFrame, createPlayerFrame, overlayWindowOptions, type PlayerFrame} from './playerFrame'
 import path from 'path'
@@ -192,6 +193,7 @@ export function createPlayerWindowController(deps: {
       bindCaptionDoubleClick(player, Boolean(deps.transparentWindow))
       bindRoundedWindow(player, Boolean(deps.transparentWindow))
     }
+    bindNavigationGuard(player.webContents, () => deps.getRendererUrl(search))
     deps.bindRendererLoadRetry(player.webContents, () => deps.getRendererUrl(search))
     player.loadURL(deps.getRendererUrl(search))
     return player

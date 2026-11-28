@@ -140,6 +140,10 @@ export function registerGetFileRoutes({
 }) {
   async function handleGetFile(req: ApiRequest, res: ApiResponse, {headOnly = false} = {}) {
     applyCorsHeaders(req, res)
+    // Served bytes are user files (SVG/HTML-ish content included): never sniff them
+    // and never let them run script if opened as a top-level page on the app origin.
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:")
 
     const originalFilePath = getFileRequestPath(req)
 

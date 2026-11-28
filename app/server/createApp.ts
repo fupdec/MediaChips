@@ -72,6 +72,20 @@ function setupStaticApp(app: Express, staticDir: string = projectPath('dist')) {
     spaHistory(req, res, next)
   }
 
+  // The renderer runs with a preload bridge, so injected script must not execute even if
+  // some markup slips through: no inline/eval script, no plugins, no base-tag hijack.
+  // (default-src is left open on purpose — media, NAS and LAN peers load from many origins.)
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (!(req.path || '').startsWith('/api/')) {
+      res.setHeader(
+        'Content-Security-Policy',
+        "script-src 'self' 'wasm-unsafe-eval' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
+      )
+      res.setHeader('X-Content-Type-Options', 'nosniff')
+    }
+    next()
+  })
+
   app.use(express.static(src))
   app.use(skipApiAndSockets)
   app.use(express.static(src))

@@ -186,10 +186,10 @@
               </v-icon>
             </span>
             <div class="d-flex align-baseline min-width-0">
-              <span v-html="search ? item.raw.name_parsed || item.raw.name : item.raw.name"/>
+              <span v-html="sanitizeInlineHtml(search ? item.raw.name_parsed || item.raw.name : item.raw.name)"/>
               <span
                 v-if="item.raw.synonyms"
-                v-html="search ? item.raw.synonyms_parsed || item.raw.synonyms : item.raw.synonyms"
+                v-html="sanitizeInlineHtml(search ? item.raw.synonyms_parsed || item.raw.synonyms : item.raw.synonyms)"
                 class="synonyms"
               />
             </div>
@@ -201,6 +201,7 @@
 </template>
 
 <script setup lang="ts">
+import {sanitizeInlineHtml} from '@/utils/sanitizeHtml'
 import {ref, computed, onMounted, onUnmounted, watch, nextTick, useAttrs} from 'vue'
 import {useI18n} from 'vue-i18n'
 import {typedApi} from '@/services/typedApi'
