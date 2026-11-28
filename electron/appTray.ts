@@ -394,6 +394,7 @@ export function createAppTrayController(deps: {
   const platform = deps.platform ?? process.platform
   const traySupported = isTraySupportedPlatform(platform)
   let tray: Tray | null = null
+  let trayMenu: Menu | null = null
   let minimizeToTray = false
   let locale = normalizeTrayMenuLocale('en')
   let themeListenerBound = false
@@ -420,7 +421,10 @@ export function createAppTrayController(deps: {
 
   function applyContextMenu() {
     if (!tray) return
-    tray.setContextMenu(Menu.buildFromTemplate(buildTrayMenuTemplate(menuDeps())))
+    trayMenu = Menu.buildFromTemplate(buildTrayMenuTemplate(menuDeps()))
+    // On macOS the menu is popped up manually (see click handlers) so it still
+    // opens when another app owns a fullscreen Space.
+    if (platform !== 'darwin') tray.setContextMenu(trayMenu)
   }
 
   function installDockMenu() {
@@ -478,12 +482,16 @@ export function createAppTrayController(deps: {
 
       if (platform === 'darwin') {
         // macOS: context menu is primary; only restore if the window is hidden.
-        tray.on('click', () => {
-          const win = deps.getMainWindow()
-          if (!win || win.isDestroyed() || !win.isVisible()) {
-            deps.showMainWindow()
+        const popUp = () => {
+          if (!tray || !trayMenu) return
+          try {
+            tray.popUpContextMenu(trayMenu)
+          } catch (error) {
+            console.warn('Failed to pop up tray menu:', error)
           }
-        })
+        }
+        tray.on('click', popUp)
+        tray.on('right-click', popUp)
       } else {
         // Windows / Linux: left-click toggles visibility.
         tray.on('click', () => {
