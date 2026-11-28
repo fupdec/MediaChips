@@ -79,7 +79,15 @@ npm run build               # vue-tsc --noEmit && vite build
 npm run pack | dist | dist:sfw         # Electron packaging — slow, only when asked
 ```
 
-### Type-checks (CI runs all of them; run the ones for the area you changed)
+### Verify your change: `npm run check`
+
+`npm run check` is the default way to finish a task. It looks at changed + untracked files (`git diff HEAD`), runs only the
+type-check projects those files can break (in parallel), `eslint` on the changed files and `vitest related` for them,
+and prints only failures. Variants: `npm run check -- --base master` (everything since a branch), `--no-test`, `--no-lint`;
+`npm run check:all` = every type-check + full eslint (what CI does); `npm run typecheck` = every type-check only.
+Single projects: `npm run typecheck:ui|shared|api|app|electron|main|scripts|node`.
+
+### Type-checks by hand (CI runs all of them; the table shows what `check` picks per area)
 
 | Changed area            | Command                                   |
 | ----------------------- | ----------------------------------------- |
